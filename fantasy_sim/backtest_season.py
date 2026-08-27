@@ -508,9 +508,3 @@ def run_full_backtest(checkpoint_weeks=DEFAULT_CHECKPOINT_WEEKS, season_league_i
         print(f"Mean CRPS: {round(float(np.mean(all_crps)), 3)}")
         print(f"Median CRPS: {round(float(np.median(all_crps)), 3)}")
         print(f"{'=' * 70}")
-
-
-# ============================================================================
-# Unit tests -- the pure, hand-verifiable pieces. Network-dependent orchestration (everything
-# above that calls requests.get) can only be confirmed by an actual run.
-# ============================================================================

@@ -483,7 +483,3 @@ def sync_all(sharp_polling=False):
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
-
-# ==============================================================================
-# UNIT TEST SUITE
-# ==============================================================================

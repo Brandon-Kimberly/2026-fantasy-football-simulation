@@ -455,8 +455,3 @@ def run_full_player_level_backtest(season_league_id=bt.BACKTEST_SEASON_LEAGUE_ID
 
     return {'aleatoric': aleatoric_summary, 'correlations': corr_summary,
             'epistemic': epistemic_summary, 'epistemic_rate_suggestions': rate_suggestions}
-
-
-# ============================================================================
-# Unit tests
-# ============================================================================
