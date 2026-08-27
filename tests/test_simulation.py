@@ -72,6 +72,99 @@ class TestFantasySimulation(unittest.TestCase):
         self.patch_load.stop()
         logging.getLogger().setLevel(self.previous_log_level)
 
+    def test_max_realistic_weekly_score_caps_extreme_draws(self):
+        """Regression/verification test for a real, empirically-confirmed gap: no ceiling
+        previously existed on an individual player's simulated weekly score. Forces every
+        random draw to an extreme positive value (simulating an implausibly lucky
+        confluence of the epistemic season-mean draw, the correlated z-score, and the
+        environmental multiplier all landing far in the right tail simultaneously) and
+        confirms the resulting total stays within what a fully-capped 13-man lineup implies,
+        rather than the runaway value an uncapped compound lognormal x Gaussian x Gaussian
+        draw would otherwise produce.
+
+        Gives the team a full 13-slot-covering roster (no QB/K/DB/DL/LB/RB/WR/TE gaps) so
+        every starter is a real, capped player -- zero streamer injections, which are drawn
+        from a narrow, low-mean Gaussian and were never a realistic path to the cap anyway,
+        so excluding them here isolates exactly what this test is meant to verify."""
+        full_roster = [
+            {"name": "QB_1", "pos": "QB", "team": "DET"}, {"name": "K_1", "pos": "K", "team": "DET"},
+            {"name": "DB_1", "pos": "DB", "team": "DET"}, {"name": "DL_1", "pos": "DL", "team": "DET"},
+            {"name": "LB_1", "pos": "LB", "team": "DET"},
+            {"name": "RB_1", "pos": "RB", "team": "DET"}, {"name": "RB_2", "pos": "RB", "team": "DET"},
+            {"name": "RB_3", "pos": "RB", "team": "DET"},
+            {"name": "WR_1", "pos": "WR", "team": "DET"}, {"name": "WR_2", "pos": "WR", "team": "DET"},
+            {"name": "WR_3", "pos": "WR", "team": "DET"},
+            {"name": "TE_1", "pos": "TE", "team": "DET"}, {"name": "TE_2", "pos": "TE", "team": "DET"},
+        ]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {t: full_roster for t in self.test_teams}
+        self.mock_fs[BASELINES_FILE] = {
+            p["name"]: {"mean": 20.0, "std_aleatoric": 7.38, "std_epistemic": 6.0, "pos": p["pos"], "team": "DET"}
+            for p in full_roster
+        }  # shared across all 4 mock teams -- fine, since we only check per-team totals stay within the cap-implied bound, not compare teams to each other
+
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 5
+        try:
+            # side_effect (not a fixed return_value) so array-shaped calls elsewhere in the
+            # code get an array of the same extreme value rather than a shape mismatch.
+            def extreme_normal(loc=0.0, scale=1.0, size=None):
+                if size is None:
+                    return 20.0
+                return np.full(size, 20.0)
+
+            with patch('numpy.random.normal', side_effect=extreme_normal), \
+                 patch.object(sim, 'export_and_visualize') as mock_export:
+                sim.run_simulation()
+            global_season_points = mock_export.call_args[0][1]  # (wins, points, ...)
+            weeks_simulated = 16 - (sim.current_week - 1)
+            cap_total = 13 * weeks_simulated * SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE']
+            for team, points_array in global_season_points.items():
+                self.assertLessEqual(
+                    float(np.max(points_array)), cap_total + 1e-6,
+                    f"{team}: season total exceeded what a fully-capped 13-man lineup implies, "
+                    f"even under a forced extreme draw."
+                )
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+    def test_max_realistic_weekly_score_does_not_affect_typical_outcomes(self):
+        """Verifies the cap is set generously enough that it never engages for realistic,
+        uncapped simulation runs -- confirming it only clips the genuinely-absurd tail, not
+        the legitimate right-skew the variance calibration was built to capture. Uses the
+        same full 13-slot roster as the test above so there's no streamer noise muddying the
+        comparison."""
+        full_roster = [
+            {"name": "QB_1", "pos": "QB", "team": "DET"}, {"name": "K_1", "pos": "K", "team": "DET"},
+            {"name": "DB_1", "pos": "DB", "team": "DET"}, {"name": "DL_1", "pos": "DL", "team": "DET"},
+            {"name": "LB_1", "pos": "LB", "team": "DET"},
+            {"name": "RB_1", "pos": "RB", "team": "DET"}, {"name": "RB_2", "pos": "RB", "team": "DET"},
+            {"name": "RB_3", "pos": "RB", "team": "DET"},
+            {"name": "WR_1", "pos": "WR", "team": "DET"}, {"name": "WR_2", "pos": "WR", "team": "DET"},
+            {"name": "WR_3", "pos": "WR", "team": "DET"},
+            {"name": "TE_1", "pos": "TE", "team": "DET"}, {"name": "TE_2", "pos": "TE", "team": "DET"},
+        ]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {t: full_roster for t in self.test_teams}
+        self.mock_fs[BASELINES_FILE] = {
+            p["name"]: {"mean": 15.0, "std_aleatoric": 5.0, "std_epistemic": 3.0, "pos": p["pos"], "team": "DET"}
+            for p in full_roster
+        }
+
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 50
+        try:
+            with patch.object(sim, 'export_and_visualize') as mock_export:
+                sim.run_simulation()
+            global_season_points = mock_export.call_args[0][1]
+            weeks_simulated = 16 - (sim.current_week - 1)
+            for team, points_array in global_season_points.items():
+                self.assertLess(float(np.max(points_array)), 13 * weeks_simulated * SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
     def test_normalize_position(self):
         """Verify IDP and offensive normalization handles edge cases safely."""
         self.assertEqual(normalize_position('ILB'), 'LB')

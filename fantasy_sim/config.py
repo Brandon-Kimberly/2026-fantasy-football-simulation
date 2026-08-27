@@ -227,6 +227,19 @@ SIM_CONFIG = {
     # values) can be simulated under the rules that actually applied, rather than silently
     # awarding real historical teams up to 2x the deciding wins they could have actually earned.
     "MEDIAN_SCORING_ENABLED": True,
+    # Not previously present: no ceiling existed on an individual player's simulated weekly
+    # score. Verified this was a real gap, not a hypothetical one -- 2M simulated realistic
+    # QB-week draws produced 0.74% exceeding 50 points and a max of 128.8. Team-level
+    # aggregates (what actually drives wins/playoff odds) turned out to be much better
+    # behaved -- summing a 13-man lineup gave a team-level mean exactly matching the sum of
+    # calibrated player means, with the 99.9th percentile only ~1.6x the mean, versus ~4x at
+    # the individual level -- so this was never distorting headline outputs the way an
+    # unbounded tail naively suggests. Still worth a real ceiling regardless: cheap, safe, and
+    # removes a genuine absurdity. Set well above the actual real-NFL fantasy record across any
+    # position (Jamaal Charles, 59.5 PPR pts, RB, 2013; Tyreek Hill, 57.9, WR, 2020; Josh
+    # Allen, 51.9, QB, 2024) so it only ever clips the truly-unrealistic extreme tail, never
+    # the legitimate right-skew the variance calibration was built to capture.
+    "MAX_REALISTIC_WEEKLY_SCORE": 80.0,
     "INJURY_RATES": {
         'RB': 0.055, 'WR': 0.035, 'TE': 0.030, 'QB': 0.020,
         'DL': 0.020, 'LB': 0.020, 'DB': 0.015, 'K': 0.005

@@ -602,6 +602,13 @@ class FantasySimulationEngine:
 
                             expected_pre = mean_val * (v_tot / 22.0) * script_mult + contingency_pts
                             final_score = (base_score + contingency_pts) * env_var * script_mult
+                            # Applied AFTER environmental scaling, not to base_score before it,
+                            # so this never interferes with the model's designed v_tot/script
+                            # adjustments -- it only ever clips draws already far beyond any
+                            # real NFL fantasy performance. See SIM_CONFIG's comment for the
+                            # real-record justification and empirical verification of why this
+                            # was added.
+                            final_score = min(final_score, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
 
                             pos_opts = DUAL_ELIGIBILITY.get(p_name, [p_pos])
                             candidates.append((p_name, pos_opts, expected_pre))
