@@ -240,9 +240,32 @@ SIM_CONFIG = {
     # Allen, 51.9, QB, 2024) so it only ever clips the truly-unrealistic extreme tail, never
     # the legitimate right-skew the variance calibration was built to capture.
     "MAX_REALISTIC_WEEKLY_SCORE": 80.0,
+    # Recalibrated against real NFL injury data (previous values were unjustified guesses --
+    # see the conversation history for the initial critique that prompted this). Sourced from
+    # two "percent of players missing at least one game per season" studies, converted to an
+    # implied weekly onset rate via 1-(1-p)^(1/17): a more recent RB-specific study (2017-2024,
+    # footballguys.com, 73% of RBs miss >=1 game/season -> implies ~0.074/week) and an older,
+    # broader study (2002-2018, LinkedIn/Football-Reference-style methodology, ~50% of RBs and
+    # ~50% of WRs miss >=1 game/season -> implies ~0.040/week for each). These two RB estimates
+    # disagree meaningfully (0.074 vs 0.040) -- different eras, samples, and methodology, not a
+    # single precise ground truth -- so RB below is weighted toward the more recent estimate
+    # but pulled somewhat conservative rather than taken at face value.
+    #
+    # TE/QB/DL/LB/DB do NOT have the same directly-applicable position-specific modern data
+    # behind them; they're nudged upward from their prior (undercalibrated-looking) values
+    # toward a real "league-wide average" anchor (~0.028-0.041/week across two studies,
+    # ~0.041/week directly reported by ProFootballLogic's 2015 game-by-game analysis), while
+    # preserving their existing RELATIVE ordering, which has qualitative (not precisely
+    # quantified) support in the literature -- e.g. TE and DB show elevated injury/concussion
+    # exposure specifically. This is a real, acknowledged limitation: these five values are
+    # less rigorously sourced than RB/WR, and would benefit from dedicated position-specific
+    # research as a follow-up, not treated as equally well-verified.
+    #
+    # K is left unchanged -- no data found suggesting the existing very-low rate is wrong, and
+    # kicker durability relative to every other position is well-established and uncontroversial.
     "INJURY_RATES": {
-        'RB': 0.055, 'WR': 0.035, 'TE': 0.030, 'QB': 0.020,
-        'DL': 0.020, 'LB': 0.020, 'DB': 0.015, 'K': 0.005
+        'RB': 0.070, 'WR': 0.040, 'TE': 0.035, 'QB': 0.025,
+        'DL': 0.025, 'LB': 0.025, 'DB': 0.020, 'K': 0.005
     },
     "CORRELATIONS": {
         "QB_WR1": 0.4, "QB_WR2": 0.315, "QB_TE": 0.35, "QB_RB": 0, "WR_WR": -0.004

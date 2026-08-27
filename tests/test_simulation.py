@@ -129,6 +129,88 @@ class TestFantasySimulation(unittest.TestCase):
         finally:
             SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
 
+    def test_vacated_rb_volume_pass_ordering_is_correct(self):
+        """Regression test for a real order-dependence bug: whether a same-real-NFL-team
+        backup RB received the vacated-volume bonus THE SAME WEEK a starter got injured used
+        to depend on which fantasy team happened to be processed first that week
+        (self.team_names iteration order) -- purely an artifact of team listing order, not by
+        design.
+
+        Rather than an indirect statistical comparison of season totals (tried first; proved
+        too diluted by the other 13 weeks and 12 roster slots to reliably detect the effect
+        even at 2000 simulated trials), this verifies the fix STRUCTURALLY and directly:
+        np.random.exponential is called exclusively inside the injury-onset block (confirmed
+        by inspection -- nowhere else in the file), so recording the running
+        build_covariance_matrix call count at the moment each injury duration gets drawn
+        proves whether ALL of a week's injuries are determined before ANY team's scores are
+        computed. With the fix, every recorded count must be 0 (every injury this week is
+        known before the first covariance matrix -- and hence the first score -- is built for
+        anyone); the old single-pass code would show a nonzero count as soon as any
+        later-processed team's player got hurt after an earlier team had already been scored."""
+        full_roster = [
+            {"name": "RB_1", "pos": "RB", "team": "DET"}, {"name": "K_1", "pos": "K", "team": "DET"},
+            {"name": "DB_1", "pos": "DB", "team": "DET"}, {"name": "DL_1", "pos": "DL", "team": "DET"},
+            {"name": "LB_1", "pos": "LB", "team": "DET"}, {"name": "QB_1", "pos": "QB", "team": "DET"},
+            {"name": "WR_1", "pos": "WR", "team": "DET"}, {"name": "WR_2", "pos": "WR", "team": "DET"},
+            {"name": "WR_3", "pos": "WR", "team": "DET"}, {"name": "TE_1", "pos": "TE", "team": "DET"},
+            {"name": "TE_2", "pos": "TE", "team": "DET"}, {"name": "WR_4", "pos": "WR", "team": "DET"},
+            {"name": "WR_5", "pos": "WR", "team": "DET"},
+        ]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {t: full_roster for t in self.test_teams}
+        self.mock_fs[BASELINES_FILE] = {
+            p["name"]: {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": p["pos"], "team": "DET"}
+            for p in full_roster
+        }
+
+        sim = FantasySimulationEngine()
+        original_rates = dict(SIM_CONFIG['INJURY_RATES'])
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        # Guaranteed injury onset for every eligible RB, every week -- every team in this
+        # setup has exactly one RB, so every team will have exactly one injury event per week,
+        # giving real data points to check on every single team/week combination.
+        SIM_CONFIG['INJURY_RATES'] = {k: 0.0 for k in original_rates}
+        SIM_CONFIG['INJURY_RATES']['RB'] = 1.0
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 3
+        try:
+            covariance_call_count = [0]
+            real_build_covariance_matrix = sim.build_covariance_matrix
+
+            def counting_build_covariance_matrix(*args, **kwargs):
+                covariance_call_count[0] += 1
+                return real_build_covariance_matrix(*args, **kwargs)
+
+            recorded_counts_at_injury_time = []
+            real_exponential = np.random.exponential
+
+            def recording_exponential(*args, **kwargs):
+                recorded_counts_at_injury_time.append(covariance_call_count[0])
+                return real_exponential(*args, **kwargs)
+
+            with patch.object(sim, 'build_covariance_matrix', side_effect=counting_build_covariance_matrix), \
+                 patch('numpy.random.exponential', side_effect=recording_exponential), \
+                 patch.object(sim, 'export_and_visualize'):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['INJURY_RATES'] = original_rates
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        self.assertGreater(len(recorded_counts_at_injury_time), 0, "No injuries were recorded -- test setup issue.")
+        # covariance_call_count is cumulative across the WHOLE season (all weeks), not reset
+        # per week -- so "always exactly 0" is the wrong invariant past week 1. The correct
+        # invariant: every injury draw must happen at a clean WEEK BOUNDARY, i.e. the running
+        # count must be an exact multiple of the number of teams (all of a week's covariance
+        # matrices are either fully done from PRIOR weeks, or none of them have started yet
+        # for THIS week -- never partway through, which is what the old interleaved bug would
+        # show, e.g. an injury draw recorded partway through a week at count=1, 2, or 3).
+        num_teams = len(self.test_teams)
+        self.assertTrue(
+            all(c % num_teams == 0 for c in recorded_counts_at_injury_time),
+            f"Some injury duration draws happened partway through a week's scoring (not at a "
+            f"clean {num_teams}-team week boundary) -- pass ordering is broken. "
+            f"Counts observed at each injury draw: {recorded_counts_at_injury_time}"
+        )
+
     def test_max_realistic_weekly_score_does_not_affect_typical_outcomes(self):
         """Verifies the cap is set generously enough that it never engages for realistic,
         uncapped simulation runs -- confirming it only clips the genuinely-absurd tail, not

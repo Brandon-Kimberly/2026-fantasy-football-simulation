@@ -531,6 +531,35 @@ class FantasySimulationEngine:
                         won_streamers[t_name].append(available_streamers[i])
 
                     team_vacated_rb = {}
+                    # PASS 1: determine ALL injury onsets across the WHOLE league for this
+                    # week FIRST, before computing any scores. Fixes a real order-dependence
+                    # bug: previously, whether a same-real-team backup RB received the
+                    # vacated-volume bonus THE SAME WEEK a starter got hurt depended on which
+                    # fantasy team happened to be processed first that week, and which order
+                    # players appeared within a roster -- both arbitrary, neither by design.
+                    # Now every injury for the week is fully known (and team_vacated_rb fully
+                    # populated) before any score or contingency_pts lookup happens in PASS 2,
+                    # regardless of iteration order.
+                    newly_injured_this_week = set()
+                    for t_name in self.team_names:
+                        for p_name in sim_rosters[t_name]:
+                            p_info = self.baselines.get(p_name, {})
+                            if not isinstance(p_info, dict): p_info = {}
+                            p_meta = sim_meta.get(t_name, {}).get(p_name, {})
+                            if not isinstance(p_meta, dict): p_meta = {}
+                            p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))
+                            nfl_team = p_meta.get('team', p_info.get('team', 'FA'))
+
+                            if week_num == p_info.get('bye') or injury_clocks.get(p_name, 0) > 0: continue
+
+                            season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
+
+                            if np.random.rand() < SIM_CONFIG['INJURY_RATES'].get(p_pos, 0.025):
+                                weeks_missed = int(np.random.exponential(scale=2.5)) + 1
+                                injury_clocks[p_name] = min(16, weeks_missed)
+                                newly_injured_this_week.add(p_name)
+                                if p_pos == 'RB': team_vacated_rb[nfl_team] = season_mean * 0.65
+
                     for t_name in self.team_names:
                         p_list = sim_rosters[t_name]
                         L = self.build_covariance_matrix(p_list, sim_meta.get(t_name, {}))
@@ -549,15 +578,17 @@ class FantasySimulationEngine:
                             p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))
                             nfl_team = p_meta.get('team', p_info.get('team', 'FA'))
 
-                            if week_num == p_info.get('bye') or injury_clocks.get(p_name, 0) > 0: continue
+                            # A player already out from a PRIOR week's injury is still
+                            # excluded here; a player newly injured THIS week (determined in
+                            # PASS 1 above) is NOT excluded -- they still play a reduced role
+                            # the week they're hurt, exactly as before this restructuring.
+                            already_out_from_prior_week = injury_clocks.get(p_name, 0) > 0 and p_name not in newly_injured_this_week
+                            if week_num == p_info.get('bye') or already_out_from_prior_week: continue
 
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
                             std_aleatoric = p_info.get('std_aleatoric', 3.0)
 
-                            if np.random.rand() < SIM_CONFIG['INJURY_RATES'].get(p_pos, 0.025):
-                                weeks_missed = int(np.random.exponential(scale=2.5)) + 1
-                                injury_clocks[p_name] = min(16, weeks_missed)
-                                if p_pos == 'RB': team_vacated_rb[nfl_team] = season_mean * 0.65
+                            if p_name in newly_injured_this_week:
                                 mean_val = season_mean * 0.35
                                 std_val = std_aleatoric * 0.5
                             else:
