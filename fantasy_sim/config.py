@@ -267,6 +267,26 @@ SIM_CONFIG = {
         'RB': 0.070, 'WR': 0.040, 'TE': 0.035, 'QB': 0.025,
         'DL': 0.025, 'LB': 0.025, 'DB': 0.020, 'K': 0.005
     },
+    # Injury DURATION model (given an onset event, from INJURY_RATES, has occurred -- i.e.
+    # already conditioned on "this causes at least one missed game", matching how
+    # INJURY_RATES itself was calibrated against real "% of players missing >=1 game/season"
+    # data). Previously a single Exponential(scale=2.5), which is unimodal and memoryless --
+    # structurally incapable of representing the real, well-documented pattern of "most
+    # injuries are brief, but a distinct minority are genuinely season-altering". Real data:
+    # ProFootballLogic's 2015 game-by-game analysis found 64% of missed-time injuries result
+    # in <=2 games missed, but the OVERALL mean is 3.1 games -- "much higher than the median
+    # due to the skewed nature of the data" (their words), direct confirmation of the bimodal
+    # shape a single exponential can't produce. INJURY_SEVERE_PROBABILITY is anchored to two
+    # independent real sources that landed close together: the NFLPA's 2010 injury report
+    # (13% of injuries required an IR placement) and a 2016-2021 NFL neck-injury study (7.8%
+    # season-ending + 4.5% career-ending = 12.3% of neck injuries). INJURY_TYPICAL_DURATION_SCALE
+    # and INJURY_SEVERE_DURATION_SCALE were then numerically solved (see the conversation
+    # history for the exact solve) so the resulting two-component mixture reproduces both real
+    # target moments above (64% <=2 games, 3.1-game overall mean) as closely as possible given
+    # the anchored severe-injury probability.
+    "INJURY_SEVERE_PROBABILITY": 0.125,
+    "INJURY_TYPICAL_DURATION_SCALE": 1.66,
+    "INJURY_SEVERE_DURATION_SCALE": 12.3,
     "CORRELATIONS": {
         "QB_WR1": 0.4, "QB_WR2": 0.315, "QB_TE": 0.35, "QB_RB": 0, "WR_WR": -0.004
     },

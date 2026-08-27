@@ -611,6 +611,80 @@ class TestFantasySimulation(unittest.TestCase):
         self.assertEqual(env2['opponent'], 'FA')
         self.assertAlmostEqual(env2['total'], 21.5)
 
+    def test_injury_duration_mixture_uses_both_components_in_roughly_the_right_proportion(self):
+        """Verifies the two-component duration mixture is actually wired correctly: forces
+        guaranteed injury onset (rate=1.0) for a roster of many RBs, records which scale
+        parameter (severe vs typical) np.random.exponential is actually called with for each
+        real injury event, and confirms both branches fire, in roughly the real-data-anchored
+        12.5% severe / 87.5% typical proportion -- not just that one branch works while the
+        other is silently dead code."""
+        full_roster = [{"name": f"RB_{i}", "pos": "RB", "team": "DET"} for i in range(13)]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {t: full_roster for t in self.test_teams}
+        self.mock_fs[BASELINES_FILE] = {
+            p["name"]: {"mean": 10.0, "std_aleatoric": 3.0, "std_epistemic": 2.0, "pos": "RB", "team": "DET"}
+            for p in full_roster
+        }
+
+        sim = FantasySimulationEngine()
+        original_rates = dict(SIM_CONFIG['INJURY_RATES'])
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['INJURY_RATES'] = {k: 1.0 for k in original_rates}  # guaranteed onset every eligible player, every week
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 10
+        try:
+            recorded_scales = []
+            real_exponential = np.random.exponential
+
+            def recording_exponential(scale=1.0, *args, **kwargs):
+                recorded_scales.append(scale)
+                return real_exponential(scale, *args, **kwargs)
+
+            with patch('numpy.random.exponential', side_effect=recording_exponential), \
+                 patch.object(sim, 'export_and_visualize'):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['INJURY_RATES'] = original_rates
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        severe_scale = SIM_CONFIG['INJURY_SEVERE_DURATION_SCALE']
+        typical_scale = SIM_CONFIG['INJURY_TYPICAL_DURATION_SCALE']
+        n_severe = sum(1 for s in recorded_scales if s == severe_scale)
+        n_typical = sum(1 for s in recorded_scales if s == typical_scale)
+
+        self.assertGreater(len(recorded_scales), 100, "Not enough injury events recorded for a meaningful check.")
+        self.assertEqual(n_severe + n_typical, len(recorded_scales), "Some call used neither configured scale.")
+        self.assertGreater(n_severe, 0, "Severe component never fired -- may be dead code.")
+        self.assertGreater(n_typical, 0, "Typical component never fired -- may be dead code.")
+        observed_severe_fraction = n_severe / len(recorded_scales)
+        self.assertLess(
+            abs(observed_severe_fraction - SIM_CONFIG['INJURY_SEVERE_PROBABILITY']), 0.05,
+            f"Observed severe-component fraction ({observed_severe_fraction:.3f}) is far from "
+            f"the configured INJURY_SEVERE_PROBABILITY ({SIM_CONFIG['INJURY_SEVERE_PROBABILITY']})."
+        )
+
+    def test_injury_duration_mixture_matches_real_target_moments(self):
+        """Hand-verifiable sanity check on the CHOSEN PARAMETERS themselves (independent of
+        how the simulation engine wires them in, which the test above covers): a direct Monte
+        Carlo replica of the exact mixture formula used in production should reproduce the two
+        real-data target moments it was solved against -- ProFootballLogic's 2015 analysis
+        found 64% of missed-time NFL injuries result in <=2 games missed, with an overall mean
+        of 3.1 games missed."""
+        rng = np.random.default_rng(42)
+        n = 500_000
+        is_severe = rng.random(n) < SIM_CONFIG['INJURY_SEVERE_PROBABILITY']
+        durations = np.where(
+            is_severe,
+            np.floor(rng.exponential(SIM_CONFIG['INJURY_SEVERE_DURATION_SCALE'], n)) + 1,
+            np.floor(rng.exponential(SIM_CONFIG['INJURY_TYPICAL_DURATION_SCALE'], n)) + 1,
+        )
+        durations = np.minimum(durations, 16)
+
+        p_le_2 = float((durations <= 2).mean())
+        mean_duration = float(durations.mean())
+
+        self.assertAlmostEqual(p_le_2, 0.64, delta=0.02)
+        self.assertAlmostEqual(mean_duration, 3.1, delta=0.15)
+
     def test_median_scoring_flag_roughly_halves_awarded_wins(self):
         """Verifies MEDIAN_SCORING_ENABLED=False genuinely changes win-awarding behavior, not
         just accepted silently -- with it off, only h2h decisions are awarded (roughly half

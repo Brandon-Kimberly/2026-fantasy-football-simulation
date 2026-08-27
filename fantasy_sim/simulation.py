@@ -555,7 +555,17 @@ class FantasySimulationEngine:
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
 
                             if np.random.rand() < SIM_CONFIG['INJURY_RATES'].get(p_pos, 0.025):
-                                weeks_missed = int(np.random.exponential(scale=2.5)) + 1
+                                # Two-component duration mixture (see SIM_CONFIG's
+                                # INJURY_SEVERE_PROBABILITY comment for the real-data sourcing
+                                # and moment-matching solve behind these three parameters) --
+                                # replaces a single Exponential(scale=2.5) that was
+                                # structurally incapable of reproducing the real, well-
+                                # documented bimodal pattern of "most injuries are brief, a
+                                # distinct minority are season-altering".
+                                if np.random.rand() < SIM_CONFIG['INJURY_SEVERE_PROBABILITY']:
+                                    weeks_missed = int(np.random.exponential(scale=SIM_CONFIG['INJURY_SEVERE_DURATION_SCALE'])) + 1
+                                else:
+                                    weeks_missed = int(np.random.exponential(scale=SIM_CONFIG['INJURY_TYPICAL_DURATION_SCALE'])) + 1
                                 injury_clocks[p_name] = min(16, weeks_missed)
                                 newly_injured_this_week.add(p_name)
                                 if p_pos == 'RB': team_vacated_rb[nfl_team] = season_mean * 0.65
