@@ -96,8 +96,7 @@ to actually fail when the bug it guards against was deliberately reintroduced).
   variance is drawn *once* per simulated season and held fixed, correctly propagating
   parameter uncertainty to season-level outcomes instead of averaging it away.
 - **Empirical, not hand-typed, defensive ratings**: derived from real completed-game scores
-  with empirical-Bayes shrinkage toward a preseason prior, replacing an earlier version that
-  computed "defense" as a pure algebraic mirror of a team's own offense.
+  with empirical-Bayes shrinkage toward a preseason prior.
 - **Real backtesting infrastructure**: the season-level backtest writes reconstructed
   historical inputs to an isolated working directory and runs the actual, unmodified
   simulation engine against them -- not a parallel reimplementation that could silently drift
