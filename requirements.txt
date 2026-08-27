@@ -1,0 +1,7 @@
+requests
+numpy
+pandas
+scipy
+matplotlib
+seaborn
+espn_api

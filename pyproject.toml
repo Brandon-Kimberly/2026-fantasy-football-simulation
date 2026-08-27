@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fantasy-sim"
+version = "1.0.0"
+description = "Monte Carlo fantasy football simulation, calibration, and backtesting for an 8-team IDP Sleeper league."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "requests",
+    "numpy",
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "seaborn",
+    "espn_api",
+]
+
+[tool.setuptools]
+packages = ["fantasy_sim", "fantasy_sim.clients"]
