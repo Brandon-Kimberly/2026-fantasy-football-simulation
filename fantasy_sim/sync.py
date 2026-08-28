@@ -8,6 +8,7 @@ forward" half.
 
 Run via `python -m fantasy_sim.sync` (see scripts/run_sync.py) or import sync_all() directly.
 """
+import logging
 import math
 import os
 from datetime import datetime
@@ -158,22 +159,63 @@ def generate_nfl_power_ratings(live_totals):
     """
     ratings = {}
     for team, data in live_totals.items():
-        if team == "FA": continue
+        if team == "FA" or team == VEGAS_META_KEY or not isinstance(data, dict): continue
         tot = data.get("total", 21.5)
         spr = data.get("spread", 0.0)
         off_rating = tot + (spr * -0.5)
         ratings[team] = {"off_rating": round(float(off_rating), 2)}
     save_json(TEAM_RATINGS_FILE, ratings)
 
+VEGAS_META_KEY = "_meta"
+
+
+def _stamp_vegas(totals, week, source):
+    """Returns a copy of a Vegas totals dict carrying a `_meta` record: the NFL week the lines
+    are FOR, where they came from, and when. The engine reads `_meta.week` to refuse lines
+    that were not produced for the week it is simulating (see
+    FantasySimulationEngine._check_vegas_staleness). Consumers that iterate the dict must skip
+    this key; the engine only ever does `.get(team)`."""
+    stamped = dict(totals)
+    stamped[VEGAS_META_KEY] = {
+        "week": int(week),
+        "source": source,
+        "fetched_at": datetime.now().isoformat(timespec="seconds"),
+    }
+    return stamped
+
+
+def _write_vegas(totals, week, source):
+    """Every path out of fetch_vegas_implied_totals goes through here, so the file on disk is
+    ALWAYS the data the engine will be handed for this week -- never a leftover from an earlier
+    sync. Two of the three in-season fallback paths used to return without writing, which left
+    the week-1 table on disk for the rest of the season; the engine then applied week-1 lines,
+    week-1 opponents included, to every current week. See AUDIT_PHASE_3_FINDINGS.md finding 1."""
+    stamped = _stamp_vegas(totals, week, source)
+    save_json(VEGAS_FILE, stamped)
+    generate_nfl_power_ratings(stamped)
+    return stamped
+
+
 def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
+    """Market-implied team totals for `current_nfl_week`, stamped with the week they are for.
+
+    THE FIX FOR CORRECT IN-SEASON OPPONENTS IS ODDS_API_KEY. Without it there is no market
+    data after the preseason gate, and every team gets the flat 21.5 / no-opponent fallback:
+    no matchup information, no defensive-tier adjustments, and a normaliser built from a flat
+    schedule. The write-and-stamp discipline below makes that state VISIBLE (loud here, refused
+    by the engine); it does not make it correct. See config.ODDS_API_KEY."""
     if datetime.now() < datetime(2026, 9, 9):
-        save_json(VEGAS_FILE, WEEK_1_VERIFIED_VEGAS)
-        generate_nfl_power_ratings(WEEK_1_VERIFIED_VEGAS)
-        return WEEK_1_VERIFIED_VEGAS
+        # UNVERIFIED: 2026-09-09 is assumed to be the regular-season kickoff. If the real
+        # kickoff is earlier, week-1 games would run on the verified table (fine); if later,
+        # the API is polled during the preseason (harmless, returns no games -> loud fallback).
+        return _write_vegas(WEEK_1_VERIFIED_VEGAS, current_nfl_week, "week1_verified_table")
 
     if not ODDS_API_KEY:
-        generate_nfl_power_ratings(DEFAULT_FALLBACK_TOTALS)
-        return DEFAULT_FALLBACK_TOTALS
+        logging.warning(
+            "VEGAS FALLBACK (week %d): ODDS_API_KEY is not set. Every team gets a flat 21.5 "
+            "total with no opponent; matchup and defensive-tier effects are OFF. Set ODDS_API_KEY "
+            "(see config.py) for real lines.", current_nfl_week)
+        return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_no_api_key")
 
     url = f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey={ODDS_API_KEY}&regions=us&markets=spreads,totals&bookmakers=draftkings"
     try:
@@ -181,8 +223,17 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
         response.raise_for_status()
         games = response.json()
     except Exception as e:
-        generate_nfl_power_ratings(DEFAULT_FALLBACK_TOTALS)
-        return DEFAULT_FALLBACK_TOTALS
+        logging.warning(
+            "VEGAS FALLBACK (week %d): odds API request failed (%s: %s). Every team gets a flat "
+            "21.5 total with no opponent for this run.", current_nfl_week, type(e).__name__, e)
+        return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_api_error")
+
+    if not games:
+        logging.warning(
+            "VEGAS FALLBACK (week %d): odds API returned no games (market not posted, or wrong "
+            "window). Every team gets a flat 21.5 total with no opponent for this run.",
+            current_nfl_week)
+        return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_empty_payload")
 
     implied_totals = {"FA": {"total": 20.0, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}}
     for game in games:
@@ -226,12 +277,17 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
         implied_totals[home_team] = {"total": round((over_under / 2.0) - (home_spread / 2.0), 2), "spread": home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": away_team}
         implied_totals[away_team] = {"total": round((over_under / 2.0) + (home_spread / 2.0), 2), "spread": -home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": home_team}
 
-    for team in NFL_TEAM_ABBREVIATIONS.values():
-        if team not in implied_totals: implied_totals[team] = {"total": 21.5, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}
+    unfilled = [team for team in NFL_TEAM_ABBREVIATIONS.values() if team not in implied_totals]
+    for team in unfilled:
+        implied_totals[team] = {"total": 21.5, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}
+    if unfilled:
+        # A bye week legitimately leaves a few teams without a game; more than that means the
+        # market payload was partial (missing bookmaker / market / unrecognised team name).
+        logging.warning(
+            "VEGAS (week %d): %d teams had no usable line and got the flat 21.5 / no-opponent "
+            "fallback: %s", current_nfl_week, len(unfilled), ", ".join(sorted(unfilled)))
 
-    save_json(VEGAS_FILE, implied_totals)
-    generate_nfl_power_ratings(implied_totals)
-    return implied_totals
+    return _write_vegas(implied_totals, current_nfl_week, "odds_api")
 
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1):
     existing_baselines = {}

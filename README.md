@@ -66,7 +66,7 @@ Two credentials are read from environment variables, never hardcoded:
 
 | Variable | Required for |
 |---|---|
-| `ODDS_API_KEY` | Live Vegas odds polling after Week 1 (falls back to a verified static Week 1 dataset otherwise) |
+| `ODDS_API_KEY` | **Required for any correct in-season forecast.** Before 2026-09-09 the engine runs on a verified static Week 1 dataset; after that date this key is the only source of real lines. Without it every team gets a flat 21.5 total with no opponent — the sync warns and the engine refuses stale lines loudly, but the result is a matchup-blind forecast, not a correct one. Free tier at the-odds-api.com |
 | `ESPN_S2`, `ESPN_SWID` | Only if the dedicated ESPN league (see `fantasy_sim/config.py`) is made private |
 
 ## Usage

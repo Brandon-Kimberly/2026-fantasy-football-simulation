@@ -91,6 +91,8 @@ class FantasySimulationEngine:
         self.defensive_tiers = load_json(DEFENSIVE_TIERS_FILE)
         self.league_schedule = load_json(LEAGUE_SCHEDULE_FILE)
         self.nfl_schedule = load_json(NFL_SCHEDULE_FILE)
+        # Teams whose current-week Vegas line must not be used (see _check_vegas_staleness).
+        self.stale_vegas_teams = self._check_vegas_staleness()
 
         self.team_names = list(self.rosters_raw.keys())
         self.rosters = {t: [p['name'] for p in data] for t, data in self.rosters_raw.items()}
@@ -508,12 +510,60 @@ class FantasySimulationEngine:
         game_spread = round(opp_implied - implied_tot, 2)
         return {'total': implied_tot, 'spread': game_spread, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': opp}
 
+    def _check_vegas_staleness(self):
+        """Decides, per team, whether the Vegas file on disk may be applied to the current
+        week, and says so loudly when it may not.
+
+        Two independent signals, either of which condemns a line:
+          1. `_meta.week` (stamped by sync since Phase 3) is not the current week.
+          2. The line's `opponent` disagrees with nfl_schedule.json for the current week --
+             this catches an unstamped legacy file too, since week-1 lines carry week-1
+             opponents.
+        A condemned team's current-week environment falls back to the ratings model
+        (_compute_future_week_matchup_environment), exactly as any future week does. The stale
+        line is refused, not the run.
+
+        Why this exists: the in-season sync fallbacks used to return without writing the Vegas
+        file, so the week-1 preseason table stayed on disk and was applied to every current
+        week, week-1 opponents included. The committed week06 fixture reproduces that state:
+        28 of 28 scheduled teams carried the wrong opponent. AUDIT_PHASE_3_FINDINGS.md, finding 1."""
+        meta = self.vegas.get('_meta') if isinstance(self.vegas, dict) else None
+        stamped_week = meta.get('week') if isinstance(meta, dict) else None
+        schedule = self.nfl_schedule.get(str(self.current_week), {})
+        stale = set()
+        for team, line in self.vegas.items():
+            if team in ('FA', '_meta') or not isinstance(line, dict):
+                continue
+            scheduled_opp = schedule.get(team)
+            wrong_week = stamped_week is not None and stamped_week != self.current_week
+            wrong_opp = scheduled_opp is not None and line.get('opponent', 'FA') != scheduled_opp
+            if wrong_week or wrong_opp:
+                stale.add(team)
+        if stamped_week is None:
+            logging.warning(
+                "VEGAS: vegas_totals.json carries no _meta week stamp (written by a sync older "
+                "than Phase 3); staleness can only be judged by opponent against the schedule.")
+        if stale:
+            logging.error(
+                "VEGAS STALE: %d of %d lines in vegas_totals.json are not for week %d "
+                "(stamped week: %s). Those teams use the ratings-model environment instead of "
+                "the stale line. Re-run the sync with ODDS_API_KEY set for real week-%d lines. "
+                "Teams: %s", len(stale), sum(1 for t in self.vegas if t not in ('FA', '_meta')),
+                self.current_week, stamped_week, self.current_week, ", ".join(sorted(stale)))
+        elif meta and meta.get('source', '').startswith('fallback'):
+            logging.warning(
+                "VEGAS: this week's file is a sync fallback (%s): flat 21.5 totals, no opponents. "
+                "Matchup and defensive-tier effects are OFF. Set ODDS_API_KEY for real lines.",
+                meta.get('source'))
+        return stale
+
     def _compute_week_environment(self, week_num, nfl_team):
         """The scoring environment one real NFL team faces in one week: Vegas for the current
-        week, the two-sided ratings model for every later week. Extracted from run_simulation
-        so the environment normaliser below can be built from exactly the values the weekly
-        loop will use -- one code path, not a mirror of it."""
-        if week_num == self.current_week:
+        week (unless that team's line was condemned as stale -- see _check_vegas_staleness),
+        the two-sided ratings model for every later week. Extracted from run_simulation so the
+        environment normaliser below can be built from exactly the values the weekly loop will
+        use -- one code path, not a mirror of it."""
+        if week_num == self.current_week and nfl_team not in self.stale_vegas_teams:
             return self.vegas.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
         opp = self.nfl_schedule.get(str(week_num), {}).get(nfl_team, 'FA')
         return self._compute_future_week_matchup_environment(nfl_team, opp)

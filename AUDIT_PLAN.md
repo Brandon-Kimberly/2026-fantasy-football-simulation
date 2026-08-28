@@ -218,7 +218,7 @@ classified. ESPN match rate measured live at 97% (rostered) / 99% (all eligible)
 
 Nine findings, plus the bounded `n_0` decision kept separate:
 
-1. HIGH, latent (activates 2026-09-09; no `ODDS_API_KEY` set). In-season Vegas fallbacks return
+1. HIGH, FIXED (write on every path + `_meta` week stamp + engine refuses stale lines loudly; `ODDS_API_KEY` documented as the real fix). In-season Vegas fallbacks returned
    the flat table but never write `vegas_totals.json`, so the engine applies the week-1 table to
    the current week all season. No week stamp, no warning; detectable via `nfl_schedule` but not
    detected.

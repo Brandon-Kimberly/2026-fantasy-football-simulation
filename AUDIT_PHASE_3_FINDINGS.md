@@ -79,7 +79,7 @@ Every `except`, `.get(default)`, `continue` and `or` fallback in the ingestion p
 
 ## Findings
 
-### 1. In-season Vegas fallbacks leave a stale week-1 file on disk — and nothing can tell
+### 1. In-season Vegas fallbacks leave a stale week-1 file on disk — and nothing can tell — **FIXED**
 
 `fetch_vegas_implied_totals` has three in-season fallback paths. Two of them (no key; API
 error) **return** `DEFAULT_FALLBACK_TOTALS` but **do not write `vegas_totals.json`**, while they
@@ -94,6 +94,32 @@ with a week, so no consumer can detect it — although the information to detect
 
 `ODDS_API_KEY` is **not set** in this environment. On the first sync after 2026-09-09, path V2
 fires. **Severity: high, latent.** Activates in 12 days.
+
+**Fixed (write path + staleness signal). `ODDS_API_KEY` remains the actual fix for correct
+opponents.** Three parts:
+
+- *sync:* every path out of `fetch_vegas_implied_totals` now goes through `_write_vegas`, which
+  writes `vegas_totals.json` and stamps it with `_meta = {week, source, fetched_at}`. The four
+  fallback paths (no key, API error, empty payload, partial payload) each log a WARNING that
+  names `ODDS_API_KEY`. `generate_nfl_power_ratings` skips the stamp.
+- *engine:* `_check_vegas_staleness` runs at construction. A team's line is condemned if the
+  stamp's week is not the current week **or** its opponent disagrees with `nfl_schedule.json`
+  for the current week — the second signal catches unstamped legacy files. Condemned lines are
+  refused (that team gets the ratings-model environment for its real opponent) and an ERROR is
+  logged naming the teams and the key. The run proceeds; the stale data does not.
+- *documentation:* `config.py` and the README now say plainly that the key is required for any
+  correct in-season forecast, and that the loudness makes the keyless state *visible*, not
+  *correct*. The README's old text ("falls back to a verified Week 1 dataset otherwise") was
+  itself wrong — after 9/9 the fallback is flat 21.5.
+
+Verified through the engine: the committed **week06 fixture had been reproducing this bug** —
+28 of 28 scheduled teams carried week-1 opponents. With the fix, all 28 are condemned and week 6
+runs on the ratings model; week01's file is genuinely for week 1 and is untouched. Golden
+movement: week01 unchanged in all three stages; week06 moved (one cause). Known residual: when a
+fallback-stamped file (all opponents `FA`) meets a populated schedule, every line is condemned by
+the opponent check and the ERROR path fires rather than the softer "fallback" WARNING; the
+message still names the key, and the behaviour (ratings model for real opponents) is the better
+of the two.
 
 ### 2. One failed schedule week silently flattens that week and undercounts the defensive sample
 
@@ -250,7 +276,7 @@ half). They should be two commits.
 
 | # | Finding | Severity | Blast radius | Latent? |
 |---|---|---|---|---|
-| 1 | In-season Vegas fallbacks leave a stale week-1 file; no stamp, no warning | High | current-week environment for every player, all season | activates 2026-09-09 (no key set) |
+| 1 | In-season Vegas fallbacks leave a stale week-1 file; no stamp, no warning — **fixed** (write + stamp + engine refusal; `ODDS_API_KEY` still the real fix) | High | current-week environment for every player, all season | was 12 days out |
 | 2 | Failed schedule week → flat week + defensive undercount, silently | Medium | that week + defensive ratings | on first fetch failure |
 | 2b | Failed league-schedule week shifts every later week's matchups | High | standings, H2H, playoffs | on first 404/empty |
 | 3 | Constants looked up by raw position → anonymous defaults | Medium | 5 rostered DEs now; any CB/S/FB/DT | live now |

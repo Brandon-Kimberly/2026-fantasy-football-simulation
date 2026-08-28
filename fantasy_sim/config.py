@@ -33,6 +33,13 @@ TEAM_NAME_MAP = {
 # ==============================================================================
 # SECURITY -- credentials loaded from environment variables, never hardcoded
 # ==============================================================================
+# REQUIRED for correct in-season forecasts. Before the 2026-09-09 gate in
+# sync.fetch_vegas_implied_totals the engine runs on WEEK_1_VERIFIED_VEGAS; after it, this key
+# is the ONLY source of real lines. Without it every team gets a flat 21.5 total with no
+# opponent: matchup effects, defensive-tier adjustments and the environment normaliser all
+# degrade to a flat schedule. That state is now loud (sync warns, the engine refuses stale
+# lines and says so -- see AUDIT_PHASE_3_FINDINGS.md finding 1) but it is not correct; the
+# key is the fix. Free tier at https://the-odds-api.com covers one sync per week comfortably.
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 
 # Dedicated, real ESPN Fantasy Football league (created specifically for this integration, with

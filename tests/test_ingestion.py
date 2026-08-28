@@ -47,6 +47,27 @@ class _InSeason(datetime):
         return datetime(2026, 10, 1)
 
 
+class _no_logs(object):
+    """assertNoLogs for Python < 3.10: fails the test if any WARNING+ record is emitted."""
+
+    def __init__(self, case):
+        self.case = case
+        self.records = []
+        self.handler = logging.Handler()
+        self.handler.setLevel(logging.WARNING)
+        self.handler.emit = self.records.append
+
+    def __enter__(self):
+        logging.getLogger().addHandler(self.handler)
+        return self
+
+    def __exit__(self, *exc):
+        logging.getLogger().removeHandler(self.handler)
+        if exc[0] is None and self.records:
+            self.case.fail("unexpected log records: %s" % [r.getMessage() for r in self.records])
+        return False
+
+
 def _capture_saves():
     saved = {}
 
@@ -78,39 +99,50 @@ class TestVegasFallbacks(unittest.TestCase):
              patch.object(sync, "ODDS_API_KEY", "key"), \
              patch.object(sync.requests, "get", side_effect=AssertionError("API must not be called")):
             out = sync.fetch_vegas_implied_totals(1)
-        self.assertIs(out, WEEK_1_VERIFIED_VEGAS)
-        self.assertIn(os.path.basename(VEGAS_FILE), saved)
+        for team, line in WEEK_1_VERIFIED_VEGAS.items():
+            self.assertEqual(out[team], line)
+        written = saved[os.path.basename(VEGAS_FILE)]
+        self.assertEqual(written["_meta"]["week"], 1)
+        self.assertEqual(written["_meta"]["source"], "week1_verified_table")
 
     def test_in_season_without_api_key_writes_the_fallback_it_returns(self):
-        """FAILS -- finding 1. Returns DEFAULT_FALLBACK_TOTALS and rewrites the power ratings
-        from it, but never writes vegas_totals.json. The engine then reads whatever was last
-        written -- the week-1 preseason table -- as the CURRENT week's environment, with
-        week-1 opponents, for the rest of the season, while future weeks use the flat 21.5."""
+        """Regression guard for Phase 3 finding 1. This path used to return
+        DEFAULT_FALLBACK_TOTALS and rewrite the power ratings from it, but never write
+        vegas_totals.json. The engine then read whatever was last written -- the week-1
+        preseason table -- as the CURRENT week's environment, with week-1 opponents, for the
+        rest of the season. Every path now writes, and stamps the file with the week it is
+        for and where it came from."""
         saved, fake_save = _capture_saves()
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync, "datetime", _InSeason), \
-             patch.object(sync, "ODDS_API_KEY", ""):
+             patch.object(sync, "ODDS_API_KEY", ""), \
+             self.assertLogs(level="WARNING"):
             out = sync.fetch_vegas_implied_totals(5)
-        self.assertIs(out, DEFAULT_FALLBACK_TOTALS)
         self.assertIn(os.path.basename(TEAM_RATINGS_FILE), saved)
-        self.assertIn(os.path.basename(VEGAS_FILE), saved,
-                      "fallback returned but vegas_totals.json left stale on disk")
+        written = saved[os.path.basename(VEGAS_FILE)]
+        self.assertEqual(written["_meta"]["week"], 5)
+        self.assertEqual(written["_meta"]["source"], "fallback_no_api_key")
+        self.assertEqual(out["DET"], DEFAULT_FALLBACK_TOTALS["DET"])
+        # the stamp must not leak into the power ratings as a 33rd "team"
+        self.assertNotIn("_meta", saved[os.path.basename(TEAM_RATINGS_FILE)])
 
     def test_in_season_api_failure_writes_the_fallback_it_returns(self):
-        """FAILS -- finding 1, same mechanism on the API-error path."""
+        """Regression guard for Phase 3 finding 1, API-error path."""
         saved, fake_save = _capture_saves()
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync, "datetime", _InSeason), \
              patch.object(sync, "ODDS_API_KEY", "key"), \
-             patch.object(sync.requests, "get", side_effect=Exception("down")):
-            out = sync.fetch_vegas_implied_totals(5)
-        self.assertIs(out, DEFAULT_FALLBACK_TOTALS)
-        self.assertIn(os.path.basename(VEGAS_FILE), saved)
+             patch.object(sync.requests, "get", side_effect=Exception("down")), \
+             self.assertLogs(level="WARNING"):
+            sync.fetch_vegas_implied_totals(5)
+        written = saved[os.path.basename(VEGAS_FILE)]
+        self.assertEqual(written["_meta"]["source"], "fallback_api_error")
+        self.assertEqual(written["_meta"]["week"], 5)
 
     def test_in_season_fallbacks_are_loud(self):
-        """FAILS -- finding 1. A season run with no market data is a materially different
-        forecast (flat 21.5 for every team, opponent 'FA' everywhere, no defensive tiers
-        applied). It must be announced, not returned silently."""
+        """Regression guard for Phase 3 finding 1. A season run with no market data is a
+        materially different forecast (flat 21.5 for every team, opponent 'FA' everywhere, no
+        defensive tiers applied). It is announced, and the announcement names the fix."""
         saved, fake_save = _capture_saves()
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync, "datetime", _InSeason), \
@@ -119,9 +151,10 @@ class TestVegasFallbacks(unittest.TestCase):
             sync.fetch_vegas_implied_totals(5)
 
     def test_empty_api_response_does_not_silently_write_a_flat_environment(self):
-        """FAILS -- finding 1. An empty odds payload (e.g. wrong week, market not yet posted)
-        writes a file in which every team is 21.5 / opponent 'FA' -- indistinguishable from
-        real data to every consumer -- with no warning."""
+        """Regression guard for Phase 3 finding 1. An empty odds payload (wrong window, market
+        not yet posted) used to write a file in which every team is 21.5 / opponent 'FA' --
+        indistinguishable from real data to every consumer -- with no warning. It now warns
+        and stamps the file as a fallback so the engine can tell."""
         saved, fake_save = _capture_saves()
         r = MagicMock()
         r.json.return_value = []
@@ -155,17 +188,50 @@ class TestVegasStalenessIsDetectable(unittest.TestCase):
             return FantasySimulationEngine()
 
     def test_current_week_environment_uses_the_scheduled_opponent_not_a_stale_vegas_file(self):
-        """FAILS -- finding 1 (consequence). Week-1 Vegas file (DET vs CHI) still on disk at
-        week 5, where the schedule says DET plays GB. The engine hands DET a week-1 line
-        against the wrong opponent and nothing flags it."""
+        """Regression guard for Phase 3 finding 1 (engine side). An UNSTAMPED week-1 Vegas
+        file (DET vs CHI) still on disk at week 5, where the schedule says DET plays GB. The
+        engine used to hand DET a week-1 line against the wrong opponent and nothing flagged
+        it. It now condemns the line by the opponent mismatch alone -- no stamp needed -- logs
+        at ERROR, and gives DET the ratings-model environment for the real opponent."""
         vegas = {"DET": {"total": 28.25, "spread": -7.0, "opponent": "CHI", "wind_mph": 0.0, "precip_prob": 0.0},
                  "CHI": {"total": 21.25, "spread": 7.0, "opponent": "DET", "wind_mph": 0.0, "precip_prob": 0.0}}
         schedule = {"5": {"DET": "GB", "GB": "DET", "CHI": "MIN", "MIN": "CHI"}}
-        engine = self._engine(5, vegas, schedule)
+        with self.assertLogs(level="ERROR") as logs:
+            engine = self._engine(5, vegas, schedule)
+        self.assertEqual(engine.stale_vegas_teams, {"DET", "CHI"})
+        self.assertTrue(any("VEGAS STALE" in m for m in logs.output))
         env = engine._compute_week_environment(5, "DET")
         self.assertEqual(env["opponent"], "GB",
                          "engine used opponent %r from a Vegas file that was not produced for "
                          "week 5; staleness is undetected" % env["opponent"])
+
+    def test_stamped_wrong_week_is_condemned_even_when_opponents_happen_to_match(self):
+        """The _meta stamp is the primary signal: a file stamped for week 4 is refused at
+        week 5 even if the pairing coincidentally repeats."""
+        vegas = {"_meta": {"week": 4, "source": "odds_api", "fetched_at": "x"},
+                 "DET": {"total": 24.0, "spread": -3.0, "opponent": "GB", "wind_mph": 0.0, "precip_prob": 0.0}}
+        schedule = {"5": {"DET": "GB", "GB": "DET"}}
+        with self.assertLogs(level="ERROR"):
+            engine = self._engine(5, vegas, schedule)
+        self.assertEqual(engine.stale_vegas_teams, {"DET"})
+
+    def test_fresh_stamped_file_is_used_silently(self):
+        vegas = {"_meta": {"week": 5, "source": "odds_api", "fetched_at": "x"},
+                 "DET": {"total": 24.0, "spread": -3.0, "opponent": "GB", "wind_mph": 0.0, "precip_prob": 0.0}}
+        schedule = {"5": {"DET": "GB", "GB": "DET"}}
+        logging.getLogger().addHandler(logging.NullHandler())
+        with self.assertNoLogs(level="WARNING") if hasattr(self, "assertNoLogs") else _no_logs(self):
+            engine = self._engine(5, vegas, schedule)
+        self.assertEqual(engine.stale_vegas_teams, set())
+        self.assertEqual(engine._compute_week_environment(5, "DET")["total"], 24.0)
+
+    def test_fallback_stamped_file_warns_that_matchup_effects_are_off(self):
+        vegas = {"_meta": {"week": 5, "source": "fallback_no_api_key", "fetched_at": "x"},
+                 "DET": {"total": 21.5, "spread": 0.0, "opponent": "FA", "wind_mph": 0.0, "precip_prob": 0.0}}
+        schedule = {"5": {"DET": "GB", "GB": "DET"}}
+        with self.assertLogs(level="WARNING") as logs:
+            self._engine(5, vegas, schedule)
+        self.assertTrue(any("ODDS_API_KEY" in m for m in logs.output))
 
 
 # ---------------------------------------------------------------------- NFL schedule
