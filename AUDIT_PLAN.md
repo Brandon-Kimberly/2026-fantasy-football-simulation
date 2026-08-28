@@ -311,6 +311,33 @@ Findings:
 
 **Deliverable:** rule-conformance tests.
 
+**Status (Phases 5 + 6 together): characterisation complete, awaiting triage.** See
+`AUDIT_PHASE_5_6_FINDINGS.md`. 12 tests in `tests/test_season_mechanics.py` (161 → 173); 9 lock
+verified rules and export consistency, 3 characterise defects. Nothing fixed.
+
+Rules confirmed against Sleeper's live settings: 8 teams, 4 playoff teams, playoffs start week
+15 (two rounds, no reseeding), `league_average_match = 1` (median on → 2 decisions/week), trade
+deadline week 11. Verified: exactly 8 decisions league-wide every week; seeding by (wins,
+points) recomputed per sim equals `seed_matrix`; berths = seeds 1–4; last = seed 8; one champion
+per sim from the field; regular-season entry points simulate exactly the remaining weeks.
+
+Findings:
+
+1. HIGH, latent (week 15). The engine crashes for any `current_week` ≥ 15 — IndexError at 15
+   (`top4` never seeded), KeyError at 16, UnboundLocalError at 17 — and sync writes Sleeper's
+   playoff-week numbers straight into `league_state.json`. No bracket-from-banked-standings path,
+   no explicit refusal.
+2. LOW. `actual_wins_banked` and the magic number use `int()`, truncating a banked H2H tie (0.5);
+   the forecast record then does not add up (banked + future ≠ final).
+3. LOW-MED. `is_mathematically_eliminated` is `Playoff_Pct == 0.0`: a sample zero. Flags 1 team
+   at 16 sims and 3 at 2 sims on the same week06 season.
+4. LOW, measure-zero. Tied playoff games advance the lower seed (strict `>`); Sleeper advances
+   the higher.
+5. LOW, measure-zero. A score exactly on the 8-team median awards five median wins (`>=`).
+6. LOW. `approximate_magic_number = 16 − banked`: unsourced heuristic, labelled approximate.
+7. Housekeeping. `data/Week_1_Scoring_Density_KDE.png` is an orphan from a rename; `data/` is
+   gitignored — delete locally.
+
 ---
 
 ## Phase 6 — Outputs and reporting
@@ -325,6 +352,12 @@ Findings:
   `Week_1_Weekly_Scoring_Density.png` — likely a stale orphan from a rename. Confirm and clean.
 
 **Deliverable:** export round-trip tests.
+
+**Status:** done together with Phase 5 — see the Phase 5 status block above and
+`AUDIT_PHASE_5_6_FINDINGS.md`. Every `to_dict` / reindex / `.loc` in `export_and_visualize` is
+covered by the export-equals-computation tests; percentiles, seed probabilities, the H2H matrix
+and the forecast record are recomputed directly. The stale `Week_1_Scoring_Density_KDE.png` is
+confirmed an orphan (finding 7).
 
 ---
 
