@@ -1410,7 +1410,13 @@ class FantasySimulationEngine:
                     'expected_future_wins': round(float(exp_future), 2),
                     'playoff_probability_pct': round(float(p_prob), 1),
                     'playoff_standard_error': round(float(p_se), 3),
-                    'is_mathematically_eliminated': bool(p_prob == 0.0),
+                    # Named for what it measures. This is Playoff_Pct == 0 over the sample:
+                    # a Monte Carlo zero, which changes with the number of simulations (on
+                    # the week06 fixture it names 1 team at 16 sims and 3 at 2 sims), not a
+                    # proof of elimination. Real elimination math would need banked
+                    # decisions against the field's reachable totals; not built here.
+                    # AUDIT_PHASE_5_6_FINDINGS.md finding 3.
+                    'no_playoff_appearances_in_sample': bool(p_prob == 0.0),
                     'approximate_magic_number': magic_num,
                 },
             }

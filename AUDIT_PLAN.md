@@ -329,7 +329,7 @@ Findings:
    no explicit refusal.
 2. LOW, FIXED (float). `actual_wins_banked` and the magic number used `int()`, truncating a banked H2H tie (0.5);
    the forecast record then does not add up (banked + future ≠ final).
-3. LOW-MED. `is_mathematically_eliminated` is `Playoff_Pct == 0.0`: a sample zero. Flags 1 team
+3. LOW-MED, FIXED by rename (`no_playoff_appearances_in_sample`; no elimination math built). `is_mathematically_eliminated` was `Playoff_Pct == 0.0`: a sample zero. Flags 1 team
    at 16 sims and 3 at 2 sims on the same week06 season.
 4. LOW, measure-zero, FIXED (`_playoff_winner`, tested; no outcome change). Tied playoff games advanced the lower seed (strict `>`); Sleeper advances
    the higher.

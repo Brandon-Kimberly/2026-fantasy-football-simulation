@@ -265,21 +265,26 @@ class TestForecastRecordConsistency(unittest.TestCase):
 
 
 class TestEliminationFlag(unittest.TestCase):
-    def test_mathematical_elimination_does_not_depend_on_the_number_of_simulations(self):
-        """FAILS -- finding 3. is_mathematically_eliminated = (Playoff_Pct == 0.0). A
-        mathematical fact about the season cannot change with how many seasons were
-        simulated; a Monte Carlo zero can. On week06 -- 8 regular-season weeks and 16
-        decisions still to play for every team -- the flagged set at 2 sims and at 16 sims
-        must be identical if the flag means what its name says. It is not: fewer sims,
-        more zeros, more 'mathematically eliminated' teams."""
+    def test_the_zero_playoff_flag_is_named_for_what_it_measures(self):
+        """Regression guard for Phase 5 finding 3. The forecast used to export
+        `is_mathematically_eliminated = (Playoff_Pct == 0.0)` -- a Monte Carlo zero that
+        changed with the number of simulations (1 team flagged at 16 sims, 3 at 2 sims, on
+        the same week06 season with 16 decisions still to play). The field is renamed
+        `no_playoff_appearances_in_sample`, which is exactly what it is; real elimination
+        math is not built (Phase 7 if wanted). This test pins the name and the definition,
+        and records the sample dependence so it is never mistaken for a proof again."""
         sixteen = ScenarioRun.get("week06")
         two = ScenarioRun("week06", batches=1, sims=2)
         flags = {}
         for label, run in (("16 sims", sixteen), ("2 sims", two)):
             fc = run.payload("live_season_forecast")
-            flags[label] = sorted(t for t in run.teams if fc[t]["forecast"]["is_mathematically_eliminated"])
-        self.assertEqual(flags["2 sims"], flags["16 sims"],
-                         "flag depends on sample size: %s" % flags)
+            for t in run.teams:
+                self.assertNotIn("is_mathematically_eliminated", fc[t]["forecast"])
+                self.assertEqual(fc[t]["forecast"]["no_playoff_appearances_in_sample"],
+                                 fc[t]["forecast"]["playoff_probability_pct"] == 0.0)
+            flags[label] = sorted(t for t in run.teams if fc[t]["forecast"]["no_playoff_appearances_in_sample"])
+        # documented property, not a defect any more: the flag IS sample-dependent
+        self.assertGreaterEqual(len(flags["2 sims"]), len(flags["16 sims"]))
 
 
 if __name__ == "__main__":

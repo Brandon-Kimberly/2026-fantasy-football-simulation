@@ -3,12 +3,15 @@
 **Phase 5 invariant:** league rules are implemented as written.
 **Phase 6 invariant:** what is exported equals what was computed.
 
-**Deliverable:** `tests/test_season_mechanics.py` — 12 tests. 9 pass and lock verified rules and
-export consistency; 3 fail and characterise the defects below.
+**Deliverable:** `tests/test_season_mechanics.py` — 13 tests (12 at characterisation, plus the
+playoff tie-rule test). 9 locked verified rules and export consistency; the 3 characterisations
+now pass as regression guards.
 
-**Suite:** 161 → 173 tests. No pre-existing test changed behaviour.
+**Suite:** 161 → 174 tests. No pre-existing test changed behaviour.
 
-**Status:** characterisation only. Nothing is fixed. Triage before remediation, as in every phase.
+**Status:** 1 interim-fixed (explicit refusal; graceful seeding tracked as F3); 2 and 4 fixed;
+3 renamed to what it measures; 5 reported (measure-zero); 6 deferred to Phase 7; 7 done. Suite
+OK with the four pre-existing expected failures.
 
 ---
 
@@ -92,7 +95,7 @@ rare; the record is internally inconsistent when they happen). Moves no hash on 
 holds. The forecast payload's golden hash moved in both scenarios with every moment identical
 (int 2 → float 2.0 in the canonical rendering); `stage_a` is byte-identical.
 
-### 3. `is_mathematically_eliminated` is a Monte Carlo zero, not a proof
+### 3. `is_mathematically_eliminated` is a Monte Carlo zero, not a proof — **FIXED (renamed `no_playoff_appearances_in_sample`)**
 
 ```python
 'is_mathematically_eliminated': bool(p_prob == 0.0)
@@ -105,6 +108,11 @@ cannot depend on how many seasons were simulated. At the production size (10,000
 false claim in a headline field; the fix is either rename to `no_playoff_appearances_in_sample`
 or compute a real sufficient condition from banked decisions). Moves no `stage_a` hash; moves
 `stage_b`/`stage_c` in week06 only if the value changes there.
+
+**Fixed by renaming.** The field is now `no_playoff_appearances_in_sample`, which is exactly what
+`Playoff_Pct == 0` over the sample is. Real elimination math is not built this phase. The test
+pins the name and definition, and records the sample dependence as a documented property
+rather than a defect. Golden movement: the forecast payload key in both scenarios.
 
 ### 4. Playoff ties advance the *lower* seed — **FIXED**
 
@@ -151,7 +159,7 @@ gitignored, so this is a local orphan from before the rename: delete it. No code
 |---|---|---|---|---|
 | 1 | Engine crashes for `current_week` ≥ 15 — **refuses cleanly now; F3 makes it run** | High, latent (week 15) | every playoff-week forecast | none |
 | 2 | Banked H2H tie truncated; forecast record inconsistent — **fixed** (float) | Low | teams with a tie on record | forecast payload, representation only |
-| 3 | `is_mathematically_eliminated` is a sample zero | Low-medium | headline forecast field | week06 `stage_b/c` at most |
+| 3 | `is_mathematically_eliminated` is a sample zero — **renamed to what it measures** | Low-medium | headline forecast field | forecast payload, both |
 | 4 | Playoff ties advance the lower seed — **fixed** (`_playoff_winner`, tested) | Low (measure-zero) | — | none (verified) |
 | 5 | Exact-median tie awards 5 median wins | Low (measure-zero) | — | none |
 | 6 | Magic number 16 unsourced | Low | labelled approximate | — |
