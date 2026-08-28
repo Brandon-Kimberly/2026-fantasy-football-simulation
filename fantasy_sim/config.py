@@ -150,8 +150,26 @@ LEAGUE_AVG_PPG = 21.5
 # ==============================================================================
 # DEFENSIVE MODEL
 # ==============================================================================
-DEF_RATING_SHRINKAGE_N0 = 4.0  # same "trust N games of prior" shrinkage strength used for player
-                                 # baselines in the simulation engine, for statistical consistency
+# Pseudo-count for the preseason defensive prior: the estimate is
+#   (n_0 * prior + n * observed_avg) / (n_0 + n),
+# i.e. a conjugate normal update whose prior variance is expressed as "worth n_0 games",
+# because PRESEASON_DEFENSIVE_PRIOR states a point estimate and no variance. That is the right
+# form here. It is NOT the same construct as the player update in the simulation engine, whose
+# prior DOES state a variance (std_epistemic) and is a plain conjugate update with no
+# pseudo-count -- an earlier comment claimed "statistical consistency" between the two; see
+# AUDIT_PHASE_3_FINDINGS.md, "The n_0 decision".
+#
+# Derivation (empirical Bayes, real 2025 season, 272 completed games from ESPN's scoreboard):
+#   within-team game-to-game variance of points allowed   91.4  (sd 9.6)
+#   variance of the 32 team means                          13.1
+#   minus sampling noise 91.4 / 17                        - 5.4
+#   true between-team variance                              7.7  (sd 2.8)
+#   n_0 = within / between = 91.4 / 7.7 ~= 11.9
+# Weight on data after n games is n / (n + 12): 0.25 after 4 games, 0.59 after 17. The previous
+# value of 4.0 (unsourced) trusted early games about 3x too much: 0.50 after 4 games.
+# CAVEAT: tuned on one season. The 2026 prior table correlates 0.85 with realised 2025 points
+# allowed (indicative only, cross-season). Re-derive once 2026 results exist (Phase 7).
+DEF_RATING_SHRINKAGE_N0 = 12.0
 
 # Manually-sourced preseason defensive strength prior, keyed by team abbreviation, value = a
 # projected points-allowed-per-game estimate for that defense heading into the season (lower =

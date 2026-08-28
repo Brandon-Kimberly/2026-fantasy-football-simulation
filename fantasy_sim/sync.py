@@ -125,11 +125,13 @@ def generate_defensive_ratings(completed_results):
 
     The prior comes from PRESEASON_DEFENSIVE_PRIOR (see that dict's docstring for how to fill
     it in from any free public source) if a team is listed there, otherwise the honest,
-    uninformed LEAGUE_AVG_PPG fallback. Uses the same empirical-Bayes shrinkage pattern as the
-    player-baseline model in the simulation engine (n_0 = 4.0 "games" of trust in the prior), so
-    a defense that looked strong on paper but is actually getting torched will correctly drift
-    toward the empirical reality after a handful of real games -- the preseason take is a
-    starting point, never a permanent label.
+    uninformed LEAGUE_AVG_PPG fallback. Shrinkage is a conjugate normal update with the prior's
+    variance expressed as a pseudo-count of games, DEF_RATING_SHRINKAGE_N0 (derived from the
+    real 2025 season's within- vs between-team variance -- see config.py). A defense that
+    looked strong on paper but is actually getting torched drifts toward the empirical reality
+    as games accumulate (weight on data n / (n + n_0)); the preseason take is a starting point,
+    never a permanent label. This is deliberately NOT the same construct as the engine's
+    player update, whose prior states its own variance.
 
     Also derives the top-5 / bottom-5 defensive tiers that replace the previously static,
     hand-typed SIM_CONFIG['DEFENSIVE_RANKS'] team lists in the simulation engine. NOTE: this is

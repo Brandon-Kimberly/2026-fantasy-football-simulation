@@ -147,10 +147,11 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         self.assertIn(("NE", 24.0), completed_results)   # NE allowed SEA's 24 points
 
     def test_defensive_ratings_shrinkage_math(self):
-        """Numerically verifies the empirical-Bayes shrinkage for defensive ratings, using the
-        same n_0=4.0 pattern as the player-baseline model for statistical consistency. Patches
-        PRESEASON_DEFENSIVE_PRIOR to empty to isolate the math against a known flat prior,
-        independent of today's real seeded prior data (tested separately)."""
+        """Numerically verifies the pseudo-count shrinkage for defensive ratings with
+        DEF_RATING_SHRINKAGE_N0 = 12 (derived from the 2025 season -- see config.py; it was an
+        unsourced 4.0 until Phase 3's n_0 decision). Patches PRESEASON_DEFENSIVE_PRIOR to empty
+        to isolate the math against a known flat prior, independent of today's real seeded
+        prior data (tested separately)."""
         completed_results = [("SEA", 20.0), ("SEA", 30.0)]  # SEA allowed 20, then 30 -> avg 25.0
         with patch('builtins.open', mock_open()), \
              patch('json.dump') as mock_json_dump, \
@@ -161,8 +162,9 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         ratings_call = mock_json_dump.call_args_list[0]
         ratings = ratings_call.args[0]
 
-        # estimate = (4.0*21.5 + 2*25.0) / (4.0+2) = 136.0/6.0 = 22.666...
-        self.assertAlmostEqual(ratings["SEA"]["points_allowed_estimate"], 22.67, places=2)
+        # estimate = (12.0*21.5 + 2*25.0) / (12.0+2) = 308.0/14.0 = 22.0
+        # (was (4.0*21.5 + 2*25.0) / 6.0 = 22.67 under the unsourced n_0 = 4)
+        self.assertAlmostEqual(ratings["SEA"]["points_allowed_estimate"], 22.0, places=2)
         self.assertEqual(ratings["SEA"]["games_sampled"], 2)
         # A team with zero real games sampled must fall back to the honest league-average prior.
         self.assertAlmostEqual(ratings["ARI"]["points_allowed_estimate"], LEAGUE_AVG_PPG)

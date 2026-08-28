@@ -240,8 +240,10 @@ Nine findings, plus the bounded `n_0` decision kept separate:
 defensive prior's variance (none is stated), but multiplies an already-stated variance on the
 player side. Real 2025 data: within-team var 91.4, between-team 7.7 → empirical n₀ ≈ 12, not 4;
 the code trusts early games ~3× too much. Player priors already imply ≈1 pseudo-game (offence)
-/ ≈10 (IDP) before the ×4. Recommendation: conjugate form for players (no n₀), n₀ ≈ 12 for
-defences with the derivation as its source, retire the "consistency" comment.
+/ ≈10 (IDP) before the ×4. APPLIED, two commits: conjugate form for players (no n₀; `std_aleatoric²` as the likelihood
+variance; week06 goldens regenerated, weekly mean +1.8%, season-points std +12%), and
+`DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0 with the 2025 derivation as its source (one-season caveat,
+re-derive in Phase 7); the "statistical consistency" comment replaced with the real relationship.
 
 ---
 
