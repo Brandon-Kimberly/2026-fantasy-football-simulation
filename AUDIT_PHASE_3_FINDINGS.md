@@ -123,7 +123,7 @@ the opponent check and the ERROR path fires rather than the softer "fallback" WA
 message still names the key, and the behaviour (ratings model for real opponents) is the better
 of the two.
 
-### 2. One failed schedule week silently flattens that week and undercounts the defensive sample
+### 2. One failed schedule week silently flattens that week and undercounts the defensive sample — **FIXED (2 and 2b)**
 
 `generate_nfl_schedule` wraps each week in `except: pass`. A single failed week leaves
 `nfl_schedule[wk] == {}`, so every team resolves to `FA` → 21.5 / no opponent / no defensive
@@ -138,7 +138,17 @@ Not reproduced under test because the function also has no timeout and no `try` 
 `requests.get` (a hang or exception crashes sync instead — see L2), but a 404/empty body takes
 the `continue` path. **Severity: medium (2), high-latent (2b).**
 
-### 3. Position constants are looked up by Sleeper's raw position, not the engine's
+**Fixed.** `generate_nfl_schedule`: a failed or non-2xx week is recorded under
+`nfl_schedule["_meta"]["failed_weeks"]` and logged at WARNING (the message says whether the
+defensive sample lost games); malformed events and non-numeric scores warn per game instead of
+vanishing; the week-1 table fallback announces itself. The engine reads weeks with `.get`, so
+`_meta` is invisible to it. `generate_league_schedule`: `requests.get` now has a timeout and a
+`try`; a failed week contributes an **empty** week so every later week keeps its index, warns,
+and the function returns the failed weeks; an `assert` pins one entry per week. The undercount
+test was re-scoped to assert the *record* of the loss (the games cannot be recovered without a
+re-fetch); a new test pins the index alignment. No golden movement (sync only, verified).
+
+### 3. Position constants are looked up by Sleeper's raw position, not the engine's — **FIXED**
 
 `VOLATILITY_CONSTANTS` and `EPISTEMIC_ERROR_RATES` are keyed `DL/DB/RB/...`. Sleeper reports
 `DE, DT, NT, CB, S, FS, SS, FB`. `sync` looks up by the raw string, so every such player gets
@@ -147,6 +157,12 @@ the anonymous defaults `k=1.5, rate=0.18`. Committed baselines: 41 DE, 59 DT, 43
 DL's 0.15 (+20%); a rostered FB would get 0.18 instead of RB's 0.63 and k=1.5 instead of 1.98.
 The engine normalises positions on its side (`normalize_position`), so the *slot* is right and
 the *constant* is wrong — precisely the silent kind. **Severity: medium.**
+
+**Fixed.** `normalize_position` moved to `config.py` (re-exported from `simulation.py` so every
+existing import works) and `sync` applies it before the constant lookups. The stored `pos` stays
+raw; the engine normalises on read, as before. Positions with no calibrated constants (team
+`DEF`, `FLEX`) are summarised in one WARNING per sync. No golden movement (the fixtures' baselines
+are committed; verified).
 
 ### 4. `team: null` survives into baselines
 
@@ -209,13 +225,18 @@ player wide (weekly team mean +0.004 / -0.005).
 Still open from this finding: the silent `continue` on a zero projection (P5) -- the drop that
 makes the whitelist necessary in the first place.
 
-### 7. The player cache is never refreshed
+### 7. The player cache is never refreshed — **FIXED**
 
 `update_player_cache` fetches once and reads the file forever. There is no age check, no force
 path, no CLI flag. The live comparison found the one-day-old cache already differing from Sleeper
 on a rostered player (`injury_status`). Team and position drift is what late-August cuts and
 trades produce, and the cache is what every name, team and position in the pipeline comes from.
 **Severity: medium.**
+
+**Fixed.** `update_player_cache(force=False, max_age_seconds=86400)` refreshes when the file is
+older than a day (Sleeper's own once-a-day guidance for the 20 MB endpoint) or on `force=True`,
+logs the refresh and its reason at INFO, and on a failed refresh serves the stale file with a
+WARNING stating its age rather than crashing. Client only; no golden movement.
 
 ### 8. The defensive prior fallback is on a different scale from the prior table
 
@@ -314,13 +335,13 @@ half). They should be two commits.
 | # | Finding | Severity | Blast radius | Latent? |
 |---|---|---|---|---|
 | 1 | In-season Vegas fallbacks leave a stale week-1 file; no stamp, no warning — **fixed** (write + stamp + engine refusal; `ODDS_API_KEY` still the real fix) | High | current-week environment for every player, all season | was 12 days out |
-| 2 | Failed schedule week → flat week + defensive undercount, silently | Medium | that week + defensive ratings | on first fetch failure |
-| 2b | Failed league-schedule week shifts every later week's matchups | High | standings, H2H, playoffs | on first 404/empty |
-| 3 | Constants looked up by raw position → anonymous defaults | Medium | 5 rostered DEs now; any CB/S/FB/DT | live now |
+| 2 | Failed schedule week → flat week + defensive undercount, silently — **fixed** (recorded in `_meta`, warned) | Medium | that week + defensive ratings | guarded |
+| 2b | Failed league-schedule week shifts every later week's matchups — **fixed** (empty week keeps the index) | High | standings, H2H, playoffs | guarded |
+| 3 | Constants looked up by raw position → anonymous defaults — **fixed** | Medium | 5 rostered DEs; any CB/S/FB/DT | fixed |
 | 4 | `team: null` in baselines | Low | 2 baselines; tolerated by consumers | live, harmless today |
 | 5 | Name-keyed baselines/rosters; duplicates overwrite — **mitigated: loud, deterministic collision keys + pid-tracked prior; rekey = F1** | Medium | 2 names today | guarded |
 | 6 | Zero-projection player silently dropped; whitelist team wrong — **team fixed + runtime guard; silent drop open** | Medium | Jordyn Tyson's environment/correlation | live now |
-| 7 | Player cache never refreshed | Medium | every name/team/position | grows daily |
+| 7 | Player cache never refreshed — **fixed** (24h max age, force, loud failure) | Medium | every name/team/position | fixed |
 | 8 | Defensive prior fallback 21.5 vs table 22.8 | Low | any team missing from the table | latent |
 | 9 | Weather / injury_status / standings fields never read | Low | wasted calls; unmodelled injuries | — |
 | n₀ | Two different constructs sharing a number; defensive n₀ 3× too trusting | High (bounded piece) | posterior widths; in-season defensive tiers | in-season |

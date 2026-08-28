@@ -246,10 +246,28 @@ class TestNflScheduleFallbacks(unittest.TestCase):
         self.assertEqual(sched["5"], {})
 
     def test_a_single_failed_week_is_loud(self):
-        """FAILS -- finding 2. Week 7 fails; every other week is fine. The result is an empty
-        week 7 (every team resolves to 'FA' -> flat 21.5, no opponent) and, because the
-        completed scores for that week are collected in the same pass, the defensive ratings
-        silently lose a game per team. No warning is emitted."""
+        """Regression guard for Phase 3 finding 2. Week 7 fails; every other week is fine.
+        The result is an empty week 7 (every team resolves to 'FA' -> flat 21.5, no opponent)
+        and, because the completed scores for that week are collected in the same pass, the
+        defensive ratings lose a game per team. That used to happen with no warning."""
+        saved, fake_save = _capture_saves()
+
+        def flaky(url, timeout=5):
+            if "week=7" in url:
+                raise Exception("timeout")
+            return _scoreboard_response()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=flaky), \
+             self.assertLogs(level="WARNING") as logs:
+            sync.generate_nfl_schedule(9)
+        self.assertTrue(any("week 7" in m and "defensive sample" in m for m in logs.output), logs.output)
+
+    def test_a_single_failed_week_is_recorded_not_silently_dropped(self):
+        """Regression guard for Phase 3 finding 2 (consequence). The lost week's games cannot
+        be recovered without a re-fetch, so the honest artefact is a RECORD of the loss:
+        nfl_schedule['_meta']['failed_weeks'] names it, the week itself is empty, and the
+        defensive sample is short by exactly that week. Before, 14 rows appeared where 16
+        belonged and nothing said why."""
         saved, fake_save = _capture_saves()
 
         def flaky(url, timeout=5):
@@ -259,23 +277,47 @@ class TestNflScheduleFallbacks(unittest.TestCase):
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync.requests, "get", side_effect=flaky), \
              self.assertLogs(level="WARNING"):
-            sync.generate_nfl_schedule(9)
-
-    def test_a_single_failed_week_does_not_undercount_completed_games_silently(self):
-        """FAILS -- finding 2 (consequence). 8 completed weeks of one game each should yield
-        16 (team, points_allowed) rows; a lost week yields 14 with no marker."""
-        saved, fake_save = _capture_saves()
-
-        def flaky(url, timeout=5):
-            if "week=7" in url:
-                raise Exception("timeout")
-            return _scoreboard_response()
-        with patch.object(sync, "save_json", side_effect=fake_save), \
-             patch.object(sync.requests, "get", side_effect=flaky):
             results = sync.generate_nfl_schedule(9)
-        self.assertEqual(len(results), 16,
-                         "completed-game rows: %d; a failed week vanished from the defensive "
-                         "sample with no record" % len(results))
+        sched = saved[os.path.basename(NFL_SCHEDULE_FILE)]
+        self.assertEqual(sched["_meta"]["failed_weeks"], [7])
+        self.assertEqual(sched["7"], {})
+        self.assertEqual(len(results), 14)   # 8 completed weeks minus the recorded one
+        # non-2xx is a failure too, not an empty week
+        def not_found(url, timeout=5):
+            m = MagicMock()
+            m.status_code = 404 if "week=3" in url else 200
+            m.json.return_value = _scoreboard_response().json.return_value
+            return m
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=not_found), \
+             self.assertLogs(level="WARNING"):
+            sync.generate_nfl_schedule(1)
+        self.assertEqual(saved[os.path.basename(NFL_SCHEDULE_FILE)]["_meta"]["failed_weeks"], [3])
+
+    def test_league_schedule_keeps_one_entry_per_week_when_a_week_fails(self):
+        """Regression guard for Phase 3 finding 2b. The engine indexes league_schedule[week_idx]
+        positionally. A failed week used to be skipped with `continue`, shifting every later
+        week's fantasy matchups one index earlier. It now contributes an empty week, loudly."""
+        saved, fake_save = _capture_saves()
+        roster_map = {1: "A", 2: "B"}
+
+        def flaky(url, timeout=10):
+            if "/matchups/5" in url:
+                raise Exception("timeout")
+            m = MagicMock()
+            m.status_code = 200
+            wk = int(url.rsplit("/", 1)[1])
+            m.json.return_value = [{"roster_id": 1, "matchup_id": wk}, {"roster_id": 2, "matchup_id": wk}]
+            return m
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=flaky), \
+             self.assertLogs(level="WARNING"):
+            failed = sync.generate_league_schedule(roster_map, regular_season_weeks=14)
+        sched = saved[os.path.basename(LEAGUE_SCHEDULE_FILE)]
+        self.assertEqual(len(sched), 14)
+        self.assertEqual(sched[4], [])                 # week 5 -> index 4, empty, not skipped
+        self.assertEqual(sched[5], [("A", "B")])       # week 6 still at index 5
+        self.assertEqual(failed, [5])
 
 
 # ------------------------------------------------------------------ player baselines
@@ -298,12 +340,12 @@ class _BaselineHarness(unittest.TestCase):
 
 class TestBaselineIngestion(_BaselineHarness):
     def test_position_constants_are_looked_up_by_normalised_position(self):
-        """FAILS -- finding 3. VOLATILITY_CONSTANTS and EPISTEMIC_ERROR_RATES are keyed by
-        the engine's normalised positions (DL, DB, RB ...). Sleeper reports DE, DT, NT, CB,
-        S, FS, SS, FB. sync looks the constants up by the RAW position, so every one of those
-        gets the anonymous default (k=1.5, error 0.18) instead of its position's value: a DE
-        gets 0.18 instead of DL's 0.15, a fullback 0.18 instead of RB's 0.63. Five rostered
-        DEs are affected today."""
+        """Regression guard for Phase 3 finding 3. VOLATILITY_CONSTANTS and
+        EPISTEMIC_ERROR_RATES are keyed by the engine's slot positions (DL, DB, RB ...).
+        Sleeper reports DE, DT, NT, CB, S, FS, SS, FB. sync used to look the constants up by
+        the RAW position, so every one of those got the anonymous default (k=1.5, error 0.18):
+        a DE got 0.18 instead of DL's 0.15, a fullback 0.18 instead of RB's 0.63. Five rostered
+        DEs were affected. normalize_position now lives in config and sync applies it first."""
         db = {"1": {"first_name": "A", "last_name": "End", "position": "DE", "team": "DET"},
               "2": {"first_name": "B", "last_name": "Back", "position": "FB", "team": "DET"}}
         proj = {"1": {"stats": {"idp_tkl_solo": 8.0}}, "2": {"stats": {"rush_yd": 60.0}}}
@@ -504,11 +546,13 @@ class TestBaselineIngestion(_BaselineHarness):
 # ---------------------------------------------------------------------- player cache
 class TestPlayerCacheFreshness(unittest.TestCase):
     def test_cache_is_refreshed_when_stale(self):
-        """FAILS -- finding 7. update_player_cache fetches once and then reads the file
-        forever; there is no age check and no force path. Team, position and injury fields
-        drift from the day the file was written (late-August cuts and trades are exactly
-        when they move most). The live comparison on 2026-08-28 found the one-day-old cache
-        already differed from Sleeper on a rostered player's injury_status."""
+        """Regression guard for Phase 3 finding 7. update_player_cache used to fetch once
+        and read the file forever: no age check, no force path. Team, position and injury
+        fields drift from the day the file was written (late-August cuts and trades are
+        exactly when they move most); the live comparison on 2026-08-28 found a one-day-old
+        cache already differing from Sleeper on a rostered player's injury_status. The cache
+        is now refreshed past PLAYER_CACHE_MAX_AGE_SECONDS (one day) or on force=True, and a
+        failed refresh serves the stale file loudly rather than crashing."""
         from fantasy_sim.clients import sleeper
         fetched = []
         r = MagicMock()

@@ -106,11 +106,14 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         context lookup in the simulation."""
         with patch('requests.get', side_effect=ConnectionError("simulated total ESPN outage")), \
              patch('builtins.open', mock_open()), \
-             patch('json.dump') as mock_json_dump:
+             patch('json.dump') as mock_json_dump, \
+             self.assertLogs(level="WARNING") as logs:   # a total outage must be loud (Phase 3 finding 2)
             generate_nfl_schedule(current_nfl_week=1)
 
+        self.assertTrue(any("verified preseason table" in m for m in logs.output), logs.output)
         args, kwargs = mock_json_dump.call_args
         written_schedule = args[0]
+        self.assertEqual(written_schedule["_meta"]["failed_weeks"], list(range(1, 19)))
         self.assertIn("1", written_schedule)
         # Spot check a known pairing from WEEK_1_VERIFIED_VEGAS.
         self.assertEqual(written_schedule["1"].get("SEA"), "NE")

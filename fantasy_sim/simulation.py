@@ -66,17 +66,10 @@ logging.basicConfig(
 # syndicate_comprehensive_matrix_week_N.json).
 
 
-def normalize_position(raw_pos):
-    pos = str(raw_pos).upper().strip()
-    if pos in ['RB', 'FB']: return 'RB'
-    if pos in ['WR']: return 'WR'
-    if pos in ['TE']: return 'TE'
-    if pos in ['QB']: return 'QB'
-    if pos in ['K']: return 'K'
-    if pos in ['DL', 'DE', 'DT', 'NT']: return 'DL'
-    if pos in ['LB', 'ILB', 'OLB', 'MLB']: return 'LB'
-    if pos in ['DB', 'CB', 'FS', 'SS', 'S']: return 'DB'
-    return 'FLEX'
+# normalize_position now lives in config so sync applies the identical mapping before its
+# positional-constant lookups (Phase 3 finding 3). Re-exported here: every existing caller
+# imports it from this module.
+from fantasy_sim.config import normalize_position  # noqa: E402
 
 class FantasySimulationEngine:
     def __init__(self):

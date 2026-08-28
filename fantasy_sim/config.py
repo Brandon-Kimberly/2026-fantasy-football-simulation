@@ -204,6 +204,27 @@ BASE_STREAMER_MEANS = {'QB': 14.0, 'RB': 9.0, 'WR': 9.0, 'TE': 7.5, 'K': 8.0, 'D
 REGULAR_SEASON_WEEKS = 14
 
 # ==============================================================================
+# POSITIONS
+# ==============================================================================
+def normalize_position(raw_pos):
+    """Sleeper's raw position (DE, DT, NT, CB, S, FS, SS, FB, ...) -> the engine's slot
+    position (DL, DB, RB, ...). Lives here, not in simulation.py, because sync must apply the
+    SAME mapping before looking up VOLATILITY_CONSTANTS / EPISTEMIC_ERROR_RATES: those are
+    keyed by slot position, and looking them up by the raw string handed every DE/DT/CB/S/FB
+    the anonymous default (k=1.5, rate 0.18) -- Phase 3 finding 3."""
+    pos = str(raw_pos).upper().strip()
+    if pos in ['RB', 'FB']: return 'RB'
+    if pos in ['WR']: return 'WR'
+    if pos in ['TE']: return 'TE'
+    if pos in ['QB']: return 'QB'
+    if pos in ['K']: return 'K'
+    if pos in ['DL', 'DE', 'DT', 'NT']: return 'DL'
+    if pos in ['LB', 'ILB', 'OLB', 'MLB']: return 'LB'
+    if pos in ['DB', 'CB', 'FS', 'SS', 'S']: return 'DB'
+    return 'FLEX'
+
+
+# ==============================================================================
 # ROSTER FORMAT
 # ==============================================================================
 # The full set of 13 required starting slots for this league's roster format, expanded to one

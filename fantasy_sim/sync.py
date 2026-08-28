@@ -19,7 +19,7 @@ import requests
 from fantasy_sim.config import (
     BASE_URL, LEAGUE_ID, TEAM_NAME_MAP, ODDS_API_KEY, LEAGUE_AVG_PPG, DEF_RATING_SHRINKAGE_N0,
     PRESEASON_DEFENSIVE_PRIOR, NFL_TEAM_ABBREVIATIONS, OUTDOOR_STADIUMS, WEEK_1_VERIFIED_VEGAS,
-    DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES,
+    DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
 )
 from fantasy_sim.storage import (
     PLAYER_CACHE_FILE, VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
@@ -37,51 +37,78 @@ def generate_nfl_schedule(current_nfl_week=1):
     for weeks strictly before current_nfl_week -- this is the same free data source powering
     generate_defensive_ratings() below, so no second API or paid data source is needed.
 
+    A week whose fetch fails is recorded under nfl_schedule["_meta"]["failed_weeks"] and logged
+    at WARNING. It used to be swallowed by a bare `except: pass`, which left that week `{}`:
+    every team resolved to 'FA' (flat 21.5, no opponent, no defensive tier) and, because the
+    completed scores are harvested in the same pass, every team silently lost a game from the
+    defensive-rating sample. See AUDIT_PHASE_3_FINDINGS.md finding 2. The engine reads weeks
+    with .get(str(week)), so the "_meta" key is invisible to it.
+
     Returns completed_results: a list of (team_abbr, points_allowed) tuples, one entry per team
     per completed real game, used to build an empirical defensive-strength estimate.
     """
     print("[INIT] Fetching official NFL schedule and completed results for defensive model...")
     nfl_schedule = {}
     completed_results = []
+    failed_weeks = []
 
     for wk in range(1, 19):
         nfl_schedule[str(wk)] = {}
         url = f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard?week={wk}&seasontype=2"
         try:
             resp = requests.get(url, timeout=5)
-            if resp.status_code == 200:
-                events = resp.json().get('events', [])
-                for event in events:
-                    competition = event['competitions'][0]
-                    competitors = competition['competitors']
-                    t1_info, t2_info = competitors[0], competitors[1]
-                    t1 = t1_info['team']['abbreviation']
-                    t2 = t2_info['team']['abbreviation']
-                    if t1 == 'WSH': t1 = 'WAS'
-                    if t2 == 'WSH': t2 = 'WAS'
-                    nfl_schedule[str(wk)][t1] = t2
-                    nfl_schedule[str(wk)][t2] = t1
+            if resp.status_code != 200:
+                raise RuntimeError(f"HTTP {resp.status_code}")
+            events = resp.json().get('events', [])
+        except Exception as e:
+            failed_weeks.append(wk)
+            logging.warning(
+                "NFL SCHEDULE: week %d could not be fetched (%s: %s). That week has no opponents "
+                "(every team gets the flat 21.5 / 'FA' environment)%s. Re-run the sync.",
+                wk, type(e).__name__, e,
+                " and its completed games are missing from the defensive sample" if wk < current_nfl_week else "")
+            continue
 
-                    # Only trust a score for weeks that have already happened, and only once
-                    # ESPN marks the game as actually completed (in-progress games also carry a
-                    # score field, which we must not treat as final).
-                    if wk < current_nfl_week:
-                        is_final = competition.get('status', {}).get('type', {}).get('completed', False)
-                        if is_final:
-                            try:
-                                t1_score = float(t1_info.get('score', 0))
-                                t2_score = float(t2_info.get('score', 0))
-                                # Points ALLOWED by t1 == points SCORED by t2, and vice versa.
-                                completed_results.append((t1, t2_score))
-                                completed_results.append((t2, t1_score))
-                            except (TypeError, ValueError):
-                                pass
-        except Exception:
-            pass
+        for event in events:
+            try:
+                competition = event['competitions'][0]
+                competitors = competition['competitors']
+                t1_info, t2_info = competitors[0], competitors[1]
+                t1 = t1_info['team']['abbreviation']
+                t2 = t2_info['team']['abbreviation']
+            except (KeyError, IndexError, TypeError) as e:
+                logging.warning("NFL SCHEDULE: week %d has a malformed event (%s); skipped.", wk, e)
+                continue
+            if t1 == 'WSH': t1 = 'WAS'
+            if t2 == 'WSH': t2 = 'WAS'
+            nfl_schedule[str(wk)][t1] = t2
+            nfl_schedule[str(wk)][t2] = t1
+
+            # Only trust a score for weeks that have already happened, and only once
+            # ESPN marks the game as actually completed (in-progress games also carry a
+            # score field, which we must not treat as final).
+            if wk < current_nfl_week:
+                is_final = competition.get('status', {}).get('type', {}).get('completed', False)
+                if is_final:
+                    try:
+                        t1_score = float(t1_info.get('score', 0))
+                        t2_score = float(t2_info.get('score', 0))
+                    except (TypeError, ValueError):
+                        logging.warning(
+                            "NFL SCHEDULE: week %d %s-%s is marked completed but has no numeric "
+                            "score (%r / %r); dropped from the defensive sample.",
+                            wk, t1, t2, t1_info.get('score'), t2_info.get('score'))
+                        continue
+                    # Points ALLOWED by t1 == points SCORED by t2, and vice versa.
+                    completed_results.append((t1, t2_score))
+                    completed_results.append((t2, t1_score))
 
     if not nfl_schedule.get("1"):
         nfl_schedule["1"] = {team: data["opponent"] for team, data in WEEK_1_VERIFIED_VEGAS.items() if team != "FA"}
+        if 1 in failed_weeks:
+            logging.warning("NFL SCHEDULE: week 1 populated from the verified preseason table.")
 
+    nfl_schedule["_meta"] = {"failed_weeks": failed_weeks}
     save_json(NFL_SCHEDULE_FILE, nfl_schedule)
 
     return completed_results
@@ -396,6 +423,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}
 
     baselines = {}
+    unconstrained_positions = {}
     for pid, proj_data in projections.items():
         player = players_db.get(str(pid))
         if not player: continue
@@ -446,8 +474,14 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         else:
             final_mean = fresh_mean
 
-        k_val = VOLATILITY_CONSTANTS.get(raw_pos, 1.5)
-        error_margin = EPISTEMIC_ERROR_RATES.get(raw_pos, 0.18)
+        # Constants are keyed by the engine's slot position; Sleeper reports DE/DT/NT/CB/S/FS/
+        # SS/FB. Looking up by the raw string gave all of those the anonymous default
+        # (Phase 3 finding 3). The stored "pos" stays raw -- the engine normalises on read.
+        slot_pos = normalize_position(raw_pos)
+        if slot_pos not in VOLATILITY_CONSTANTS:
+            unconstrained_positions[raw_pos] = unconstrained_positions.get(raw_pos, 0) + 1
+        k_val = VOLATILITY_CONSTANTS.get(slot_pos, 1.5)
+        error_margin = EPISTEMIC_ERROR_RATES.get(slot_pos, 0.18)
 
         std_aleatoric = round(k_val * math.sqrt(max(0.5, final_mean)), 2)
         std_epistemic_floor = error_margin * final_mean
@@ -469,16 +503,43 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             "player_id": str(pid),
         }
 
+    if unconstrained_positions:
+        # Team DEF entities (32) and the odd unmapped position land here every sync; one line,
+        # not one per player.
+        logging.warning("BASELINES: %d entries have positions with no calibrated constants and use "
+                        "the anonymous defaults (k=1.5, rate=0.18): %s",
+                        sum(unconstrained_positions.values()), dict(sorted(unconstrained_positions.items())))
     save_json(BASELINES_FILE, baselines)
     return baselines
 
 
 def generate_league_schedule(roster_map, regular_season_weeks=14):
+    """Fantasy matchups for weeks 1..regular_season_weeks, as a list indexed by week - 1.
+
+    The engine indexes this list positionally (league_schedule[week_idx]), so the list MUST
+    have exactly one entry per week. A failed week used to be skipped with `continue`, which
+    shifted every later week's matchups one index earlier -- silently. It now contributes an
+    empty week (no H2H decisions that week, which the engine already tolerates) and logs at
+    WARNING. See AUDIT_PHASE_3_FINDINGS.md finding 2b."""
     full_schedule = []
+    failed_weeks = []
     for wk in range(1, regular_season_weeks + 1):
-        resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{wk}")
-        if resp.status_code != 200 or not resp.json(): continue
-        matchups_data = resp.json()
+        try:
+            resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{wk}", timeout=10)
+            if resp.status_code != 200:
+                raise RuntimeError(f"HTTP {resp.status_code}")
+            matchups_data = resp.json() or []
+        except Exception as e:
+            failed_weeks.append(wk)
+            logging.warning(
+                "LEAGUE SCHEDULE: week %d could not be fetched (%s: %s); recorded as an EMPTY "
+                "week so later weeks keep their index. No H2H decisions will be simulated for "
+                "week %d until the sync is re-run.", wk, type(e).__name__, e, wk)
+            full_schedule.append([])
+            continue
+        if not matchups_data:
+            logging.warning("LEAGUE SCHEDULE: week %d returned no matchups (not yet published?); "
+                            "recorded as an empty week.", wk)
         matchup_dict = {}
         for entry in matchups_data:
             m_id = entry.get("matchup_id")
@@ -487,7 +548,9 @@ def generate_league_schedule(roster_map, regular_season_weeks=14):
         week_matchups = [tuple(pair) for pair in matchup_dict.values() if len(pair) == 2]
         full_schedule.append(week_matchups)
 
+    assert len(full_schedule) == regular_season_weeks, "league schedule must have one entry per week"
     save_json(LEAGUE_SCHEDULE_FILE, full_schedule)
+    return failed_weeks
 
 def _extract_weekly_h2h_results(wk_matchups, roster_map):
     """

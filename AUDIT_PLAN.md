@@ -222,17 +222,17 @@ Nine findings, plus the bounded `n_0` decision kept separate:
    the flat table but never write `vegas_totals.json`, so the engine applies the week-1 table to
    the current week all season. No week stamp, no warning; detectable via `nfl_schedule` but not
    detected.
-2. MED / 2b HIGH-latent. A failed ESPN schedule week silently flattens that week and drops its
+2. MED / 2b HIGH-latent, BOTH FIXED (failed weeks recorded and warned; league schedule keeps one entry per week). A failed ESPN schedule week silently flattens that week and drops its
    games from the defensive sample; a failed Sleeper league-schedule week shifts every later
    week's fantasy matchups one index earlier.
-3. MED. `VOLATILITY_CONSTANTS`/`EPISTEMIC_ERROR_RATES` looked up by raw Sleeper position
+3. MED, FIXED (`normalize_position` moved to config; sync applies it first). `VOLATILITY_CONSTANTS`/`EPISTEMIC_ERROR_RATES` were looked up by raw Sleeper position
    (DE/DT/CB/S/FB) → anonymous defaults. 5 rostered DEs affected today.
 4. LOW. `team: null` reaches baselines (2 today); consumers tolerate it individually.
 5. MED, MITIGATED (sole rostered claimant keeps the plain name, others suffixed `(pid)`, warnings, raise on two rostered; prior blend now pid-tracked). Full rekey tracked as follow-up F1. Name-keyed baselines/rosters; 2 duplicate names today, last pid won — Byron
    Murphy's committed baseline is the wrong player's.
 6. MED, PARTLY FIXED (whitelist team corrected to NO; engine warns on whitelist/roster mismatch; the silent drop itself is still open). Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
    where Sleeper says NO (Jordyn Tyson).
-7. MED. Player cache never refreshed after first fetch.
+7. MED, FIXED (refresh past 24h or on force=True; loud on failure). Player cache was never refreshed after first fetch.
 8. LOW. Defensive prior fallback 21.5 vs prior-table mean 22.8 (and 2025 real 23.0).
 9. LOW. Weather, `injury_status`, standings `h2h_wins`/`points_scored` ingested and never read.
 
