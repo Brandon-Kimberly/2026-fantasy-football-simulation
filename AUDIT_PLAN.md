@@ -323,7 +323,7 @@ per sim from the field; regular-season entry points simulate exactly the remaini
 
 Findings:
 
-1. HIGH, latent (week 15). The engine crashes for any `current_week` ≥ 15 — IndexError at 15
+1. HIGH, latent (week 15). INTERIM FIX: `run_simulation` refuses with a ValueError naming F3; graceful bracket-from-banked-standings tracked as follow-up F3 (sized). The engine crashed for any `current_week` ≥ 15 — IndexError at 15
    (`top4` never seeded), KeyError at 16, UnboundLocalError at 17 — and sync writes Sleeper's
    playoff-week numbers straight into `league_state.json`. No bracket-from-banked-standings path,
    no explicit refusal.
@@ -481,3 +481,32 @@ real managers make — is Phase 7-adjacent; the sizing above assumes the simples
 lineup-improving search, not a calibrated behavioural model.
 
 **When:** any time after Phase 4 closes; independent of F1.
+
+### F3 — Simulate from inside the playoffs (bracket seeded from banked standings)
+
+**Origin:** Phase 5 finding 1. `run_simulation` seeds the playoff bracket (`top4`) only by
+simulating week 14, so a run starting at `current_week ≥ 15` had nothing to seed from and
+crashed (IndexError at 15, KeyError at 16, UnboundLocalError at 17). Sleeper reports 15–18
+during and after the playoffs and sync writes that straight to `league_state.json`. The
+interim guard — a `ValueError` at the top of `run_simulation` naming this entry — turns the
+crash into a statement; it does not make playoff-week forecasts possible.
+
+**Scope (sized, not implemented):**
+
+| piece | what | size |
+|---|---|---|
+| bracket from banked standings | when `current_week ≥ 15`, rank teams by banked `(h2h + median wins, points)` from `weekly_actuals` / `league_standings` — the same `(wins, points)` key the week-14 block uses — and set `top4` before the week loop; when `current_week == 16`, also resolve week 15 from `weekly_actuals` (the semi-final results are real by then) to set `w1`/`w2` | ~25 lines before the loop |
+| loop guards | the week-14 seeding block and the week-15 resolution must not re-run for weeks already banked; `assert week_num >= 16` after the loop stays valid | ~5 lines |
+| regular-season outputs | `wins`, `trajectories`, `seed_matrix`, `b_playoffs`, `b_toilets`, all-play, h2h and the schedule-luck fields are regular-season quantities; from week 15 they are fully banked, so the exporter must treat `weeks_simulated = 0` for them (the Phase 1 divisor `REGULAR_SEASON_WEEKS − (current_week − 1)` goes to 0 or negative — the `assert weeks_simulated > 0` added in Phase 1 fires today) and report banked values rather than divide | ~20 lines in `export_and_visualize`, plus the two charts that assume 14 columns |
+| `current_week ≥ 17` | season over: refuse, or export the banked final state with `Champ_Pct` ∈ {0, 100} | decision |
+| tests | flip `test_playoff_and_post_season_entry_points_fail_loudly_not_with_an_internal_error` to "these weeks run"; add a fixture at `current_week = 15` with banked week-1–14 actuals (a third golden scenario) and assert `b_playoffs` ∈ {0, 1} per team and Σ`b_champs` = sims | a new committed fixture set |
+
+**Acceptance criterion:** on a `current_week = 15` fixture, `b_playoffs[t]` is exactly 0 or 1
+for every team (the field is banked), `Playoff_Pct` sums to 400 and `Champ_Pct` to 100 (the
+Phase 1 normalisation tests, unchanged), every export field the Phase 5/6 tests recompute still
+matches, and the two regular-season golden scenarios are byte-identical (nothing before week 15
+changes). Roughly 50–70 lines across `run_simulation` and `export_and_visualize`, plus the
+fixture. Touches no baseline computation; the backtest gate does not apply.
+
+**When:** before week 15 of the 2026 season (2026-12-08 kickoff week, per Sleeper's
+`playoff_week_start`) if playoff-week forecasts are wanted; otherwise any time.

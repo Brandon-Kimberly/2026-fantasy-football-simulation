@@ -147,19 +147,20 @@ class TestWeekIndexingEntryPoints(unittest.TestCase):
             self.assertEqual(played, REGULAR_SEASON_WEEKS - cw + 1)
 
     def test_playoff_and_post_season_entry_points_fail_loudly_not_with_an_internal_error(self):
-        """FAILS -- finding 1. current_week 15 raises IndexError (top4 is never populated
-        because the week-14 seeding block never runs), 16 raises KeyError: None (w1/w2 are
-        None), 17 raises UnboundLocalError (the week loop never executes, then the post-loop
-        assert reads week_num). Sleeper reports these weeks during and after the playoffs, so
-        the first sync in playoff week 1 makes the engine crash with an internal error rather
-        than a statement of what it cannot do."""
+        """Regression guard for Phase 5 finding 1 (immediate half). current_week 15 used to
+        raise IndexError (top4 is never populated because the week-14 seeding block never
+        runs), 16 KeyError: None (w1/w2 are None), 17 UnboundLocalError (the week loop never
+        executes, then the post-loop assert reads week_num). Sleeper reports these weeks
+        during and after the playoffs, so the first sync in playoff week 1 made the engine
+        crash with an internal error rather than a statement of what it cannot do. It now
+        refuses with a ValueError that names the limitation and F3, the graceful
+        bracket-from-banked-standings version tracked in AUDIT_PLAN.md. When F3 lands this
+        test flips: these weeks must RUN, and the ValueError branch below goes."""
         for cw in (PLAYOFF_WEEK_START, PLAYOFF_WEEK_START + 1, PLAYOFF_WEEK_START + 2):
-            try:
+            with self.assertRaises(ValueError) as ctx:
                 self._run_at(cw)
-            except ValueError:
-                continue  # an explicit refusal is acceptable
-            except (IndexError, KeyError, UnboundLocalError) as ex:
-                self.fail("current_week=%d: internal %s: %s" % (cw, type(ex).__name__, ex))
+            self.assertIn("F3", str(ctx.exception))
+            self.assertIn(str(cw), str(ctx.exception))
 
 
 # ----------------------------------------------------------------------------- Phase 6

@@ -607,6 +607,22 @@ class FantasySimulationEngine:
         return float(np.mean(totals)) if totals else LEAGUE_AVG_PPG
 
     def run_simulation(self):
+        if self.current_week > REGULAR_SEASON_WEEKS:
+            # Explicit refusal, not an internal error. The season loop seeds the playoff
+            # bracket (top4) only in the week-14 seeding block, so a run starting at week
+            # 15 raised IndexError, 16 raised KeyError: None (w1/w2 never set) and 17
+            # raised UnboundLocalError (the loop never executed). Sleeper's /state/nfl
+            # reports 15-18 during and after the playoffs and sync writes it straight to
+            # league_state.json, so the first playoff-week sync used to turn every
+            # forecast into a stack trace. Seeding the bracket from banked standings and
+            # simulating only the remaining rounds is the real feature -- tracked as
+            # AUDIT_PLAN.md F3. AUDIT_PHASE_5_6_FINDINGS.md finding 1.
+            raise ValueError(
+                f"run_simulation: current_week={self.current_week} is past the {REGULAR_SEASON_WEEKS}-week "
+                f"regular season. The engine cannot yet simulate from inside the playoffs (the bracket is "
+                f"seeded only by simulating week {REGULAR_SEASON_WEEKS}); see AUDIT_PLAN.md F3. Re-run "
+                f"with league_state.json at week <= {REGULAR_SEASON_WEEKS}, or wait for F3."
+            )
         num_batches = SIM_CONFIG["NUM_BATCHES"]
         env_norm = self._compute_environment_normaliser()
         sims_per_batch = SIM_CONFIG["SIMS_PER_BATCH"]

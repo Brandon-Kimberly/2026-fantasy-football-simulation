@@ -52,7 +52,7 @@ Schedule-luck decomposition and `all_play_wins` were verified and fixed in Phase
 
 ## Findings
 
-### 1. The engine crashes on any playoff or post-season `current_week`
+### 1. The engine crashes on any playoff or post-season `current_week` — **INTERIM FIX (explicit refusal); graceful seeding tracked as F3**
 
 | `current_week` | outcome |
 |---|---|
@@ -68,6 +68,11 @@ trace. There is no path that seeds the bracket from *banked* standings (the info
 activates in week 15. Fix options: seed the bracket from banked standings when
 `current_week ≥ 15` and simulate only the remaining playoff rounds; or refuse with a `ValueError`
 that says so. Either moves no golden hash (both fixtures are regular-season).
+
+**Immediate half fixed; graceful version tracked as `AUDIT_PLAN.md` F3.** `run_simulation` now
+refuses with a `ValueError` for `current_week > 14` that names the limitation and F3. The
+entry-point test asserts the refusal (and flips to "these weeks run" when F3 lands). No golden
+movement.
 
 ### 2. A banked H2H tie is truncated in the forecast record
 
@@ -135,7 +140,7 @@ gitignored, so this is a local orphan from before the rename: delete it. No code
 
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
-| 1 | Engine crashes for `current_week` ≥ 15 | High, latent (week 15) | every playoff-week forecast | none (fixtures are regular-season) |
+| 1 | Engine crashes for `current_week` ≥ 15 — **refuses cleanly now; F3 makes it run** | High, latent (week 15) | every playoff-week forecast | none |
 | 2 | Banked H2H tie truncated; forecast record inconsistent | Low | teams with a tie on record | none on fixtures |
 | 3 | `is_mathematically_eliminated` is a sample zero | Low-medium | headline forecast field | week06 `stage_b/c` at most |
 | 4 | Playoff ties advance the lower seed | Low (measure-zero) | — | none |
