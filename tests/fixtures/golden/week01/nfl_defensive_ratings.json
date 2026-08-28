@@ -1,0 +1,130 @@
+{
+  "ARI": {
+    "points_allowed_estimate": 27.41,
+    "games_sampled": 0
+  },
+  "ATL": {
+    "points_allowed_estimate": 24.66,
+    "games_sampled": 0
+  },
+  "BAL": {
+    "points_allowed_estimate": 20.91,
+    "games_sampled": 0
+  },
+  "BUF": {
+    "points_allowed_estimate": 23.08,
+    "games_sampled": 0
+  },
+  "CAR": {
+    "points_allowed_estimate": 23.63,
+    "games_sampled": 0
+  },
+  "CHI": {
+    "points_allowed_estimate": 22.91,
+    "games_sampled": 0
+  },
+  "CIN": {
+    "points_allowed_estimate": 24.22,
+    "games_sampled": 0
+  },
+  "CLE": {
+    "points_allowed_estimate": 22.75,
+    "games_sampled": 0
+  },
+  "DAL": {
+    "points_allowed_estimate": 25.74,
+    "games_sampled": 0
+  },
+  "DEN": {
+    "points_allowed_estimate": 18.76,
+    "games_sampled": 0
+  },
+  "DET": {
+    "points_allowed_estimate": 21.98,
+    "games_sampled": 0
+  },
+  "GB": {
+    "points_allowed_estimate": 21.52,
+    "games_sampled": 0
+  },
+  "HOU": {
+    "points_allowed_estimate": 18.95,
+    "games_sampled": 0
+  },
+  "IND": {
+    "points_allowed_estimate": 23.45,
+    "games_sampled": 0
+  },
+  "JAX": {
+    "points_allowed_estimate": 22.75,
+    "games_sampled": 0
+  },
+  "KC": {
+    "points_allowed_estimate": 20.45,
+    "games_sampled": 0
+  },
+  "LAC": {
+    "points_allowed_estimate": 21.52,
+    "games_sampled": 0
+  },
+  "LAR": {
+    "points_allowed_estimate": 20.41,
+    "games_sampled": 0
+  },
+  "LV": {
+    "points_allowed_estimate": 25.91,
+    "games_sampled": 0
+  },
+  "MIA": {
+    "points_allowed_estimate": 26.46,
+    "games_sampled": 0
+  },
+  "MIN": {
+    "points_allowed_estimate": 21.21,
+    "games_sampled": 0
+  },
+  "NE": {
+    "points_allowed_estimate": 21.14,
+    "games_sampled": 0
+  },
+  "NO": {
+    "points_allowed_estimate": 23.11,
+    "games_sampled": 0
+  },
+  "NYG": {
+    "points_allowed_estimate": 24.63,
+    "games_sampled": 0
+  },
+  "NYJ": {
+    "points_allowed_estimate": 25.42,
+    "games_sampled": 0
+  },
+  "PHI": {
+    "points_allowed_estimate": 19.04,
+    "games_sampled": 0
+  },
+  "PIT": {
+    "points_allowed_estimate": 20.38,
+    "games_sampled": 0
+  },
+  "SEA": {
+    "points_allowed_estimate": 18.47,
+    "games_sampled": 0
+  },
+  "SF": {
+    "points_allowed_estimate": 23.12,
+    "games_sampled": 0
+  },
+  "TB": {
+    "points_allowed_estimate": 23.01,
+    "games_sampled": 0
+  },
+  "TEN": {
+    "points_allowed_estimate": 27.28,
+    "games_sampled": 0
+  },
+  "WAS": {
+    "points_allowed_estimate": 25.79,
+    "games_sampled": 0
+  }
+}

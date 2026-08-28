@@ -1,0 +1,233 @@
+{
+  "ARI": {
+    "opponent": "LAC",
+    "precip_prob": 0.0,
+    "spread": 11.5,
+    "total": 17.0,
+    "wind_mph": 0.0
+  },
+  "ATL": {
+    "opponent": "PIT",
+    "precip_prob": 0.0,
+    "spread": 3.0,
+    "total": 19.75,
+    "wind_mph": 0.0
+  },
+  "BAL": {
+    "opponent": "IND",
+    "precip_prob": 0.0,
+    "spread": -3.5,
+    "total": 26.5,
+    "wind_mph": 0.0
+  },
+  "BUF": {
+    "opponent": "HOU",
+    "precip_prob": 0.0,
+    "spread": -1.5,
+    "total": 23.0,
+    "wind_mph": 0.0
+  },
+  "CAR": {
+    "opponent": "CHI",
+    "precip_prob": 0.0,
+    "spread": 2.5,
+    "total": 21.0,
+    "wind_mph": 0.0
+  },
+  "CHI": {
+    "opponent": "CAR",
+    "precip_prob": 0.0,
+    "spread": -2.5,
+    "total": 23.5,
+    "wind_mph": 0.0
+  },
+  "CIN": {
+    "opponent": "TB",
+    "precip_prob": 0.0,
+    "spread": -3.5,
+    "total": 27.0,
+    "wind_mph": 0.0
+  },
+  "CLE": {
+    "opponent": "JAX",
+    "precip_prob": 0.0,
+    "spread": 7.5,
+    "total": 16.5,
+    "wind_mph": 0.0
+  },
+  "DAL": {
+    "opponent": "NYG",
+    "precip_prob": 0.0,
+    "spread": -2.5,
+    "total": 25.5,
+    "wind_mph": 0.0
+  },
+  "DEN": {
+    "opponent": "KC",
+    "precip_prob": 0.0,
+    "spread": 2.5,
+    "total": 20.0,
+    "wind_mph": 0.0
+  },
+  "DET": {
+    "opponent": "NO",
+    "precip_prob": 0.0,
+    "spread": -7.0,
+    "total": 28.25,
+    "wind_mph": 0.0
+  },
+  "FA": {
+    "opponent": "FA",
+    "precip_prob": 0.0,
+    "spread": 0.0,
+    "total": 20.0,
+    "wind_mph": 0.0
+  },
+  "GB": {
+    "opponent": "MIN",
+    "precip_prob": 0.0,
+    "spread": -1.5,
+    "total": 23.0,
+    "wind_mph": 0.0
+  },
+  "HOU": {
+    "opponent": "BUF",
+    "precip_prob": 0.0,
+    "spread": 1.5,
+    "total": 21.5,
+    "wind_mph": 0.0
+  },
+  "IND": {
+    "opponent": "BAL",
+    "precip_prob": 0.0,
+    "spread": 3.5,
+    "total": 23.0,
+    "wind_mph": 0.0
+  },
+  "JAX": {
+    "opponent": "CLE",
+    "precip_prob": 0.0,
+    "spread": -7.5,
+    "total": 24.0,
+    "wind_mph": 0.0
+  },
+  "KC": {
+    "opponent": "DEN",
+    "precip_prob": 0.0,
+    "spread": -2.5,
+    "total": 22.5,
+    "wind_mph": 0.0
+  },
+  "LAC": {
+    "opponent": "ARI",
+    "precip_prob": 0.0,
+    "spread": -11.5,
+    "total": 28.5,
+    "wind_mph": 0.0
+  },
+  "LAR": {
+    "opponent": "SF",
+    "precip_prob": 0.0,
+    "spread": -3.5,
+    "total": 26.0,
+    "wind_mph": 0.0
+  },
+  "LV": {
+    "opponent": "MIA",
+    "precip_prob": 0.0,
+    "spread": -3.0,
+    "total": 22.25,
+    "wind_mph": 0.0
+  },
+  "MIA": {
+    "opponent": "LV",
+    "precip_prob": 0.0,
+    "spread": 3.0,
+    "total": 19.25,
+    "wind_mph": 0.0
+  },
+  "MIN": {
+    "opponent": "GB",
+    "precip_prob": 0.0,
+    "spread": 1.5,
+    "total": 21.5,
+    "wind_mph": 0.0
+  },
+  "NE": {
+    "opponent": "SEA",
+    "precip_prob": 0.0,
+    "spread": 4.0,
+    "total": 20.75,
+    "wind_mph": 0.0
+  },
+  "NO": {
+    "opponent": "DET",
+    "precip_prob": 0.0,
+    "spread": 7.0,
+    "total": 21.25,
+    "wind_mph": 0.0
+  },
+  "NYG": {
+    "opponent": "DAL",
+    "precip_prob": 0.0,
+    "spread": 2.5,
+    "total": 23.0,
+    "wind_mph": 0.0
+  },
+  "NYJ": {
+    "opponent": "TEN",
+    "precip_prob": 0.0,
+    "spread": 3.0,
+    "total": 17.75,
+    "wind_mph": 0.0
+  },
+  "PHI": {
+    "opponent": "WAS",
+    "precip_prob": 0.0,
+    "spread": -4.5,
+    "total": 25.75,
+    "wind_mph": 0.0
+  },
+  "PIT": {
+    "opponent": "ATL",
+    "precip_prob": 0.0,
+    "spread": -3.0,
+    "total": 22.75,
+    "wind_mph": 0.0
+  },
+  "SEA": {
+    "opponent": "NE",
+    "precip_prob": 0.0,
+    "spread": -4.0,
+    "total": 24.75,
+    "wind_mph": 0.0
+  },
+  "SF": {
+    "opponent": "LAR",
+    "precip_prob": 0.0,
+    "spread": 3.5,
+    "total": 22.5,
+    "wind_mph": 0.0
+  },
+  "TB": {
+    "opponent": "CIN",
+    "precip_prob": 0.0,
+    "spread": 3.5,
+    "total": 23.5,
+    "wind_mph": 0.0
+  },
+  "TEN": {
+    "opponent": "NYJ",
+    "precip_prob": 0.0,
+    "spread": -3.0,
+    "total": 20.75,
+    "wind_mph": 0.0
+  },
+  "WAS": {
+    "opponent": "PHI",
+    "precip_prob": 0.0,
+    "spread": 4.5,
+    "total": 21.25,
+    "wind_mph": 0.0
+  }
+}

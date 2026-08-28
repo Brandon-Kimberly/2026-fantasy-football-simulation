@@ -1,0 +1,7714 @@
+{
+  "Brandon Aubrey": {
+    "pos": "K",
+    "mean": 11.43,
+    "std_aleatoric": 5.31,
+    "std_epistemic": 4.57,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "DeMarcus Lawrence": {
+    "pos": "DE",
+    "mean": 6.58,
+    "std_aleatoric": 3.85,
+    "std_epistemic": 1.18,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Parker Washington": {
+    "pos": "WR",
+    "mean": 9.5,
+    "std_aleatoric": 5.55,
+    "std_epistemic": 5.23,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Geno Stone": {
+    "pos": "DB",
+    "mean": 8.4,
+    "std_aleatoric": 4.35,
+    "std_epistemic": 1.26,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Eric Murray": {
+    "pos": "DB",
+    "mean": 5.75,
+    "std_aleatoric": 3.6,
+    "std_epistemic": 0.86,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Mykel Williams": {
+    "pos": "DL",
+    "mean": 4.42,
+    "std_aleatoric": 3.15,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "SF"
+  },
+  "CeeDee Lamb": {
+    "pos": "WR",
+    "mean": 14.25,
+    "std_aleatoric": 6.79,
+    "std_epistemic": 7.84,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Bucky Irving": {
+    "pos": "RB",
+    "mean": 11.15,
+    "std_aleatoric": 6.61,
+    "std_epistemic": 7.02,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Jerry Jeudy": {
+    "pos": "WR",
+    "mean": 5.99,
+    "std_aleatoric": 4.41,
+    "std_epistemic": 3.29,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Jacob Cowing": {
+    "pos": "WR",
+    "mean": 0.04,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.02,
+    "bye": 0,
+    "team": "SF"
+  },
+  "JD Bertrand": {
+    "pos": "LB",
+    "mean": 2.95,
+    "std_aleatoric": 2.58,
+    "std_epistemic": 0.44,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Dante Pettis": {
+    "pos": "WR",
+    "mean": 0.18,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Kayshon Boutte": {
+    "pos": "WR",
+    "mean": 6.35,
+    "std_aleatoric": 4.54,
+    "std_epistemic": 3.49,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Omarion Hampton": {
+    "pos": "RB",
+    "mean": 14.77,
+    "std_aleatoric": 7.61,
+    "std_epistemic": 9.31,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Jaleel McLaughlin": {
+    "pos": "RB",
+    "mean": 0.77,
+    "std_aleatoric": 1.74,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Adam Randall": {
+    "pos": "RB",
+    "mean": 0.81,
+    "std_aleatoric": 1.78,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Nate Hobbs": {
+    "pos": "CB",
+    "mean": 3.17,
+    "std_aleatoric": 2.67,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Devontez Walker": {
+    "pos": "WR",
+    "mean": 1.95,
+    "std_aleatoric": 2.51,
+    "std_epistemic": 1.07,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Oren Burks": {
+    "pos": "LB",
+    "mean": 3.62,
+    "std_aleatoric": 2.85,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Oronde Gadsden": {
+    "pos": "TE",
+    "mean": 3.94,
+    "std_aleatoric": 3.97,
+    "std_epistemic": 1.97,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "LaJohntay Wester": {
+    "pos": "WR",
+    "mean": 0.16,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Kyle Pitts": {
+    "pos": "TE",
+    "mean": 8.38,
+    "std_aleatoric": 5.79,
+    "std_epistemic": 4.19,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Teddye Buchanan": {
+    "pos": "LB",
+    "mean": 5.14,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Nick Herbig": {
+    "pos": "LB",
+    "mean": 7.92,
+    "std_aleatoric": 4.22,
+    "std_epistemic": 1.19,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Isaiah McDuffie": {
+    "pos": "LB",
+    "mean": 6.35,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Henry To'oTo'o": {
+    "pos": "LB",
+    "mean": 7.64,
+    "std_aleatoric": 4.15,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Mo Alie-Cox": {
+    "pos": "TE",
+    "mean": 1.15,
+    "std_aleatoric": 2.14,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Vita Vea": {
+    "pos": "DT",
+    "mean": 4.92,
+    "std_aleatoric": 3.33,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Jake Tonges": {
+    "pos": "TE",
+    "mean": 4.0,
+    "std_aleatoric": 4.0,
+    "std_epistemic": 2.29,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Leonard Williams": {
+    "pos": "DE",
+    "mean": 7.26,
+    "std_aleatoric": 4.04,
+    "std_epistemic": 1.31,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Nnamdi Madubuike": {
+    "pos": "DT",
+    "mean": 3.33,
+    "std_aleatoric": 2.74,
+    "std_epistemic": 0.6,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Dadrion Taylor-Demerson": {
+    "pos": "DB",
+    "mean": 3.78,
+    "std_aleatoric": 2.92,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Ed Oliver": {
+    "pos": "DT",
+    "mean": 5.73,
+    "std_aleatoric": 3.59,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Mike Green": {
+    "pos": "DL",
+    "mean": 4.63,
+    "std_aleatoric": 3.23,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Ameer Abdullah": {
+    "pos": "RB",
+    "mean": 0.31,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.2,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Sonny Styles": {
+    "pos": "LB",
+    "mean": 10.48,
+    "std_aleatoric": 4.86,
+    "std_epistemic": 1.57,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Audric Estime": {
+    "pos": "RB",
+    "mean": 1.09,
+    "std_aleatoric": 2.07,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Darien Porter": {
+    "pos": "DB",
+    "mean": 1.96,
+    "std_aleatoric": 2.1,
+    "std_epistemic": 0.29,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Jeffery Simmons": {
+    "pos": "DT",
+    "mean": 8.61,
+    "std_aleatoric": 4.4,
+    "std_epistemic": 1.55,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Houston Texans": {
+    "pos": "DEF",
+    "mean": 7.42,
+    "std_aleatoric": 4.09,
+    "std_epistemic": 1.34,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Dak Prescott": {
+    "pos": "QB",
+    "mean": 18.34,
+    "std_aleatoric": 7.07,
+    "std_epistemic": 5.5,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Zach Harrison": {
+    "pos": "DE",
+    "mean": 4.37,
+    "std_aleatoric": 3.14,
+    "std_epistemic": 0.79,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Antonio Williams": {
+    "pos": "WR",
+    "mean": 3.05,
+    "std_aleatoric": 3.14,
+    "std_epistemic": 1.68,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Matthew Stafford": {
+    "pos": "QB",
+    "mean": 17.48,
+    "std_aleatoric": 6.9,
+    "std_epistemic": 5.24,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Khalil Shakir": {
+    "pos": "WR",
+    "mean": 8.27,
+    "std_aleatoric": 5.18,
+    "std_epistemic": 4.55,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Noah Gray": {
+    "pos": "TE",
+    "mean": 3.0,
+    "std_aleatoric": 3.46,
+    "std_epistemic": 1.5,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Dallas Turner": {
+    "pos": "LB",
+    "mean": 9.01,
+    "std_aleatoric": 4.5,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Kenneth Grant": {
+    "pos": "DL",
+    "mean": 3.86,
+    "std_aleatoric": 2.95,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "New England Patriots": {
+    "pos": "DEF",
+    "mean": 7.0,
+    "std_aleatoric": 3.97,
+    "std_epistemic": 1.26,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Jordan Burch": {
+    "pos": "DL",
+    "mean": 1.91,
+    "std_aleatoric": 2.07,
+    "std_epistemic": 0.29,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Jordan Elliott": {
+    "pos": "DT",
+    "mean": 1.84,
+    "std_aleatoric": 2.03,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Justice Hill": {
+    "pos": "RB",
+    "mean": 4.91,
+    "std_aleatoric": 4.39,
+    "std_epistemic": 3.09,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Josh Newton": {
+    "pos": "CB",
+    "mean": 2.0,
+    "std_aleatoric": 2.12,
+    "std_epistemic": 0.36,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Colston Loveland": {
+    "pos": "TE",
+    "mean": 10.7,
+    "std_aleatoric": 6.54,
+    "std_epistemic": 5.35,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Bobby Brown": {
+    "pos": "DT",
+    "mean": 2.5,
+    "std_aleatoric": 2.37,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "James Cook": {
+    "pos": "RB",
+    "mean": 14.78,
+    "std_aleatoric": 7.61,
+    "std_epistemic": 9.31,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Mansoor Delane": {
+    "pos": "DB",
+    "mean": 5.19,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Jahan Dotson": {
+    "pos": "WR",
+    "mean": 4.09,
+    "std_aleatoric": 3.64,
+    "std_epistemic": 2.25,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "DaRon Bland": {
+    "pos": "DB",
+    "mean": 6.62,
+    "std_aleatoric": 3.86,
+    "std_epistemic": 0.99,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Alex Anzalone": {
+    "pos": "LB",
+    "mean": 9.2,
+    "std_aleatoric": 4.55,
+    "std_epistemic": 1.38,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Julian Love": {
+    "pos": "DB",
+    "mean": 8.77,
+    "std_aleatoric": 4.44,
+    "std_epistemic": 1.32,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Efton Chism": {
+    "pos": "WR",
+    "mean": 0.27,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "NE"
+  },
+  "C.J. Gardner-Johnson": {
+    "pos": "DB",
+    "mean": 6.45,
+    "std_aleatoric": 3.81,
+    "std_epistemic": 0.97,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Jauan Jennings": {
+    "pos": "WR",
+    "mean": 6.04,
+    "std_aleatoric": 4.42,
+    "std_epistemic": 3.32,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "John Franklin-Myers": {
+    "pos": "DT",
+    "mean": 4.16,
+    "std_aleatoric": 3.06,
+    "std_epistemic": 0.75,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Rachaad White": {
+    "pos": "RB",
+    "mean": 8.02,
+    "std_aleatoric": 5.61,
+    "std_epistemic": 5.05,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Malik Washington": {
+    "pos": "WR",
+    "mean": 6.36,
+    "std_aleatoric": 4.54,
+    "std_epistemic": 3.5,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Davison Igbinosun": {
+    "pos": "CB",
+    "mean": 2.55,
+    "std_aleatoric": 2.4,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Sam Darnold": {
+    "pos": "QB",
+    "mean": 15.96,
+    "std_aleatoric": 6.59,
+    "std_epistemic": 4.79,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Charlie Jones": {
+    "pos": "WR",
+    "mean": 0.16,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Brian Branch": {
+    "pos": "DB",
+    "mean": 5.47,
+    "std_aleatoric": 3.51,
+    "std_epistemic": 0.82,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Jayden Reed": {
+    "pos": "WR",
+    "mean": 9.49,
+    "std_aleatoric": 5.55,
+    "std_epistemic": 5.22,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Isaiah McGuire": {
+    "pos": "DL",
+    "mean": 3.66,
+    "std_aleatoric": 2.87,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Tavius Robinson": {
+    "pos": "DE",
+    "mean": 3.36,
+    "std_aleatoric": 2.75,
+    "std_epistemic": 0.6,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Da'Shawn Hand": {
+    "pos": "DT",
+    "mean": 3.07,
+    "std_aleatoric": 2.63,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Ja'Sir Taylor": {
+    "pos": "DB",
+    "mean": 1.96,
+    "std_aleatoric": 2.1,
+    "std_epistemic": 0.29,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Chris Brooks": {
+    "pos": "RB",
+    "mean": 1.69,
+    "std_aleatoric": 2.57,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "GB"
+  },
+  "CJ Allen": {
+    "pos": "LB",
+    "mean": 6.85,
+    "std_aleatoric": 3.93,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Dylan Laube": {
+    "pos": "RB",
+    "mean": 0.35,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.32,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Cade Otton": {
+    "pos": "TE",
+    "mean": 5.39,
+    "std_aleatoric": 4.64,
+    "std_epistemic": 2.69,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Chris Moore": {
+    "pos": "WR",
+    "mean": 0.25,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.14,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "CJ Daniels": {
+    "pos": "WR",
+    "mean": 1.12,
+    "std_aleatoric": 1.9,
+    "std_epistemic": 0.65,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Christian Harris": {
+    "pos": "LB",
+    "mean": 5.92,
+    "std_aleatoric": 3.65,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Kimani Vidal": {
+    "pos": "RB",
+    "mean": 1.69,
+    "std_aleatoric": 2.57,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Greg Newsome": {
+    "pos": "CB",
+    "mean": 4.18,
+    "std_aleatoric": 3.07,
+    "std_epistemic": 0.75,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Bradley Chubb": {
+    "pos": "LB",
+    "mean": 7.63,
+    "std_aleatoric": 4.14,
+    "std_epistemic": 1.14,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Josh Cuevas": {
+    "pos": "TE",
+    "mean": 0.56,
+    "std_aleatoric": 1.5,
+    "std_epistemic": 0.28,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Jack Endries": {
+    "pos": "TE",
+    "mean": 0.52,
+    "std_aleatoric": 1.44,
+    "std_epistemic": 0.26,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Odafe Oweh": {
+    "pos": "LB",
+    "mean": 6.97,
+    "std_aleatoric": 3.96,
+    "std_epistemic": 1.05,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Harrison Butker": {
+    "pos": "K",
+    "mean": 10.17,
+    "std_aleatoric": 5.01,
+    "std_epistemic": 4.07,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Tyler Davis": {
+    "pos": "K",
+    "mean": 3.33,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 1.33,
+    "bye": 0,
+    "team": null
+  },
+  "Ko Kieft": {
+    "pos": "TE",
+    "mean": 0.24,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.21,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Jaxon Smith-Njigba": {
+    "pos": "WR",
+    "mean": 15.89,
+    "std_aleatoric": 7.18,
+    "std_epistemic": 8.74,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Isaiah Davis": {
+    "pos": "RB",
+    "mean": 3.59,
+    "std_aleatoric": 3.75,
+    "std_epistemic": 2.26,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Jaylen Waddle": {
+    "pos": "WR",
+    "mean": 11.06,
+    "std_aleatoric": 5.99,
+    "std_epistemic": 6.08,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jahdae Walker": {
+    "pos": "WR",
+    "mean": 1.07,
+    "std_aleatoric": 1.86,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Tarheeb Still": {
+    "pos": "DB",
+    "mean": 5.44,
+    "std_aleatoric": 3.5,
+    "std_epistemic": 0.82,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Jacardia Wright": {
+    "pos": "RB",
+    "mean": 0.24,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.15,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Noah Thomas": {
+    "pos": "WR",
+    "mean": 0.04,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.02,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Baltimore Ravens": {
+    "pos": "DEF",
+    "mean": 7.9,
+    "std_aleatoric": 4.22,
+    "std_epistemic": 1.42,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Brenen Thompson": {
+    "pos": "WR",
+    "mean": 1.26,
+    "std_aleatoric": 2.02,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Quincy Williams": {
+    "pos": "LB",
+    "mean": 9.11,
+    "std_aleatoric": 4.53,
+    "std_epistemic": 1.37,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Mike Jackson": {
+    "pos": "CB",
+    "mean": 7.45,
+    "std_aleatoric": 4.09,
+    "std_epistemic": 1.34,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Justin Joly": {
+    "pos": "TE",
+    "mean": 1.55,
+    "std_aleatoric": 2.49,
+    "std_epistemic": 1.11,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Rueben Bain": {
+    "pos": "DL",
+    "mean": 6.71,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Daniel Jones": {
+    "pos": "QB",
+    "mean": 15.86,
+    "std_aleatoric": 6.57,
+    "std_epistemic": 4.76,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Will Johnson": {
+    "pos": "DB",
+    "mean": 4.9,
+    "std_aleatoric": 3.32,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "George Karlaftis": {
+    "pos": "DL",
+    "mean": 7.08,
+    "std_aleatoric": 3.99,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Justin Jefferson": {
+    "pos": "WR",
+    "mean": 13.85,
+    "std_aleatoric": 6.7,
+    "std_epistemic": 7.62,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Tershawn Wharton": {
+    "pos": "DT",
+    "mean": 5.13,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Eli Raridon": {
+    "pos": "TE",
+    "mean": 1.67,
+    "std_aleatoric": 2.58,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Eyioma Uwazurike": {
+    "pos": "DL",
+    "mean": 3.01,
+    "std_aleatoric": 2.6,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Chase Young": {
+    "pos": "DE",
+    "mean": 6.75,
+    "std_aleatoric": 3.9,
+    "std_epistemic": 1.21,
+    "bye": 0,
+    "team": "NO"
+  },
+  "T.J. Hockenson": {
+    "pos": "TE",
+    "mean": 6.76,
+    "std_aleatoric": 5.2,
+    "std_epistemic": 3.38,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Ryan Fitzgerald": {
+    "pos": "K",
+    "mean": 9.4,
+    "std_aleatoric": 4.81,
+    "std_epistemic": 3.76,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Chad Ryland": {
+    "pos": "K",
+    "mean": 8.33,
+    "std_aleatoric": 4.53,
+    "std_epistemic": 3.33,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "TreVeyon Henderson": {
+    "pos": "RB",
+    "mean": 9.0,
+    "std_aleatoric": 5.94,
+    "std_epistemic": 5.67,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Justin Strnad": {
+    "pos": "LB",
+    "mean": 5.12,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Brandon Dorlus": {
+    "pos": "DE",
+    "mean": 4.99,
+    "std_aleatoric": 3.35,
+    "std_epistemic": 0.9,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Elijah Sarratt": {
+    "pos": "WR",
+    "mean": 1.23,
+    "std_aleatoric": 2.0,
+    "std_epistemic": 0.68,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Isaac TeSlaa": {
+    "pos": "WR",
+    "mean": 3.36,
+    "std_aleatoric": 3.3,
+    "std_epistemic": 1.85,
+    "bye": 0,
+    "team": "DET"
+  },
+  "D'Andre Swift": {
+    "pos": "RB",
+    "mean": 11.66,
+    "std_aleatoric": 6.76,
+    "std_epistemic": 7.35,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Malik Mustapha": {
+    "pos": "DB",
+    "mean": 8.26,
+    "std_aleatoric": 4.31,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Geno Smith": {
+    "pos": "QB",
+    "mean": 14.48,
+    "std_aleatoric": 6.28,
+    "std_epistemic": 4.34,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Tua Tagovailoa": {
+    "pos": "QB",
+    "mean": 13.79,
+    "std_aleatoric": 6.13,
+    "std_epistemic": 4.14,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Devin Singletary": {
+    "pos": "RB",
+    "mean": 0.81,
+    "std_aleatoric": 1.78,
+    "std_epistemic": 0.51,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Jaycee Horn": {
+    "pos": "CB",
+    "mean": 4.85,
+    "std_aleatoric": 3.3,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Jalen Hurts": {
+    "pos": "QB",
+    "mean": 20.76,
+    "std_aleatoric": 7.52,
+    "std_epistemic": 6.23,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Ladd McConkey": {
+    "pos": "WR",
+    "mean": 11.23,
+    "std_aleatoric": 6.03,
+    "std_epistemic": 6.18,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Demond Claiborne": {
+    "pos": "RB",
+    "mean": 1.48,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Ricky White": {
+    "pos": "WR",
+    "mean": 0.05,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.03,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Brian Robinson": {
+    "pos": "RB",
+    "mean": 4.56,
+    "std_aleatoric": 4.23,
+    "std_epistemic": 2.87,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Denzel Ward": {
+    "pos": "CB",
+    "mean": 4.11,
+    "std_aleatoric": 3.04,
+    "std_epistemic": 0.74,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Hunter Luepke": {
+    "pos": "FB",
+    "mean": 1.34,
+    "std_aleatoric": 1.74,
+    "std_epistemic": 0.24,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Rome Odunze": {
+    "pos": "WR",
+    "mean": 10.22,
+    "std_aleatoric": 5.75,
+    "std_epistemic": 5.62,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Michael Wilson": {
+    "pos": "WR",
+    "mean": 8.84,
+    "std_aleatoric": 5.35,
+    "std_epistemic": 4.86,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Nick Emmanwori": {
+    "pos": "DB",
+    "mean": 9.8,
+    "std_aleatoric": 4.7,
+    "std_epistemic": 1.47,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Myles Bryant": {
+    "pos": "DB",
+    "mean": 2.28,
+    "std_aleatoric": 2.26,
+    "std_epistemic": 0.34,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Pittsburgh Steelers": {
+    "pos": "DEF",
+    "mean": 8.84,
+    "std_aleatoric": 4.46,
+    "std_epistemic": 1.59,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Jordan Love": {
+    "pos": "QB",
+    "mean": 16.52,
+    "std_aleatoric": 6.71,
+    "std_epistemic": 4.96,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Matt Gay": {
+    "pos": "K",
+    "mean": 9.21,
+    "std_aleatoric": 4.76,
+    "std_epistemic": 3.68,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Indianapolis Colts": {
+    "pos": "DEF",
+    "mean": 5.58,
+    "std_aleatoric": 3.54,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "IND"
+  },
+  "John Metchie": {
+    "pos": "WR",
+    "mean": 2.78,
+    "std_aleatoric": 3.0,
+    "std_epistemic": 1.53,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Erick All": {
+    "pos": "TE",
+    "mean": 2.59,
+    "std_aleatoric": 3.22,
+    "std_epistemic": 1.29,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Nick Westbrook-Ikhine": {
+    "pos": "WR",
+    "mean": 1.58,
+    "std_aleatoric": 2.26,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Kalif Raymond": {
+    "pos": "WR",
+    "mean": 2.72,
+    "std_aleatoric": 2.97,
+    "std_epistemic": 1.5,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Claudin Cherelus": {
+    "pos": "LB",
+    "mean": 2.16,
+    "std_aleatoric": 2.2,
+    "std_epistemic": 0.32,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Denzel Burke": {
+    "pos": "CB",
+    "mean": 4.5,
+    "std_aleatoric": 3.18,
+    "std_epistemic": 0.81,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Jalen Redmond": {
+    "pos": "DE",
+    "mean": 5.76,
+    "std_aleatoric": 3.6,
+    "std_epistemic": 1.04,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Dominic Zvada": {
+    "pos": "K",
+    "mean": 7.31,
+    "std_aleatoric": 4.24,
+    "std_epistemic": 2.92,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Demario Davis": {
+    "pos": "LB",
+    "mean": 7.81,
+    "std_aleatoric": 4.19,
+    "std_epistemic": 1.17,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Chris Godwin": {
+    "pos": "WR",
+    "mean": 8.34,
+    "std_aleatoric": 5.2,
+    "std_epistemic": 4.59,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Azeez Al-Shaair": {
+    "pos": "LB",
+    "mean": 7.76,
+    "std_aleatoric": 4.18,
+    "std_epistemic": 1.16,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Adam Butler": {
+    "pos": "DT",
+    "mean": 5.18,
+    "std_aleatoric": 3.41,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Max Bredeson": {
+    "pos": "TE",
+    "mean": 0.25,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Lathan Ransom": {
+    "pos": "DB",
+    "mean": 4.8,
+    "std_aleatoric": 3.29,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Dawson Knox": {
+    "pos": "TE",
+    "mean": 3.56,
+    "std_aleatoric": 3.77,
+    "std_epistemic": 1.78,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Milton Williams": {
+    "pos": "DT",
+    "mean": 6.34,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 1.14,
+    "bye": 0,
+    "team": "NE"
+  },
+  "DJ Wonnum": {
+    "pos": "DE",
+    "mean": 5.89,
+    "std_aleatoric": 3.64,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Jack Velling": {
+    "pos": "TE",
+    "mean": 0.2,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Cameron Dicker": {
+    "pos": "K",
+    "mean": 11.44,
+    "std_aleatoric": 5.31,
+    "std_epistemic": 4.58,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "David Bailey": {
+    "pos": "LB",
+    "mean": 5.95,
+    "std_aleatoric": 3.66,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Kevin Winston": {
+    "pos": "DB",
+    "mean": 7.53,
+    "std_aleatoric": 4.12,
+    "std_epistemic": 1.13,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Isiah Pacheco": {
+    "pos": "RB",
+    "mean": 5.21,
+    "std_aleatoric": 4.52,
+    "std_epistemic": 3.28,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Kirk Cousins": {
+    "pos": "QB",
+    "mean": 15.2,
+    "std_aleatoric": 6.43,
+    "std_epistemic": 4.56,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Jake Ferguson": {
+    "pos": "TE",
+    "mean": 7.67,
+    "std_aleatoric": 5.54,
+    "std_epistemic": 3.83,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Jonah Laulu": {
+    "pos": "DL",
+    "mean": 4.82,
+    "std_aleatoric": 3.29,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Luke Farrell": {
+    "pos": "TE",
+    "mean": 0.65,
+    "std_aleatoric": 1.61,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Malcolm Roach": {
+    "pos": "DT",
+    "mean": 3.05,
+    "std_aleatoric": 2.62,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "E.J. Speed": {
+    "pos": "LB",
+    "mean": 5.25,
+    "std_aleatoric": 3.44,
+    "std_epistemic": 0.79,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Andrew Mukuba": {
+    "pos": "DB",
+    "mean": 6.22,
+    "std_aleatoric": 3.74,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Will McDonald": {
+    "pos": "DE",
+    "mean": 6.13,
+    "std_aleatoric": 3.71,
+    "std_epistemic": 1.1,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Zyon McCollum": {
+    "pos": "DB",
+    "mean": 6.69,
+    "std_aleatoric": 3.88,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Devin Lloyd": {
+    "pos": "LB",
+    "mean": 11.14,
+    "std_aleatoric": 5.01,
+    "std_epistemic": 1.67,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "DJ Reader": {
+    "pos": "DT",
+    "mean": 2.42,
+    "std_aleatoric": 2.33,
+    "std_epistemic": 0.44,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Kerby Joseph": {
+    "pos": "DB",
+    "mean": 7.55,
+    "std_aleatoric": 4.12,
+    "std_epistemic": 1.13,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Isaiah Likely": {
+    "pos": "TE",
+    "mean": 7.58,
+    "std_aleatoric": 5.51,
+    "std_epistemic": 3.79,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Patrick Mahomes": {
+    "pos": "QB",
+    "mean": 16.66,
+    "std_aleatoric": 6.73,
+    "std_epistemic": 5.0,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Arizona Cardinals": {
+    "pos": "DEF",
+    "mean": 3.35,
+    "std_aleatoric": 2.75,
+    "std_epistemic": 0.6,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Demarcus Robinson": {
+    "pos": "WR",
+    "mean": 1.43,
+    "std_aleatoric": 2.15,
+    "std_epistemic": 0.99,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Isaiah Williams": {
+    "pos": "WR",
+    "mean": 1.98,
+    "std_aleatoric": 2.53,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Seattle Seahawks": {
+    "pos": "DEF",
+    "mean": 9.11,
+    "std_aleatoric": 4.53,
+    "std_epistemic": 1.64,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Ja'Marr Chase": {
+    "pos": "WR",
+    "mean": 16.46,
+    "std_aleatoric": 7.3,
+    "std_epistemic": 9.05,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Grant Calcaterra": {
+    "pos": "TE",
+    "mean": 1.45,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Las Vegas Raiders": {
+    "pos": "DEF",
+    "mean": 8.32,
+    "std_aleatoric": 4.33,
+    "std_epistemic": 1.5,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Evan McPherson": {
+    "pos": "K",
+    "mean": 10.77,
+    "std_aleatoric": 5.15,
+    "std_epistemic": 4.31,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "R Mason Thomas": {
+    "pos": "DL",
+    "mean": 4.28,
+    "std_aleatoric": 3.1,
+    "std_epistemic": 0.64,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Nate Landman": {
+    "pos": "LB",
+    "mean": 10.81,
+    "std_aleatoric": 4.93,
+    "std_epistemic": 1.62,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Jalen Tolbert": {
+    "pos": "WR",
+    "mean": 3.74,
+    "std_aleatoric": 3.48,
+    "std_epistemic": 2.06,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Yaya Diaby": {
+    "pos": "DL",
+    "mean": 7.97,
+    "std_aleatoric": 4.23,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Justin Herbert": {
+    "pos": "QB",
+    "mean": 18.87,
+    "std_aleatoric": 7.17,
+    "std_epistemic": 5.66,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Tee Higgins": {
+    "pos": "WR",
+    "mean": 12.08,
+    "std_aleatoric": 6.26,
+    "std_epistemic": 6.64,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Sam LaPorta": {
+    "pos": "TE",
+    "mean": 9.23,
+    "std_aleatoric": 6.08,
+    "std_epistemic": 4.62,
+    "bye": 0,
+    "team": "DET"
+  },
+  "DJ Turner": {
+    "pos": "DB",
+    "mean": 5.9,
+    "std_aleatoric": 3.64,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Samson Ebukam": {
+    "pos": "DE",
+    "mean": 4.36,
+    "std_aleatoric": 3.13,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Patrick Jones": {
+    "pos": "DE",
+    "mean": 3.54,
+    "std_aleatoric": 2.82,
+    "std_epistemic": 0.64,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Jamel Dean": {
+    "pos": "CB",
+    "mean": 5.37,
+    "std_aleatoric": 3.48,
+    "std_epistemic": 0.97,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Jalyx Hunt": {
+    "pos": "DE",
+    "mean": 7.49,
+    "std_aleatoric": 4.11,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Budda Baker": {
+    "pos": "DB",
+    "mean": 8.07,
+    "std_aleatoric": 4.26,
+    "std_epistemic": 1.21,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Britain Covey": {
+    "pos": "WR",
+    "mean": 0.07,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.04,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Shavon Revel": {
+    "pos": "DB",
+    "mean": 2.9,
+    "std_aleatoric": 2.55,
+    "std_epistemic": 0.43,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Leo Chenal": {
+    "pos": "LB",
+    "mean": 7.5,
+    "std_aleatoric": 4.11,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Chamarri Conner": {
+    "pos": "DB",
+    "mean": 10.09,
+    "std_aleatoric": 4.76,
+    "std_epistemic": 1.51,
+    "bye": 0,
+    "team": "KC"
+  },
+  "DeMario Douglas": {
+    "pos": "WR",
+    "mean": 3.9,
+    "std_aleatoric": 3.55,
+    "std_epistemic": 2.15,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Jalen Nailor": {
+    "pos": "WR",
+    "mean": 6.88,
+    "std_aleatoric": 4.72,
+    "std_epistemic": 3.78,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Barryn Sorrell": {
+    "pos": "DE",
+    "mean": 3.45,
+    "std_aleatoric": 2.79,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "GB"
+  },
+  "DeForest Buckner": {
+    "pos": "DT",
+    "mean": 6.2,
+    "std_aleatoric": 3.73,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Luther Burden": {
+    "pos": "WR",
+    "mean": 10.53,
+    "std_aleatoric": 5.84,
+    "std_epistemic": 5.79,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Dontayvion Wicks": {
+    "pos": "WR",
+    "mean": 6.06,
+    "std_aleatoric": 4.43,
+    "std_epistemic": 3.33,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Broderick Washington": {
+    "pos": "DT",
+    "mean": 2.54,
+    "std_aleatoric": 2.39,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "New York Jets": {
+    "pos": "DEF",
+    "mean": 6.43,
+    "std_aleatoric": 3.8,
+    "std_epistemic": 1.16,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Brashard Smith": {
+    "pos": "RB",
+    "mean": 0.34,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.29,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Lamar Jackson": {
+    "pos": "QB",
+    "mean": 20.27,
+    "std_aleatoric": 7.43,
+    "std_epistemic": 6.08,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Josh Uche": {
+    "pos": "LB",
+    "mean": 4.59,
+    "std_aleatoric": 3.21,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Eli Stowers": {
+    "pos": "TE",
+    "mean": 1.79,
+    "std_aleatoric": 2.68,
+    "std_epistemic": 0.9,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jalen McMillan": {
+    "pos": "WR",
+    "mean": 6.44,
+    "std_aleatoric": 4.57,
+    "std_epistemic": 3.54,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Nick Cross": {
+    "pos": "DB",
+    "mean": 9.52,
+    "std_aleatoric": 4.63,
+    "std_epistemic": 1.43,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Jeremy McNichols": {
+    "pos": "RB",
+    "mean": 0.64,
+    "std_aleatoric": 1.58,
+    "std_epistemic": 0.4,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Trey Hendrickson": {
+    "pos": "DE",
+    "mean": 8.54,
+    "std_aleatoric": 4.38,
+    "std_epistemic": 1.54,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Davante Adams": {
+    "pos": "WR",
+    "mean": 11.08,
+    "std_aleatoric": 5.99,
+    "std_epistemic": 6.09,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Aaron Rodgers": {
+    "pos": "QB",
+    "mean": 15.21,
+    "std_aleatoric": 6.43,
+    "std_epistemic": 4.56,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Deebo Samuel": {
+    "pos": "WR",
+    "mean": 7.95,
+    "std_aleatoric": 5.08,
+    "std_epistemic": 4.37,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Jamien Sherwood": {
+    "pos": "LB",
+    "mean": 9.1,
+    "std_aleatoric": 4.52,
+    "std_epistemic": 1.36,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Brenton Strange": {
+    "pos": "TE",
+    "mean": 6.53,
+    "std_aleatoric": 5.11,
+    "std_epistemic": 3.27,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Tyler Shough": {
+    "pos": "QB",
+    "mean": 16.07,
+    "std_aleatoric": 6.61,
+    "std_epistemic": 4.82,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Chase McLaughlin": {
+    "pos": "K",
+    "mean": 10.35,
+    "std_aleatoric": 5.05,
+    "std_epistemic": 4.14,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Baker Mayfield": {
+    "pos": "QB",
+    "mean": 17.11,
+    "std_aleatoric": 6.83,
+    "std_epistemic": 5.13,
+    "bye": 0,
+    "team": "TB"
+  },
+  "James Conner": {
+    "pos": "RB",
+    "mean": 2.82,
+    "std_aleatoric": 3.32,
+    "std_epistemic": 1.78,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "D.J. Jones": {
+    "pos": "DT",
+    "mean": 3.51,
+    "std_aleatoric": 2.81,
+    "std_epistemic": 0.63,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jeremy Ruckert": {
+    "pos": "TE",
+    "mean": 0.92,
+    "std_aleatoric": 1.92,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Tyler Warren": {
+    "pos": "TE",
+    "mean": 10.03,
+    "std_aleatoric": 6.33,
+    "std_epistemic": 5.01,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Brandon Jones": {
+    "pos": "DB",
+    "mean": 7.43,
+    "std_aleatoric": 4.09,
+    "std_epistemic": 1.11,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Andre Szmyt": {
+    "pos": "K",
+    "mean": 7.61,
+    "std_aleatoric": 4.33,
+    "std_epistemic": 3.04,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Laiatu Latu": {
+    "pos": "DL",
+    "mean": 8.36,
+    "std_aleatoric": 4.34,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Marcus Jones": {
+    "pos": "DB",
+    "mean": 6.47,
+    "std_aleatoric": 3.82,
+    "std_epistemic": 0.97,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Kenyon Sadiq": {
+    "pos": "TE",
+    "mean": 4.05,
+    "std_aleatoric": 4.02,
+    "std_epistemic": 2.02,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Sean Tucker": {
+    "pos": "RB",
+    "mean": 2.92,
+    "std_aleatoric": 3.38,
+    "std_epistemic": 1.84,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Michael Carter": {
+    "pos": "RB",
+    "mean": 0.16,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Christian Watson": {
+    "pos": "WR",
+    "mean": 10.45,
+    "std_aleatoric": 5.82,
+    "std_epistemic": 5.75,
+    "bye": 0,
+    "team": "GB"
+  },
+  "A.J. Terrell": {
+    "pos": "CB",
+    "mean": 4.89,
+    "std_aleatoric": 3.32,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Alex Highsmith": {
+    "pos": "LB",
+    "mean": 6.19,
+    "std_aleatoric": 3.73,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Tre' Harris": {
+    "pos": "WR",
+    "mean": 4.71,
+    "std_aleatoric": 3.91,
+    "std_epistemic": 2.59,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Jakobi Meyers": {
+    "pos": "WR",
+    "mean": 8.47,
+    "std_aleatoric": 5.24,
+    "std_epistemic": 4.66,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Andrew Van Ginkel": {
+    "pos": "LB",
+    "mean": 10.18,
+    "std_aleatoric": 4.79,
+    "std_epistemic": 1.53,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Jalen Huskey": {
+    "pos": "DB",
+    "mean": 3.63,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Zach Allen": {
+    "pos": "DE",
+    "mean": 7.37,
+    "std_aleatoric": 4.07,
+    "std_epistemic": 1.33,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Tyler Higbee": {
+    "pos": "TE",
+    "mean": 1.75,
+    "std_aleatoric": 2.65,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Emeka Egbuka": {
+    "pos": "WR",
+    "mean": 10.89,
+    "std_aleatoric": 5.94,
+    "std_epistemic": 5.99,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Tommy Togiai": {
+    "pos": "DT",
+    "mean": 4.26,
+    "std_aleatoric": 3.1,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Nico Collins": {
+    "pos": "WR",
+    "mean": 13.74,
+    "std_aleatoric": 6.67,
+    "std_epistemic": 7.56,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Jonathon Cooper": {
+    "pos": "DL",
+    "mean": 6.54,
+    "std_aleatoric": 3.84,
+    "std_epistemic": 0.98,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Christian Izien": {
+    "pos": "DB",
+    "mean": 4.34,
+    "std_aleatoric": 3.12,
+    "std_epistemic": 0.65,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Bryce Young": {
+    "pos": "QB",
+    "mean": 15.74,
+    "std_aleatoric": 6.55,
+    "std_epistemic": 4.72,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Terrance Ferguson": {
+    "pos": "TE",
+    "mean": 4.86,
+    "std_aleatoric": 4.41,
+    "std_epistemic": 2.43,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Dallas Cowboys": {
+    "pos": "DEF",
+    "mean": 6.66,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Josh Oliver": {
+    "pos": "TE",
+    "mean": 1.85,
+    "std_aleatoric": 2.72,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Jordan Mason": {
+    "pos": "RB",
+    "mean": 8.46,
+    "std_aleatoric": 5.76,
+    "std_epistemic": 5.33,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Cam Lewis": {
+    "pos": "CB",
+    "mean": 3.95,
+    "std_aleatoric": 2.98,
+    "std_epistemic": 0.71,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Jake Elliott": {
+    "pos": "K",
+    "mean": 9.65,
+    "std_aleatoric": 4.88,
+    "std_epistemic": 3.86,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Caleb Douglas": {
+    "pos": "WR",
+    "mean": 5.22,
+    "std_aleatoric": 4.11,
+    "std_epistemic": 2.87,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Rico Dowdle": {
+    "pos": "RB",
+    "mean": 11.27,
+    "std_aleatoric": 6.65,
+    "std_epistemic": 7.1,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Roman Wilson": {
+    "pos": "WR",
+    "mean": 1.56,
+    "std_aleatoric": 2.25,
+    "std_epistemic": 0.86,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "George Pickens": {
+    "pos": "WR",
+    "mean": 12.27,
+    "std_aleatoric": 6.31,
+    "std_epistemic": 6.75,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Treylon Burks": {
+    "pos": "WR",
+    "mean": 1.84,
+    "std_aleatoric": 2.44,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Tommy Tremble": {
+    "pos": "TE",
+    "mean": 1.92,
+    "std_aleatoric": 2.77,
+    "std_epistemic": 0.96,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Tucker Kraft": {
+    "pos": "TE",
+    "mean": 8.73,
+    "std_aleatoric": 5.91,
+    "std_epistemic": 4.37,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Theo Johnson": {
+    "pos": "TE",
+    "mean": 2.96,
+    "std_aleatoric": 3.44,
+    "std_epistemic": 1.48,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Osa Odighizuwa": {
+    "pos": "DT",
+    "mean": 5.07,
+    "std_aleatoric": 3.38,
+    "std_epistemic": 0.91,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Braelon Allen": {
+    "pos": "RB",
+    "mean": 3.68,
+    "std_aleatoric": 3.8,
+    "std_epistemic": 2.32,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Billy Bowman": {
+    "pos": "DB",
+    "mean": 5.85,
+    "std_aleatoric": 3.63,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Dorian Williams": {
+    "pos": "LB",
+    "mean": 6.45,
+    "std_aleatoric": 3.81,
+    "std_epistemic": 0.97,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Garrett Wilson": {
+    "pos": "WR",
+    "mean": 11.47,
+    "std_aleatoric": 6.1,
+    "std_epistemic": 6.31,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Keaton Mitchell": {
+    "pos": "RB",
+    "mean": 6.01,
+    "std_aleatoric": 4.85,
+    "std_epistemic": 3.79,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Tahj Brooks": {
+    "pos": "RB",
+    "mean": 1.6,
+    "std_aleatoric": 2.5,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Dalvin Tomlinson": {
+    "pos": "DT",
+    "mean": 3.52,
+    "std_aleatoric": 2.81,
+    "std_epistemic": 0.63,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Jarran Reed": {
+    "pos": "DT",
+    "mean": 5.43,
+    "std_aleatoric": 3.5,
+    "std_epistemic": 0.98,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jay Ward": {
+    "pos": "DB",
+    "mean": 2.46,
+    "std_aleatoric": 2.35,
+    "std_epistemic": 0.37,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Nate Boerkircher": {
+    "pos": "TE",
+    "mean": 0.99,
+    "std_aleatoric": 1.99,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Tyler Badie": {
+    "pos": "RB",
+    "mean": 0.42,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.4,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "D'Angelo Ponds": {
+    "pos": "DB",
+    "mean": 3.0,
+    "std_aleatoric": 2.6,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Washington Commanders": {
+    "pos": "DEF",
+    "mean": 4.84,
+    "std_aleatoric": 3.3,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Blake Corum": {
+    "pos": "RB",
+    "mean": 8.47,
+    "std_aleatoric": 5.76,
+    "std_epistemic": 5.34,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Daniel Bellinger": {
+    "pos": "TE",
+    "mean": 2.58,
+    "std_aleatoric": 3.21,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Lil'Jordan Humphrey": {
+    "pos": "WR",
+    "mean": 1.66,
+    "std_aleatoric": 2.32,
+    "std_epistemic": 0.91,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Cody Simon": {
+    "pos": "LB",
+    "mean": 4.12,
+    "std_aleatoric": 3.04,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Kaleb Johnson": {
+    "pos": "RB",
+    "mean": 0.28,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "James Pearce": {
+    "pos": "DL",
+    "mean": 5.21,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Woody Marks": {
+    "pos": "RB",
+    "mean": 6.82,
+    "std_aleatoric": 5.17,
+    "std_epistemic": 4.3,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Grady Jarrett": {
+    "pos": "DT",
+    "mean": 3.46,
+    "std_aleatoric": 2.79,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Alohi Gilman": {
+    "pos": "DB",
+    "mean": 7.69,
+    "std_aleatoric": 4.16,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Los Angeles Chargers": {
+    "pos": "DEF",
+    "mean": 8.61,
+    "std_aleatoric": 4.4,
+    "std_epistemic": 1.55,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Mike Evans": {
+    "pos": "WR",
+    "mean": 10.17,
+    "std_aleatoric": 5.74,
+    "std_epistemic": 5.59,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Tutu Atwell": {
+    "pos": "WR",
+    "mean": 2.21,
+    "std_aleatoric": 2.68,
+    "std_epistemic": 1.22,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "T.J. Watt": {
+    "pos": "LB",
+    "mean": 9.49,
+    "std_aleatoric": 4.62,
+    "std_epistemic": 1.42,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Tyler Allgeier": {
+    "pos": "RB",
+    "mean": 5.06,
+    "std_aleatoric": 4.45,
+    "std_epistemic": 3.19,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Jimmy Horn": {
+    "pos": "WR",
+    "mean": 1.33,
+    "std_aleatoric": 2.08,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Michael Trigg": {
+    "pos": "TE",
+    "mean": 1.12,
+    "std_aleatoric": 2.12,
+    "std_epistemic": 0.56,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Julius Chestnut": {
+    "pos": "RB",
+    "mean": 0.25,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "RJ Harvey": {
+    "pos": "RB",
+    "mean": 7.98,
+    "std_aleatoric": 5.59,
+    "std_epistemic": 5.03,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Starling Thomas": {
+    "pos": "CB",
+    "mean": 2.55,
+    "std_aleatoric": 2.4,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Walter Nolen": {
+    "pos": "DL",
+    "mean": 4.43,
+    "std_aleatoric": 3.16,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "T.J. Sanders": {
+    "pos": "DL",
+    "mean": 2.4,
+    "std_aleatoric": 2.32,
+    "std_epistemic": 0.36,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Savion Williams": {
+    "pos": "WR",
+    "mean": 2.56,
+    "std_aleatoric": 2.88,
+    "std_epistemic": 1.41,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Sean Murphy-Bunting": {
+    "pos": "CB",
+    "mean": 3.32,
+    "std_aleatoric": 2.73,
+    "std_epistemic": 0.6,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Seth McGowan": {
+    "pos": "RB",
+    "mean": 1.11,
+    "std_aleatoric": 2.09,
+    "std_epistemic": 0.7,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Kam Curl": {
+    "pos": "DB",
+    "mean": 8.98,
+    "std_aleatoric": 4.49,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Zaire Franklin": {
+    "pos": "LB",
+    "mean": 8.94,
+    "std_aleatoric": 4.48,
+    "std_epistemic": 1.34,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Tim Patrick": {
+    "pos": "WR",
+    "mean": 0.55,
+    "std_aleatoric": 1.33,
+    "std_epistemic": 0.3,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Donovan Ezeiruaku": {
+    "pos": "DL",
+    "mean": 7.68,
+    "std_aleatoric": 4.16,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Derrick Barnes": {
+    "pos": "LB",
+    "mean": 6.7,
+    "std_aleatoric": 3.88,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Ben Sinnott": {
+    "pos": "TE",
+    "mean": 1.06,
+    "std_aleatoric": 2.06,
+    "std_epistemic": 0.53,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Derrick Henry": {
+    "pos": "RB",
+    "mean": 15.34,
+    "std_aleatoric": 7.75,
+    "std_epistemic": 9.66,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Jaden Hicks": {
+    "pos": "DB",
+    "mean": 3.3,
+    "std_aleatoric": 2.72,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Cam Ward": {
+    "pos": "QB",
+    "mean": 14.71,
+    "std_aleatoric": 6.33,
+    "std_epistemic": 4.41,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Nahshon Wright": {
+    "pos": "CB",
+    "mean": 5.29,
+    "std_aleatoric": 3.45,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Tai Felton": {
+    "pos": "WR",
+    "mean": 0.92,
+    "std_aleatoric": 1.73,
+    "std_epistemic": 0.51,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Malaki Starks": {
+    "pos": "DB",
+    "mean": 9.01,
+    "std_aleatoric": 4.5,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Jordan Battle": {
+    "pos": "DB",
+    "mean": 7.64,
+    "std_aleatoric": 4.15,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Devin Duvernay": {
+    "pos": "WR",
+    "mean": 0.12,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.07,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Puka Nacua": {
+    "pos": "WR",
+    "mean": 17.19,
+    "std_aleatoric": 7.46,
+    "std_epistemic": 9.45,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Emmanuel McNeil-Warren": {
+    "pos": "DB",
+    "mean": 3.85,
+    "std_aleatoric": 2.94,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Drew Stevens": {
+    "pos": "K",
+    "mean": 2.36,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Andrei Iosivas": {
+    "pos": "WR",
+    "mean": 3.72,
+    "std_aleatoric": 3.47,
+    "std_epistemic": 2.05,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Maxx Crosby": {
+    "pos": "DE",
+    "mean": 9.98,
+    "std_aleatoric": 4.74,
+    "std_epistemic": 1.8,
+    "bye": 0,
+    "team": "LV"
+  },
+  "D'Marco Jackson": {
+    "pos": "LB",
+    "mean": 6.07,
+    "std_aleatoric": 3.7,
+    "std_epistemic": 0.91,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Malachi Corley": {
+    "pos": "WR",
+    "mean": 0.6,
+    "std_aleatoric": 1.39,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Cory Durden": {
+    "pos": "DT",
+    "mean": 1.27,
+    "std_aleatoric": 1.69,
+    "std_epistemic": 0.23,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Tampa Bay Buccaneers": {
+    "pos": "DEF",
+    "mean": 5.6,
+    "std_aleatoric": 3.55,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Cole Bishop": {
+    "pos": "DB",
+    "mean": 8.59,
+    "std_aleatoric": 4.4,
+    "std_epistemic": 1.29,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Calvin Ridley": {
+    "pos": "WR",
+    "mean": 6.25,
+    "std_aleatoric": 4.5,
+    "std_epistemic": 3.44,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Chris Johnson": {
+    "pos": "DB",
+    "mean": 4.42,
+    "std_aleatoric": 3.15,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Tyler Onyedim": {
+    "pos": "DT",
+    "mean": 2.39,
+    "std_aleatoric": 2.32,
+    "std_epistemic": 0.43,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "James Pierre": {
+    "pos": "CB",
+    "mean": 3.84,
+    "std_aleatoric": 2.94,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "De'Zhaun Stribling": {
+    "pos": "WR",
+    "mean": 6.67,
+    "std_aleatoric": 4.65,
+    "std_epistemic": 3.67,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Chop Robinson": {
+    "pos": "DE",
+    "mean": 4.52,
+    "std_aleatoric": 3.19,
+    "std_epistemic": 0.81,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Darnell Washington": {
+    "pos": "TE",
+    "mean": 3.66,
+    "std_aleatoric": 3.83,
+    "std_epistemic": 1.83,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Grover Stewart": {
+    "pos": "DT",
+    "mean": 4.74,
+    "std_aleatoric": 3.27,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Will Shipley": {
+    "pos": "RB",
+    "mean": 1.17,
+    "std_aleatoric": 2.14,
+    "std_epistemic": 0.74,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Chimere Dike": {
+    "pos": "WR",
+    "mean": 2.35,
+    "std_aleatoric": 2.76,
+    "std_epistemic": 1.29,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Renardo Green": {
+    "pos": "DB",
+    "mean": 4.18,
+    "std_aleatoric": 3.07,
+    "std_epistemic": 0.63,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Cleveland Browns": {
+    "pos": "DEF",
+    "mean": 5.14,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Marlin Klein": {
+    "pos": "TE",
+    "mean": 1.28,
+    "std_aleatoric": 2.26,
+    "std_epistemic": 0.84,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Brandon Cisse": {
+    "pos": "DB",
+    "mean": 2.2,
+    "std_aleatoric": 2.22,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "GB"
+  },
+  "A.J. Brown": {
+    "pos": "WR",
+    "mean": 12.67,
+    "std_aleatoric": 6.41,
+    "std_epistemic": 6.97,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Christian McCaffrey": {
+    "pos": "RB",
+    "mean": 17.38,
+    "std_aleatoric": 8.25,
+    "std_epistemic": 10.95,
+    "bye": 0,
+    "team": "SF"
+  },
+  "T'Vondre Sweat": {
+    "pos": "DL",
+    "mean": 3.9,
+    "std_aleatoric": 2.96,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Myles Garrett": {
+    "pos": "DE",
+    "mean": 11.86,
+    "std_aleatoric": 5.17,
+    "std_epistemic": 2.13,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Quay Walker": {
+    "pos": "LB",
+    "mean": 9.91,
+    "std_aleatoric": 4.72,
+    "std_epistemic": 1.49,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Jordan Phillips": {
+    "pos": "DL",
+    "mean": 1.29,
+    "std_aleatoric": 1.7,
+    "std_epistemic": 0.19,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Jonathan Allen": {
+    "pos": "DT",
+    "mean": 7.03,
+    "std_aleatoric": 3.98,
+    "std_epistemic": 1.27,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Saquon Barkley": {
+    "pos": "RB",
+    "mean": 15.0,
+    "std_aleatoric": 7.67,
+    "std_epistemic": 9.45,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Tyson Campbell": {
+    "pos": "CB",
+    "mean": 6.36,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 1.14,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Tyleik Williams": {
+    "pos": "DL",
+    "mean": 2.96,
+    "std_aleatoric": 2.58,
+    "std_epistemic": 0.44,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Byron Young": {
+    "pos": "LB",
+    "mean": 9.92,
+    "std_aleatoric": 4.72,
+    "std_epistemic": 1.49,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Drue Tranquill": {
+    "pos": "LB",
+    "mean": 10.47,
+    "std_aleatoric": 4.85,
+    "std_epistemic": 1.57,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Jason Sanders": {
+    "pos": "K",
+    "mean": 9.06,
+    "std_aleatoric": 4.73,
+    "std_epistemic": 3.62,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Tony Pollard": {
+    "pos": "RB",
+    "mean": 9.86,
+    "std_aleatoric": 6.22,
+    "std_epistemic": 6.21,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Cameron Heyward": {
+    "pos": "DT",
+    "mean": 6.63,
+    "std_aleatoric": 3.86,
+    "std_epistemic": 1.19,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "George Holani": {
+    "pos": "RB",
+    "mean": 4.18,
+    "std_aleatoric": 4.05,
+    "std_epistemic": 2.63,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Alex Singleton": {
+    "pos": "LB",
+    "mean": 8.86,
+    "std_aleatoric": 4.46,
+    "std_epistemic": 1.33,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jaylin Lane": {
+    "pos": "WR",
+    "mean": 1.81,
+    "std_aleatoric": 2.42,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Jonathan Bullard": {
+    "pos": "DE",
+    "mean": 2.48,
+    "std_aleatoric": 2.36,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Lee Hunter": {
+    "pos": "DL",
+    "mean": 2.08,
+    "std_aleatoric": 2.16,
+    "std_epistemic": 0.31,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Tre Tucker": {
+    "pos": "WR",
+    "mean": 7.84,
+    "std_aleatoric": 5.04,
+    "std_epistemic": 4.31,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Trey McBride": {
+    "pos": "TE",
+    "mean": 11.66,
+    "std_aleatoric": 6.83,
+    "std_epistemic": 5.83,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Jadarian Price": {
+    "pos": "RB",
+    "mean": 10.69,
+    "std_aleatoric": 6.47,
+    "std_epistemic": 6.73,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Quintin Morris": {
+    "pos": "TE",
+    "mean": 0.4,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.2,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Divine Deablo": {
+    "pos": "LB",
+    "mean": 6.88,
+    "std_aleatoric": 3.93,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Alec Pierce": {
+    "pos": "WR",
+    "mean": 8.35,
+    "std_aleatoric": 5.2,
+    "std_epistemic": 4.59,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Hunter Henry": {
+    "pos": "TE",
+    "mean": 7.12,
+    "std_aleatoric": 5.34,
+    "std_epistemic": 3.56,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Trebor Pena": {
+    "pos": "WR",
+    "mean": 0.19,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Trevor Lawrence": {
+    "pos": "QB",
+    "mean": 17.74,
+    "std_aleatoric": 6.95,
+    "std_epistemic": 5.32,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Jaxson Dart": {
+    "pos": "QB",
+    "mean": 19.23,
+    "std_aleatoric": 7.24,
+    "std_epistemic": 5.77,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Chuck Clark": {
+    "pos": "DB",
+    "mean": 5.06,
+    "std_aleatoric": 3.37,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Caleb Downs": {
+    "pos": "DB",
+    "mean": 8.66,
+    "std_aleatoric": 4.41,
+    "std_epistemic": 1.3,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Moro Ojomo": {
+    "pos": "DE",
+    "mean": 4.72,
+    "std_aleatoric": 3.26,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Evan Engram": {
+    "pos": "TE",
+    "mean": 3.85,
+    "std_aleatoric": 3.92,
+    "std_epistemic": 1.93,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jacory Croskey-Merritt": {
+    "pos": "RB",
+    "mean": 7.95,
+    "std_aleatoric": 5.58,
+    "std_epistemic": 5.01,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Chris Manhertz": {
+    "pos": "TE",
+    "mean": 0.23,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.12,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Khalil Mack": {
+    "pos": "LB",
+    "mean": 5.15,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Keisean Nixon": {
+    "pos": "CB",
+    "mean": 7.3,
+    "std_aleatoric": 4.05,
+    "std_epistemic": 1.31,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Josh Jobe": {
+    "pos": "DB",
+    "mean": 6.14,
+    "std_aleatoric": 3.72,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Travis Jones": {
+    "pos": "DL",
+    "mean": 5.56,
+    "std_aleatoric": 3.54,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Tyler Nubin": {
+    "pos": "DB",
+    "mean": 6.87,
+    "std_aleatoric": 3.93,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Javon Bullard": {
+    "pos": "DB",
+    "mean": 5.11,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Rashid Shaheed": {
+    "pos": "WR",
+    "mean": 7.37,
+    "std_aleatoric": 4.89,
+    "std_epistemic": 4.05,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Malachi Fields": {
+    "pos": "WR",
+    "mean": 4.46,
+    "std_aleatoric": 3.8,
+    "std_epistemic": 2.45,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Olamide Zaccheaus": {
+    "pos": "WR",
+    "mean": 2.66,
+    "std_aleatoric": 2.94,
+    "std_epistemic": 1.46,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Will Reichard": {
+    "pos": "K",
+    "mean": 10.65,
+    "std_aleatoric": 5.12,
+    "std_epistemic": 4.26,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Teair Tart": {
+    "pos": "DT",
+    "mean": 3.13,
+    "std_aleatoric": 2.65,
+    "std_epistemic": 0.56,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Isaiah Hodgins": {
+    "pos": "WR",
+    "mean": 0.39,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.21,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Ashton Jeanty": {
+    "pos": "RB",
+    "mean": 14.63,
+    "std_aleatoric": 7.57,
+    "std_epistemic": 9.22,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Brandon Stephens": {
+    "pos": "DB",
+    "mean": 5.88,
+    "std_aleatoric": 3.64,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Mitchell Evans": {
+    "pos": "TE",
+    "mean": 0.83,
+    "std_aleatoric": 1.82,
+    "std_epistemic": 0.41,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Atlanta Falcons": {
+    "pos": "DEF",
+    "mean": 5.95,
+    "std_aleatoric": 3.66,
+    "std_epistemic": 1.07,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Chris Rodriguez": {
+    "pos": "RB",
+    "mean": 6.04,
+    "std_aleatoric": 4.87,
+    "std_epistemic": 3.81,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "DeMarvion Overshown": {
+    "pos": "LB",
+    "mean": 5.1,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Kwity Paye": {
+    "pos": "DE",
+    "mean": 4.8,
+    "std_aleatoric": 3.29,
+    "std_epistemic": 0.86,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Treydan Stukes": {
+    "pos": "DB",
+    "mean": 4.0,
+    "std_aleatoric": 3.0,
+    "std_epistemic": 0.6,
+    "bye": 0,
+    "team": "LV"
+  },
+  "DJ Moore": {
+    "pos": "WR",
+    "mean": 9.85,
+    "std_aleatoric": 5.65,
+    "std_epistemic": 5.42,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Dallas Goedert": {
+    "pos": "TE",
+    "mean": 8.32,
+    "std_aleatoric": 5.77,
+    "std_epistemic": 4.16,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Keeanu Benton": {
+    "pos": "NT",
+    "mean": 5.29,
+    "std_aleatoric": 3.45,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Carolina Panthers": {
+    "pos": "DEF",
+    "mean": 6.05,
+    "std_aleatoric": 3.69,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Jourdan Lewis": {
+    "pos": "CB",
+    "mean": 4.46,
+    "std_aleatoric": 3.17,
+    "std_epistemic": 0.8,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Kaelon Black": {
+    "pos": "RB",
+    "mean": 2.35,
+    "std_aleatoric": 3.04,
+    "std_epistemic": 1.48,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Cor'Dale Flott": {
+    "pos": "DB",
+    "mean": 3.86,
+    "std_aleatoric": 2.95,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "DaVon Hamilton": {
+    "pos": "DT",
+    "mean": 3.06,
+    "std_aleatoric": 2.62,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Dru Phillips": {
+    "pos": "DB",
+    "mean": 3.5,
+    "std_aleatoric": 2.81,
+    "std_epistemic": 0.53,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Ollie Gordon": {
+    "pos": "RB",
+    "mean": 2.23,
+    "std_aleatoric": 2.96,
+    "std_epistemic": 1.4,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Jalen Carter": {
+    "pos": "DL",
+    "mean": 7.22,
+    "std_aleatoric": 4.03,
+    "std_epistemic": 1.08,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jevon Holland": {
+    "pos": "DB",
+    "mean": 5.68,
+    "std_aleatoric": 3.57,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Robert Tonyan": {
+    "pos": "TE",
+    "mean": 0.04,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.02,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Eric Saubert": {
+    "pos": "TE",
+    "mean": 0.37,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Montaric Brown": {
+    "pos": "DB",
+    "mean": 5.81,
+    "std_aleatoric": 3.62,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Jordan Davis": {
+    "pos": "DL",
+    "mean": 5.71,
+    "std_aleatoric": 3.58,
+    "std_epistemic": 0.86,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Cobie Durant": {
+    "pos": "DB",
+    "mean": 5.21,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Tyler Conklin": {
+    "pos": "TE",
+    "mean": 0.32,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Mike Sainristil": {
+    "pos": "DB",
+    "mean": 6.78,
+    "std_aleatoric": 3.91,
+    "std_epistemic": 1.02,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Tyrel Dodson": {
+    "pos": "LB",
+    "mean": 7.9,
+    "std_aleatoric": 4.22,
+    "std_epistemic": 1.19,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Kenny Clark": {
+    "pos": "DE",
+    "mean": 3.54,
+    "std_aleatoric": 2.82,
+    "std_epistemic": 0.64,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "KaVontae Turpin": {
+    "pos": "WR",
+    "mean": 3.31,
+    "std_aleatoric": 3.27,
+    "std_epistemic": 1.82,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Tyrone Tracy": {
+    "pos": "RB",
+    "mean": 3.58,
+    "std_aleatoric": 3.75,
+    "std_epistemic": 2.26,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Jalen Davis": {
+    "pos": "CB",
+    "mean": 1.81,
+    "std_aleatoric": 2.02,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Rashee Rice": {
+    "pos": "WR",
+    "mean": 11.74,
+    "std_aleatoric": 6.17,
+    "std_epistemic": 6.46,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Shemar James": {
+    "pos": "LB",
+    "mean": 5.22,
+    "std_aleatoric": 3.43,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Jacksonville Jaguars": {
+    "pos": "DEF",
+    "mean": 9.45,
+    "std_aleatoric": 4.61,
+    "std_epistemic": 1.7,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "De'Von Achane": {
+    "pos": "RB",
+    "mean": 16.11,
+    "std_aleatoric": 7.95,
+    "std_epistemic": 10.15,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Marvin Mims": {
+    "pos": "WR",
+    "mean": 3.45,
+    "std_aleatoric": 3.34,
+    "std_epistemic": 1.9,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jalon Walker": {
+    "pos": "DL",
+    "mean": 5.92,
+    "std_aleatoric": 3.65,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Carnell Tate": {
+    "pos": "WR",
+    "mean": 9.88,
+    "std_aleatoric": 5.66,
+    "std_epistemic": 5.43,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Mike Gesicki": {
+    "pos": "TE",
+    "mean": 4.58,
+    "std_aleatoric": 4.28,
+    "std_epistemic": 2.29,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Los Angeles Rams": {
+    "pos": "DEF",
+    "mean": 8.53,
+    "std_aleatoric": 4.38,
+    "std_epistemic": 1.54,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Malcolm Koonce": {
+    "pos": "DE",
+    "mean": 3.71,
+    "std_aleatoric": 2.89,
+    "std_epistemic": 0.67,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Antonio Johnson": {
+    "pos": "DB",
+    "mean": 7.01,
+    "std_aleatoric": 3.97,
+    "std_epistemic": 1.05,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Christian Rozeboom": {
+    "pos": "LB",
+    "mean": 6.41,
+    "std_aleatoric": 3.8,
+    "std_epistemic": 0.96,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Troy Franklin": {
+    "pos": "WR",
+    "mean": 2.33,
+    "std_aleatoric": 2.75,
+    "std_epistemic": 1.28,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Colton Hood": {
+    "pos": "DB",
+    "mean": 3.44,
+    "std_aleatoric": 2.78,
+    "std_epistemic": 0.52,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Jalen Thompson": {
+    "pos": "DB",
+    "mean": 8.57,
+    "std_aleatoric": 4.39,
+    "std_epistemic": 1.29,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Jam Miller": {
+    "pos": "RB",
+    "mean": 0.55,
+    "std_aleatoric": 1.47,
+    "std_epistemic": 0.35,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Ventrell Miller": {
+    "pos": "LB",
+    "mean": 9.72,
+    "std_aleatoric": 4.68,
+    "std_epistemic": 1.46,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Braden Fiske": {
+    "pos": "DL",
+    "mean": 4.59,
+    "std_aleatoric": 3.21,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Jeremiyah Love": {
+    "pos": "RB",
+    "mean": 12.96,
+    "std_aleatoric": 7.13,
+    "std_epistemic": 8.16,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Jamal Haynes": {
+    "pos": "RB",
+    "mean": 0.3,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.19,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Adam Trautman": {
+    "pos": "TE",
+    "mean": 1.51,
+    "std_aleatoric": 2.46,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Bijan Robinson": {
+    "pos": "RB",
+    "mean": 18.19,
+    "std_aleatoric": 8.44,
+    "std_epistemic": 11.46,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "DeVonta Smith": {
+    "pos": "WR",
+    "mean": 12.16,
+    "std_aleatoric": 6.28,
+    "std_epistemic": 6.69,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Travis Hunter": {
+    "pos": "WR",
+    "mean": 7.16,
+    "std_aleatoric": 4.82,
+    "std_epistemic": 4.22,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Arvell Reese": {
+    "pos": "LB",
+    "mean": 8.26,
+    "std_aleatoric": 4.31,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Tyler Goodson": {
+    "pos": "RB",
+    "mean": 0.44,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.28,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Bhayshul Tuten": {
+    "pos": "RB",
+    "mean": 10.84,
+    "std_aleatoric": 6.52,
+    "std_epistemic": 6.83,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Chris Boswell": {
+    "pos": "K",
+    "mean": 10.2,
+    "std_aleatoric": 5.01,
+    "std_epistemic": 4.08,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Jaydon Blue": {
+    "pos": "RB",
+    "mean": 2.56,
+    "std_aleatoric": 3.17,
+    "std_epistemic": 1.61,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Tre'von Moehrig": {
+    "pos": "DB",
+    "mean": 9.15,
+    "std_aleatoric": 4.54,
+    "std_epistemic": 1.37,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Kayvon Thibodeaux": {
+    "pos": "DL",
+    "mean": 4.82,
+    "std_aleatoric": 3.29,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Cody White": {
+    "pos": "WR",
+    "mean": 0.29,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jamaree Caldwell": {
+    "pos": "DT",
+    "mean": 3.17,
+    "std_aleatoric": 2.67,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Ruke Orhorhoro": {
+    "pos": "DT",
+    "mean": 2.62,
+    "std_aleatoric": 2.43,
+    "std_epistemic": 0.47,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Roquan Smith": {
+    "pos": "LB",
+    "mean": 11.65,
+    "std_aleatoric": 5.12,
+    "std_epistemic": 1.75,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Drake London": {
+    "pos": "WR",
+    "mean": 12.64,
+    "std_aleatoric": 6.4,
+    "std_epistemic": 6.95,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Malik Nabers": {
+    "pos": "WR",
+    "mean": 11.77,
+    "std_aleatoric": 6.18,
+    "std_epistemic": 6.47,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Mack Hollins": {
+    "pos": "WR",
+    "mean": 2.23,
+    "std_aleatoric": 2.69,
+    "std_epistemic": 1.23,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Kyle Hamilton": {
+    "pos": "DB",
+    "mean": 10.75,
+    "std_aleatoric": 4.92,
+    "std_epistemic": 1.61,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Marquise Brown": {
+    "pos": "WR",
+    "mean": 2.65,
+    "std_aleatoric": 2.93,
+    "std_epistemic": 1.46,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Cooper DeJean": {
+    "pos": "DB",
+    "mean": 9.7,
+    "std_aleatoric": 4.67,
+    "std_epistemic": 1.45,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jacob Rodriguez": {
+    "pos": "LB",
+    "mean": 4.45,
+    "std_aleatoric": 3.16,
+    "std_epistemic": 0.67,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Denzel Perryman": {
+    "pos": "LB",
+    "mean": 4.93,
+    "std_aleatoric": 3.33,
+    "std_epistemic": 0.74,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Joe Burrow": {
+    "pos": "QB",
+    "mean": 19.46,
+    "std_aleatoric": 7.28,
+    "std_epistemic": 5.84,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Xavier Worthy": {
+    "pos": "WR",
+    "mean": 8.14,
+    "std_aleatoric": 5.14,
+    "std_epistemic": 4.48,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Kameron Johnson": {
+    "pos": "WR",
+    "mean": 0.32,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Grant Delpit": {
+    "pos": "DB",
+    "mean": 6.56,
+    "std_aleatoric": 3.84,
+    "std_epistemic": 0.98,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Greg Rousseau": {
+    "pos": "DE",
+    "mean": 7.3,
+    "std_aleatoric": 4.05,
+    "std_epistemic": 1.31,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Payne Durham": {
+    "pos": "TE",
+    "mean": 0.67,
+    "std_aleatoric": 1.64,
+    "std_epistemic": 0.34,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Davis Allen": {
+    "pos": "TE",
+    "mean": 0.79,
+    "std_aleatoric": 1.78,
+    "std_epistemic": 0.4,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Josiah Trotter": {
+    "pos": "LB",
+    "mean": 3.67,
+    "std_aleatoric": 2.87,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Cedric Gray": {
+    "pos": "LB",
+    "mean": 9.04,
+    "std_aleatoric": 4.51,
+    "std_epistemic": 1.36,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Elic Ayomanor": {
+    "pos": "WR",
+    "mean": 1.83,
+    "std_aleatoric": 2.43,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "T.J. Slaton": {
+    "pos": "DT",
+    "mean": 2.83,
+    "std_aleatoric": 2.52,
+    "std_epistemic": 0.51,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Dax Hill": {
+    "pos": "DB",
+    "mean": 7.57,
+    "std_aleatoric": 4.13,
+    "std_epistemic": 1.14,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Devonte Wyatt": {
+    "pos": "DL",
+    "mean": 5.84,
+    "std_aleatoric": 3.62,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Malik Hooker": {
+    "pos": "DB",
+    "mean": 3.9,
+    "std_aleatoric": 2.96,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Andre Cisco": {
+    "pos": "DB",
+    "mean": 5.2,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Blake Whiteheart": {
+    "pos": "TE",
+    "mean": 0.38,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.19,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Zavier Scott": {
+    "pos": "RB",
+    "mean": 0.03,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.02,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "B.J. Hill": {
+    "pos": "DT",
+    "mean": 3.92,
+    "std_aleatoric": 2.97,
+    "std_epistemic": 0.71,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Jahmyr Gibbs": {
+    "pos": "RB",
+    "mean": 19.95,
+    "std_aleatoric": 8.84,
+    "std_epistemic": 12.57,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Austin Booker": {
+    "pos": "DL",
+    "mean": 8.31,
+    "std_aleatoric": 4.32,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Micah Parsons": {
+    "pos": "LB",
+    "mean": 6.27,
+    "std_aleatoric": 3.76,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Jared Goff": {
+    "pos": "QB",
+    "mean": 17.3,
+    "std_aleatoric": 6.86,
+    "std_epistemic": 5.19,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Cooper Kupp": {
+    "pos": "WR",
+    "mean": 5.77,
+    "std_aleatoric": 4.32,
+    "std_epistemic": 3.17,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jack Bech": {
+    "pos": "WR",
+    "mean": 3.55,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 1.95,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Mason Graham": {
+    "pos": "DL",
+    "mean": 5.05,
+    "std_aleatoric": 3.37,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Danielle Hunter": {
+    "pos": "DE",
+    "mean": 9.14,
+    "std_aleatoric": 4.53,
+    "std_epistemic": 1.65,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Jonathan Greenard": {
+    "pos": "DE",
+    "mean": 8.06,
+    "std_aleatoric": 4.26,
+    "std_epistemic": 1.45,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Myles Harden": {
+    "pos": "DB",
+    "mean": 2.59,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.39,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "New Orleans Saints": {
+    "pos": "DEF",
+    "mean": 3.79,
+    "std_aleatoric": 2.92,
+    "std_epistemic": 0.68,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Brevin Jordan": {
+    "pos": "TE",
+    "mean": 0.09,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.04,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Jacob Parrish": {
+    "pos": "DB",
+    "mean": 6.34,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Foster Moreau": {
+    "pos": "TE",
+    "mean": 0.79,
+    "std_aleatoric": 1.78,
+    "std_epistemic": 0.4,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Chase Roberts": {
+    "pos": "WR",
+    "mean": 0.19,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Green Bay Packers": {
+    "pos": "DEF",
+    "mean": 6.74,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.21,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Seydou Traore": {
+    "pos": "TE",
+    "mean": 0.65,
+    "std_aleatoric": 1.61,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Marlon Humphrey": {
+    "pos": "CB",
+    "mean": 6.64,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Theo Jackson": {
+    "pos": "DB",
+    "mean": 3.93,
+    "std_aleatoric": 2.97,
+    "std_epistemic": 0.59,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Derius Davis": {
+    "pos": "WR",
+    "mean": 0.4,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.26,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Christian Benford": {
+    "pos": "DB",
+    "mean": 5.85,
+    "std_aleatoric": 3.63,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Feleipe Franks": {
+    "pos": "TE",
+    "mean": 0.05,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.03,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Cam Little": {
+    "pos": "K",
+    "mean": 11.04,
+    "std_aleatoric": 5.22,
+    "std_epistemic": 4.42,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Jameson Williams": {
+    "pos": "WR",
+    "mean": 11.09,
+    "std_aleatoric": 5.99,
+    "std_epistemic": 6.1,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Cedric Tillman": {
+    "pos": "WR",
+    "mean": 0.54,
+    "std_aleatoric": 1.32,
+    "std_epistemic": 0.3,
+    "bye": 0,
+    "team": null
+  },
+  "Darnell Mooney": {
+    "pos": "WR",
+    "mean": 3.98,
+    "std_aleatoric": 3.59,
+    "std_epistemic": 2.19,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Javon Hargrave": {
+    "pos": "DT",
+    "mean": 4.21,
+    "std_aleatoric": 3.08,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "GB"
+  },
+  "George Kittle": {
+    "pos": "TE",
+    "mean": 8.25,
+    "std_aleatoric": 5.74,
+    "std_epistemic": 4.12,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Marvin Harrison": {
+    "pos": "WR",
+    "mean": 9.21,
+    "std_aleatoric": 5.46,
+    "std_epistemic": 5.07,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Patrick Ricard": {
+    "pos": "FB",
+    "mean": 0.21,
+    "std_aleatoric": 1.06,
+    "std_epistemic": 0.12,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Cameron Latu": {
+    "pos": "TE",
+    "mean": 0.08,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.04,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Keenan Allen": {
+    "pos": "WR",
+    "mean": 5.99,
+    "std_aleatoric": 4.41,
+    "std_epistemic": 3.29,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Uchenna Nwosu": {
+    "pos": "LB",
+    "mean": 6.27,
+    "std_aleatoric": 3.76,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Eric Wilson": {
+    "pos": "LB",
+    "mean": 8.18,
+    "std_aleatoric": 4.29,
+    "std_epistemic": 1.23,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Malachi Lawrence": {
+    "pos": "DL",
+    "mean": 5.06,
+    "std_aleatoric": 3.37,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Fred Warner": {
+    "pos": "LB",
+    "mean": 10.05,
+    "std_aleatoric": 4.76,
+    "std_epistemic": 1.51,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Shelby Harris": {
+    "pos": "DE",
+    "mean": 3.82,
+    "std_aleatoric": 2.93,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Josh Cameron": {
+    "pos": "WR",
+    "mean": 0.21,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.19,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Trevor Etienne": {
+    "pos": "RB",
+    "mean": 1.07,
+    "std_aleatoric": 2.05,
+    "std_epistemic": 0.67,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Chris Jones": {
+    "pos": "DT",
+    "mean": 6.74,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.21,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Tuli Tuipulotu": {
+    "pos": "DL",
+    "mean": 10.41,
+    "std_aleatoric": 4.84,
+    "std_epistemic": 1.56,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "A'Shawn Robinson": {
+    "pos": "DT",
+    "mean": 4.81,
+    "std_aleatoric": 3.29,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Trey Smack": {
+    "pos": "K",
+    "mean": 9.48,
+    "std_aleatoric": 4.83,
+    "std_epistemic": 3.79,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Cam Hart": {
+    "pos": "CB",
+    "mean": 5.07,
+    "std_aleatoric": 3.38,
+    "std_epistemic": 0.91,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Omar Speights": {
+    "pos": "LB",
+    "mean": 5.15,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Arian Smith": {
+    "pos": "WR",
+    "mean": 0.23,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.13,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Tyrique Stevenson": {
+    "pos": "CB",
+    "mean": 6.34,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 1.14,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Troy Dye": {
+    "pos": "LB",
+    "mean": 6.56,
+    "std_aleatoric": 3.84,
+    "std_epistemic": 0.98,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Lan Larison": {
+    "pos": "RB",
+    "mean": 0.43,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.27,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Donte Jackson": {
+    "pos": "CB",
+    "mean": 4.43,
+    "std_aleatoric": 3.16,
+    "std_epistemic": 0.8,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Charlie Smyth": {
+    "pos": "K",
+    "mean": 9.42,
+    "std_aleatoric": 4.82,
+    "std_epistemic": 3.77,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Brock Purdy": {
+    "pos": "QB",
+    "mean": 17.54,
+    "std_aleatoric": 6.91,
+    "std_epistemic": 5.26,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Zachariah Branch": {
+    "pos": "WR",
+    "mean": 2.91,
+    "std_aleatoric": 3.07,
+    "std_epistemic": 1.6,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Byron Murphy": {
+    "pos": "DL",
+    "mean": 6.64,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Dont'e Thornton": {
+    "pos": "WR",
+    "mean": 0.46,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.42,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Brock Wright": {
+    "pos": "TE",
+    "mean": 1.47,
+    "std_aleatoric": 2.42,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Bryce Lance": {
+    "pos": "WR",
+    "mean": 2.17,
+    "std_aleatoric": 2.65,
+    "std_epistemic": 1.19,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Brevyn Spann-Ford": {
+    "pos": "TE",
+    "mean": 0.72,
+    "std_aleatoric": 1.7,
+    "std_epistemic": 0.36,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Quinshon Judkins": {
+    "pos": "RB",
+    "mean": 11.72,
+    "std_aleatoric": 6.78,
+    "std_epistemic": 7.38,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Shemar Stewart": {
+    "pos": "DL",
+    "mean": 2.84,
+    "std_aleatoric": 2.53,
+    "std_epistemic": 0.43,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Jordan Watkins": {
+    "pos": "WR",
+    "mean": 0.2,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.11,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Ronnie Hickman": {
+    "pos": "DB",
+    "mean": 6.11,
+    "std_aleatoric": 3.71,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Foyesade Oluokun": {
+    "pos": "LB",
+    "mean": 10.82,
+    "std_aleatoric": 4.93,
+    "std_epistemic": 1.62,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Evan Williams": {
+    "pos": "DB",
+    "mean": 7.41,
+    "std_aleatoric": 4.08,
+    "std_epistemic": 1.11,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Kamari Lassiter": {
+    "pos": "DB",
+    "mean": 7.76,
+    "std_aleatoric": 4.18,
+    "std_epistemic": 1.16,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Carrington Valentine": {
+    "pos": "DB",
+    "mean": 2.7,
+    "std_aleatoric": 2.46,
+    "std_epistemic": 0.41,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Princely Umanmielen": {
+    "pos": "DL",
+    "mean": 3.36,
+    "std_aleatoric": 2.75,
+    "std_epistemic": 0.5,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Kaytron Allen": {
+    "pos": "RB",
+    "mean": 0.86,
+    "std_aleatoric": 1.84,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Connor Heyward": {
+    "pos": "TE",
+    "mean": 0.68,
+    "std_aleatoric": 1.65,
+    "std_epistemic": 0.34,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Kenneth Walker": {
+    "pos": "RB",
+    "mean": 13.71,
+    "std_aleatoric": 7.33,
+    "std_epistemic": 8.64,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Dalton Kincaid": {
+    "pos": "TE",
+    "mean": 7.27,
+    "std_aleatoric": 5.39,
+    "std_epistemic": 3.63,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Odell Beckham": {
+    "pos": "WR",
+    "mean": 1.02,
+    "std_aleatoric": 1.82,
+    "std_epistemic": 0.56,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Malcolm Rodriguez": {
+    "pos": "LB",
+    "mean": 5.85,
+    "std_aleatoric": 3.63,
+    "std_epistemic": 0.88,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Damien Martinez": {
+    "pos": "RB",
+    "mean": 0.14,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Jaquan Brisker": {
+    "pos": "DB",
+    "mean": 8.16,
+    "std_aleatoric": 4.28,
+    "std_epistemic": 1.22,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Amon-Ra St. Brown": {
+    "pos": "WR",
+    "mean": 15.85,
+    "std_aleatoric": 7.17,
+    "std_epistemic": 8.72,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Arden Key": {
+    "pos": "DE",
+    "mean": 4.34,
+    "std_aleatoric": 3.12,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Cyrus Allen": {
+    "pos": "WR",
+    "mean": 1.88,
+    "std_aleatoric": 2.47,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Riq Woolen": {
+    "pos": "DB",
+    "mean": 5.56,
+    "std_aleatoric": 3.54,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jessie Bates": {
+    "pos": "DB",
+    "mean": 7.66,
+    "std_aleatoric": 4.15,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Ty Okada": {
+    "pos": "DB",
+    "mean": 6.25,
+    "std_aleatoric": 3.75,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Derrick Harmon": {
+    "pos": "DL",
+    "mean": 4.83,
+    "std_aleatoric": 3.3,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Konata Mumpfield": {
+    "pos": "WR",
+    "mean": 1.06,
+    "std_aleatoric": 1.85,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Luke Musgrave": {
+    "pos": "TE",
+    "mean": 1.5,
+    "std_aleatoric": 2.45,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Dee Winters": {
+    "pos": "LB",
+    "mean": 8.31,
+    "std_aleatoric": 4.32,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Dameon Pierce": {
+    "pos": "RB",
+    "mean": 0.2,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.13,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Kevin Byard": {
+    "pos": "DB",
+    "mean": 8.36,
+    "std_aleatoric": 4.34,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Will Anderson": {
+    "pos": "DL",
+    "mean": 9.21,
+    "std_aleatoric": 4.55,
+    "std_epistemic": 1.38,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Jordyn Brooks": {
+    "pos": "LB",
+    "mean": 6.99,
+    "std_aleatoric": 3.97,
+    "std_epistemic": 1.05,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Rashan Gary": {
+    "pos": "LB",
+    "mean": 6.88,
+    "std_aleatoric": 3.93,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "MarShawn Lloyd": {
+    "pos": "RB",
+    "mean": 4.4,
+    "std_aleatoric": 4.15,
+    "std_epistemic": 2.77,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Samaje Perine": {
+    "pos": "RB",
+    "mean": 4.13,
+    "std_aleatoric": 4.02,
+    "std_epistemic": 2.6,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Jaelan Phillips": {
+    "pos": "LB",
+    "mean": 7.26,
+    "std_aleatoric": 4.04,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Garrett Williams": {
+    "pos": "DB",
+    "mean": 3.66,
+    "std_aleatoric": 2.87,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Bryan Cook": {
+    "pos": "DB",
+    "mean": 7.04,
+    "std_aleatoric": 3.98,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Kene Nwangwu": {
+    "pos": "RB",
+    "mean": 0.1,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.06,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Christian Elliss": {
+    "pos": "LB",
+    "mean": 5.63,
+    "std_aleatoric": 3.56,
+    "std_epistemic": 0.84,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Jaylin Noel": {
+    "pos": "WR",
+    "mean": 4.42,
+    "std_aleatoric": 3.78,
+    "std_epistemic": 2.43,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Caleb Banks": {
+    "pos": "DT",
+    "mean": 3.76,
+    "std_aleatoric": 2.91,
+    "std_epistemic": 0.68,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Nik Bonitto": {
+    "pos": "LB",
+    "mean": 8.98,
+    "std_aleatoric": 4.49,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "DeShon Elliott": {
+    "pos": "DB",
+    "mean": 8.32,
+    "std_aleatoric": 4.33,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Kader Kohou": {
+    "pos": "CB",
+    "mean": 4.35,
+    "std_aleatoric": 3.13,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Pat Bryant": {
+    "pos": "WR",
+    "mean": 4.62,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 2.54,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Cole Kmet": {
+    "pos": "TE",
+    "mean": 3.04,
+    "std_aleatoric": 3.49,
+    "std_epistemic": 1.52,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Tetairoa McMillan": {
+    "pos": "WR",
+    "mean": 11.82,
+    "std_aleatoric": 6.19,
+    "std_epistemic": 6.5,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Maxwell Hairston": {
+    "pos": "DB",
+    "mean": 4.26,
+    "std_aleatoric": 3.1,
+    "std_epistemic": 0.64,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Blake Grupe": {
+    "pos": "K",
+    "mean": 9.79,
+    "std_aleatoric": 4.91,
+    "std_epistemic": 3.92,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Patrick Queen": {
+    "pos": "LB",
+    "mean": 8.89,
+    "std_aleatoric": 4.47,
+    "std_epistemic": 1.33,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Omar Cooper": {
+    "pos": "WR",
+    "mean": 3.98,
+    "std_aleatoric": 3.59,
+    "std_epistemic": 2.19,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "John Jenkins": {
+    "pos": "DT",
+    "mean": 2.72,
+    "std_aleatoric": 2.47,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Nakobe Dean": {
+    "pos": "LB",
+    "mean": 12.27,
+    "std_aleatoric": 5.25,
+    "std_epistemic": 1.84,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Joshua Metellus": {
+    "pos": "DB",
+    "mean": 7.49,
+    "std_aleatoric": 4.11,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Dante Stills": {
+    "pos": "DT",
+    "mean": 2.78,
+    "std_aleatoric": 2.5,
+    "std_epistemic": 0.5,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Mack Wilson": {
+    "pos": "LB",
+    "mean": 7.27,
+    "std_aleatoric": 4.04,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Ben Yurosek": {
+    "pos": "TE",
+    "mean": 0.2,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Wil Lutz": {
+    "pos": "K",
+    "mean": 9.73,
+    "std_aleatoric": 4.9,
+    "std_epistemic": 3.89,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Kristian Fulton": {
+    "pos": "CB",
+    "mean": 2.92,
+    "std_aleatoric": 2.56,
+    "std_epistemic": 0.53,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Bo Nix": {
+    "pos": "QB",
+    "mean": 17.4,
+    "std_aleatoric": 6.88,
+    "std_epistemic": 5.22,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Stefon Diggs": {
+    "pos": "WR",
+    "mean": 8.14,
+    "std_aleatoric": 5.14,
+    "std_epistemic": 4.48,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Kenny Gainwell": {
+    "pos": "RB",
+    "mean": 8.66,
+    "std_aleatoric": 5.83,
+    "std_epistemic": 5.46,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Travis Etienne": {
+    "pos": "RB",
+    "mean": 13.0,
+    "std_aleatoric": 7.14,
+    "std_epistemic": 8.19,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Drew Sample": {
+    "pos": "TE",
+    "mean": 1.71,
+    "std_aleatoric": 2.62,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Robert Spillane": {
+    "pos": "LB",
+    "mean": 9.1,
+    "std_aleatoric": 4.52,
+    "std_epistemic": 1.36,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Keionte Scott": {
+    "pos": "DB",
+    "mean": 2.44,
+    "std_aleatoric": 2.34,
+    "std_epistemic": 0.37,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Stone Smartt": {
+    "pos": "TE",
+    "mean": 0.31,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.15,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Alec Ingold": {
+    "pos": "FB",
+    "mean": 0.73,
+    "std_aleatoric": 1.28,
+    "std_epistemic": 0.13,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Tyjae Spears": {
+    "pos": "RB",
+    "mean": 7.04,
+    "std_aleatoric": 5.25,
+    "std_epistemic": 4.44,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Rasheen Ali": {
+    "pos": "RB",
+    "mean": 0.12,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Kyle Monangai": {
+    "pos": "RB",
+    "mean": 8.78,
+    "std_aleatoric": 5.87,
+    "std_epistemic": 5.53,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Ronnie Rivers": {
+    "pos": "RB",
+    "mean": 0.17,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.11,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Roy Lopez": {
+    "pos": "DT",
+    "mean": 3.45,
+    "std_aleatoric": 2.79,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Chidobe Awuzie": {
+    "pos": "CB",
+    "mean": 3.64,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Upton Stout": {
+    "pos": "CB",
+    "mean": 6.15,
+    "std_aleatoric": 3.72,
+    "std_epistemic": 1.11,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Barion Brown": {
+    "pos": "WR",
+    "mean": 1.28,
+    "std_aleatoric": 2.04,
+    "std_epistemic": 0.7,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Eddy Pineiro": {
+    "pos": "K",
+    "mean": 10.26,
+    "std_aleatoric": 5.03,
+    "std_epistemic": 4.1,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Emmett Johnson": {
+    "pos": "RB",
+    "mean": 2.63,
+    "std_aleatoric": 3.21,
+    "std_epistemic": 1.66,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Zaven Collins": {
+    "pos": "LB",
+    "mean": 4.13,
+    "std_aleatoric": 3.05,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Gage Larvadain": {
+    "pos": "WR",
+    "mean": 0.05,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.03,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Brian Thomas": {
+    "pos": "WR",
+    "mean": 8.68,
+    "std_aleatoric": 5.3,
+    "std_epistemic": 4.77,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Jalen Pitre": {
+    "pos": "DB",
+    "mean": 6.33,
+    "std_aleatoric": 3.77,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Calen Bullock": {
+    "pos": "DB",
+    "mean": 6.72,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "David Montgomery": {
+    "pos": "RB",
+    "mean": 12.21,
+    "std_aleatoric": 6.92,
+    "std_epistemic": 7.69,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Kayden McDonald": {
+    "pos": "DL",
+    "mean": 2.35,
+    "std_aleatoric": 2.3,
+    "std_epistemic": 0.35,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Darius Cooper": {
+    "pos": "WR",
+    "mean": 0.42,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.23,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jonathon Brooks": {
+    "pos": "RB",
+    "mean": 8.63,
+    "std_aleatoric": 5.82,
+    "std_epistemic": 5.44,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Daiyan Henley": {
+    "pos": "LB",
+    "mean": 10.09,
+    "std_aleatoric": 4.76,
+    "std_epistemic": 1.51,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Tory Horton": {
+    "pos": "WR",
+    "mean": 3.02,
+    "std_aleatoric": 3.13,
+    "std_epistemic": 1.66,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Dylan Sampson": {
+    "pos": "RB",
+    "mean": 4.9,
+    "std_aleatoric": 4.38,
+    "std_epistemic": 3.09,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Josh Hines-Allen": {
+    "pos": "DE",
+    "mean": 8.22,
+    "std_aleatoric": 4.3,
+    "std_epistemic": 1.48,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Jaylen Watson": {
+    "pos": "DB",
+    "mean": 4.79,
+    "std_aleatoric": 3.28,
+    "std_epistemic": 0.72,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Jake Golday": {
+    "pos": "LB",
+    "mean": 3.92,
+    "std_aleatoric": 2.97,
+    "std_epistemic": 0.59,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Abdul Carter": {
+    "pos": "DL",
+    "mean": 8.38,
+    "std_aleatoric": 4.34,
+    "std_epistemic": 1.26,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "David Moore": {
+    "pos": "WR",
+    "mean": 0.03,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.02,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Jalen Ramsey": {
+    "pos": "CB",
+    "mean": 6.92,
+    "std_aleatoric": 3.95,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Chau Smith-Wade": {
+    "pos": "DB",
+    "mean": 4.34,
+    "std_aleatoric": 3.12,
+    "std_epistemic": 0.65,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Miami Dolphins": {
+    "pos": "DEF",
+    "mean": 6.27,
+    "std_aleatoric": 3.76,
+    "std_epistemic": 1.13,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Reggie Virgil": {
+    "pos": "WR",
+    "mean": 0.34,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.19,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Charlie Woerner": {
+    "pos": "TE",
+    "mean": 0.46,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.23,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Gunnar Helm": {
+    "pos": "TE",
+    "mean": 5.81,
+    "std_aleatoric": 4.82,
+    "std_epistemic": 2.9,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Rashod Bateman": {
+    "pos": "WR",
+    "mean": 6.27,
+    "std_aleatoric": 4.51,
+    "std_epistemic": 3.45,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Kyler Gordon": {
+    "pos": "DB",
+    "mean": 6.64,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "T.J. Edwards": {
+    "pos": "LB",
+    "mean": 6.71,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Sauce Gardner": {
+    "pos": "DB",
+    "mean": 5.44,
+    "std_aleatoric": 3.5,
+    "std_epistemic": 0.82,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Nolan Smith": {
+    "pos": "LB",
+    "mean": 5.11,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Harold Landry": {
+    "pos": "LB",
+    "mean": 8.03,
+    "std_aleatoric": 4.25,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Terry McLaurin": {
+    "pos": "WR",
+    "mean": 10.62,
+    "std_aleatoric": 5.87,
+    "std_epistemic": 5.84,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Aaron Jones": {
+    "pos": "RB",
+    "mean": 8.17,
+    "std_aleatoric": 5.66,
+    "std_epistemic": 5.15,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Christian Kirk": {
+    "pos": "WR",
+    "mean": 0.85,
+    "std_aleatoric": 1.66,
+    "std_epistemic": 0.84,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Joey Porter": {
+    "pos": "DB",
+    "mean": 5.62,
+    "std_aleatoric": 3.56,
+    "std_epistemic": 0.84,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Kaleb Elarms-Orr": {
+    "pos": "LB",
+    "mean": 4.94,
+    "std_aleatoric": 3.33,
+    "std_epistemic": 0.74,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Raheim Sanders": {
+    "pos": "RB",
+    "mean": 0.24,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.15,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Jalen Coker": {
+    "pos": "WR",
+    "mean": 8.53,
+    "std_aleatoric": 5.26,
+    "std_epistemic": 4.69,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Kendrick Bourne": {
+    "pos": "WR",
+    "mean": 3.09,
+    "std_aleatoric": 3.16,
+    "std_epistemic": 1.7,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Mason Taylor": {
+    "pos": "TE",
+    "mean": 4.06,
+    "std_aleatoric": 4.03,
+    "std_epistemic": 2.03,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Cam Skattebo": {
+    "pos": "RB",
+    "mean": 12.39,
+    "std_aleatoric": 6.97,
+    "std_epistemic": 7.81,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Josh Sweat": {
+    "pos": "DE",
+    "mean": 5.65,
+    "std_aleatoric": 3.57,
+    "std_epistemic": 1.02,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Xavier Hutchinson": {
+    "pos": "WR",
+    "mean": 3.04,
+    "std_aleatoric": 3.14,
+    "std_epistemic": 1.67,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "David Sills": {
+    "pos": "WR",
+    "mean": 0.4,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.22,
+    "bye": 0,
+    "team": "TB"
+  },
+  "DeeJay Dallas": {
+    "pos": "RB",
+    "mean": 0.1,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Ji'Ayir Brown": {
+    "pos": "DB",
+    "mean": 6.3,
+    "std_aleatoric": 3.76,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Jordan Whittington": {
+    "pos": "WR",
+    "mean": 1.03,
+    "std_aleatoric": 1.83,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Frankie Luvu": {
+    "pos": "LB",
+    "mean": 5.31,
+    "std_aleatoric": 3.46,
+    "std_epistemic": 0.8,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Pat Surtain": {
+    "pos": "CB",
+    "mean": 5.17,
+    "std_aleatoric": 3.41,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Ian Thomas": {
+    "pos": "TE",
+    "mean": 0.33,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.17,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Tank Bigsby": {
+    "pos": "RB",
+    "mean": 3.79,
+    "std_aleatoric": 3.85,
+    "std_epistemic": 2.39,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Trenton Simpson": {
+    "pos": "LB",
+    "mean": 6.16,
+    "std_aleatoric": 3.72,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Detroit Lions": {
+    "pos": "DEF",
+    "mean": 7.78,
+    "std_aleatoric": 4.18,
+    "std_epistemic": 1.4,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Zavion Thomas": {
+    "pos": "WR",
+    "mean": 1.73,
+    "std_aleatoric": 2.37,
+    "std_epistemic": 0.95,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "AJ Barner": {
+    "pos": "TE",
+    "mean": 6.37,
+    "std_aleatoric": 5.05,
+    "std_epistemic": 3.19,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "J'Mari Taylor": {
+    "pos": "RB",
+    "mean": 0.47,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.3,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Buffalo Bills": {
+    "pos": "DEF",
+    "mean": 6.39,
+    "std_aleatoric": 3.79,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Isaiah Rodgers": {
+    "pos": "CB",
+    "mean": 5.21,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 0.94,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Kendre Miller": {
+    "pos": "RB",
+    "mean": 3.33,
+    "std_aleatoric": 3.61,
+    "std_epistemic": 2.1,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Joshua Palmer": {
+    "pos": "WR",
+    "mean": 1.93,
+    "std_aleatoric": 2.5,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Aidan Hutchinson": {
+    "pos": "DL",
+    "mean": 11.8,
+    "std_aleatoric": 5.15,
+    "std_epistemic": 1.77,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Dillon Thieneman": {
+    "pos": "DB",
+    "mean": 6.84,
+    "std_aleatoric": 3.92,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Xavier Watts": {
+    "pos": "DB",
+    "mean": 8.25,
+    "std_aleatoric": 4.31,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Rhamondre Stevenson": {
+    "pos": "RB",
+    "mean": 9.8,
+    "std_aleatoric": 6.2,
+    "std_epistemic": 6.17,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Dayo Odeyingbo": {
+    "pos": "DE",
+    "mean": 6.21,
+    "std_aleatoric": 3.74,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Kyle Williams": {
+    "pos": "WR",
+    "mean": 1.27,
+    "std_aleatoric": 2.03,
+    "std_epistemic": 1.05,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Derrick Brown": {
+    "pos": "DT",
+    "mean": 6.22,
+    "std_aleatoric": 3.74,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Kyren Williams": {
+    "pos": "RB",
+    "mean": 12.96,
+    "std_aleatoric": 7.13,
+    "std_epistemic": 8.16,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Philadelphia Eagles": {
+    "pos": "DEF",
+    "mean": 8.07,
+    "std_aleatoric": 4.26,
+    "std_epistemic": 1.45,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Romeo Doubs": {
+    "pos": "WR",
+    "mean": 7.72,
+    "std_aleatoric": 5.0,
+    "std_epistemic": 4.25,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Quan Martin": {
+    "pos": "DB",
+    "mean": 6.72,
+    "std_aleatoric": 3.89,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Pat Freiermuth": {
+    "pos": "TE",
+    "mean": 6.25,
+    "std_aleatoric": 5.0,
+    "std_epistemic": 3.12,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Dareke Young": {
+    "pos": "WR",
+    "mean": 0.18,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Reed Blankenship": {
+    "pos": "DB",
+    "mean": 6.84,
+    "std_aleatoric": 3.92,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Emari Demercado": {
+    "pos": "RB",
+    "mean": 2.59,
+    "std_aleatoric": 3.19,
+    "std_epistemic": 1.63,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Theo Wease": {
+    "pos": "WR",
+    "mean": 0.07,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.04,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Trevin Wallace": {
+    "pos": "LB",
+    "mean": 7.08,
+    "std_aleatoric": 3.99,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Poona Ford": {
+    "pos": "DT",
+    "mean": 5.1,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Josh Whyle": {
+    "pos": "TE",
+    "mean": 0.34,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.17,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Malik Willis": {
+    "pos": "QB",
+    "mean": 16.26,
+    "std_aleatoric": 6.65,
+    "std_epistemic": 4.88,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Sione Vaki": {
+    "pos": "RB",
+    "mean": 0.18,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.11,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Jaylen Warren": {
+    "pos": "RB",
+    "mean": 11.38,
+    "std_aleatoric": 6.68,
+    "std_epistemic": 7.17,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "San Francisco 49ers": {
+    "pos": "DEF",
+    "mean": 6.23,
+    "std_aleatoric": 3.74,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Neville Gallimore": {
+    "pos": "DT",
+    "mean": 2.74,
+    "std_aleatoric": 2.48,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Xavier Legette": {
+    "pos": "WR",
+    "mean": 3.6,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 1.98,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Jaylon Johnson": {
+    "pos": "DB",
+    "mean": 4.28,
+    "std_aleatoric": 3.1,
+    "std_epistemic": 0.64,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Keon Coleman": {
+    "pos": "WR",
+    "mean": 3.56,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 1.96,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Keldric Faulk": {
+    "pos": "DL",
+    "mean": 3.21,
+    "std_aleatoric": 2.69,
+    "std_epistemic": 0.48,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Akeem Davis-Gaither": {
+    "pos": "LB",
+    "mean": 7.54,
+    "std_aleatoric": 4.12,
+    "std_epistemic": 1.13,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Tanner Koziol": {
+    "pos": "TE",
+    "mean": 0.7,
+    "std_aleatoric": 1.67,
+    "std_epistemic": 0.35,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Noah Fant": {
+    "pos": "TE",
+    "mean": 2.12,
+    "std_aleatoric": 2.91,
+    "std_epistemic": 1.06,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Ben Sauls": {
+    "pos": "K",
+    "mean": 2.5,
+    "std_aleatoric": 2.48,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Justin Eboigbe": {
+    "pos": "DL",
+    "mean": 4.97,
+    "std_aleatoric": 3.34,
+    "std_epistemic": 0.75,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Kamren Kinchens": {
+    "pos": "DB",
+    "mean": 6.67,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Trent Sherfield": {
+    "pos": "WR",
+    "mean": 0.22,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.12,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Chase Brown": {
+    "pos": "RB",
+    "mean": 14.39,
+    "std_aleatoric": 7.51,
+    "std_epistemic": 9.07,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Xavier Restrepo": {
+    "pos": "WR",
+    "mean": 0.32,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Bo Melton": {
+    "pos": "WR",
+    "mean": 1.11,
+    "std_aleatoric": 1.9,
+    "std_epistemic": 0.61,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Colbie Young": {
+    "pos": "WR",
+    "mean": 2.06,
+    "std_aleatoric": 2.58,
+    "std_epistemic": 1.13,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Elijah Arroyo": {
+    "pos": "TE",
+    "mean": 3.0,
+    "std_aleatoric": 3.46,
+    "std_epistemic": 1.5,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Otito Ogbonnia": {
+    "pos": "DL",
+    "mean": 2.14,
+    "std_aleatoric": 2.19,
+    "std_epistemic": 0.32,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Brian Burns": {
+    "pos": "DE",
+    "mean": 10.43,
+    "std_aleatoric": 4.84,
+    "std_epistemic": 1.88,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Bud Dupree": {
+    "pos": "LB",
+    "mean": 2.63,
+    "std_aleatoric": 2.43,
+    "std_epistemic": 0.39,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Mark Andrews": {
+    "pos": "TE",
+    "mean": 8.6,
+    "std_aleatoric": 5.87,
+    "std_epistemic": 4.3,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Tylan Wallace": {
+    "pos": "WR",
+    "mean": 0.48,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.26,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Calijah Kancey": {
+    "pos": "DL",
+    "mean": 4.53,
+    "std_aleatoric": 3.19,
+    "std_epistemic": 0.68,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Austin Hooper": {
+    "pos": "TE",
+    "mean": 1.99,
+    "std_aleatoric": 2.82,
+    "std_epistemic": 0.99,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Blake Cashman": {
+    "pos": "LB",
+    "mean": 9.03,
+    "std_aleatoric": 4.51,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Andrew Wingard": {
+    "pos": "DB",
+    "mean": 5.13,
+    "std_aleatoric": 3.4,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Cole Holcomb": {
+    "pos": "LB",
+    "mean": 3.49,
+    "std_aleatoric": 2.8,
+    "std_epistemic": 0.52,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Ja'Tavion Sanders": {
+    "pos": "TE",
+    "mean": 1.58,
+    "std_aleatoric": 2.51,
+    "std_epistemic": 0.79,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Andy Borregales": {
+    "pos": "K",
+    "mean": 9.9,
+    "std_aleatoric": 4.94,
+    "std_epistemic": 3.96,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Minkah Fitzpatrick": {
+    "pos": "DB",
+    "mean": 6.65,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.0,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Durham Smythe": {
+    "pos": "TE",
+    "mean": 0.89,
+    "std_aleatoric": 1.89,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Alontae Taylor": {
+    "pos": "DB",
+    "mean": 7.97,
+    "std_aleatoric": 4.23,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Quentin Johnston": {
+    "pos": "WR",
+    "mean": 9.11,
+    "std_aleatoric": 5.43,
+    "std_epistemic": 5.01,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Tykee Smith": {
+    "pos": "DB",
+    "mean": 9.44,
+    "std_aleatoric": 4.61,
+    "std_epistemic": 1.42,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Christian Gonzalez": {
+    "pos": "DB",
+    "mean": 5.78,
+    "std_aleatoric": 3.61,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "NE"
+  },
+  "New York Giants": {
+    "pos": "DEF",
+    "mean": 5.75,
+    "std_aleatoric": 3.6,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Nicholas Singleton": {
+    "pos": "RB",
+    "mean": 1.56,
+    "std_aleatoric": 2.47,
+    "std_epistemic": 0.98,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Paulson Adebo": {
+    "pos": "CB",
+    "mean": 6.44,
+    "std_aleatoric": 3.81,
+    "std_epistemic": 1.16,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Deone Walker": {
+    "pos": "DT",
+    "mean": 4.95,
+    "std_aleatoric": 3.34,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Isaiah Bond": {
+    "pos": "WR",
+    "mean": 1.68,
+    "std_aleatoric": 2.33,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Tennessee Titans": {
+    "pos": "DEF",
+    "mean": 8.3,
+    "std_aleatoric": 4.32,
+    "std_epistemic": 1.49,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Riley Nowakowski": {
+    "pos": "TE",
+    "mean": 0.36,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Jermaine Johnson": {
+    "pos": "LB",
+    "mean": 4.71,
+    "std_aleatoric": 3.26,
+    "std_epistemic": 0.71,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Zack Baun": {
+    "pos": "LB",
+    "mean": 11.38,
+    "std_aleatoric": 5.06,
+    "std_epistemic": 1.71,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Adonai Mitchell": {
+    "pos": "WR",
+    "mean": 6.11,
+    "std_aleatoric": 4.45,
+    "std_epistemic": 3.36,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "K'Lavon Chaisson": {
+    "pos": "LB",
+    "mean": 5.47,
+    "std_aleatoric": 3.51,
+    "std_epistemic": 0.82,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Andrew Billings": {
+    "pos": "DT",
+    "mean": 1.78,
+    "std_aleatoric": 2.0,
+    "std_epistemic": 0.32,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "David Onyemata": {
+    "pos": "DT",
+    "mean": 3.45,
+    "std_aleatoric": 2.79,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Roger McCreary": {
+    "pos": "DB",
+    "mean": 4.87,
+    "std_aleatoric": 3.31,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Myles Murphy": {
+    "pos": "DL",
+    "mean": 2.4,
+    "std_aleatoric": 2.32,
+    "std_epistemic": 0.36,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Germie Bernard": {
+    "pos": "WR",
+    "mean": 5.0,
+    "std_aleatoric": 4.02,
+    "std_epistemic": 2.75,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Nick Scott": {
+    "pos": "DB",
+    "mean": 7.49,
+    "std_aleatoric": 4.11,
+    "std_epistemic": 1.12,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Harrison Phillips": {
+    "pos": "DT",
+    "mean": 4.38,
+    "std_aleatoric": 3.14,
+    "std_epistemic": 0.79,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "DJ Giddens": {
+    "pos": "RB",
+    "mean": 1.48,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Jordan James": {
+    "pos": "RB",
+    "mean": 1.48,
+    "std_aleatoric": 2.41,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Amani Hooker": {
+    "pos": "DB",
+    "mean": 6.86,
+    "std_aleatoric": 3.93,
+    "std_epistemic": 1.03,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Chris Olave": {
+    "pos": "WR",
+    "mean": 12.65,
+    "std_aleatoric": 6.4,
+    "std_epistemic": 6.96,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Mike Washington": {
+    "pos": "RB",
+    "mean": 5.04,
+    "std_aleatoric": 4.45,
+    "std_epistemic": 3.18,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Josh Allen": {
+    "pos": "QB",
+    "mean": 20.53,
+    "std_aleatoric": 7.48,
+    "std_epistemic": 6.16,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Quentin Lake": {
+    "pos": "DB",
+    "mean": 5.83,
+    "std_aleatoric": 3.62,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Talanoa Hufanga": {
+    "pos": "DB",
+    "mean": 8.34,
+    "std_aleatoric": 4.33,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Carson Schwesinger": {
+    "pos": "LB",
+    "mean": 10.82,
+    "std_aleatoric": 4.93,
+    "std_epistemic": 1.62,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Nick Folk": {
+    "pos": "K",
+    "mean": 9.48,
+    "std_aleatoric": 4.83,
+    "std_epistemic": 3.79,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Josh Downs": {
+    "pos": "WR",
+    "mean": 8.61,
+    "std_aleatoric": 5.28,
+    "std_epistemic": 4.74,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Anthony Gould": {
+    "pos": "WR",
+    "mean": 0.14,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.08,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Kylen Granson": {
+    "pos": "TE",
+    "mean": 0.12,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.06,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Kalel Mullings": {
+    "pos": "RB",
+    "mean": 0.21,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.13,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Isaiah Pola-Mao": {
+    "pos": "DB",
+    "mean": 6.75,
+    "std_aleatoric": 3.9,
+    "std_epistemic": 1.01,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Dean Connors": {
+    "pos": "RB",
+    "mean": 0.19,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.12,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Deommodore Lenoir": {
+    "pos": "DB",
+    "mean": 5.95,
+    "std_aleatoric": 3.66,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Ty Johnson": {
+    "pos": "RB",
+    "mean": 3.71,
+    "std_aleatoric": 3.81,
+    "std_epistemic": 2.34,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Brandon Aiyuk": {
+    "pos": "WR",
+    "mean": 0.01,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.01,
+    "bye": 0,
+    "team": "SF"
+  },
+  "LeQuint Allen": {
+    "pos": "RB",
+    "mean": 2.09,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 1.32,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Derrick Moore": {
+    "pos": "DE",
+    "mean": 6.41,
+    "std_aleatoric": 3.8,
+    "std_epistemic": 1.15,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Zay Flowers": {
+    "pos": "WR",
+    "mean": 12.3,
+    "std_aleatoric": 6.31,
+    "std_epistemic": 6.77,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Greg Dulcich": {
+    "pos": "TE",
+    "mean": 5.39,
+    "std_aleatoric": 4.64,
+    "std_epistemic": 2.69,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Cashius Howell": {
+    "pos": "DL",
+    "mean": 1.76,
+    "std_aleatoric": 1.99,
+    "std_epistemic": 0.26,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Harold Fannin": {
+    "pos": "TE",
+    "mean": 8.93,
+    "std_aleatoric": 5.98,
+    "std_epistemic": 4.46,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Dre'Mont Jones": {
+    "pos": "DE",
+    "mean": 6.06,
+    "std_aleatoric": 3.69,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Jermod McCoy": {
+    "pos": "DB",
+    "mean": 3.95,
+    "std_aleatoric": 2.98,
+    "std_epistemic": 0.59,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Cam Bynum": {
+    "pos": "DB",
+    "mean": 7.21,
+    "std_aleatoric": 4.03,
+    "std_epistemic": 1.08,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Denzel Boston": {
+    "pos": "WR",
+    "mean": 6.11,
+    "std_aleatoric": 4.45,
+    "std_epistemic": 3.36,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Wan'Dale Robinson": {
+    "pos": "WR",
+    "mean": 8.04,
+    "std_aleatoric": 5.1,
+    "std_epistemic": 4.42,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Lucas Krull": {
+    "pos": "TE",
+    "mean": 0.32,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jonah Coleman": {
+    "pos": "RB",
+    "mean": 3.34,
+    "std_aleatoric": 3.62,
+    "std_epistemic": 2.1,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Xavier Smith": {
+    "pos": "WR",
+    "mean": 0.72,
+    "std_aleatoric": 1.53,
+    "std_epistemic": 0.4,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Van Jefferson": {
+    "pos": "WR",
+    "mean": 0.06,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.03,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Ja'Kobi Lane": {
+    "pos": "WR",
+    "mean": 4.08,
+    "std_aleatoric": 3.64,
+    "std_epistemic": 2.24,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Drew Ogletree": {
+    "pos": "TE",
+    "mean": 0.37,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.18,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Jared Verse": {
+    "pos": "DL",
+    "mean": 8.17,
+    "std_aleatoric": 4.29,
+    "std_epistemic": 1.23,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Jack Gibbens": {
+    "pos": "LB",
+    "mean": 5.7,
+    "std_aleatoric": 3.58,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Joey Slye": {
+    "pos": "K",
+    "mean": 9.31,
+    "std_aleatoric": 4.79,
+    "std_epistemic": 3.72,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Skyy Moore": {
+    "pos": "WR",
+    "mean": 0.08,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.07,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Drake Thomas": {
+    "pos": "LB",
+    "mean": 8.27,
+    "std_aleatoric": 4.31,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Joseph Ossai": {
+    "pos": "DE",
+    "mean": 4.65,
+    "std_aleatoric": 3.23,
+    "std_epistemic": 0.84,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Courtland Sutton": {
+    "pos": "WR",
+    "mean": 9.21,
+    "std_aleatoric": 5.46,
+    "std_epistemic": 5.07,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Kyle Juszczyk": {
+    "pos": "FB",
+    "mean": 1.64,
+    "std_aleatoric": 1.92,
+    "std_epistemic": 0.34,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Chicago Bears": {
+    "pos": "DEF",
+    "mean": 6.64,
+    "std_aleatoric": 3.87,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Tremaine Edmunds": {
+    "pos": "LB",
+    "mean": 9.07,
+    "std_aleatoric": 4.52,
+    "std_epistemic": 1.36,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Payton Wilson": {
+    "pos": "LB",
+    "mean": 8.29,
+    "std_aleatoric": 4.32,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Chuba Hubbard": {
+    "pos": "RB",
+    "mean": 9.4,
+    "std_aleatoric": 6.07,
+    "std_epistemic": 5.92,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Tony Jefferson": {
+    "pos": "DB",
+    "mean": 3.28,
+    "std_aleatoric": 2.72,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Devaughn Vele": {
+    "pos": "WR",
+    "mean": 7.19,
+    "std_aleatoric": 4.83,
+    "std_epistemic": 3.95,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Anthony Hill": {
+    "pos": "LB",
+    "mean": 4.67,
+    "std_aleatoric": 3.24,
+    "std_epistemic": 0.7,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Skyler Bell": {
+    "pos": "WR",
+    "mean": 1.22,
+    "std_aleatoric": 1.99,
+    "std_epistemic": 0.67,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Charlie Kolar": {
+    "pos": "TE",
+    "mean": 2.5,
+    "std_aleatoric": 3.16,
+    "std_epistemic": 1.25,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Nick Bosa": {
+    "pos": "DE",
+    "mean": 7.75,
+    "std_aleatoric": 4.18,
+    "std_epistemic": 1.4,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Dexter Lawrence": {
+    "pos": "DT",
+    "mean": 7.09,
+    "std_aleatoric": 3.99,
+    "std_epistemic": 1.28,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Kevin Austin": {
+    "pos": "WR",
+    "mean": 1.04,
+    "std_aleatoric": 1.84,
+    "std_epistemic": 0.57,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Najee Harris": {
+    "pos": "RB",
+    "mean": 2.93,
+    "std_aleatoric": 3.39,
+    "std_epistemic": 1.85,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Cincinnati Bengals": {
+    "pos": "DEF",
+    "mean": 6.04,
+    "std_aleatoric": 3.69,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Tyler Loop": {
+    "pos": "K",
+    "mean": 10.99,
+    "std_aleatoric": 5.2,
+    "std_epistemic": 4.4,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Michael Mayer": {
+    "pos": "TE",
+    "mean": 3.6,
+    "std_aleatoric": 3.79,
+    "std_epistemic": 1.8,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Jeremy Chinn": {
+    "pos": "DB",
+    "mean": 8.54,
+    "std_aleatoric": 4.38,
+    "std_epistemic": 1.28,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Cairo Santos": {
+    "pos": "K",
+    "mean": 10.39,
+    "std_aleatoric": 5.06,
+    "std_epistemic": 4.16,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Tyler Bass": {
+    "pos": "K",
+    "mean": 10.1,
+    "std_aleatoric": 4.99,
+    "std_epistemic": 4.04,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Malik Davis": {
+    "pos": "RB",
+    "mean": 1.71,
+    "std_aleatoric": 2.59,
+    "std_epistemic": 1.08,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Max Klare": {
+    "pos": "TE",
+    "mean": 0.9,
+    "std_aleatoric": 1.9,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Benjamin Morrison": {
+    "pos": "DB",
+    "mean": 2.62,
+    "std_aleatoric": 2.43,
+    "std_epistemic": 0.39,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Peter Woods": {
+    "pos": "DL",
+    "mean": 3.58,
+    "std_aleatoric": 2.84,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Roschon Johnson": {
+    "pos": "RB",
+    "mean": 0.26,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.16,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Alfred Collins": {
+    "pos": "DL",
+    "mean": 2.96,
+    "std_aleatoric": 2.58,
+    "std_epistemic": 0.44,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Elijah Roberts": {
+    "pos": "DT",
+    "mean": 1.96,
+    "std_aleatoric": 2.1,
+    "std_epistemic": 0.35,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Ka'imi Fairbairn": {
+    "pos": "K",
+    "mean": 10.7,
+    "std_aleatoric": 5.14,
+    "std_epistemic": 4.28,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Caleb Williams": {
+    "pos": "QB",
+    "mean": 18.4,
+    "std_aleatoric": 7.08,
+    "std_epistemic": 5.52,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Will Kacmarek": {
+    "pos": "TE",
+    "mean": 2.52,
+    "std_aleatoric": 3.17,
+    "std_epistemic": 1.26,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Shemar Turner": {
+    "pos": "DE",
+    "mean": 2.43,
+    "std_aleatoric": 2.34,
+    "std_epistemic": 0.44,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Mike Hughes": {
+    "pos": "CB",
+    "mean": 4.63,
+    "std_aleatoric": 3.23,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "ATL"
+  },
+  "Ja'Quan McMillian": {
+    "pos": "CB",
+    "mean": 6.17,
+    "std_aleatoric": 3.73,
+    "std_epistemic": 1.11,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Carlton Davis": {
+    "pos": "CB",
+    "mean": 5.98,
+    "std_aleatoric": 3.67,
+    "std_epistemic": 1.08,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Shane Zylstra": {
+    "pos": "TE",
+    "mean": 0.18,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.09,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Alvin Kamara": {
+    "pos": "RB",
+    "mean": 2.9,
+    "std_aleatoric": 3.37,
+    "std_epistemic": 1.83,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Taron Johnson": {
+    "pos": "CB",
+    "mean": 4.31,
+    "std_aleatoric": 3.11,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "LV"
+  },
+  "JT Tuimoloau": {
+    "pos": "DL",
+    "mean": 3.61,
+    "std_aleatoric": 2.85,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Jarquez Hunter": {
+    "pos": "RB",
+    "mean": 0.04,
+    "std_aleatoric": 1.4,
+    "std_epistemic": 0.03,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Nikko Remigio": {
+    "pos": "WR",
+    "mean": 0.1,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.06,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Tip Reiman": {
+    "pos": "TE",
+    "mean": 0.6,
+    "std_aleatoric": 1.55,
+    "std_epistemic": 0.3,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Oscar Delp": {
+    "pos": "TE",
+    "mean": 1.31,
+    "std_aleatoric": 2.29,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Edgerrin Cooper": {
+    "pos": "LB",
+    "mean": 9.96,
+    "std_aleatoric": 4.73,
+    "std_epistemic": 1.49,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Ryan Flournoy": {
+    "pos": "WR",
+    "mean": 5.16,
+    "std_aleatoric": 4.09,
+    "std_epistemic": 2.84,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Tatum Bethune": {
+    "pos": "LB",
+    "mean": 5.07,
+    "std_aleatoric": 3.38,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Luke Schoonmaker": {
+    "pos": "TE",
+    "mean": 1.25,
+    "std_aleatoric": 2.24,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Emanuel Wilson": {
+    "pos": "RB",
+    "mean": 1.91,
+    "std_aleatoric": 2.74,
+    "std_epistemic": 1.2,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jason Myers": {
+    "pos": "K",
+    "mean": 11.04,
+    "std_aleatoric": 5.22,
+    "std_epistemic": 4.42,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jacoby Brissett": {
+    "pos": "QB",
+    "mean": 14.34,
+    "std_aleatoric": 6.25,
+    "std_epistemic": 4.3,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Craig Woodson": {
+    "pos": "DB",
+    "mean": 5.96,
+    "std_aleatoric": 3.66,
+    "std_epistemic": 0.89,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Eric Stokes": {
+    "pos": "CB",
+    "mean": 4.59,
+    "std_aleatoric": 3.21,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "LV"
+  },
+  "C.J. Stroud": {
+    "pos": "QB",
+    "mean": 16.59,
+    "std_aleatoric": 6.72,
+    "std_epistemic": 4.98,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Elijah Higgins": {
+    "pos": "TE",
+    "mean": 2.18,
+    "std_aleatoric": 2.95,
+    "std_epistemic": 1.09,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Boye Mafe": {
+    "pos": "DL",
+    "mean": 8.87,
+    "std_aleatoric": 4.47,
+    "std_epistemic": 1.33,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Christian Barmore": {
+    "pos": "DT",
+    "mean": 3.42,
+    "std_aleatoric": 2.77,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Greg Dortch": {
+    "pos": "WR",
+    "mean": 1.69,
+    "std_aleatoric": 2.34,
+    "std_epistemic": 0.93,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Karl Brooks": {
+    "pos": "DT",
+    "mean": 3.42,
+    "std_aleatoric": 2.77,
+    "std_epistemic": 0.62,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Dre Greenlaw": {
+    "pos": "LB",
+    "mean": 4.67,
+    "std_aleatoric": 3.24,
+    "std_epistemic": 0.7,
+    "bye": 0,
+    "team": "SF"
+  },
+  "Felix Anudike-Uzomah": {
+    "pos": "DE",
+    "mean": 3.25,
+    "std_aleatoric": 2.7,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Denver Broncos": {
+    "pos": "DEF",
+    "mean": 7.58,
+    "std_aleatoric": 4.13,
+    "std_epistemic": 1.36,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Nate Adkins": {
+    "pos": "TE",
+    "mean": 0.55,
+    "std_aleatoric": 1.48,
+    "std_epistemic": 0.29,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Levi Onwuzurike": {
+    "pos": "DE",
+    "mean": 2.53,
+    "std_aleatoric": 2.39,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Marcus Epps": {
+    "pos": "DB",
+    "mean": 3.25,
+    "std_aleatoric": 2.7,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Jake Bates": {
+    "pos": "K",
+    "mean": 11.63,
+    "std_aleatoric": 5.35,
+    "std_epistemic": 4.65,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Micheal Clemons": {
+    "pos": "DL",
+    "mean": 2.61,
+    "std_aleatoric": 2.42,
+    "std_epistemic": 0.39,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Travis Kelce": {
+    "pos": "TE",
+    "mean": 8.26,
+    "std_aleatoric": 5.75,
+    "std_epistemic": 4.13,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Darius Slayton": {
+    "pos": "WR",
+    "mean": 3.77,
+    "std_aleatoric": 3.49,
+    "std_epistemic": 2.07,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Jack Campbell": {
+    "pos": "LB",
+    "mean": 13.09,
+    "std_aleatoric": 5.43,
+    "std_epistemic": 1.96,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Deshaun Watson": {
+    "pos": "QB",
+    "mean": 13.72,
+    "std_aleatoric": 6.11,
+    "std_epistemic": 4.12,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Jawhar Jordan": {
+    "pos": "RB",
+    "mean": 0.51,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.32,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Daniel Carlson": {
+    "pos": "K",
+    "mean": 3.23,
+    "std_aleatoric": 2.82,
+    "std_epistemic": 1.29,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Domonique Orange": {
+    "pos": "DT",
+    "mean": 1.81,
+    "std_aleatoric": 2.02,
+    "std_epistemic": 0.33,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Darren Waller": {
+    "pos": "TE",
+    "mean": 6.09,
+    "std_aleatoric": 4.94,
+    "std_epistemic": 3.04,
+    "bye": 0,
+    "team": "CAR"
+  },
+  "Ernest Jones": {
+    "pos": "LB",
+    "mean": 9.28,
+    "std_aleatoric": 4.57,
+    "std_epistemic": 1.39,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Jalen Brooks": {
+    "pos": "WR",
+    "mean": 0.15,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.14,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Chig Okonkwo": {
+    "pos": "TE",
+    "mean": 6.21,
+    "std_aleatoric": 4.98,
+    "std_epistemic": 3.1,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "KeAndre Lambert-Smith": {
+    "pos": "WR",
+    "mean": 0.84,
+    "std_aleatoric": 1.65,
+    "std_epistemic": 0.46,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Derwin James": {
+    "pos": "DB",
+    "mean": 10.52,
+    "std_aleatoric": 4.87,
+    "std_epistemic": 1.58,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Nohl Williams": {
+    "pos": "CB",
+    "mean": 6.56,
+    "std_aleatoric": 3.84,
+    "std_epistemic": 1.18,
+    "bye": 0,
+    "team": "KC"
+  },
+  "D.J. Reed": {
+    "pos": "CB",
+    "mean": 6.51,
+    "std_aleatoric": 3.83,
+    "std_epistemic": 1.17,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Marquez Valdes-Scantling": {
+    "pos": "WR",
+    "mean": 0.9,
+    "std_aleatoric": 1.71,
+    "std_epistemic": 0.5,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Jihaad Campbell": {
+    "pos": "LB",
+    "mean": 8.98,
+    "std_aleatoric": 4.49,
+    "std_epistemic": 1.35,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Ted Hurst": {
+    "pos": "WR",
+    "mean": 2.94,
+    "std_aleatoric": 3.09,
+    "std_epistemic": 1.62,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Joe Royer": {
+    "pos": "TE",
+    "mean": 1.36,
+    "std_aleatoric": 2.33,
+    "std_epistemic": 0.68,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Antoine Winfield": {
+    "pos": "DB",
+    "mean": 8.26,
+    "std_aleatoric": 4.31,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Josh Jacobs": {
+    "pos": "RB",
+    "mean": 12.98,
+    "std_aleatoric": 7.13,
+    "std_epistemic": 8.18,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Zach Charbonnet": {
+    "pos": "RB",
+    "mean": 2.98,
+    "std_aleatoric": 3.42,
+    "std_epistemic": 1.88,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "Brock Bowers": {
+    "pos": "TE",
+    "mean": 12.65,
+    "std_aleatoric": 7.11,
+    "std_epistemic": 6.33,
+    "bye": 0,
+    "team": "LV"
+  },
+  "Jayden Daniels": {
+    "pos": "QB",
+    "mean": 18.21,
+    "std_aleatoric": 7.04,
+    "std_epistemic": 5.46,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Tom Kennedy": {
+    "pos": "WR",
+    "mean": 0.09,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.05,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Kevin Coleman": {
+    "pos": "WR",
+    "mean": 2.71,
+    "std_aleatoric": 2.96,
+    "std_epistemic": 1.49,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Derek Stingley": {
+    "pos": "DB",
+    "mean": 5.04,
+    "std_aleatoric": 3.37,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Terrel Bernard": {
+    "pos": "LB",
+    "mean": 9.57,
+    "std_aleatoric": 4.64,
+    "std_epistemic": 1.44,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Darius Alexander": {
+    "pos": "DL",
+    "mean": 3.94,
+    "std_aleatoric": 2.98,
+    "std_epistemic": 0.59,
+    "bye": 0,
+    "team": "NYG"
+  },
+  "Sam Roush": {
+    "pos": "TE",
+    "mean": 0.96,
+    "std_aleatoric": 1.96,
+    "std_epistemic": 0.55,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Harrison Mevis": {
+    "pos": "K",
+    "mean": 11.76,
+    "std_aleatoric": 5.38,
+    "std_epistemic": 4.7,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Sheldon Rankins": {
+    "pos": "DT",
+    "mean": 4.22,
+    "std_aleatoric": 3.08,
+    "std_epistemic": 0.76,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Nate Wiggins": {
+    "pos": "CB",
+    "mean": 7.6,
+    "std_aleatoric": 4.14,
+    "std_epistemic": 1.37,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Dalton Schultz": {
+    "pos": "TE",
+    "mean": 6.97,
+    "std_aleatoric": 5.28,
+    "std_epistemic": 3.48,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Jaylen Wright": {
+    "pos": "RB",
+    "mean": 2.48,
+    "std_aleatoric": 3.12,
+    "std_epistemic": 1.56,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Jackson Hawes": {
+    "pos": "TE",
+    "mean": 1.46,
+    "std_aleatoric": 2.42,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Travon Walker": {
+    "pos": "LB",
+    "mean": 7.33,
+    "std_aleatoric": 4.06,
+    "std_epistemic": 1.1,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Gervon Dexter": {
+    "pos": "DL",
+    "mean": 5.81,
+    "std_aleatoric": 3.62,
+    "std_epistemic": 0.87,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Demetrius Knight": {
+    "pos": "LB",
+    "mean": 10.41,
+    "std_aleatoric": 4.84,
+    "std_epistemic": 1.56,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Kobie Turner": {
+    "pos": "DT",
+    "mean": 7.66,
+    "std_aleatoric": 4.15,
+    "std_epistemic": 1.38,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Jordan Addison": {
+    "pos": "WR",
+    "mean": 8.84,
+    "std_aleatoric": 5.35,
+    "std_epistemic": 4.86,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Jalon Kilgore": {
+    "pos": "CB",
+    "mean": 2.75,
+    "std_aleatoric": 2.49,
+    "std_epistemic": 0.49,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Quinnen Williams": {
+    "pos": "DT",
+    "mean": 6.91,
+    "std_aleatoric": 3.94,
+    "std_epistemic": 1.24,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Devon Witherspoon": {
+    "pos": "DB",
+    "mean": 7.23,
+    "std_aleatoric": 4.03,
+    "std_epistemic": 1.08,
+    "bye": 0,
+    "team": "SEA"
+  },
+  "David Njoku": {
+    "pos": "TE",
+    "mean": 4.25,
+    "std_aleatoric": 4.12,
+    "std_epistemic": 2.12,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "Darius Robinson": {
+    "pos": "DL",
+    "mean": 3.45,
+    "std_aleatoric": 2.79,
+    "std_epistemic": 0.52,
+    "bye": 0,
+    "team": "ARI"
+  },
+  "Matt Hibner": {
+    "pos": "TE",
+    "mean": 1.47,
+    "std_aleatoric": 2.42,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Akheem Mesidor": {
+    "pos": "DL",
+    "mean": 5.54,
+    "std_aleatoric": 3.53,
+    "std_epistemic": 0.83,
+    "bye": 0,
+    "team": "LAC"
+  },
+  "KC Concepcion": {
+    "pos": "WR",
+    "mean": 7.63,
+    "std_aleatoric": 4.97,
+    "std_epistemic": 4.2,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "Kyler Murray": {
+    "pos": "QB",
+    "mean": 17.2,
+    "std_aleatoric": 6.84,
+    "std_epistemic": 5.16,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Tanner Hudson": {
+    "pos": "TE",
+    "mean": 0.94,
+    "std_aleatoric": 1.94,
+    "std_epistemic": 0.47,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Nick Bolton": {
+    "pos": "LB",
+    "mean": 11.71,
+    "std_aleatoric": 5.13,
+    "std_epistemic": 1.76,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Justin Walley": {
+    "pos": "CB",
+    "mean": 3.2,
+    "std_aleatoric": 2.68,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Tyler Johnson": {
+    "pos": "WR",
+    "mean": 0.19,
+    "std_aleatoric": 1.27,
+    "std_epistemic": 0.1,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Mitch Tinsley": {
+    "pos": "WR",
+    "mean": 0.82,
+    "std_aleatoric": 1.63,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Michael Pittman": {
+    "pos": "WR",
+    "mean": 9.2,
+    "std_aleatoric": 5.46,
+    "std_epistemic": 5.06,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "Montez Sweat": {
+    "pos": "DE",
+    "mean": 7.82,
+    "std_aleatoric": 4.19,
+    "std_epistemic": 1.41,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Ray Davis": {
+    "pos": "RB",
+    "mean": 2.69,
+    "std_aleatoric": 3.25,
+    "std_epistemic": 1.69,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Juwan Johnson": {
+    "pos": "TE",
+    "mean": 7.32,
+    "std_aleatoric": 5.41,
+    "std_epistemic": 3.66,
+    "bye": 0,
+    "team": "NO"
+  },
+  "Tez Johnson": {
+    "pos": "WR",
+    "mean": 1.67,
+    "std_aleatoric": 2.33,
+    "std_epistemic": 0.92,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Jaylinn Hawkins": {
+    "pos": "SS",
+    "mean": 4.72,
+    "std_aleatoric": 3.26,
+    "std_epistemic": 0.85,
+    "bye": 0,
+    "team": "BAL"
+  },
+  "Riley Moss": {
+    "pos": "DB",
+    "mean": 6.08,
+    "std_aleatoric": 3.7,
+    "std_epistemic": 0.91,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Phil Mafah": {
+    "pos": "RB",
+    "mean": 0.97,
+    "std_aleatoric": 1.95,
+    "std_epistemic": 0.61,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Jaishawn Barham": {
+    "pos": "LB",
+    "mean": 3.16,
+    "std_aleatoric": 2.67,
+    "std_epistemic": 0.47,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "DK Metcalf": {
+    "pos": "WR",
+    "mean": 10.2,
+    "std_aleatoric": 5.75,
+    "std_epistemic": 5.61,
+    "bye": 0,
+    "team": "PIT"
+  },
+  "AJ Haulcy": {
+    "pos": "DB",
+    "mean": 3.63,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 0.54,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Breece Hall": {
+    "pos": "RB",
+    "mean": 13.77,
+    "std_aleatoric": 7.35,
+    "std_epistemic": 8.68,
+    "bye": 0,
+    "team": "NYJ"
+  },
+  "Kyle Dugger": {
+    "pos": "DB",
+    "mean": 5.23,
+    "std_aleatoric": 3.43,
+    "std_epistemic": 0.78,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Cody Barton": {
+    "pos": "LB",
+    "mean": 5.33,
+    "std_aleatoric": 3.46,
+    "std_epistemic": 0.8,
+    "bye": 0,
+    "team": "TEN"
+  },
+  "Trent McDuffie": {
+    "pos": "DB",
+    "mean": 6.58,
+    "std_aleatoric": 3.85,
+    "std_epistemic": 0.99,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Kansas City Chiefs": {
+    "pos": "DEF",
+    "mean": 8.6,
+    "std_aleatoric": 4.4,
+    "std_epistemic": 1.55,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Dondrea Tillman": {
+    "pos": "DT",
+    "mean": 3.91,
+    "std_aleatoric": 2.97,
+    "std_epistemic": 0.7,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Maliek Collins": {
+    "pos": "DT",
+    "mean": 5.31,
+    "std_aleatoric": 3.46,
+    "std_epistemic": 0.96,
+    "bye": 0,
+    "team": "CLE"
+  },
+  "John Bates": {
+    "pos": "TE",
+    "mean": 1.6,
+    "std_aleatoric": 2.53,
+    "std_epistemic": 0.8,
+    "bye": 0,
+    "team": "WAS"
+  },
+  "Deion Burks": {
+    "pos": "WR",
+    "mean": 1.11,
+    "std_aleatoric": 1.9,
+    "std_epistemic": 0.61,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Arik Armstead": {
+    "pos": "DE",
+    "mean": 3.64,
+    "std_aleatoric": 2.86,
+    "std_epistemic": 0.66,
+    "bye": 0,
+    "team": "JAX"
+  },
+  "Lukas Van Ness": {
+    "pos": "DL",
+    "mean": 5.28,
+    "std_aleatoric": 3.45,
+    "std_epistemic": 0.79,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Ashton Dulin": {
+    "pos": "WR",
+    "mean": 1.33,
+    "std_aleatoric": 2.08,
+    "std_epistemic": 0.73,
+    "bye": 0,
+    "team": "IND"
+  },
+  "J.K. Dobbins": {
+    "pos": "RB",
+    "mean": 8.18,
+    "std_aleatoric": 5.66,
+    "std_epistemic": 5.15,
+    "bye": 0,
+    "team": "DEN"
+  },
+  "Jonathan Taylor": {
+    "pos": "RB",
+    "mean": 16.76,
+    "std_aleatoric": 8.11,
+    "std_epistemic": 10.56,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Drake Maye": {
+    "pos": "QB",
+    "mean": 17.93,
+    "std_aleatoric": 6.99,
+    "std_epistemic": 5.38,
+    "bye": 0,
+    "team": "NE"
+  },
+  "Michael Hoecht": {
+    "pos": "DT",
+    "mean": 3.83,
+    "std_aleatoric": 2.94,
+    "std_epistemic": 0.69,
+    "bye": 0,
+    "team": "BUF"
+  },
+  "Devin Culp": {
+    "pos": "TE",
+    "mean": 0.42,
+    "std_aleatoric": 1.41,
+    "std_epistemic": 0.21,
+    "bye": 0,
+    "team": "TB"
+  },
+  "Javonte Williams": {
+    "pos": "RB",
+    "mean": 13.98,
+    "std_aleatoric": 7.4,
+    "std_epistemic": 8.81,
+    "bye": 0,
+    "team": "DAL"
+  },
+  "Minnesota Vikings": {
+    "pos": "DEF",
+    "mean": 7.36,
+    "std_aleatoric": 4.07,
+    "std_epistemic": 1.32,
+    "bye": 0,
+    "team": "MIN"
+  },
+  "Cade Stover": {
+    "pos": "TE",
+    "mean": 1.54,
+    "std_aleatoric": 2.48,
+    "std_epistemic": 0.77,
+    "bye": 0,
+    "team": "HOU"
+  },
+  "Tyquan Thornton": {
+    "pos": "WR",
+    "mean": 3.93,
+    "std_aleatoric": 3.57,
+    "std_epistemic": 2.16,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Zach Sieler": {
+    "pos": "DT",
+    "mean": 6.6,
+    "std_aleatoric": 3.85,
+    "std_epistemic": 1.19,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Xavier McKinney": {
+    "pos": "DB",
+    "mean": 7.89,
+    "std_aleatoric": 4.21,
+    "std_epistemic": 1.18,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Alim McNeill": {
+    "pos": "NT",
+    "mean": 2.67,
+    "std_aleatoric": 2.45,
+    "std_epistemic": 0.48,
+    "bye": 0,
+    "team": "DET"
+  },
+  "Khyiris Tonga": {
+    "pos": "DT",
+    "mean": 2.33,
+    "std_aleatoric": 2.29,
+    "std_epistemic": 0.42,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Charvarius Ward": {
+    "pos": "CB",
+    "mean": 3.4,
+    "std_aleatoric": 2.77,
+    "std_epistemic": 0.61,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Colby Parkinson": {
+    "pos": "TE",
+    "mean": 4.0,
+    "std_aleatoric": 4.0,
+    "std_epistemic": 2.0,
+    "bye": 0,
+    "team": "LAR"
+  },
+  "Makai Lemon": {
+    "pos": "WR",
+    "mean": 6.47,
+    "std_aleatoric": 4.58,
+    "std_epistemic": 3.56,
+    "bye": 0,
+    "team": "PHI"
+  },
+  "Barrett Carter": {
+    "pos": "LB",
+    "mean": 8.54,
+    "std_aleatoric": 4.38,
+    "std_epistemic": 1.28,
+    "bye": 0,
+    "team": "CIN"
+  },
+  "Riley Patterson": {
+    "pos": "K",
+    "mean": 4.27,
+    "std_aleatoric": 3.24,
+    "std_epistemic": 1.71,
+    "bye": 0,
+    "team": "MIA"
+  },
+  "Jalen Royals": {
+    "pos": "WR",
+    "mean": 1.05,
+    "std_aleatoric": 1.84,
+    "std_epistemic": 0.58,
+    "bye": 0,
+    "team": "KC"
+  },
+  "Matthew Golden": {
+    "pos": "WR",
+    "mean": 8.54,
+    "std_aleatoric": 5.26,
+    "std_epistemic": 4.7,
+    "bye": 0,
+    "team": "GB"
+  },
+  "Malik Muhammad": {
+    "pos": "CB",
+    "mean": 2.52,
+    "std_aleatoric": 2.38,
+    "std_epistemic": 0.45,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Juanyeh Thomas": {
+    "pos": "DB",
+    "mean": 3.94,
+    "std_aleatoric": 2.98,
+    "std_epistemic": 0.59,
+    "bye": 0,
+    "team": "IND"
+  },
+  "Devin Bush": {
+    "pos": "LB",
+    "mean": 10.2,
+    "std_aleatoric": 4.79,
+    "std_epistemic": 1.53,
+    "bye": 0,
+    "team": "CHI"
+  },
+  "Jahdae Barron": {
+    "pos": "DB",
+    "mean": 4.17,
+    "std_aleatoric": 3.06,
+    "std_epistemic": 0.63,
+    "bye": 0,
+    "team": "DEN"
+  }
+}

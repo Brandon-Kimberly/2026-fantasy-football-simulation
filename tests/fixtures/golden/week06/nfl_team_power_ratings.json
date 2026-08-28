@@ -1,0 +1,98 @@
+{
+  "ARI": {
+    "off_rating": 11.25
+  },
+  "ATL": {
+    "off_rating": 18.25
+  },
+  "BAL": {
+    "off_rating": 28.25
+  },
+  "BUF": {
+    "off_rating": 23.75
+  },
+  "CAR": {
+    "off_rating": 19.75
+  },
+  "CHI": {
+    "off_rating": 24.75
+  },
+  "CIN": {
+    "off_rating": 28.75
+  },
+  "CLE": {
+    "off_rating": 12.75
+  },
+  "DAL": {
+    "off_rating": 26.75
+  },
+  "DEN": {
+    "off_rating": 18.75
+  },
+  "DET": {
+    "off_rating": 31.75
+  },
+  "GB": {
+    "off_rating": 23.75
+  },
+  "HOU": {
+    "off_rating": 20.75
+  },
+  "IND": {
+    "off_rating": 21.25
+  },
+  "JAX": {
+    "off_rating": 27.75
+  },
+  "KC": {
+    "off_rating": 23.75
+  },
+  "LAC": {
+    "off_rating": 34.25
+  },
+  "LAR": {
+    "off_rating": 27.75
+  },
+  "LV": {
+    "off_rating": 23.75
+  },
+  "MIA": {
+    "off_rating": 17.75
+  },
+  "MIN": {
+    "off_rating": 20.75
+  },
+  "NE": {
+    "off_rating": 18.75
+  },
+  "NO": {
+    "off_rating": 17.75
+  },
+  "NYG": {
+    "off_rating": 21.75
+  },
+  "NYJ": {
+    "off_rating": 16.25
+  },
+  "PHI": {
+    "off_rating": 28.0
+  },
+  "PIT": {
+    "off_rating": 24.25
+  },
+  "SEA": {
+    "off_rating": 26.75
+  },
+  "SF": {
+    "off_rating": 20.75
+  },
+  "TB": {
+    "off_rating": 21.75
+  },
+  "TEN": {
+    "off_rating": 22.25
+  },
+  "WAS": {
+    "off_rating": 19.0
+  }
+}
