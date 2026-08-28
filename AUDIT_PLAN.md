@@ -111,7 +111,8 @@ Seven findings, six of them defects:
 6. `KNOWN_MISSING_ASSETS` is aliased into `self.baselines` rather than copied, so
    `_apply_bayesian_updates` overwrites a sourced config constant in place. Makes results
    order-dependent and compounds across repeated runs — `std_epistemic` collapses 87% in three
-   runs on double-counted evidence. **Phase 0 gap 3:** the golden master passes only because its
+   runs on double-counted evidence. FIXED (deepcopy at imputation; moves no exported number).
+   **Phase 0 gap 3:** the golden master passed only because its
    scenario and module ordering happen to be safe; reverse it and all six tests fail.
 7. The bye-week mechanism is dead code end to end. Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards

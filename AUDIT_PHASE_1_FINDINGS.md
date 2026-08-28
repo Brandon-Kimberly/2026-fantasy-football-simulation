@@ -126,7 +126,7 @@ including the four eliminated at week 14 and the team that finished last. Seedin
 the week-14 tiebreak reads `sim_points` before the playoff weeks are added — so this is a
 reporting defect, not a standings one.
 
-### 6. A config constant is mutated in place by running the engine — **most serious**
+### 6. A config constant is mutated in place by running the engine — **FIXED**
 
 `FantasySimulationEngine.__init__`:
 
@@ -166,6 +166,11 @@ Three consequences, ascending:
   double-counted evidence. Both backtest harnesses run the engine in a loop and are exposed.
 
 Production runs the simulation once per process, so the live week-1 forecast is not affected.
+
+**Fixed** by deepcopying the whitelist entry at the point of imputation. The mutation only ever
+landed on the config module, never on the loaded baselines the engine actually simulates from, so
+this moved no exported number — verified: all 12 golden-master tests unchanged and green, in both
+module orderings.
 
 ### 7. The bye-week mechanism is entirely dead code
 

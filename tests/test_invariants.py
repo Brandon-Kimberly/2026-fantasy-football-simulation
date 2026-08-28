@@ -104,17 +104,15 @@ REGULAR_SEASON_WEEKS = 14
 # --------------------------------------------------------------------------- run harness
 @contextmanager
 def pristine_config():
-    """Restores the config constants that a run is known to mutate.
+    """Restores any config constant a run might mutate.
 
-    `SIM_CONFIG['KNOWN_MISSING_ASSETS']` is corrupted in place by any run whose fixture has
-    completed weeks -- see TestConfigConstantsSurviveARun, which characterises that defect and
-    is the only place in this module that observes it.
-
-    Every run this module performs is wrapped in this, for two reasons. Comparing two runs is
-    meaningless unless both start from the same constants. And leaving the corruption behind
-    would break whatever runs next: with the constant mutated, all six golden-master tests
-    fail, so a module that did not clean up after itself would turn a real defect into
-    unrelated red elsewhere in the suite."""
+    `SIM_CONFIG['KNOWN_MISSING_ASSETS']` used to be corrupted in place by any run whose fixture
+    had completed weeks; the engine now deepcopies it on import, and
+    TestConfigConstantsSurviveARun is the regression guard. This wrapper is kept as defence in
+    depth rather than removed: every run in this module goes through it, so a future
+    reintroduction of that aliasing shows up as a single focused failure in
+    TestConfigConstantsSurviveARun instead of as unexplained red in whatever module happens to
+    run next."""
     saved = copy.deepcopy(SIM_CONFIG["KNOWN_MISSING_ASSETS"])
     try:
         yield
@@ -531,31 +529,36 @@ class TestExpectedPointsCoversTheRegularSeason(ScenarioTestCase):
 class TestConfigConstantsSurviveARun(unittest.TestCase):
     """Constructing an engine must not rewrite the config module's constants.
 
-    `__init__` fills gaps in the loaded baselines from the whitelist:
+    Regression guard for a real defect. `__init__` fills gaps in the loaded baselines from the
+    whitelist, and used to do it by binding the config's own dict object into self.baselines
+    rather than a copy:
 
         self.baselines[p_name] = SIM_CONFIG["KNOWN_MISSING_ASSETS"][p_name]
 
-    That binds the config's own dict object into self.baselines rather than a copy.
-    `_apply_bayesian_updates` then writes posterior values straight into the entries of
-    self.baselines, so the whitelisted player's sourced constants are overwritten in the
-    config module, for the remainder of the process.
+    `_apply_bayesian_updates` writes posterior values straight into the entries of
+    self.baselines, so the whitelisted player's sourced constants were overwritten in the config
+    module for the remainder of the process.
 
     Three consequences, in ascending order of seriousness:
-      - a constant whose provenance is documented in config.py silently stops holding the
+      - a constant whose provenance is documented in config.py silently stopped holding the
         documented value;
-      - simulation results become order-dependent -- the same fixture gives different answers
+      - simulation results became order-dependent -- the same fixture gave different answers
         depending on what ran before it in the same process, which is exactly the property the
-        Phase 0 harness exists to guarantee;
-      - the corruption compounds. Each run treats the previous run's posterior as its prior and
-        re-applies the same evidence, so uncertainty collapses on repetition rather than
-        converging. Five successive constructions on the week06 fixture drive std_epistemic
+        Phase 0 harness exists to guarantee. Verified at the time: running this module before
+        tests.test_golden_master failed all six golden-master tests. The suite was green only
+        because test_golden_master sorts first alphabetically and SCENARIOS happens to put
+        week01 (no completed weeks, so _apply_bayesian_updates returns early) ahead of week06.
+        That ordering was load-bearing by accident;
+      - the corruption compounded. Each run treated the previous run's posterior as its prior
+        and re-applied the same evidence, so uncertainty collapsed on repetition rather than
+        converging. Five successive constructions on the week06 fixture drove std_epistemic
         1.17 -> 0.51 -> 0.25 -> 0.16, an 87% collapse built entirely on double-counted
-        evidence. Anything that runs the engine in a loop -- both backtest harnesses do -- is
-        exposed to this.
+        evidence. Anything running the engine in a loop -- both backtest harnesses do -- was
+        exposed.
 
-    Not currently visible in the golden master: its SCENARIOS tuple happens to put week01
-    first, and week01 has no completed weeks, so _apply_bayesian_updates returns before
-    mutating anything. The ordering is load-bearing by accident."""
+    Fixed by deepcopying the whitelist entry at the point of imputation. Because the mutation
+    only ever landed on the config module and never on the loaded baselines the engine actually
+    simulates from, the fix moved no exported number: the golden hashes are unchanged."""
 
     def test_known_missing_assets_is_unchanged_by_constructing_an_engine(self):
         before = copy.deepcopy(SIM_CONFIG["KNOWN_MISSING_ASSETS"])

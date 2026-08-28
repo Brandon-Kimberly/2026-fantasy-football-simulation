@@ -100,7 +100,18 @@ class FantasySimulationEngine:
             for p_name, meta in p_dict.items():
                 if p_name not in self.baselines or self.baselines[p_name].get('mean', 0.0) <= 0:
                     if p_name in SIM_CONFIG["KNOWN_MISSING_ASSETS"]:
-                        self.baselines[p_name] = SIM_CONFIG["KNOWN_MISSING_ASSETS"][p_name]
+                        # deepcopy, not a bare reference. Binding the config's own dict here
+                        # made _apply_bayesian_updates -- which writes posterior 'mean' and
+                        # 'std_epistemic' straight into entries of self.baselines -- overwrite
+                        # the sourced constant in config.py for the rest of the process. That
+                        # made results order-dependent (the same fixture gave different answers
+                        # depending on what ran before it) and compounded across runs, since
+                        # each run then treated the previous run's posterior as its prior and
+                        # re-applied the same evidence: std_epistemic collapsed 1.17 -> 0.16
+                        # over three runs on the week06 fixture. Both backtest harnesses run
+                        # the engine in a loop and were exposed. See
+                        # tests/test_invariants.py::TestConfigConstantsSurviveARun.
+                        self.baselines[p_name] = copy.deepcopy(SIM_CONFIG["KNOWN_MISSING_ASSETS"][p_name])
                         print(f"[INFO] Imputed whitelisted missing asset: {p_name} ({t})")
                     else:
                         missing_players.append((t, p_name, meta['pos']))
