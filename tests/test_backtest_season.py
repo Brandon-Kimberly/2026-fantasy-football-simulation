@@ -52,6 +52,39 @@ class TestBacktestHarness(unittest.TestCase):
         self.assertAlmostEqual(entry["std_aleatoric"], expected_aleatoric)
         self.assertAlmostEqual(entry["std_epistemic"], expected_epistemic)
 
+    def test_flat_environment_with_pairings_adds_byes_and_nothing_else(self):
+        """Bye modelling, step 4. Supplying real pairings must add exactly one piece of
+        information -- who is absent which week -- and leave the environment neutral: with
+        every rating flat, a real opponent's implied total is 21.5 and the spread 0, the same
+        as the 'FA' fallback the empty schedule produced."""
+        from fantasy_sim.backtest_season import build_flat_nfl_environment_files
+        from fantasy_sim.config import NFL_TEAMS
+        pairings = {}
+        for wk in range(1, 19):
+            playing = [t for t in NFL_TEAMS if not (t == "DET" and wk == 6)]
+            pairings[str(wk)] = {t: playing[(i + 1) % len(playing)] for i, t in enumerate(playing)}
+        pr, dr, dt, sched = build_flat_nfl_environment_files(pairings=pairings, failed_weeks=[])
+        self.assertEqual(sched["_meta"]["byes"], {"DET": 6})
+        self.assertEqual(sched["6"].get("DET"), None)
+        # neutral environment through the REAL engine formula
+        engine = simmod.FantasySimulationEngine.__new__(simmod.FantasySimulationEngine)
+        engine.power_ratings, engine.defensive_ratings = pr, dr
+        env = engine._compute_future_week_matchup_environment("DET", sched["7"]["DET"])
+        self.assertEqual((env["total"], env["spread"]), (21.5, 0.0))
+        self.assertEqual(env["opponent"], sched["7"]["DET"])
+        # without pairings: unchanged v1 behaviour
+        _, _, _, empty = build_flat_nfl_environment_files()
+        self.assertNotIn("_meta", empty)
+        self.assertEqual(empty["6"], {})
+
+    def test_blank_slate_baselines_carry_the_supplied_bye(self):
+        live_rosters = {"Team A": [{"name": "Test WR", "pos": "WR", "team": "DET"},
+                                   {"name": "Free WR", "pos": "WR", "team": "FA"}]}
+        result = build_blank_slate_baselines(live_rosters, byes={"DET": 6})
+        self.assertEqual(result["Test WR"]["bye"], 6)
+        self.assertEqual(result["Free WR"]["bye"], 0)
+        self.assertEqual(build_blank_slate_baselines(live_rosters)["Test WR"]["bye"], 0)
+
     def test_build_asof_standings_only_uses_weeks_before_checkpoint(self):
         """Regression test for look-ahead bias: a real result from week >= through_week must
         never be counted in the as-of-checkpoint standings, even if that week's data exists in
@@ -132,7 +165,8 @@ class TestBacktestHarness(unittest.TestCase):
         with patch.object(sync, 'update_player_cache', return_value=fake_players_db), \
              patch.object(sync, 'TEAM_NAME_MAP', fake_team_name_map), \
              patch('requests.get', side_effect=fake_get), \
-             patch('matplotlib.pyplot.savefig'):
+             patch('matplotlib.pyplot.savefig'), \
+             self.assertLogs(level="WARNING") as logs:   # the fake HTTP layer 404s ESPN: byes must degrade loudly
             simmod.SIM_CONFIG['NUM_BATCHES'] = 1
             simmod.SIM_CONFIG['SIMS_PER_BATCH'] = 20
             result = run_backtest_checkpoint(checkpoint_week=3, num_batches=1, sims_per_batch=20)

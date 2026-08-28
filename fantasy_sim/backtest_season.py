@@ -75,7 +75,9 @@ import requests
 from fantasy_sim import sync
 from fantasy_sim import simulation as simmod
 from fantasy_sim import storage
-from fantasy_sim.config import BASE_URL, REGULAR_SEASON_WEEKS
+import logging
+
+from fantasy_sim.config import BASE_URL, REGULAR_SEASON_WEEKS, derive_bye_weeks
 
 BACKTEST_WORKDIR = "backtest_workdir"
 BACKTEST_SEASON_LEAGUE_ID = "1253869352399142913"  # 2025 season, confirmed via prior diagnostic
@@ -199,7 +201,7 @@ def fetch_real_playoff_teams(league_id):
 # Reconstruction of "as-of-checkpoint-week" inputs, purely from real historical data
 # ============================================================================
 
-def build_blank_slate_baselines(live_rosters_payload):
+def build_blank_slate_baselines(live_rosters_payload, byes=None):
     """
     Positional-only prior for every rostered player -- no real signal at all, exactly what a
     genuinely uninformed model would assume before any real games exist this season. Reuses
@@ -226,7 +228,9 @@ def build_blank_slate_baselines(live_rosters_payload):
                 "mean": mean,
                 "std_aleatoric": round(k_val * math.sqrt(max(0.5, mean)), 2),
                 "std_epistemic": round(err * mean, 2),
-                "bye": 0,  # v1 simplification -- see module docstring
+                # From the season's real pairings when supplied (fetch_nfl_pairings ->
+                # derive_bye_weeks), else 0 as in v1.
+                "bye": (byes or {}).get(nfl_team, 0),
                 "team": nfl_team,
             }
     return baselines
@@ -315,16 +319,61 @@ def build_full_season_league_schedule(season_matchups, roster_map, regular_seaso
     return full_schedule
 
 
-def build_flat_nfl_environment_files(power_rating_value=21.5):
-    """v1 simplification (see module docstring): no verified historical Vegas/schedule data,
-    so every real NFL team gets an identical, neutral environment. This means the Vegas/
-    schedule-informed layer contributes nothing distinguishing in v1's backtest -- intentional,
-    not accidental. Returns (power_ratings, defensive_ratings, defensive_tiers, nfl_schedule)."""
+def fetch_nfl_pairings(season_year):
+    """Real NFL pairings for a past season from ESPN's public scoreboard (the same source and
+    parsing generate_nfl_schedule uses for the live season, with `dates=<year>`). Returns
+    ({week_str: {team: opponent}}, failed_weeks). A week that cannot be fetched is empty and
+    recorded, exactly as in production, so derive_bye_weeks can exclude it."""
+    pairings, failed = {}, []
+    for wk in range(1, 19):
+        pairings[str(wk)] = {}
+        url = (f"http://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+               f"?week={wk}&seasontype=2&dates={season_year}")
+        try:
+            resp = requests.get(url, timeout=10)
+            if resp.status_code != 200:
+                raise RuntimeError(f"HTTP {resp.status_code}")
+            events = resp.json().get("events", [])
+        except Exception as e:  # noqa: BLE001 -- recorded, not swallowed
+            failed.append(wk)
+            logging.warning("BACKTEST: %s NFL pairings for week %d unavailable (%s: %s); no byes derivable for it.",
+                            season_year, wk, type(e).__name__, e)
+            continue
+        for event in events:
+            try:
+                comp = event["competitions"][0]["competitors"]
+                t1, t2 = comp[0]["team"]["abbreviation"], comp[1]["team"]["abbreviation"]
+            except (KeyError, IndexError, TypeError):
+                continue
+            t1 = "WAS" if t1 == "WSH" else t1
+            t2 = "WAS" if t2 == "WSH" else t2
+            pairings[str(wk)][t1] = t2
+            pairings[str(wk)][t2] = t1
+    return pairings, failed
+
+
+def build_flat_nfl_environment_files(power_rating_value=21.5, pairings=None, failed_weeks=()):
+    """v1 simplification (see module docstring): no verified historical Vegas data, so every
+    real NFL team gets an identical, neutral scoring environment -- the Vegas/schedule-
+    informed layer contributes nothing distinguishing here, intentionally.
+
+    Since the bye work, real PAIRINGS may be supplied (fetch_nfl_pairings). They add exactly one
+    piece of information -- who is absent which week -- and nothing else: with every power and
+    defensive rating flat, a real opponent's implied total is (21.5 + 21.5) / 2 = 21.5 and the
+    spread 0, identical to the 'FA' fallback. The schedule's _meta.byes is derived the same way
+    production's is, so the backtest can represent absences at all (the reason Phase 2's
+    findings 4 and 5 were reverted). Without pairings the schedule is empty, as before.
+    Returns (power_ratings, defensive_ratings, defensive_tiers, nfl_schedule)."""
     power_ratings = {team: {"off_rating": power_rating_value} for team in sync.NFL_TEAM_ABBREVIATIONS.values()}
     defensive_ratings = {team: {"points_allowed_estimate": power_rating_value, "games_sampled": 0}
                           for team in sync.NFL_TEAM_ABBREVIATIONS.values()}
     defensive_tiers = {"TOP_DEFENSE": [], "BOTTOM_DEFENSE": []}
-    nfl_schedule = {str(wk): {} for wk in range(1, 19)}  # every team resolves to 'FA' -> neutral fallback
+    if pairings:
+        nfl_schedule = {str(wk): dict(pairings.get(str(wk), {})) for wk in range(1, 19)}
+        nfl_schedule["_meta"] = {"failed_weeks": list(failed_weeks),
+                                 "byes": derive_bye_weeks(nfl_schedule, failed_weeks)}
+    else:
+        nfl_schedule = {str(wk): {} for wk in range(1, 19)}  # every team resolves to 'FA' -> neutral fallback
     return power_ratings, defensive_ratings, defensive_tiers, nfl_schedule
 
 
@@ -334,7 +383,7 @@ def build_flat_nfl_environment_files(power_rating_value=21.5):
 
 def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LEAGUE_ID,
                              num_batches=1, sims_per_batch=2000, keep_workdir=False,
-                             median_scoring_enabled=False):
+                             median_scoring_enabled=False, season_year="2025"):
     """
     Runs one backtest checkpoint end-to-end:
       1. Fetch real historical data for the season (matchups, rosters, final standings).
@@ -381,11 +430,16 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
         print(f"[SKIP] No real matchup data available for week {checkpoint_week - 1} to build from.")
         return None
 
-    baselines = build_blank_slate_baselines(live_rosters_payload)
+    # Real pairings for the season: byes only (totals stay flat -- see
+    # build_flat_nfl_environment_files). A failed fetch leaves the schedule empty, as in v1.
+    pairings, failed_weeks = fetch_nfl_pairings(season_year)
+    power_ratings, defensive_ratings, defensive_tiers, nfl_schedule = build_flat_nfl_environment_files(
+        pairings=pairings, failed_weeks=failed_weeks)
+    byes = nfl_schedule.get("_meta", {}).get("byes", {})
+    baselines = build_blank_slate_baselines(live_rosters_payload, byes=byes)
     weekly_actuals = build_realized_weekly_actuals(season_matchups, players_db, roster_map, checkpoint_week)
     standings = build_asof_standings(season_matchups, roster_map, checkpoint_week)
     league_schedule = build_full_season_league_schedule(season_matchups, roster_map)
-    power_ratings, defensive_ratings, defensive_tiers, nfl_schedule = build_flat_nfl_environment_files()
 
     original_cwd = os.getcwd()
     os.makedirs(BACKTEST_WORKDIR, exist_ok=True)
