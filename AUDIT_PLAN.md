@@ -92,34 +92,53 @@ yield in this codebase and property testing is built exactly for it.
 
 **Deliverable:** `tests/test_invariants.py`.
 
-**Status: characterisation complete.** See `AUDIT_PHASE_1_FINDINGS.md`. 26 tests added (84 → 110);
-19 lock invariants that hold, 7 characterise defects. Every invariant listed above holds except
-the bye-week one, which could not be tested at all.
+**Status: complete.** See `AUDIT_PHASE_1_FINDINGS.md`. 26 tests added (84 → 110), suite green.
+Every invariant listed above holds except the bye-week one, which could not be tested at all
+because no player has a bye (finding 7).
 
-Seven findings, six of them defects:
+Eight findings. Six were defects and all six are fixed; two remain open and are recorded rather
+than fixed, because neither is a code change:
 
-1. H2H "Any Given Sunday" matrix divided by a hardcoded 14 rather than weeks actually simulated —
-   every cell deflated to 64% of true value at week 6, correct at week 1.
-2. `schedule_luck_index` not zero-sum mid-season (+142.86 at week 6, 0.00 at week 1); every team
-   reported as lucky. Same hardcoded 14, plus a hardcoded 7 and a 28.0 that also assumes
-   `MEDIAN_SCORING_ENABLED`.
-3. `avg_points_against_per_game` divides by 14 regardless of weeks played (113.75 vs 176.94).
-4. `weekly_score_percentiles` and the KDE chart computed over an array that is 35.7% structural
-   zeros at week 6; `p10_floor` is exactly 0.00 for every team.
-5. `Expected_Points` includes playoff weeks 15–16 for all 8 teams (+12%), including the four
-   eliminated at week 14. Affects week 1 too.
+1. FIXED. H2H "Any Given Sunday" matrix divided by a hardcoded 14 rather than weeks actually
+   simulated — every cell deflated to 64% of true value at week 6, correct at week 1. The
+   replacement window was measured, not assumed: h2h/all_play/pts_against accumulate inside
+   `if week_num <= 14`, giving exactly 9.0000 implied weeks at week 6 against candidates of
+   9, 11 and 14.
+2. FIXED. `schedule_luck_index` not zero-sum mid-season (+142.86 at week 6, 0.00 at week 1);
+   every team reported as lucky. Same hardcoded 14, plus a hardcoded 7 and a 28.0 that also
+   assumes `MEDIAN_SCORING_ENABLED`; all three now derived. **Caveat left open:** the two terms
+   still cover different spans mid-season (`actual_exp_pct` is full-season including banked
+   weeks, `true_win_pct` covers simulated weeks only). Reconciling them needs historical
+   all-play from `weekly_actuals` — a feature, not a divisor change.
+3. FIXED. `avg_points_against_per_game` divided by 14 regardless of weeks played (113.75 vs
+   176.94).
+4. FIXED. `weekly_score_percentiles` and the KDE chart computed over an array that is 35.7%
+   structural zeros at week 6; `p10_floor` was exactly 0.00 for every team, and the chart's
+   median-cut line read 112.82 against a true 175.50.
+5. FIXED. `Expected_Points` included playoff weeks 15–16 for all 8 teams (+12%), including the
+   four eliminated at week 14. Affected week 1 too. Confirmed to touch nothing else: of
+   `stage_a`'s 17 outputs only `points` moved, so no standing, seed, berth or championship
+   outcome changed.
 6. `KNOWN_MISSING_ASSETS` is aliased into `self.baselines` rather than copied, so
    `_apply_bayesian_updates` overwrites a sourced config constant in place. Makes results
    order-dependent and compounds across repeated runs — `std_epistemic` collapses 87% in three
    runs on double-counted evidence. FIXED (deepcopy at imputation; moves no exported number).
    **Phase 0 gap 3:** the golden master passed only because its
    scenario and module ordering happen to be safe; reverse it and all six tests fail.
-7. The bye-week mechanism is dead code end to end. Sleeper's payload has no `team_bye` key
+7. OPEN. The bye-week mechanism is dead code end to end. Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
    can never fire. The existing sync test passes only because its fixture invents the field.
+   Needs a real bye-week source, which Sleeper does not supply — not a code change.
    `depth_chart_order`, which Phase 7 wants, *is* present (1,812 non-null) and is being discarded.
+   Note `_apportion_vacated_volume` has no bye awareness even in principle (it is never told the
+   week), so whatever makes byes live must fix that in the same change or a bye-week player will
+   be counted in the apportionment denominator and his share destroyed.
+8. OPEN, Phase 6. `power_rankings_baseline_pts` is labelled "Optimal Valid Starting Lineup
+   Baseline" but `get_optimal_score` returns lineup + 10% of bench (166.8 true vs 173.1
+   reported). Deliberate depth reward, undisclosed label. Reported, not fixed.
 
-Findings 1–4 are invisible at week 1 and activate from week 2 — production is at week 1 now.
+Findings 1–4 were invisible at week 1 and would have activated from week 2 — production is at
+week 1 now, so they were caught latent.
 
 ---
 
