@@ -49,6 +49,22 @@ That is why every hash is stored alongside a `summary` -- on failure the test pr
 current moments, so a one-ulp difference is immediately distinguishable from a distribution
 that actually moved. The generating platform is recorded in each golden file's _meta block.
 
+SUMMARY SIZE VS. INTERPRETIVE PRECISION (learned in Phase 2)
+-------------------------------------------------------------
+The summaries are for telling ulp-noise from real movement. They are NOT precise enough to
+SIZE an effect. At 2 x 15 sims a scenario holds 30 seasons per team; the per-run standard
+error of the weekly team mean is ~1.6 points (~0.9%), and a change that also reshuffles the
+RNG stream makes two runs independent samples, so their difference carries ~1.3% of noise.
+Phase 2 read a -4.6% mean shift off these summaries and explained it; the true effect,
+isolated properly, was -2.4%. The rest was noise.
+
+To size an effect: (1) run at >= 400 seasons, and (2) isolate one change at a time on the
+SAME RNG stream -- e.g. patch the new code path back to the old constant so every draw is
+paired -- rather than comparing two golden runs. See AUDIT_PHASE_2_FINDINGS.md finding 1.
+Conservation SUMS (wins, all-play, seed counts) being identical across a change is evidence
+that the Phase 1 invariants held, not that outcomes did: the arrays behind them move whenever
+different seasons win.
+
 COVERAGE GAPS (stated explicitly rather than papered over)
 ----------------------------------------------------------
 1. export_and_visualize gates its championship-share ranking behind
