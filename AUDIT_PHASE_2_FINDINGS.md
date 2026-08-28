@@ -2,15 +2,19 @@
 
 **Invariant under test:** the sampler draws from the distribution it claims to.
 
-**Deliverable:** `tests/test_distributions.py` — 14 tests. 7 pass and lock verified properties;
-7 fail and characterise the defects below. Plus the variance-budget finding the plan asked for
-(§ Variance budget).
+**Deliverable:** `tests/test_distributions.py` — 14 tests. 7 lock verified properties; 7 were
+written red to characterise the defects below, of which 4 now pass as regression guards and 3
+remain red under `expectedFailure` (findings 4 and 5, deferred with recorded dependencies). Plus
+the variance-budget finding the plan asked for (§ Variance budget).
 
-**Suite:** 110 → 124 tests. No pre-existing test changed behaviour. Runtime 34s → 72s: six of
-the new tests run the real `run_simulation` on a controlled league (300–600 seasons each) so
-that moments are asserted against the engine rather than against a transcription of its formulas.
+**Suite:** 110 → 124 tests, `OK (expected failures=3)`. No pre-existing test changed behaviour.
+Runtime 34s → 72s: six of the new tests run the real `run_simulation` on a controlled league
+(300–600 seasons each) so that moments are asserted against the engine rather than against a
+transcription of its formulas.
 
-**Status:** characterisation only. Nothing is fixed. Triage before remediation, as in Phase 1.
+**Status:** findings 1, 2, 6, 7 fixed. 3 deliberately left (offsets 2; fix after 2 is validated
+out of sample). 4 deferred to Phase 3 jointly with `DEF_RATING_SHRINKAGE_N0`. 5 fixed and then
+**reverted on real-data evidence** — see finding 5 for the dependency on bye modelling.
 
 ---
 
@@ -207,7 +211,7 @@ The existing `test_bayesian_shrinkage_math` asserts the code's own arithmetic ba
 calls it "James-Stein"; it is neither James-Stein nor conjugate. **Severity: high** for
 mid-season runs (no effect at week 1, when there are no completed weeks). Moves week06 `stage_a`.
 
-### 5. Zero-score weeks are scored as observed performance — **FIXED**
+### 5. Zero-score weeks are scored as observed performance — **FIX REVERTED, dependency recorded**
 
 `_apply_bayesian_updates` ingests every `player_scores` entry. **20 of the 780** player-weeks in
 the week06 fixture are exactly 0.0 — byes and DNPs, which `backtest_player.
@@ -216,10 +220,26 @@ real game: two above-prior games of 12 and 13 plus one 0.0 pull a prior of 10 do
 Related to Phase 1 finding 7 (byes are unmodelled): the zeros are the byes the engine cannot
 see. **Severity: medium.** Moves week06 `stage_a`.
 
-**Fixed:** `_apply_bayesian_updates` now skips a week whose score is exactly 0.0, the same rule
-`backtest_player` applies. Negative scores (IDP can go negative) are real games and are kept.
-Moved week06 only, as predicted — week01 has no completed weeks. Weekly team mean 110.26 →
-111.55 (+1.2%): dropping the zeros lifts the posteriors they had been dragging down.
+**Fix applied, then reverted on evidence.** Skipping zero weeks is the statistically correct
+per-player rule — and it made the engine worse against reality. Points-level backtest on the
+real 2025 season (`backtest_season`'s own inputs, paired inputs and seed, 300 sims, simulated
+weekly team points vs real, weeks after each checkpoint):
+
+| engine | bias, all checkpoints | mean z | cp3 → cp12 bias |
+|---|---|---|---|
+| fixes 1, 2, 6, 7 only | +1.1% | −0.08 | +0.9% … +1.5% |
+| + finding 5 fix | **+5.4%** | **−0.34** (>5 SE) | +1.4% … **+9.1%** |
+
+Mechanism: the engine cannot model byes (Phase 1 finding 7 — Sleeper never populates
+`team_bye`), so the zeros in real history are the *only* absence signal the posterior ever sees.
+Ingesting them was an accidental compensation: the posterior tracked "expected score per calendar
+week", which is what an engine that scores every player every week actually needs. Excluding
+them made it "per game played", and the bias grows with checkpoint because later posteriors put
+more weight on the data.
+
+**Dependency, recorded in the code and in the test:** finding 5 must be fixed *together with*
+bye modelling, not before it. The characterisation test stays red under `expectedFailure` so it
+becomes the regression guard the day byes land.
 
 ### 6. PSD repair is not renormalised to a correlation matrix — **FIXED**
 
@@ -272,7 +292,7 @@ moved no hash (all 16 matrices bit-identical).
 | 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks — **fixed** | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
 | 3 | Copula targets calibrated on scores, applied on `z` (−12–14%) | Low–Med | all correlated pairs | `stage_a`, both |
 | 4 | Bayesian update not conjugate; over-confident posterior | High (mid-season) | every player with completed weeks | week06 `stage_a` |
-| 5 | Zero-score weeks treated as observed — **fixed** | Medium | players with a bye/DNP in history | week06 `stage_a` |
+| 5 | Zero-score weeks treated as observed — **fix reverted; blocked on bye modelling (Phase 1 #7)** | Medium | players with a bye/DNP in history | none (reverted) |
 | 6 | PSD repair not renormalised — **fixed** | Low | rosters with dense same-team clusters | none (verified) |
 | 7 | Receiver-rank correlation non-monotone — **fixed** | Low | teams with ≥ 3 same-team pass-catchers | none on fixtures (verified) |
 | 8 | Two minor consistency notes | Negligible | — | — |
