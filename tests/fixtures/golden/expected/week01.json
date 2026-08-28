@@ -10,13 +10,13 @@
   },
   "stage_a__run_simulation": {
     "all_play": {
-      "hash": "3409cef32dbda30902e333ce4c4b92674bd8f63143521b674238c59143b3e8ab",
+      "hash": "baad394f3562e6df8c6cab0257e5302073eb317fb8db351ef28ac5c70529f38b",
       "summary": {
-        "max": 1683.0,
+        "max": 1684.0,
         "mean": 1470.0,
-        "min": 1361.0,
+        "min": 1359.0,
         "n": 8,
-        "std": 107.93864,
+        "std": 108.362817,
         "sum": 11760.0
       }
     },
@@ -76,24 +76,24 @@
       }
     },
     "global_weekly_scores": {
-      "hash": "cd3f61ef7ebca33126ac2436ab1d2f3b718c03c2174bfd2ef51d707d715145ee",
+      "hash": "ade2a920c4bb7e08123151032f3683c181c35f5cb9e5b85460e53f6e08ada328",
       "summary": {
         "max": 310.695266,
-        "mean": 171.703708,
+        "mean": 171.707895,
         "min": 89.383659,
         "n": 3360,
-        "std": 32.514784,
-        "sum": 576924.459563
+        "std": 32.513897,
+        "sum": 576938.525912
       }
     },
     "h2h": {
-      "hash": "38056aee7f12a8c229cf60393236b15a0e9a439c39f12fe96c5cb12ae20c4a61",
+      "hash": "b00bb44bd880e8eec3c6e3195b109b8be8d67046ce7c800dfdbfbfd3fa3d41f9",
       "summary": {
         "max": 255.0,
         "mean": 183.75,
         "min": 0.0,
         "n": 64,
-        "std": 72.126841,
+        "std": 72.144386,
         "sum": 11760.0
       }
     },
@@ -126,25 +126,25 @@
       }
     },
     "points": {
-      "hash": "92bcfa1d157e7e8d2ad1a666fc98abb13485356d1c2a31bd5b8b3d4ac7052ad7",
+      "hash": "599446ea885742fd876fe8e6465f0f9a92c13f33144f47d9029fe6d4a232f2cb",
       "summary": {
         "max": 3383.378907,
-        "mean": 2403.851915,
+        "mean": 2403.910525,
         "min": 1717.219754,
         "n": 240,
-        "std": 295.493052,
-        "sum": 576924.459563
+        "std": 295.491963,
+        "sum": 576938.525912
       }
     },
     "pts_against": {
-      "hash": "a9e668a0c37a1bb1ba483aca36e10a863e1924230aa043873f6fb06729417e30",
+      "hash": "9db98193bba545ed3ffb4cf7f64ad8e6c7c873bf2f8a44d127490960e09526b2",
       "summary": {
-        "max": 72978.719526,
-        "mean": 72115.557445,
+        "max": 72993.407056,
+        "mean": 72117.315739,
         "min": 71322.817881,
         "n": 8,
-        "std": 562.15063,
-        "sum": 576924.459563
+        "std": 565.735276,
+        "sum": 576938.525912
       }
     },
     "seed_matrix": {
@@ -227,25 +227,25 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "5875347291a8366bfbbb4225f241270d472bc34b16f49234d37583dd3408f247",
+      "hash": "bf24481a4f183e28e72cf31cadd4265a559f4a5e2bdfa600017f6db7ca6794e5",
       "summary": {
         "max": 2519.405248,
-        "mean": 80.434427,
+        "mean": 80.43476,
         "min": 0.0,
         "n": 395,
-        "std": 340.722502,
-        "sum": 31128.123319
+        "std": 340.730782,
+        "sum": 31128.252197
       }
     },
     "syndicate_insights_week_1.json": {
-      "hash": "b6acd54b758e15e7008781b13e747665e61a5f088b4af18ef43ee8061379632e",
+      "hash": "1cc0af37b0325479a655ff3bdace48566bf97f94ca168b8edbbc0277c6fa9fc4",
       "summary": {
         "max": 310.7,
-        "mean": 77.607957,
+        "mean": 77.61013,
         "min": -1.68,
         "n": 23,
-        "std": 92.660964,
-        "sum": 1784.983
+        "std": 92.662402,
+        "sum": 1785.033
       }
     }
   },
@@ -284,25 +284,25 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "5875347291a8366bfbbb4225f241270d472bc34b16f49234d37583dd3408f247",
+      "hash": "bf24481a4f183e28e72cf31cadd4265a559f4a5e2bdfa600017f6db7ca6794e5",
       "summary": {
         "max": 2519.405248,
-        "mean": 80.434427,
+        "mean": 80.43476,
         "min": 0.0,
         "n": 395,
-        "std": 340.722502,
-        "sum": 31128.123319
+        "std": 340.730782,
+        "sum": 31128.252197
       }
     },
     "syndicate_insights_week_1.json": {
-      "hash": "00b8abe6e9c33441f001abe63c443a78f930dd7eb7667b1195e1e6eb6e2dea3d",
+      "hash": "0c75203684f5769f3d6577c72b2d83189b4629de41a633f0a9b8fab1c8ee41ff",
       "summary": {
         "max": 666.7,
-        "mean": 179.103857,
+        "mean": 179.104651,
         "min": -1.68,
         "n": 63,
-        "std": 211.934112,
-        "sum": 11283.543
+        "std": 211.933962,
+        "sum": 11283.593
       }
     }
   }
