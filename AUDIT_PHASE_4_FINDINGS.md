@@ -65,7 +65,7 @@ medium** (a modelled behaviour that does not occur; no distributional harm, but 
 something it doesn't do). Fixing it (any offer structure that can be favourable to both sides)
 moves `stage_a` in any scenario where a trade completes.
 
-### 2. A completed trade shrinks the rich team's roster by one
+### 2. A completed trade shrinks the rich team's roster by one — **FIXED**
 
 ```python
 tent_d = [p for p in d_list if p != p1] + [p2, p3]; tent_d.sort(...); dropped = tent_d.pop()
@@ -79,6 +79,14 @@ both sides. A rich team that trades repeatedly walks its roster toward 13 and be
 point it starts injecting streamers — which, per finding 3, may *help* it. Also left behind:
 the traded players' entries stay in `sim_meta[r_team]` (stale, harmless). **Severity: medium
 today** (few trades complete), **high if finding 1 is fixed** (trades become frequent).
+
+**Fixed.** The trade is now 2-for-2: the desperate side's dropped player goes to the rich side
+as the throw-in (and its meta entry moves with it). There is no free-agent pool to refill from,
+so a throw-in is the only conservation-preserving structure without a redesign. The rich side's
+acceptance test now includes the throw-in (a bench body worth 0.1 × its mean), which can only
+make acceptance marginally easier. Verified on the crafted league (19 → 19) and, through the
+goldens, on week06: the only scenario in which a trade ever completes, and the only one that
+moved. week01 is byte-identical. Offer construction (finding 1) is unchanged.
 
 ### 3. A won streamer is valued by league-wide bid rank, not by position — and beats real starters — **FIXED**
 
@@ -151,7 +159,7 @@ the two absence-blocked Phase 2 findings.
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
 | 1 | Trades effectively never complete; `trade_will` inert | Medium | manager model claims; nothing distributional today | `stage_a`, any scenario with a completed trade |
-| 2 | Rich roster −1 per completed trade | Medium → high if 1 is fixed | roster size, streamer injection | `stage_a`, same |
+| 2 | Rich roster −1 per completed trade — **fixed** (2-for-2 with the dropped player as throw-in) | Medium → high if 1 is fixed | roster size, streamer injection | week06 `stage_a` |
 | 3 | Streamer value by bid rank beats real starters — **fixed** (capped at data-derived replacement level; backtest neutral, −0.43% production-like) | Medium-high | any team-week with a hole | `stage_a`, both |
 | 4 | Won streamer discarded when the hole is next week (latent) | Low → medium with byes | FAAB, streamers | none today |
 | 5 | Cosmetic notes | — | — | — |

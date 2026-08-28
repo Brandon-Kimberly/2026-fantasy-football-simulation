@@ -703,7 +703,15 @@ class FantasySimulationEngine:
                                             tent_d = [p for p in d_list if p != p1] + [p2, p3]
                                             tent_d.sort(key=lambda p: self.baselines.get(p, {}).get('mean', 0.0), reverse=True)
                                             dropped = tent_d.pop()
-                                            tent_r = [p for p in r_list if p not in [p2, p3]] + [p1]
+                                            # 2-for-2, not 2-for-1: the desperate side's lowest
+                                            # player goes to the rich side as the throw-in. The
+                                            # rich side used to give two and receive one with no
+                                            # drop or pickup, so every completed trade shrank
+                                            # its roster by one, permanently (19 -> 18 on all
+                                            # 16 completions in 100 week06 seasons). There is no
+                                            # free-agent pool to refill from; a throw-in conserves
+                                            # both rosters. AUDIT_PHASE_4_FINDINGS.md finding 2.
+                                            tent_r = [p for p in r_list if p not in [p2, p3]] + [p1, dropped]
 
                                             if self.get_optimal_score(tent_d) > curr_d and self.get_optimal_score(tent_r) > curr_r:
                                                 sim_rosters[d_team] = tent_d
@@ -711,6 +719,7 @@ class FantasySimulationEngine:
                                                 sim_meta[d_team][p2] = sim_meta[r_team].get(p2, {})
                                                 sim_meta[d_team][p3] = sim_meta[r_team].get(p3, {})
                                                 sim_meta[r_team][p1] = sim_meta[d_team].get(p1, {})
+                                                sim_meta[r_team][dropped] = sim_meta[d_team].get(dropped, {})
                                                 if dropped in sim_meta[d_team]: del sim_meta[d_team][dropped]
                                                 break
 

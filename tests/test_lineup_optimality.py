@@ -255,11 +255,13 @@ class TestTradeLogic(unittest.TestCase):
                            "0 of %d evaluated trades accepted" % len(evals))
 
     def test_a_completed_trade_conserves_roster_sizes(self):
-        """FAILS -- finding 2. The desperate side drops its worst player after receiving two,
-        so its roster size is conserved; the rich side gives two and receives one, and never
-        drops or adds, so it shrinks by one on every completed trade (observed 19 -> 18 on all
-        16 completions in 100 week06 seasons). Reproduced here on a crafted league where the
-        trade is favourable to both sides."""
+        """Regression guard for Phase 4 finding 2. The desperate side drops its worst player
+        after receiving two, so its roster size was conserved; the rich side gave two and
+        received one, never dropping or adding, so it shrank by one on every completed trade
+        (observed 19 -> 18 on all 16 completions in 100 week06 seasons). The trade is now
+        2-for-2 -- the desperate side's dropped player goes to the rich side as a throw-in --
+        so both rosters are conserved. Reproduced on a crafted league where the trade is
+        favourable to both sides."""
         teams = ["Rich1", "Rich2", "M3", "M4", "M5", "M6", "M7", "Poor8"]
         slots = ["QB", "K", "DB", "DL", "LB", "RB", "RB", "RB", "WR", "WR", "WR", "TE", "TE"]
 

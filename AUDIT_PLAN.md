@@ -288,7 +288,7 @@ Findings:
    16 of 691 on week06. The rich team's 6th/7th-best are starters and the offered player is a QB
    99% of the time; the rich side's optimal score falls every time on week01 (max −3.2).
    `MANAGER_PROFILES['trade_will']` therefore has no observable effect.
-2. MED (HIGH if 1 is fixed). A completed trade shrinks the rich roster by one (gives two,
+2. MED (HIGH if 1 is fixed), FIXED (2-for-2: the dropped player is the throw-in; both rosters conserved). A completed trade shrank the rich roster by one (gives two,
    receives one, drops nothing); the desperate side is conserved. Reproduced on a crafted league.
 3. MED-HIGH, FIXED (capped at the position's data-derived replacement level; backtest +1.1% → +1.1%, production-like −0.43%). Won streamers were valued by league-wide bid rank (12.0, 11.5, …) regardless of
    position; a rank-1 streamer beats the replacement level everywhere but QB and out-projects
