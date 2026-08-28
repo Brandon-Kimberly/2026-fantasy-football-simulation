@@ -314,32 +314,13 @@ class FantasySimulationEngine:
                 actual_mean = float(np.mean(scores))
                 prior_mean = float(data['mean'])
                 
-                # Conjugate normal update with KNOWN observation variance: the model already
-                # carries that variance -- std_aleatoric is calibrated to the empirical week-
-                # to-week std (backtest_player.analyze_aleatoric_variance) -- and the prior's
-                # variance is stated by std_epistemic.
-                #
-                #   post_precision = 1 / std_epistemic^2 + n / std_aleatoric^2
-                #   post_mean      = (prior / std_epistemic^2 + n * xbar / std_aleatoric^2)
-                #                    / post_precision
-                #
-                # Previously: precision n_0 / prior_var + n / actual_var with n_0 = 4 and
-                # actual_var = the sample variance of the 2-5 scores, floored at half the prior
-                # variance. The n_0 multiplied the precision of a variance that was ALREADY
-                # stated -- equivalent to quietly halving std_epistemic before updating -- and
-                # the sample-variance likelihood tied the update strength to the prior's width
-                # rather than to game-to-game noise. Measured on the week06 fixture: offense
-                # under-updated (data weight 0.60 vs 0.80), IDP over-updated (0.71 vs 0.32),
-                # posterior sd 0.69x closed-form everywhere, which then narrowed the once-per-
-                # season epistemic draw. Phase 2 finding 4; decided jointly with
-                # DEF_RATING_SHRINKAGE_N0 in Phase 3 (AUDIT_PHASE_3_FINDINGS.md, "The n_0
-                # decision"): a pseudo-count IS the right form for the defensive prior, which
-                # states no variance; it is a double count here, where the prior does.
                 prior_var = max(0.1, float(data.get('std_epistemic', data.get('std', 3.0)) ** 2))
-                obs_var = max(0.1, float(data.get('std_aleatoric', 3.0)) ** 2)
+                raw_actual_var = float(np.var(scores)) if n > 1 else prior_var
+                actual_var = max(raw_actual_var, 0.5 * prior_var)
 
-                post_var = 1.0 / ((1.0 / prior_var) + (n / obs_var))
-                post_mean = ((prior_mean / prior_var) + (n * actual_mean / obs_var)) * post_var
+                n_0 = 4.0
+                post_var = 1.0 / ((n_0 / prior_var) + (n / actual_var))
+                post_mean = ((n_0 * prior_mean / prior_var) + (n * actual_mean / actual_var)) * post_var
 
                 self.baselines[p_name]['mean'] = float(post_mean)
                 self.baselines[p_name]['std_epistemic'] = float(np.sqrt(post_var))

@@ -125,7 +125,16 @@ than fixed, because neither is a code change:
    runs on double-counted evidence. FIXED (deepcopy at imputation; moves no exported number).
    **Phase 0 gap 3:** the golden master passed only because its
    scenario and module ordering happen to be safe; reverse it and all six tests fail.
-7. OPEN. The bye-week mechanism is dead code end to end. Sleeper's payload has no `team_bye` key
+7. OPEN — **now blocks two independent, measured findings.** The bye-week mechanism is dead code end to end.
+   Both Phase 2 finding 5 (exclude zero-score weeks from the posterior) and Phase 2 finding 4
+   (conjugate posterior update) are statistically correct per-player changes that were applied
+   and then REVERTED because the same paired, seeded, points-level backtest on the real 2025
+   season showed each making the engine worse against reality (+4.3% and +7.4% points bias
+   respectively): the zeros in history and the extra shrinkage were each an accidental
+   compensation for absences the engine cannot represent (zero-week share rises 9.6% → 25.3%
+   from weeks 1–5 to 6–11). Whatever lands byes must re-attempt both, and the acceptance test
+   is fixed: on that backtest, posteriors must follow the first five weeks with empirical
+   weight ≈0.49 (QB 0.64, RB 0.71, WR 0.11), and points bias must not rise. Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
    can never fire. The existing sync test passes only because its fixture invents the field.
    Needs a real bye-week source, which Sleeper does not supply — not a code change.
@@ -181,7 +190,7 @@ Eight findings:
    calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
 3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score
    correlations run 12–14% below target even with the gate closed.
-4. HIGH (mid-season), FIXED in Phase 3 (conjugate form; no n_0; std_aleatoric² as the likelihood variance). `_apply_bayesian_updates` was not conjugate: `n_0 = 4` quadruples prior
+4. HIGH (mid-season), OPEN — conjugate fix applied in Phase 3 and reverted on real-data evidence (+8.5% bias); blocked on bye modelling, target weight ≈0.49. `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
    precision and the likelihood variance is a 5-sample variance floored at half the prior, not
    `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
    sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
@@ -240,10 +249,12 @@ Nine findings, plus the bounded `n_0` decision kept separate:
 defensive prior's variance (none is stated), but multiplies an already-stated variance on the
 player side. Real 2025 data: within-team var 91.4, between-team 7.7 → empirical n₀ ≈ 12, not 4;
 the code trusts early games ~3× too much. Player priors already imply ≈1 pseudo-game (offence)
-/ ≈10 (IDP) before the ×4. APPLIED, two commits: conjugate form for players (no n₀; `std_aleatoric²` as the likelihood
-variance; week06 goldens regenerated, weekly mean +1.8%, season-points std +12%), and
-`DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0 with the 2025 derivation as its source (one-season caveat,
-re-derive in Phase 7); the "statistical consistency" comment replaced with the real relationship.
+/ ≈10 (IDP) before the ×4. OUTCOME: defensive half APPLIED (`DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0, 2025 derivation as source,
+one-season caveat, "consistency" comment replaced). Player half APPLIED THEN REVERTED on the
+paired real-data backtest: real-2025 points bias +1.1% → +8.5% (mean z −0.51). Empirical data
+weight after five weeks is ≈0.49 (WR 0.11) vs the conjugate 0.81 — absences (zero-week share
+9.6% → 25.3%) and a mis-specified prior variance. Blocked on bye modelling (Phase 1 #7) and
+Phase 7 re-derivation of `EPISTEMIC_ERROR_RATES`; acceptance target ≈0.49 on that backtest.
 
 ---
 

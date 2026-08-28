@@ -21,14 +21,12 @@ from fantasy_sim.backtest_player import (
 
 class TestPlayerLevelBacktest(unittest.TestCase):
     def test_compute_bayesian_posterior_hand_verified_example(self):
-        """Hand-computed conjugate normal: prior_mean=10.0, prior_std_epistemic=3.0,
-        std_aleatoric=3.0, real_scores=[12.0, 14.0]. prior_var=9, obs_var=9, n=2, xbar=13.
-        post_precision = 1/9 + 2/9 = 1/3 -> post_var=3, post_std=sqrt(3)=1.7320508.
-        post_mean = (10/9 + 2*13/9) * 3 = (36/9) * 3 = 12.0.
-        (The retired n_0=4 form gave 11.5 / 1.0607 on the same inputs.)"""
-        post_mean, post_std = compute_bayesian_posterior(10.0, 3.0, [12.0, 14.0], 3.0)
-        self.assertAlmostEqual(post_mean, 12.0, places=6)
-        self.assertAlmostEqual(post_std, 1.7320508075688772, places=6)
+        """Hand-computed: prior_mean=10.0, prior_std_epistemic=3.0, real_scores=[12.0, 14.0].
+        prior_var=9.0, actual_mean=13.0, raw_actual_var=1.0, actual_var=max(1.0, 4.5)=4.5,
+        n_0=4.0 -> post_var=1/(4/9 + 2/4.5)=1.125 -> post_mean=11.5, post_std=1.0607."""
+        post_mean, post_std = compute_bayesian_posterior(10.0, 3.0, [12.0, 14.0])
+        self.assertAlmostEqual(post_mean, 11.5, places=3)
+        self.assertAlmostEqual(post_std, 1.0606601717798212, places=6)
 
     def test_compute_calibration_z_accounts_for_future_sample_size(self):
         """Regression test for a real correction caught before trusting the tool's own
@@ -54,7 +52,7 @@ class TestPlayerLevelBacktest(unittest.TestCase):
         prior_mean, prior_std_epistemic = 12.0, 2.5
         real_scores = [10.0, 15.0, 13.0]
 
-        expected_mean, expected_std = compute_bayesian_posterior(prior_mean, prior_std_epistemic, real_scores, 3.0)  # 3.0 = the mock baseline's std_aleatoric
+        expected_mean, expected_std = compute_bayesian_posterior(prior_mean, prior_std_epistemic, real_scores)
 
         mock_fs = {
             simmod.LEAGUE_STATE_FILE: {"current_week": 4},

@@ -331,13 +331,15 @@ Both halves move hashes (week06 `stage_a` for the player side; defensive ratings
 once `games_sampled > 0`, so the golden fixtures — all at 0 — would not move for the defensive
 half). They should be two commits.
 
-**Applied — player half.** `_apply_bayesian_updates` and its `backtest_player` mirror now use
-the conjugate form above (no `n_0`, `std_aleatoric²` as the likelihood variance). The Phase 2
-finding-4 tests pass as regression guards; the mirror's parity test against the real method
-passes. Golden movement week06 only: weekly team mean +1.8%, season-points std 153 → 172.
-
-**Applied — defensive half.** See the next commit: `DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0 with the
-2025 derivation as its source, and the "statistical consistency" comment replaced.
+**Outcome.** *Defensive half applied* (`DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0, derivation in
+`config.py`, one-season caveat). *Player half applied and reverted*: on the paired, seeded
+points-level backtest the conjugate update moved the real-2025 bias from +1.1% to **+8.5%**
+(mean z −0.51). Real player scores follow their first five weeks with weight **≈0.49**
+(WR 0.11), not the conjugate 0.81 — weeks 6–11 run 17% below weeks 1–5 as absences
+accumulate (zero-week share 9.6% → 25.3%), which the engine cannot model, and the stated prior
+variance does not describe rostered players. Blocked on bye/absence modelling (Phase 1 #7) and
+re-derived `EPISTEMIC_ERROR_RATES` (Phase 7); the replacement's acceptance test is ≈0.49 on
+this backtest. Same class as Phase 2 finding 5, diagnosed by the same mechanism.
 
 ---
 

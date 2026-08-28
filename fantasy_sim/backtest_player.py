@@ -214,25 +214,26 @@ def analyze_correlations(player_data):
 # Test 3: epistemic calibration
 # ============================================================================
 
-def compute_bayesian_posterior(prior_mean, prior_std_epistemic, real_scores, std_aleatoric):
+def compute_bayesian_posterior(prior_mean, prior_std_epistemic, real_scores, n_0=4.0):
     """
     Exact replica of FantasySimulationEngine._apply_bayesian_updates' per-player posterior
-    update: the conjugate normal with known observation variance std_aleatoric^2 and prior
-    variance prior_std_epistemic^2. Cross-checked to produce IDENTICAL output to the real
+    update formula (2026_sleeper_simulation_adv.py). Verified line-by-line against the live
+    source before writing this, and cross-checked to produce IDENTICAL output to the real
     method on identical synthetic inputs -- see
     test_compute_bayesian_posterior_matches_real_production_method -- rather than trusted as
-    a by-eye copy. (The previous n_0 = 4 pseudo-count form was retired in Phase 3's n_0
-    decision; see AUDIT_PHASE_3_FINDINGS.md.)
+    a by-eye copy.
     """
     prior_var = max(0.1, float(prior_std_epistemic) ** 2)
-    obs_var = max(0.1, float(std_aleatoric) ** 2)
     n = len(real_scores)
     if n == 0:
         return float(prior_mean), math.sqrt(prior_var)
 
     actual_mean = float(np.mean(real_scores))
-    post_var = 1.0 / ((1.0 / prior_var) + (n / obs_var))
-    post_mean = ((prior_mean / prior_var) + (n * actual_mean / obs_var)) * post_var
+    raw_actual_var = float(np.var(real_scores)) if n > 1 else prior_var
+    actual_var = max(raw_actual_var, 0.5 * prior_var)
+
+    post_var = 1.0 / ((n_0 / prior_var) + (n / actual_var))
+    post_mean = ((n_0 * prior_mean / prior_var) + (n * actual_mean / actual_var)) * post_var
     return float(post_mean), float(math.sqrt(post_var))
 
 
@@ -257,10 +258,7 @@ def compute_calibration_z(prior_mean, prior_std_epistemic, before_scores, after_
     those suggestions was real, but the exact magnitude was inflated. Returns None if
     post_std can't be computed or there are no future weeks.
     """
-    # The engine's baseline std_aleatoric is k * sqrt(max(0.5, mean)) at the PRIOR mean (sync
-    # derives it once; the posterior update does not re-derive it), so mirror that exactly.
-    std_aleatoric_prior = sync.VOLATILITY_CONSTANTS.get(pos, 1.5) * math.sqrt(max(0.5, prior_mean))
-    post_mean, post_std = compute_bayesian_posterior(prior_mean, prior_std_epistemic, before_scores, std_aleatoric_prior)
+    post_mean, post_std = compute_bayesian_posterior(prior_mean, prior_std_epistemic, before_scores)
     n_after = len(after_scores)
     if post_std <= 0 or n_after == 0:
         return None

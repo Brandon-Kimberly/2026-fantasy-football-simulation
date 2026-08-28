@@ -175,7 +175,7 @@ attenuates further. `analyze_correlations` measures Pearson on real *scores*, so
 are already score-scale numbers being fed into a `z`-scale copula. **Severity: low–medium**
 (consistent undershoot; direction is opposite to Finding 2 and partially masks it).
 
-### 4. `_apply_bayesian_updates` is not the conjugate normal it stands in for — **FIXED (Phase 3)**
+### 4. `_apply_bayesian_updates` is not the conjugate normal it stands in for — **OPEN; fix reverted on evidence, blocked on byes**
 
 ```python
 post_var  = 1 / (n_0 / prior_var + n / actual_var)      # n_0 = 4.0
@@ -210,6 +210,23 @@ departures, both measured on the week06 fixture (156 players, n = 5 each):
 The existing `test_bayesian_shrinkage_math` asserts the code's own arithmetic back at itself and
 calls it "James-Stein"; it is neither James-Stein nor conjugate. **Severity: high** for
 mid-season runs (no effect at week 1, when there are no completed weeks). Moves week06 `stage_a`.
+
+**Fix applied in Phase 3 and REVERTED on real-data evidence.** The conjugate form (precision
+`1/std_epistemic² + n/std_aleatoric²`, no `n₀`) was implemented, mirrored in `backtest_player`,
+and tested — then run through the same paired, seeded points-level backtest that caught
+finding 5. It moved the real-2025 points bias from **+1.1% to +8.5%** (mean z −0.08 → −0.51,
+~8 SE), consistently across all four checkpoints. Diagnosis on real player scores: after five
+weeks, reality follows the observed mean with weight **≈0.49** (QB 0.64, RB 0.71, WR 0.11);
+the conjugate form applies 0.81 and the retired form 0.71. Weeks 6–11 run 17% below weeks
+1–5 as byes and injuries accumulate (zero-week share 9.6% → 25.3%), and the stated
+`std_epistemic` does not describe the population of rostered players. The old formula is
+wrong for the wrong reasons and, by accident, closer to reality.
+
+**Status: open, blocked** on bye/absence modelling (Phase 1 finding 7) and on re-derived
+`EPISTEMIC_ERROR_RATES` (Phase 7). Any replacement must hit ≈0.49 on that backtest. The two
+tests stay red under `expectedFailure` with the dependency in their docstrings. The defensive
+half of the decision (`DEF_RATING_SHRINKAGE_N0` → 12) stands: different construct, derived from
+variance components, invisible to this backtest.
 
 ### 5. Zero-score weeks are scored as observed performance — **FIX REVERTED, dependency recorded**
 
@@ -291,7 +308,7 @@ moved no hash (all 16 matrices bit-identical).
 | 1 | Environment normaliser not mean-preserving (+2.8% mean, +17% var) — **fixed** | High | every player, every week, both scenarios | `stage_a`, both |
 | 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks — **fixed** | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
 | 3 | Copula targets calibrated on scores, applied on `z` (−12–14%) | Low–Med | all correlated pairs | `stage_a`, both |
-| 4 | Bayesian update not conjugate; over-confident posterior | High (mid-season) | every player with completed weeks | week06 `stage_a` |
+| 4 | Bayesian update not conjugate; over-confident posterior — **conjugate fix applied and reverted (+8.5% real bias); blocked on bye modelling; target weight ≈0.49** | High (mid-season) | every player with completed weeks | week06 `stage_a` |
 | 5 | Zero-score weeks treated as observed — **fix reverted; blocked on bye modelling (Phase 1 #7)** | Medium | players with a bye/DNP in history | none (reverted) |
 | 6 | PSD repair not renormalised — **fixed** | Low | rosters with dense same-team clusters | none (verified) |
 | 7 | Receiver-rank correlation non-monotone — **fixed** | Low | teams with ≥ 3 same-team pass-catchers | none on fixtures (verified) |

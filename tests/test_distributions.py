@@ -402,10 +402,19 @@ class TestBayesianUpdate(unittest.TestCase):
         mean = (self.PRIOR / v0 + n * float(np.mean(scores)) / s2) / prec
         return mean, float(np.sqrt(1.0 / prec))
 
+    @unittest.expectedFailure
     def test_posterior_mean_matches_conjugate_normal(self):
-        """Regression guard for Phase 2 finding 4, resolved in Phase 3's n_0 decision. Five
-        games averaging 14 against a prior of 10: the conjugate posterior puts 82% of the
-        weight on the data; the retired n_0 = 4 form put 71%."""
+        """CHARACTERISATION, deliberately still failing -- Phase 2 finding 4. The conjugate
+        form was APPLIED in Phase 3 and REVERTED on real-data evidence: paired, seeded
+        points-level backtest on the 2025 season moved the bias from +1.1% to +8.5% (mean z
+        -0.51, ~8 SE). On real player scores the empirical data weight after five weeks is
+        ~0.49 (WR 0.11), against 0.81 for the conjugate form and 0.71 for the retired one:
+        weeks 6-11 run 17% below weeks 1-5 as byes/injuries accumulate (zero-week share
+        9.6% -> 25.3%) and the stated prior variance does not describe rostered players.
+        DEPENDENCY: bye/absence modelling (Phase 1 finding 7) and re-derived
+        EPISTEMIC_ERROR_RATES (Phase 7); any replacement must hit ~0.49 on that backtest.
+        Five games averaging 14 against a prior of 10: conjugate puts 82% on the data, the
+        engine 71%. Remove the expectedFailure when a replacement passes the backtest."""
         scores = [13.0, 15.0, 14.0, 13.0, 15.0]
         engine = self._engine_with_scores(scores)
         cf_mean, _ = self._closed_form(scores)
@@ -413,11 +422,14 @@ class TestBayesianUpdate(unittest.TestCase):
                                msg="engine posterior mean %.3f vs conjugate %.3f"
                                    % (engine.baselines["P"]["mean"], cf_mean))
 
+    @unittest.expectedFailure
     def test_posterior_std_matches_conjugate_normal(self):
-        """Regression guard for Phase 2 finding 4, resolved in Phase 3's n_0 decision. The
-        posterior std is what feeds the once-per-season epistemic draw, so an over-confident
-        posterior narrows every downstream season distribution. The retired form gave ~0.63x
-        the conjugate value here."""
+        """CHARACTERISATION, deliberately still failing -- Phase 2 finding 4, applied in
+        Phase 3 and reverted on real-data evidence (see the sibling test's docstring for the
+        numbers and the dependency on bye/absence modelling). The posterior std is what feeds
+        the once-per-season epistemic draw, so an over-confident posterior narrows every
+        downstream season distribution. The engine's posterior std is ~0.63x the conjugate
+        value here. Remove the expectedFailure when a replacement passes the backtest."""
         scores = [13.0, 15.0, 14.0, 13.0, 15.0]
         engine = self._engine_with_scores(scores)
         _, cf_std = self._closed_form(scores)
