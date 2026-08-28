@@ -211,6 +211,38 @@ Eight findings:
 
 **Deliverable:** a fallback inventory table + assertions on ESPN match rate.
 
+**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_3_FINDINGS.md`.
+20 tests added (124 → 144); 5 lock verified behaviour, 14 characterise defects, 1 live ESPN
+match-rate check behind `RUN_LIVE_INGESTION_TESTS=1`. Nothing fixed. Fallback inventory: 27 sites
+classified. ESPN match rate measured live at 97% (rostered) / 99% (all eligible).
+
+Nine findings, plus the bounded `n_0` decision kept separate:
+
+1. HIGH, latent (activates 2026-09-09; no `ODDS_API_KEY` set). In-season Vegas fallbacks return
+   the flat table but never write `vegas_totals.json`, so the engine applies the week-1 table to
+   the current week all season. No week stamp, no warning; detectable via `nfl_schedule` but not
+   detected.
+2. MED / 2b HIGH-latent. A failed ESPN schedule week silently flattens that week and drops its
+   games from the defensive sample; a failed Sleeper league-schedule week shifts every later
+   week's fantasy matchups one index earlier.
+3. MED. `VOLATILITY_CONSTANTS`/`EPISTEMIC_ERROR_RATES` looked up by raw Sleeper position
+   (DE/DT/CB/S/FB) → anonymous defaults. 5 rostered DEs affected today.
+4. LOW. `team: null` reaches baselines (2 today); consumers tolerate it individually.
+5. MED, latent. Name-keyed baselines/rosters; 2 duplicate names today, last pid wins — Byron
+   Murphy's committed baseline is the wrong player's.
+6. MED. Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
+   where Sleeper says NO (Jordyn Tyson).
+7. MED. Player cache never refreshed after first fetch.
+8. LOW. Defensive prior fallback 21.5 vs prior-table mean 22.8 (and 2025 real 23.0).
+9. LOW. Weather, `injury_status`, standings `h2h_wins`/`points_scored` ingested and never read.
+
+`n_0` (bounded piece): the two uses are different constructs — a pseudo-count *is* the
+defensive prior's variance (none is stated), but multiplies an already-stated variance on the
+player side. Real 2025 data: within-team var 91.4, between-team 7.7 → empirical n₀ ≈ 12, not 4;
+the code trusts early games ~3× too much. Player priors already imply ≈1 pseudo-game (offence)
+/ ≈10 (IDP) before the ×4. Recommendation: conjugate form for players (no n₀), n₀ ≈ 12 for
+defences with the derivation as its source, retire the "consistency" comment.
+
 ---
 
 ## Phase 4 — Decision logic

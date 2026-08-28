@@ -1,0 +1,405 @@
+"""
+tests.test_ingestion
+
+AUDIT_PLAN.md Phase 3 -- data ingestion integrity.
+
+    Invariant: every field that looks live is live; every fallback is loud.
+
+Each fallback in fantasy_sim.sync is exercised under the condition that triggers it, and the
+test asserts the property the plan names: the degraded path must announce itself (a WARNING
+on the root logger, checked with assertLogs) and must not leave a stale or wrong artefact
+behind. Tests that FAIL characterise the defects in AUDIT_PHASE_3_FINDINGS.md; they are red
+on purpose until remediation is decided. Tests that pass lock behaviour verified to hold.
+
+Nothing here touches the network. Live measurements (ESPN match rate, cache drift) were taken
+once for the findings and are recorded there; a live re-check is available behind
+RUN_LIVE_INGESTION_TESTS=1 so it never makes the suite flaky.
+
+WHAT IS NOT COVERED
+-------------------
+1. The Open-Meteo weather fetch. It is exercised only inside the live Odds-API path, and its
+   output (wind_mph, precip_prob) is never read by the engine -- see finding 9. There is
+   nothing to assert until a consumer exists.
+2. The 2026-09-09 date gate in fetch_vegas_implied_totals is pinned by test, but whether that
+   date is the real kickoff is unverifiable from code.
+"""
+import logging
+import os
+import unittest
+from datetime import datetime
+from unittest.mock import MagicMock, patch
+
+from fantasy_sim import sync
+from fantasy_sim.config import (
+    DEFAULT_FALLBACK_TOTALS, WEEK_1_VERIFIED_VEGAS, EPISTEMIC_ERROR_RATES, VOLATILITY_CONSTANTS,
+    LEAGUE_AVG_PPG, PRESEASON_DEFENSIVE_PRIOR, DEF_RATING_SHRINKAGE_N0, SIM_CONFIG,
+)
+from fantasy_sim.storage import (
+    VEGAS_FILE, NFL_SCHEDULE_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE,
+    LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, LIVE_ROSTERS_FILE, DEFENSIVE_TIERS_FILE,
+    LEAGUE_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYER_CACHE_FILE,
+)
+
+
+class _InSeason(datetime):
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2026, 10, 1)
+
+
+def _capture_saves():
+    saved = {}
+
+    def fake_save(path, data, indent=2):
+        saved[os.path.basename(path)] = data
+    return saved, fake_save
+
+
+def _scoreboard_response(completed=True):
+    m = MagicMock()
+    m.status_code = 200
+    m.json.return_value = {"events": [{"competitions": [{
+        "competitors": [{"team": {"abbreviation": "DET"}, "score": "27"},
+                        {"team": {"abbreviation": "CHI"}, "score": "20"}],
+        "status": {"type": {"completed": completed}},
+    }]}]}
+    return m
+
+
+# ------------------------------------------------------------------------------- Vegas
+class TestVegasFallbacks(unittest.TestCase):
+    """fetch_vegas_implied_totals has four paths: preseason table, no API key, API failure,
+    API success. The plan asks that the fallbacks fire only when intended and that staleness
+    be detectable."""
+
+    def test_preseason_gate_serves_the_verified_week_one_table_without_calling_the_api(self):
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "ODDS_API_KEY", "key"), \
+             patch.object(sync.requests, "get", side_effect=AssertionError("API must not be called")):
+            out = sync.fetch_vegas_implied_totals(1)
+        self.assertIs(out, WEEK_1_VERIFIED_VEGAS)
+        self.assertIn(os.path.basename(VEGAS_FILE), saved)
+
+    def test_in_season_without_api_key_writes_the_fallback_it_returns(self):
+        """FAILS -- finding 1. Returns DEFAULT_FALLBACK_TOTALS and rewrites the power ratings
+        from it, but never writes vegas_totals.json. The engine then reads whatever was last
+        written -- the week-1 preseason table -- as the CURRENT week's environment, with
+        week-1 opponents, for the rest of the season, while future weeks use the flat 21.5."""
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "datetime", _InSeason), \
+             patch.object(sync, "ODDS_API_KEY", ""):
+            out = sync.fetch_vegas_implied_totals(5)
+        self.assertIs(out, DEFAULT_FALLBACK_TOTALS)
+        self.assertIn(os.path.basename(TEAM_RATINGS_FILE), saved)
+        self.assertIn(os.path.basename(VEGAS_FILE), saved,
+                      "fallback returned but vegas_totals.json left stale on disk")
+
+    def test_in_season_api_failure_writes_the_fallback_it_returns(self):
+        """FAILS -- finding 1, same mechanism on the API-error path."""
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "datetime", _InSeason), \
+             patch.object(sync, "ODDS_API_KEY", "key"), \
+             patch.object(sync.requests, "get", side_effect=Exception("down")):
+            out = sync.fetch_vegas_implied_totals(5)
+        self.assertIs(out, DEFAULT_FALLBACK_TOTALS)
+        self.assertIn(os.path.basename(VEGAS_FILE), saved)
+
+    def test_in_season_fallbacks_are_loud(self):
+        """FAILS -- finding 1. A season run with no market data is a materially different
+        forecast (flat 21.5 for every team, opponent 'FA' everywhere, no defensive tiers
+        applied). It must be announced, not returned silently."""
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "datetime", _InSeason), \
+             patch.object(sync, "ODDS_API_KEY", ""), \
+             self.assertLogs(level="WARNING"):
+            sync.fetch_vegas_implied_totals(5)
+
+    def test_empty_api_response_does_not_silently_write_a_flat_environment(self):
+        """FAILS -- finding 1. An empty odds payload (e.g. wrong week, market not yet posted)
+        writes a file in which every team is 21.5 / opponent 'FA' -- indistinguishable from
+        real data to every consumer -- with no warning."""
+        saved, fake_save = _capture_saves()
+        r = MagicMock()
+        r.json.return_value = []
+        r.raise_for_status.return_value = None
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "datetime", _InSeason), \
+             patch.object(sync, "ODDS_API_KEY", "key"), \
+             patch.object(sync.requests, "get", return_value=r), \
+             self.assertLogs(level="WARNING"):
+            sync.fetch_vegas_implied_totals(5)
+
+
+class TestVegasStalenessIsDetectable(unittest.TestCase):
+    """The engine applies the Vegas file to the CURRENT week. If that file was produced for
+    a different week, every opponent in it is wrong, and the engine has the information to
+    notice: nfl_schedule.json names the real opponent for every team in every week."""
+
+    def _engine(self, current_week, vegas, schedule):
+        from fantasy_sim.simulation import FantasySimulationEngine
+        roster = {"T": [{"name": "P", "pos": "QB", "team": "DET"}]}
+        fs = {
+            LEAGUE_STATE_FILE: {"current_week": current_week},
+            LEAGUE_STANDINGS_FILE: {"T": {"remaining_faab": 100}},
+            VEGAS_FILE: vegas, LIVE_ROSTERS_FILE: roster,
+            BASELINES_FILE: {"P": {"mean": 18.0, "std_aleatoric": 7.0, "std_epistemic": 5.0, "pos": "QB", "team": "DET"}},
+            TEAM_RATINGS_FILE: {"DET": {"off_rating": 24.0}, "GB": {"off_rating": 22.0}, "CHI": {"off_rating": 20.0}},
+            DEFENSIVE_RATINGS_FILE: {}, DEFENSIVE_TIERS_FILE: {"TOP_DEFENSE": [], "BOTTOM_DEFENSE": []},
+            LEAGUE_SCHEDULE_FILE: [], NFL_SCHEDULE_FILE: schedule, WEEKLY_ACTUALS_FILE: {},
+        }
+        with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]):
+            return FantasySimulationEngine()
+
+    def test_current_week_environment_uses_the_scheduled_opponent_not_a_stale_vegas_file(self):
+        """FAILS -- finding 1 (consequence). Week-1 Vegas file (DET vs CHI) still on disk at
+        week 5, where the schedule says DET plays GB. The engine hands DET a week-1 line
+        against the wrong opponent and nothing flags it."""
+        vegas = {"DET": {"total": 28.25, "spread": -7.0, "opponent": "CHI", "wind_mph": 0.0, "precip_prob": 0.0},
+                 "CHI": {"total": 21.25, "spread": 7.0, "opponent": "DET", "wind_mph": 0.0, "precip_prob": 0.0}}
+        schedule = {"5": {"DET": "GB", "GB": "DET", "CHI": "MIN", "MIN": "CHI"}}
+        engine = self._engine(5, vegas, schedule)
+        env = engine._compute_week_environment(5, "DET")
+        self.assertEqual(env["opponent"], "GB",
+                         "engine used opponent %r from a Vegas file that was not produced for "
+                         "week 5; staleness is undetected" % env["opponent"])
+
+
+# ---------------------------------------------------------------------- NFL schedule
+class TestNflScheduleFallbacks(unittest.TestCase):
+    def test_week_one_falls_back_to_the_verified_table_when_the_whole_fetch_fails(self):
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=Exception("down")):
+            sync.generate_nfl_schedule(1)
+        sched = saved[os.path.basename(NFL_SCHEDULE_FILE)]
+        self.assertEqual(sched["1"]["DET"], "NO")   # from WEEK_1_VERIFIED_VEGAS
+        self.assertEqual(sched["5"], {})
+
+    def test_a_single_failed_week_is_loud(self):
+        """FAILS -- finding 2. Week 7 fails; every other week is fine. The result is an empty
+        week 7 (every team resolves to 'FA' -> flat 21.5, no opponent) and, because the
+        completed scores for that week are collected in the same pass, the defensive ratings
+        silently lose a game per team. No warning is emitted."""
+        saved, fake_save = _capture_saves()
+
+        def flaky(url, timeout=5):
+            if "week=7" in url:
+                raise Exception("timeout")
+            return _scoreboard_response()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=flaky), \
+             self.assertLogs(level="WARNING"):
+            sync.generate_nfl_schedule(9)
+
+    def test_a_single_failed_week_does_not_undercount_completed_games_silently(self):
+        """FAILS -- finding 2 (consequence). 8 completed weeks of one game each should yield
+        16 (team, points_allowed) rows; a lost week yields 14 with no marker."""
+        saved, fake_save = _capture_saves()
+
+        def flaky(url, timeout=5):
+            if "week=7" in url:
+                raise Exception("timeout")
+            return _scoreboard_response()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=flaky):
+            results = sync.generate_nfl_schedule(9)
+        self.assertEqual(len(results), 16,
+                         "completed-game rows: %d; a failed week vanished from the defensive "
+                         "sample with no record" % len(results))
+
+
+# ------------------------------------------------------------------ player baselines
+class _BaselineHarness(unittest.TestCase):
+    SCORING = {"pass_yd": 0.04, "rush_yd": 0.1, "idp_tkl_solo": 1.0}
+
+    def _run(self, players_db, projections, existing=None, espn=None):
+        saved, fake_save = _capture_saves()
+        weekly = MagicMock()
+        weekly.status_code = 200
+        weekly.json.return_value = projections
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.os.path, "exists", return_value=existing is not None), \
+             patch.object(sync, "load_json", return_value=existing or {}), \
+             patch.object(sync.requests, "get", return_value=weekly), \
+             patch.object(sync, "fetch_espn_projections", return_value=espn or {}):
+            out = sync.generate_player_baselines(self.SCORING, players_db, {}, "2026", 1)
+        return out, saved
+
+
+class TestBaselineIngestion(_BaselineHarness):
+    def test_position_constants_are_looked_up_by_normalised_position(self):
+        """FAILS -- finding 3. VOLATILITY_CONSTANTS and EPISTEMIC_ERROR_RATES are keyed by
+        the engine's normalised positions (DL, DB, RB ...). Sleeper reports DE, DT, NT, CB,
+        S, FS, SS, FB. sync looks the constants up by the RAW position, so every one of those
+        gets the anonymous default (k=1.5, error 0.18) instead of its position's value: a DE
+        gets 0.18 instead of DL's 0.15, a fullback 0.18 instead of RB's 0.63. Five rostered
+        DEs are affected today."""
+        db = {"1": {"first_name": "A", "last_name": "End", "position": "DE", "team": "DET"},
+              "2": {"first_name": "B", "last_name": "Back", "position": "FB", "team": "DET"}}
+        proj = {"1": {"stats": {"idp_tkl_solo": 8.0}}, "2": {"stats": {"rush_yd": 60.0}}}
+        out, _ = self._run(db, proj)
+        self.assertAlmostEqual(out["A End"]["std_epistemic"], round(EPISTEMIC_ERROR_RATES["DL"] * 8.0, 2),
+                               msg="DE epistemic rate %.2f: used the default, not DL's %.2f"
+                                   % (out["A End"]["std_epistemic"] / 8.0, EPISTEMIC_ERROR_RATES["DL"]))
+        self.assertAlmostEqual(out["B Back"]["std_epistemic"], round(EPISTEMIC_ERROR_RATES["RB"] * 6.0, 2),
+                               msg="FB epistemic rate %.2f: used the default, not RB's %.2f"
+                                   % (out["B Back"]["std_epistemic"] / 6.0, EPISTEMIC_ERROR_RATES["RB"]))
+
+    def test_explicit_none_team_is_stored_as_fa(self):
+        """FAILS -- finding 4. _build_roster_player_entry documents exactly this bug for
+        rosters (`.get('team', 'FA')` does not catch an explicit null) and fixes it there;
+        generate_player_baselines has the same line and does not. Two baselines in the
+        committed data carry team: null."""
+        db = {"1": {"first_name": "Free", "last_name": "Agent", "position": "WR", "team": None}}
+        out, _ = self._run(db, {"1": {"stats": {"rush_yd": 50.0}}})
+        self.assertEqual(out["Free Agent"]["team"], "FA")
+
+    def test_two_players_sharing_a_name_do_not_overwrite_each_other(self):
+        """FAILS -- finding 5. Baselines are keyed by full name and Sleeper has duplicate
+        names (today: Justin Jefferson WR/MIN and LB/CLE; Byron Murphy CB/MIN and DL/SEA).
+        Whichever pid iterates last wins, silently, and the loser's projection, position and
+        team are gone. Byron Murphy's committed baseline is the SEA DL's. Rosters are keyed
+        the same way, so a manager rostering the CB would be simulated with the DL's line."""
+        db = {"1": {"first_name": "Byron", "last_name": "Murphy", "position": "CB", "team": "MIN"},
+              "2": {"first_name": "Byron", "last_name": "Murphy", "position": "DL", "team": "SEA"}}
+        proj = {"1": {"stats": {"idp_tkl_solo": 7.0}}, "2": {"stats": {"idp_tkl_solo": 6.5}}}
+        out, _ = self._run(db, proj)
+        kept = [k for k in out if "Murphy" in k]
+        self.assertEqual(len(kept), 2,
+                         "only %r survived: one real player's baseline silently replaced "
+                         "another's" % kept)
+
+    def test_rostered_player_with_no_projection_is_loud(self):
+        """FAILS -- finding 6. A rostered player whose projection totals 0 (today: Jordyn
+        Tyson, WR/NO, present in the payload with 0 points) is skipped with `continue`. The
+        engine then aborts unless the name is hand-typed into KNOWN_MISSING_ASSETS -- whose
+        entry for him says team 'FA' although Sleeper says NO. The drop itself is silent."""
+        db = {"1": {"first_name": "Jordyn", "last_name": "Tyson", "position": "WR", "team": "NO"}}
+        live = {"T": [{"name": "Jordyn Tyson", "pos": "WR", "team": "NO"}]}
+        saved, fake_save = _capture_saves()
+        weekly = MagicMock()
+        weekly.status_code = 200
+        weekly.json.return_value = {"1": {"stats": {"pass_yd": 0.0}}}
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.os.path, "exists", return_value=False), \
+             patch.object(sync.requests, "get", return_value=weekly), \
+             patch.object(sync, "fetch_espn_projections", return_value={}), \
+             self.assertLogs(level="WARNING"):
+            sync.generate_player_baselines(self.SCORING, db, live, "2026", 1)
+
+    def test_known_missing_asset_team_matches_the_player_database(self):
+        """FAILS -- finding 6 (data). The whitelist is the engine's only source for this
+        player; it hard-codes team 'FA', so he gets the FA environment fallback and no
+        teammate correlation, while Sleeper's database -- committed in data/ -- lists NO."""
+        import json
+        cache_path = PLAYER_CACHE_FILE
+        if not os.path.exists(cache_path):
+            self.skipTest("player cache not present")
+        cache = json.load(open(cache_path))
+        for name, entry in SIM_CONFIG["KNOWN_MISSING_ASSETS"].items():
+            first, last = name.split(" ", 1)
+            real = [p for p in cache.values() if isinstance(p, dict)
+                    and p.get("first_name") == first and p.get("last_name") == last]
+            if not real:
+                continue
+            self.assertEqual(entry["team"], real[0].get("team") or "FA",
+                             "%s: whitelist says %r, Sleeper says %r"
+                             % (name, entry["team"], real[0].get("team")))
+
+    def test_espn_blend_is_applied_when_a_match_exists(self):
+        """Passes -- locks the blend path the live measurement relied on (97% of rostered
+        eligible players matched on 2026-08-28; see findings)."""
+        db = {"1": {"first_name": "Justin", "last_name": "Jefferson", "position": "WR", "team": "MIN"}}
+        out, _ = self._run(db, {"1": {"stats": {"rush_yd": 140.0}}}, espn={"justin jefferson": 16.0})
+        self.assertAlmostEqual(out["Justin Jefferson"]["mean"], 15.0)
+        self.assertAlmostEqual(out["Justin Jefferson"]["std_epistemic"],
+                               round(max(EPISTEMIC_ERROR_RATES["WR"] * 15.0, 1.0), 2))
+
+
+# ---------------------------------------------------------------------- player cache
+class TestPlayerCacheFreshness(unittest.TestCase):
+    def test_cache_is_refreshed_when_stale(self):
+        """FAILS -- finding 7. update_player_cache fetches once and then reads the file
+        forever; there is no age check and no force path. Team, position and injury fields
+        drift from the day the file was written (late-August cuts and trades are exactly
+        when they move most). The live comparison on 2026-08-28 found the one-day-old cache
+        already differed from Sleeper on a rostered player's injury_status."""
+        from fantasy_sim.clients import sleeper
+        fetched = []
+        r = MagicMock()
+        r.json.return_value = {"1": {"first_name": "X"}}
+        old = datetime(2026, 7, 1).timestamp()
+        with patch.object(sleeper.os.path, "exists", return_value=True), \
+             patch.object(sleeper.os.path, "getmtime", return_value=old, create=True), \
+             patch.object(sleeper, "load_json", return_value={"1": {"first_name": "stale"}}), \
+             patch.object(sleeper, "save_json", side_effect=lambda p, d: fetched.append(d)), \
+             patch.object(sleeper.requests, "get", return_value=r):
+            out = sleeper.update_player_cache()
+        self.assertTrue(fetched, "a two-month-old cache was served without any refresh")
+
+
+# ------------------------------------------------------------------ defensive ratings
+class TestDefensiveRatingShrinkage(unittest.TestCase):
+    """The plan's question: does the n_0 shrinkage behave as claimed as games_sampled grows?
+    It does -- the arithmetic is the standard pseudo-count form. Whether n_0 = 4 is the
+    right count is the bounded joint piece (findings, § The n_0 decision)."""
+
+    def _ratings(self, samples_by_team):
+        results = [(t, p) for t, s in samples_by_team.items() for p in s]
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save):
+            ratings, _tiers = sync.generate_defensive_ratings(results)
+        return ratings
+
+    def test_no_games_returns_the_prior_and_weight_on_data_is_n_over_n_plus_n0(self):
+        prior = PRESEASON_DEFENSIVE_PRIOR["DET"]
+        self.assertAlmostEqual(self._ratings({})["DET"]["points_allowed_estimate"], prior, places=2)
+        for n in (1, 2, 4, 8, 17):
+            est = self._ratings({"DET": [30.0] * n})["DET"]["points_allowed_estimate"]
+            w = n / (n + DEF_RATING_SHRINKAGE_N0)
+            self.assertAlmostEqual(est, prior + w * (30.0 - prior), places=2)
+
+    def test_estimate_is_monotone_in_games_and_bounded_by_prior_and_data(self):
+        prior = PRESEASON_DEFENSIVE_PRIOR["DET"]
+        prev = prior
+        for n in range(1, 18):
+            est = self._ratings({"DET": [30.0] * n})["DET"]["points_allowed_estimate"]
+            self.assertGreaterEqual(est, prev - 1e-9)
+            self.assertLessEqual(est, 30.0)
+            prev = est
+
+    def test_prior_fallback_is_on_the_same_scale_as_the_prior_table(self):
+        """FAILS -- finding 8. A team missing from PRESEASON_DEFENSIVE_PRIOR falls back to
+        LEAGUE_AVG_PPG = 21.5, but the table itself averages 22.72 (and real 2025 points
+        allowed averaged 23.01). The fallback would rank such a team as an above-average
+        defence by construction. All 32 teams are present today, so this is latent."""
+        table_mean = sum(PRESEASON_DEFENSIVE_PRIOR.values()) / len(PRESEASON_DEFENSIVE_PRIOR)
+        self.assertAlmostEqual(LEAGUE_AVG_PPG, table_mean, delta=0.5,
+                               msg="fallback %.2f vs prior-table mean %.2f" % (LEAGUE_AVG_PPG, table_mean))
+
+
+# ------------------------------------------------------------------------------ live
+@unittest.skipUnless(os.environ.get("RUN_LIVE_INGESTION_TESTS") == "1",
+                     "set RUN_LIVE_INGESTION_TESTS=1 to hit Sleeper/ESPN")
+class TestLiveIngestion(unittest.TestCase):
+    def test_espn_match_rate_for_rostered_eligible_players(self):
+        """Measured 97% (116/119) on 2026-08-28; the three misses were players ESPN had no
+        week-1 projection for at all, not normalisation failures."""
+        import json
+        from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as norm
+        from fantasy_sim.config import ESPN_BLEND_ELIGIBLE_POSITIONS
+        from fantasy_sim.simulation import normalize_position
+        rosters = json.load(open(LIVE_ROSTERS_FILE))
+        espn = fetch_espn_projections(2026, 1)
+        elig = [p["name"] for t in rosters.values() for p in t
+                if normalize_position(p["pos"]) in ESPN_BLEND_ELIGIBLE_POSITIONS]
+        rate = sum(1 for n in elig if norm(n) in espn) / max(1, len(elig))
+        self.assertGreaterEqual(rate, 0.90, "ESPN match rate %.0f%%" % (100 * rate))
+
+
+if __name__ == "__main__":
+    unittest.main()
