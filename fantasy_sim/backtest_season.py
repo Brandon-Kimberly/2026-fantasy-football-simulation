@@ -75,12 +75,11 @@ import requests
 from fantasy_sim import sync
 from fantasy_sim import simulation as simmod
 from fantasy_sim import storage
-from fantasy_sim.config import BASE_URL
+from fantasy_sim.config import BASE_URL, REGULAR_SEASON_WEEKS
 
 BACKTEST_WORKDIR = "backtest_workdir"
 BACKTEST_SEASON_LEAGUE_ID = "1253869352399142913"  # 2025 season, confirmed via prior diagnostic
 DEFAULT_CHECKPOINT_WEEKS = (3, 6, 9, 12)
-REGULAR_SEASON_WEEKS = 14  # matches the production convention (weeks 15-16 are playoffs)
 
 
 # ============================================================================

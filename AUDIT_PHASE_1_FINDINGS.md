@@ -54,7 +54,7 @@ each starter and the team total to 2dp independently, so reconstruction error is
 
 ## Findings
 
-### 1. H2H "Any Given Sunday" matrix is deflated mid-season — **latent now, active from week 2**
+### 1. H2H "Any Given Sunday" matrix is deflated mid-season — **FIXED**
 
 `export_and_visualize`, line ~1061:
 
@@ -75,7 +75,29 @@ Every cell of the exported heatmap is scaled by `weeks_simulated / 14`. This is 
 of silent deflation the all-play fix was written to remove; that fix corrected the numerator and
 left the divisor.
 
-### 2. `schedule_luck_index` is not zero-sum mid-season
+**The replacement denominator was determined empirically, not assumed.** Three candidate windows
+were tested against the actual accumulation for a run starting at week `W`:
+
+| quantity | week01 implied weeks | week06 implied weeks | window |
+|---|---|---|---|
+| `h2h` matrix total | 14.0000 | **9.0000** | regular-season simulated |
+| `all_play` total | 14.0000 | **9.0000** | regular-season simulated |
+| `pts_against` | 14.0000 | **9.0000** | regular-season simulated |
+| `global_weekly_scores` cols written | 14 | **9** | regular-season simulated |
+| `wins` (decisions) | 14.0000 | **9.0000** | regular-season simulated |
+| `global_season_points` | **15.97** | **10.96** | *all* simulated weeks, playoffs included |
+
+`h2h` and `all_play` are incremented inside `run_simulation`'s `if week_num <= 14:` block, so
+they span weeks `W..14` and exclude the weeks 15–16 playoff rounds. The correct divisor is
+`REGULAR_SEASON_WEEKS - (current_week - 1)` — neither the hardcoded 14 nor a 16-week span.
+week01 cannot distinguish these (both give 14); week06 pins it at exactly 9.0000.
+
+That last row is the sole place where a 16-week basis is mixed with the 14-week one used
+everywhere else. It is Finding 5.
+
+**Fixed** together with 2–4: one derived `weeks_simulated` in `export_and_visualize`.
+
+### 2. `schedule_luck_index` is not zero-sum mid-season — **FIXED (with a caveat)**
 
 ```python
 true_win_pct = all_play[t] / (total_sims * 14 * 7)
@@ -93,13 +115,23 @@ ratings must sum to zero.
 At week 6 every single team is reported as lucky, which cannot happen. Three hardcoded constants
 are involved: `14` (weeks), `7` (opponents, = n_teams − 1), and `28.0` (max decisions, which also
 assumes `MEDIAN_SCORING_ENABLED`; under the season backtest's `False` the ceiling is 14, not 28).
+All three are now derived.
 
-### 3. `avg_points_against_per_game` divides by 14 regardless of weeks played
+**Open caveat — the fix restores the invariant but not full correctness.** Correcting the
+divisors does make `luck_rating` sum to zero (Σ`actual_exp_pct` = 4.0000 exactly for 8 teams, so
+the two terms cancel). But on a mid-season run the terms still cover **different spans**:
+`actual_exp_pct` is a full-season win rate, because `wins[]` carries the banked results of
+already-completed weeks, while `true_win_pct` is an all-play rate over only the weeks this run
+simulated. Making them genuinely comparable needs historical all-play recomputed from
+`weekly_actuals` — a real feature, not a divisor change. Recorded here and in a code comment
+rather than papered over.
+
+### 3. `avg_points_against_per_game` divides by 14 regardless of weeks played — **FIXED**
 
 Same root cause. At week 6 it reports 113.75 where the true per-game figure is 176.94 — a 36%
 understatement of a number labelled "per game."
 
-### 4. `weekly_score_percentiles` are diluted by unplayed weeks
+### 4. `weekly_score_percentiles` are diluted by unplayed weeks — **FIXED**
 
 `global_weekly_scores` is allocated as a full `(total_sims, 14)` array but written to only for
 weeks the simulation runs. On a mid-season run the leading columns keep their initialised zeros,
@@ -113,7 +145,12 @@ and the exported statistics are computed over the flattened array:
 `p10_floor` is exactly 0.00 for every team — a "10th-percentile scoring floor" that says a team
 has a 10% chance of scoring nothing. The KDE density chart is fit over the same zeros, so its
 bandwidth and shape are distorted too (the zero spike itself is hidden only because `xlim` starts
-at 60).
+at 60). The chart's median-cut baseline is dragged by the same zeros:
+
+| fixture | `avg_median_cut` as coded | over played weeks only |
+|---|---|---|
+| week01 | 178.41 | 178.41 |
+| week06 | **112.82** | 175.50 — 35.7% low |
 
 ### 5. `Expected_Points` includes the playoff weeks — **affects every run, including week 1**
 
@@ -201,16 +238,45 @@ makes byes live.
 (1,812 non-null). That is the field Phase 7 wants for replacing mean-weighted vacated-volume
 apportionment in the handcuff case — it is already being downloaded, just not persisted.
 
+### 8. `power_rankings_baseline_pts` is labelled as a starting-lineup score but is not one
+
+Found while auditing the adjacent point-based exports for the same 14-vs-16-week basis mixing.
+It does **not** have that problem — it is a per-week projected figure, correctly so, and is not
+derived from `global_season_points`.
+
+It does carry a label/content mismatch. `get_optimal_score` returns
+`optimal_starting_lineup + bench * 0.1`, but the JSON key is `power_rankings_baseline_pts` and
+the chart's x-axis reads "Optimal Valid Starting Lineup Baseline (Projected Points)". Measured on
+week01: Femboy Cats' true starters-only optimum is 166.8 against a reported 173.1 — a 3.6% bench
+uplift folded into a number presented as starters. The bench term is deliberate (it rewards
+depth), but the label does not say so.
+
+Minor, and Phase 6's territory rather than Phase 1's. Reported, not fixed.
+
 ---
 
 ## Remediation status
 
-Not started. This commit is characterisation only, per CLAUDE.md rule 3.
+| # | Status | Moves hashes |
+|---|---|---|
+| 1 | Fixed | week06 `stage_b` + `stage_c` |
+| 2 | Fixed, one caveat open (span mismatch) | week06 `stage_b` + `stage_c` |
+| 3 | Fixed | week06 `stage_b` + `stage_c` |
+| 4 | Fixed | week06 `stage_b` + `stage_c` |
+| 5 | Open | both scenarios, `stage_a` + `stage_b` + `stage_c` |
+| 6 | Fixed | none |
+| 7 | Open — needs a bye-week data source Sleeper does not supply | n/a |
+| 8 | Open — reported only, Phase 6 | n/a |
 
-Findings 1–4 share one root cause and one fix: derive the denominator from the weeks actually
-simulated instead of hardcoding 14 (and derive `7` and `28.0` from league size and the median
-scoring flag). Finding 5 is a scope decision about what `Expected_Points` should mean. Finding 6
-is a one-line copy. Finding 7 needs a real bye-week source, since Sleeper does not supply one.
+Findings 1–4 shared one root cause and one fix: a single `weeks_simulated` derived once in
+`export_and_visualize`, with `7` and `28.0` derived from league size and the median-scoring flag.
+`REGULAR_SEASON_WEEKS` was consolidated into `config.py` from `backtest_season.py`, which had
+defined it locally — the engine now reads it too, and a season length disagreeing between the
+engine and the backtest is precisely the drift `config.py` exists to prevent.
 
-Fixing 1–5 changes exported numbers, so the week06 golden hashes will need regenerating in a
-separate commit with the reason recorded.
+Verified footprint of the 1–4 fix: **week01 unchanged in all three stages** (the divisor is
+correct by coincidence at week 1), **week06 `stage_a` unchanged in all 17 outputs** — the engine
+itself is untouched — and exactly two week06 payloads moved,
+`syndicate_comprehensive_matrix_week_6.json` and `syndicate_insights_week_6.json`. Element counts
+are identical, so no field was added or removed. The insights `min` moving from 2.00 to −7.95 is
+the zero-sum property being restored: previously every team's `luck_rating` was positive.

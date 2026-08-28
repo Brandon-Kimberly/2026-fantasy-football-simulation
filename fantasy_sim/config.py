@@ -181,6 +181,22 @@ EPISTEMIC_ERROR_RATES = {
 BASE_STREAMER_MEANS = {'QB': 14.0, 'RB': 9.0, 'WR': 9.0, 'TE': 7.5, 'K': 8.0, 'DL': 7.5, 'LB': 8.0, 'DB': 8.0, 'FLEX': 8.5}
 
 # ==============================================================================
+# SEASON STRUCTURE
+# ==============================================================================
+# Weeks 1..14 are the regular season; 15 and 16 are the playoff semi-final and final. This is
+# the league's actual format, and it is what generate_league_schedule pulls matchups for.
+#
+# Consolidated here from backtest_season.py, which defined it locally. It is now read by the
+# simulation engine too, and a season length that disagrees between the engine and the backtest
+# would be exactly the class of drift this module's docstring describes for LEAGUE_AVG_PPG.
+#
+# Anything normalising a per-week rate must divide by the weeks a given run actually simulated
+# -- REGULAR_SEASON_WEEKS - (current_week - 1) -- not by this constant. A mid-season run only
+# simulates the remainder of the season, and using the full length as the divisor deflates every
+# rate by weeks_simulated/14 (see AUDIT_PHASE_1_FINDINGS.md, findings 1-3).
+REGULAR_SEASON_WEEKS = 14
+
+# ==============================================================================
 # ROSTER FORMAT
 # ==============================================================================
 # The full set of 13 required starting slots for this league's roster format, expanded to one

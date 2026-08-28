@@ -27,6 +27,7 @@ from scipy.optimize import linear_sum_assignment
 
 from fantasy_sim.config import (
     SIM_CONFIG, MANAGER_PROFILES, DUAL_ELIGIBILITY, NFL_TEAMS, BASE_STREAMER_MEANS,
+    REGULAR_SEASON_WEEKS,
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
 )
 from fantasy_sim.storage import (
@@ -922,6 +923,39 @@ class FantasySimulationEngine:
         plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 10})
         import matplotlib.ticker as mtick
 
+        # Normalisation basis for every per-week rate exported below.
+        #
+        # A run starting at self.current_week only simulates the REMAINDER of the regular
+        # season, so h2h, all_play, pts_against and global_weekly_scores accumulate over
+        # weeks current_week..14, not over all 14. Dividing by the full season length instead
+        # scaled every one of those rates by weeks_simulated/14 -- at week 6 that put the
+        # "Any Given Sunday" matrix at 64% of its true value, made the schedule-luck index
+        # non-zero-sum (+142.86 across the league, when it must sum to 0), and understated
+        # points-against per game by 36%. Correct at week 1 by coincidence, wrong from week 2
+        # on. See AUDIT_PHASE_1_FINDINGS.md findings 1-3 and
+        # tests/test_invariants.py::TestExportedRatesMatchWeeksSimulated.
+        #
+        # The window is verified empirically, not assumed: h2h/all_play/pts_against are
+        # incremented inside run_simulation's `if week_num <= 14` block, so they span the
+        # simulated REGULAR-SEASON weeks and exclude the weeks 15-16 playoff rounds.
+        first_week_idx = self.current_week - 1
+        weeks_simulated = REGULAR_SEASON_WEEKS - first_week_idx
+        # Unreachable via run_simulation, which raises earlier for current_week > 14 (top4 is
+        # never populated, so week 15 indexes an empty list). Asserted anyway because the
+        # failure mode without it is silent: these are float divisions, so a non-positive
+        # divisor exports inf/nan rather than raising. Week indexing is Phase 5's subject.
+        assert weeks_simulated > 0, (
+            f"CRITICAL ABORT: current_week={self.current_week} leaves no regular-season weeks "
+            f"to normalise against."
+        )
+        opponents_per_week = len(self.team_names) - 1
+        # 2 decisions per team per week under the league's hybrid H2H + median-beat format,
+        # 1 when median scoring is off (the season backtest runs that way -- see
+        # SIM_CONFIG['MEDIAN_SCORING_ENABLED']). Previously hardcoded 28.0, which silently
+        # assumed the median bonus was always in play.
+        decisions_per_week = 2 if SIM_CONFIG.get('MEDIAN_SCORING_ENABLED', True) else 1
+        max_season_decisions = REGULAR_SEASON_WEEKS * decisions_per_week
+
         rows = []
         for t in self.team_names:
             p_mean = np.mean(b_playoffs[t]) * 100
@@ -1069,7 +1103,7 @@ class FantasySimulationEngine:
         plt.savefig(expected_wins_chart_path(self.current_week), dpi=300)
         plt.close()
 
-        win_pct_matrix = pd.DataFrame.from_dict(h2h, orient='index') / (total_sims * 14) * 100
+        win_pct_matrix = pd.DataFrame.from_dict(h2h, orient='index') / (total_sims * weeks_simulated) * 100
         # NOTE: do not mutate win_pct_matrix.values in place (np.fill_diagonal). Under pandas'
         # Copy-on-Write semantics (default from pandas 2.x, mandatory in 3.x), .values on a
         # DataFrame produced by arithmetic can be a read-only view, and this raises
@@ -1109,13 +1143,21 @@ class FantasySimulationEngine:
             for k, v in sorted_champ_players[:20]
         }
 
+        # KNOWN LIMITATION, not fixed here: the two terms below cover different spans on a
+        # mid-season run. actual_exp_pct is a FULL-season win rate (wins[] carries the banked
+        # results of already-completed weeks), while true_win_pct is an all-play rate over only
+        # the weeks this run simulated. Correcting the divisors restores the property that
+        # luck_rating sums to zero across the league -- one team's easy schedule is another's
+        # hard one -- but making the two spans genuinely comparable needs historical all-play
+        # recomputed from weekly_actuals, which is a real feature rather than a divisor change.
+        # Recorded as an open item rather than papered over.
         schedule_luck = {}
         for t in self.team_names:
-            true_win_pct = all_play[t] / (total_sims * 14 * 7)
-            actual_exp_pct = np.mean(wins[t]) / 28.0
+            true_win_pct = all_play[t] / (total_sims * weeks_simulated * opponents_per_week)
+            actual_exp_pct = np.mean(wins[t]) / max_season_decisions
             schedule_luck[t] = {
                 "luck_rating": round(float(actual_exp_pct - true_win_pct) * 100, 2),
-                "avg_points_against_per_game": round(float(pts_against[t] / total_sims) / 14, 2)
+                "avg_points_against_per_game": round(float(pts_against[t] / total_sims) / weeks_simulated, 2)
             }
 
         syndicate_insights = {
@@ -1202,16 +1244,27 @@ class FantasySimulationEngine:
         # -------------------------------------------------------------
         plt.figure(figsize=(14, 7))
         
+        # global_weekly_scores is allocated as a full (total_sims, 14) array but written to
+        # only for the weeks this run simulates, so on a mid-season run every column before
+        # current_week is still at its initialised zero. Those cells are structural absences,
+        # not observed scores of zero, and every statistic below must skip them: at week 6
+        # they are 35.7% of the array, which dragged this chart's median-cut line from 175.50
+        # to 112.82 and put a spike of zeros into each team's density estimate (hidden from
+        # view only because xlim starts at 60, but still setting the KDE's bandwidth).
+        # See AUDIT_PHASE_1_FINDINGS.md finding 4.
+        played_weekly_scores = {t: global_weekly_scores[t][:, first_week_idx:]
+                                for t in self.team_names}
+
         # Calculate the average median cutoff across simulations to plot a baseline
         median_cutoffs = []
         for s_idx in range(min(total_sims, 1000)): # Sample first 1000 for speed
-            for w_idx in range(14):
-                scores = [global_weekly_scores[t][s_idx, w_idx] for t in self.team_names]
+            for w_idx in range(weeks_simulated):
+                scores = [played_weekly_scores[t][s_idx, w_idx] for t in self.team_names]
                 median_cutoffs.append(np.median(scores))
         avg_median_cut = float(np.mean(median_cutoffs))
 
         for t in summary_df['Team']:
-            all_scores_flat = global_weekly_scores[t].flatten()
+            all_scores_flat = played_weekly_scores[t].flatten()
             sns.kdeplot(all_scores_flat, label=f"{t} (Exp: {np.mean(all_scores_flat):.1f})", linewidth=2.0)
 
         plt.axvline(avg_median_cut, color='black', linestyle='--', linewidth=2.0, label=f"Avg Median Cut({avg_median_cut:.1f})")
@@ -1232,7 +1285,10 @@ class FantasySimulationEngine:
         ai_matrix["weekly_score_percentiles"] = {}
         
         for t in self.team_names:
-            scores_flat = global_weekly_scores[t].flatten()
+            # Played weeks only -- see played_weekly_scores above. Including the unwritten
+            # columns put p10_floor at exactly 0.00 for every team, i.e. the export stated a
+            # 10% chance of a team scoring nothing in a week.
+            scores_flat = played_weekly_scores[t].flatten()
             ai_matrix["weekly_score_percentiles"][t] = {
                 "mean": round(float(np.mean(scores_flat)), 2),
                 "std": round(float(np.std(scores_flat)), 2),
