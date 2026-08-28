@@ -244,13 +244,13 @@ class TestCovarianceMatrix(unittest.TestCase):
                                "L L^T not PSD on trial %d" % trial)
 
     def test_psd_repair_preserves_unit_marginal_variance(self):
-        """FAILS -- finding B1. The repair branch adds (|min_eig| + 1e-4) * I and takes the
-        Cholesky factor of the result without renormalising back to a correlation matrix. So
-        when it fires, every diagonal entry of L L^T becomes 1 + delta: z_corr = L z is no
-        longer unit-variance, and every player's lognormal sigma on that roster is inflated by
-        sqrt(1 + delta), while the off-diagonals stay fixed so every effective correlation is
-        shrunk by 1/(1 + delta). Uses the same 7-WR / rho=-0.18 scenario test_simulation.py
-        uses to prove the branch fires."""
+        """Regression guard for Phase 2 finding 6. The repair branch adds (|min_eig| + 1e-4) * I;
+        it used to take the Cholesky factor of that directly, so when it fired every diagonal
+        entry of L L^T became 1 + delta: z_corr = L z was no longer unit-variance, every
+        player's lognormal sigma on that roster was inflated by sqrt(1 + delta), and every
+        effective correlation shrunk by 1/(1 + delta). It now rescales back to a correlation
+        matrix. Uses the same 7-WR / rho=-0.18 scenario test_simulation.py uses to prove the
+        branch fires."""
         n = 7
         players = ["WR_%d" % i for i in range(n)]
         meta = {p: {"pos": "WR", "team": "DET"} for p in players}
@@ -264,10 +264,12 @@ class TestCovarianceMatrix(unittest.TestCase):
                             % (np.round(diag, 4), np.sqrt(diag[0])))
 
     def test_qb_correlation_is_monotone_in_pass_catcher_rank(self):
-        """FAILS -- finding B2. rank 0 -> QB_WR1 (0.40), rank 1 -> QB_WR2 (0.315), and
-        everything else -- WR3, WR4, ... as well as the TE -- falls through to QB_TE (0.35).
-        A team's third and fourth receivers are therefore modelled as MORE correlated with
-        their QB than the second receiver is."""
+        """Regression guard for Phase 2 finding 7. Rank among the team's pass-catchers used
+        to decide everything: rank 0 -> QB_WR1 (0.40), rank 1 -> QB_WR2 (0.315), and
+        everything else -- WR3, WR4, ... as well as the TE -- fell through to QB_TE (0.35),
+        so a team's third and fourth receivers were modelled as MORE correlated with their
+        QB than the second. Now TEs always take QB_TE and WRs are ranked among WRs only,
+        with WR3+ carrying WR2's value as an (unverified) ceiling."""
         players = ["QB", "WR1", "WR2", "WR3", "WR4"]
         meta = {p: {"pos": "QB" if p == "QB" else "WR", "team": "DET"} for p in players}
         pc = {"DET": [("WR1", 14.0), ("WR2", 11.0), ("WR3", 8.0), ("WR4", 5.0)]}
@@ -422,11 +424,11 @@ class TestBayesianUpdate(unittest.TestCase):
                                    % (engine.baselines["P"]["std_epistemic"], cf_std))
 
     def test_zero_score_weeks_are_not_treated_as_observed_performance(self):
-        """FAILS -- finding C2. A weekly score of exactly 0.0 is a bye or a DNP, and
-        backtest_player.collect_real_player_weekly_scores excludes them for that reason.
-        _apply_bayesian_updates does not: two real games of 12 and 13 against a prior of 10,
-        plus one 0.0, pull the posterior BELOW the prior. 20 of the 780 player-weeks in the
-        week06 fixture are exactly 0.0."""
+        """Regression guard for Phase 2 finding 5. A weekly score of exactly 0.0 is a bye or
+        a DNP, and backtest_player.collect_real_player_weekly_scores excludes them for that
+        reason. _apply_bayesian_updates used to ingest them as games: two real games of 12
+        and 13 against a prior of 10, plus one 0.0, pulled the posterior BELOW the prior.
+        20 of the 780 player-weeks in the week06 fixture are exactly 0.0."""
         engine = self._engine_with_scores([12.0, 0.0, 13.0])
         self.assertGreater(engine.baselines["P"]["mean"], self.PRIOR,
                            msg="two above-prior games plus one 0.0 week moved the posterior to "

@@ -197,7 +197,7 @@ The existing `test_bayesian_shrinkage_math` asserts the code's own arithmetic ba
 calls it "James-Stein"; it is neither James-Stein nor conjugate. **Severity: high** for
 mid-season runs (no effect at week 1, when there are no completed weeks). Moves week06 `stage_a`.
 
-### 5. Zero-score weeks are scored as observed performance
+### 5. Zero-score weeks are scored as observed performance — **FIXED**
 
 `_apply_bayesian_updates` ingests every `player_scores` entry. **20 of the 780** player-weeks in
 the week06 fixture are exactly 0.0 — byes and DNPs, which `backtest_player.
@@ -206,7 +206,12 @@ real game: two above-prior games of 12 and 13 plus one 0.0 pull a prior of 10 do
 Related to Phase 1 finding 7 (byes are unmodelled): the zeros are the byes the engine cannot
 see. **Severity: medium.** Moves week06 `stage_a`.
 
-### 6. PSD repair is not renormalised to a correlation matrix
+**Fixed:** `_apply_bayesian_updates` now skips a week whose score is exactly 0.0, the same rule
+`backtest_player` applies. Negative scores (IDP can go negative) are real games and are kept.
+Moved week06 only, as predicted — week01 has no completed weeks. Weekly team mean 110.26 →
+111.55 (+1.2%): dropping the zeros lifts the posteriors they had been dragging down.
+
+### 6. PSD repair is not renormalised to a correlation matrix — **FIXED**
 
 ```python
 cov += (abs(min_eig) + 1e-4) * np.eye(n)
@@ -221,12 +226,23 @@ inflating every lognormal σ on that team — and every effective correlation is
 fixture roster.** **Severity: low** — a correct-when-it-matters defect in a branch that
 currently doesn't fire. Moves no hash today.
 
-### 7. QB correlation is non-monotone in receiver rank
+**Fixed:** after loading the diagonal, the matrix is rescaled by `1/√(d_i d_j)` back to a
+correlation matrix — same eigenvalue shift, unit marginals. Confirmed to leave all 16 fixture
+roster matrices bit-identical (max |Δ| = 0), so it moved no hash.
+
+### 7. QB correlation is non-monotone in receiver rank — **FIXED**
 
 `rank 0 → QB_WR1 (0.40)`, `rank 1 → QB_WR2 (0.315)`, everything else — WR3, WR4 *and* the TE —
 falls through to `QB_TE (0.35)`. A team's third and fourth receivers are modelled as more
 correlated with their QB than the second. **Severity: low.** Moves `stage_a` if fixed (any
 roster with ≥ 3 same-team pass-catchers).
+
+**Fixed:** a TE always takes `QB_TE`; WRs are ranked among the team's WRs only, rank 0 → `QB_WR1`,
+rank ≥ 1 → `QB_WR2`. The WR3+ value is **unverified** — `backtest_player` calibrates only WR1 and
+WR2, so WR2's value is carried down as a ceiling rather than inventing a smaller one; the
+property enforced is monotonicity, and the exact WR3+ value is a Phase 7 calibration item. No
+fixture roster has a same-team QB with ≥ 3 pass-catchers or a TE ranked above a WR, so this
+moved no hash (all 16 matrices bit-identical).
 
 ### 8. Minor, reported only
 
@@ -246,9 +262,9 @@ roster with ≥ 3 same-team pass-catchers).
 | 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks — **fixed** | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
 | 3 | Copula targets calibrated on scores, applied on `z` (−12–14%) | Low–Med | all correlated pairs | `stage_a`, both |
 | 4 | Bayesian update not conjugate; over-confident posterior | High (mid-season) | every player with completed weeks | week06 `stage_a` |
-| 5 | Zero-score weeks treated as observed | Medium | players with a bye/DNP in history | week06 `stage_a` |
-| 6 | PSD repair not renormalised | Low | rosters with dense same-team clusters | none today |
-| 7 | Receiver-rank correlation non-monotone | Low | teams with ≥ 3 same-team pass-catchers | `stage_a` (some) |
+| 5 | Zero-score weeks treated as observed — **fixed** | Medium | players with a bye/DNP in history | week06 `stage_a` |
+| 6 | PSD repair not renormalised — **fixed** | Low | rosters with dense same-team clusters | none (verified) |
+| 7 | Receiver-rank correlation non-monotone — **fixed** | Low | teams with ≥ 3 same-team pass-catchers | none on fixtures (verified) |
 | 8 | Two minor consistency notes | Negligible | — | — |
 
 Findings 1 and 2 are both "the engine quietly overrides its own calibration" — the same class as

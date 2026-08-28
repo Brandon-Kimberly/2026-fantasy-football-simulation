@@ -185,11 +185,11 @@ Eight findings:
    precision and the likelihood variance is a 5-sample variance floored at half the prior, not
    `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
    sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
-5. MED. Zero-score weeks (20/780 in the fixture) are ingested as observed games; the backtest
+5. MED, FIXED. Zero-score weeks (20/780 in the fixture) are ingested as observed games; the backtest
    excludes them as byes/DNPs. Related to Phase 1 finding 7.
-6. LOW. PSD repair adds δI without renormalising: sd × √(1+δ) for every player on the roster,
+6. LOW, FIXED. PSD repair added δI without renormalising: sd × √(1+δ) for every player on the roster,
    correlations ÷ (1+δ). Never fires on fixture rosters; max δ 0.51 in fuzz.
-7. LOW. WR3+ receive `QB_TE = 0.35`, above WR2's 0.315 — non-monotone in rank.
+7. LOW, FIXED. WR3+ received `QB_TE = 0.35`, above WR2's 0.315 — non-monotone in rank.
 8. Negligible. `std_aleatoric` not re-derived after a posterior mean shift; contingency points
    not environment-scaled in `expected_pre` (≈ 2% of contingency).
 

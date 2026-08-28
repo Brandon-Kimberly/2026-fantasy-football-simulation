@@ -275,6 +275,14 @@ class FantasySimulationEngine:
         for wk_key in completed_weeks:
             wk_data = actuals[wk_key]
             for p_name, pts in wk_data.get('player_scores', {}).items():
+                # A week of exactly 0.0 is a bye or a DNP, not an observed performance --
+                # the same rule backtest_player.collect_real_player_weekly_scores applies,
+                # and for the same reason. Ingesting it as a game pulled posteriors below
+                # priors that the real games had beaten (20 of 780 player-weeks on the
+                # week06 fixture). Negative scores are real games (IDP can go negative) and
+                # are kept. See AUDIT_PHASE_2_FINDINGS.md finding 5.
+                if pts == 0:
+                    continue
                 player_history.setdefault(p_name, []).append(pts)
 
             for t_name, stats_dict in wk_data['team_results'].items():
@@ -419,16 +427,35 @@ class FantasySimulationEngine:
                     is_qb2 = (pos2 == 'QB' and pos1 in ['WR', 'TE'])
                     
                     if is_qb1 or is_qb2:
-                        target_wr = p2 if is_qb1 else p1
+                        target = p2 if is_qb1 else p1
                         target_team = p2_team if is_qb1 else p1_team
-                        rank = 2 
-                        if target_team in self.pass_catchers_meta:
-                            team_wrs = [x[0] for x in self.pass_catchers_meta[target_team]]
-                            if target_wr in team_wrs: rank = team_wrs.index(target_wr)
-                        
-                        if rank == 0: corr = SIM_CONFIG['CORRELATIONS']['QB_WR1']
-                        elif rank == 1: corr = SIM_CONFIG['CORRELATIONS']['QB_WR2']
-                        else: corr = SIM_CONFIG['CORRELATIONS']['QB_TE']
+                        target_pos = pos2 if is_qb1 else pos1
+                        if target_pos == 'TE':
+                            # A TE is a TE whatever its rank among the team's pass-catchers.
+                            # Previously rank decided: a TE who out-projected the WRs got
+                            # QB_WR1, and every WR from the third down got QB_TE (0.35) --
+                            # more than WR2's 0.315. See AUDIT_PHASE_2_FINDINGS.md finding 7.
+                            corr = SIM_CONFIG['CORRELATIONS']['QB_TE']
+                        else:
+                            # Rank among the team's WRs only (pass_catchers_meta ranks WRs
+                            # and TEs together by projected mean).
+                            rank = 2
+                            if target_team in self.pass_catchers_meta:
+                                team_wrs = [
+                                    nm for nm, _mean in self.pass_catchers_meta[target_team]
+                                    if normalize_position(
+                                        team_meta.get(nm, {}).get('pos')
+                                        or getattr(self, 'baselines', {}).get(nm, {}).get('pos', 'WR')
+                                    ) == 'WR'
+                                ]
+                                if target in team_wrs: rank = team_wrs.index(target)
+                            if rank == 0: corr = SIM_CONFIG['CORRELATIONS']['QB_WR1']
+                            # WR2 and below. UNVERIFIED for rank >= 2: backtest_player
+                            # calibrates QB_WR1 and QB_WR2 only, so WR2's value is carried
+                            # down as a ceiling rather than inventing a smaller one. The
+                            # property this guarantees is monotonicity in rank; the exact
+                            # WR3+ value is a Phase 7 calibration item.
+                            else: corr = SIM_CONFIG['CORRELATIONS']['QB_WR2']
                     elif pos1 == 'WR' and pos2 == 'WR':
                         corr = SIM_CONFIG['CORRELATIONS']['WR_WR']
                     elif (pos1 == 'RB' and pos2 == 'QB') or (pos2 == 'RB' and pos1 == 'QB'):
@@ -445,6 +472,14 @@ class FantasySimulationEngine:
             # fixed epsilon cannot repair. Scale the jitter to the actual deficiency so
             # this is robust regardless of roster composition.
             cov += (abs(min_eig) + 1e-4) * np.eye(n)
+            # Loading the diagonal makes every marginal variance 1 + delta while leaving
+            # the off-diagonals in absolute terms, so without this step z_corr = L z would
+            # have sd sqrt(1 + delta) for EVERY player on the roster (inflating every
+            # lognormal sigma on that team) and every effective correlation would be
+            # corr / (1 + delta). Rescale back to a correlation matrix: same eigenvalue
+            # shift, unit marginals. See AUDIT_PHASE_2_FINDINGS.md finding 6.
+            d = np.sqrt(np.diag(cov))
+            cov = cov / np.outer(d, d)
         return np.linalg.cholesky(cov)
 
     def _compute_future_week_matchup_environment(self, nfl_team, opp):
