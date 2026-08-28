@@ -160,6 +160,39 @@ week 1 now, so they were caught latent.
 
 **Deliverable:** `tests/test_distributions.py` plus a short written finding on variance budget.
 
+**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_2_FINDINGS.md`.
+14 tests added (110 → 124); 7 lock verified properties, 7 characterise defects. Nothing fixed.
+
+Verified and locked: lognormal `E[X] = mean` (engine-level), the `env_var` variance model,
+epistemic drawn once per season and held (within-season week correlation 0.247 vs 0.252
+predicted; 0 with epistemic off), covariance PSD over 3000 fuzzed rosters, and the cap's tail
+behaviour (max exceedance 4.3e-3, mean loss ≤ 0.06 pts/week — no change needed).
+
+Variance budget: `env_var` is **not** a material double-count (~1%). The realised per-player
+weekly variance is +17% over `std_aleatoric²` (sd +8.3%, mean +2.8%), and the dominant cause is
+the hardcoded `v_tot / 22.0` normaliser against a schedule mean of 22.6 (finding 1).
+
+Eight findings:
+
+1. HIGH. Environment multiplier `v_tot / 22.0` averages 1.028 over the real schedule, not 1;
+   `22.0`, `LEAGUE_AVG_PPG = 21.5` and the ratings' ~22.6 mean disagree. Every player, every week.
+2. HIGH. `shared_z` gate is literally "opponent implied total > 23" (open 44% of team-weeks) and
+   injects +0.32 score correlation into every same-team QB/WR/TE pair, including WR–WR whose
+   calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
+3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score
+   correlations run 12–14% below target even with the gate closed.
+4. HIGH (mid-season). `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
+   precision and the likelihood variance is a 5-sample variance floored at half the prior, not
+   `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
+   sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
+5. MED. Zero-score weeks (20/780 in the fixture) are ingested as observed games; the backtest
+   excludes them as byes/DNPs. Related to Phase 1 finding 7.
+6. LOW. PSD repair adds δI without renormalising: sd × √(1+δ) for every player on the roster,
+   correlations ÷ (1+δ). Never fires on fixture rosters; max δ 0.51 in fuzz.
+7. LOW. WR3+ receive `QB_TE = 0.35`, above WR2's 0.315 — non-monotone in rank.
+8. Negligible. `std_aleatoric` not re-derived after a posterior mean shift; contingency points
+   not environment-scaled in `expected_pre` (≈ 2% of contingency).
+
 ---
 
 ## Phase 3 — Data ingestion integrity
