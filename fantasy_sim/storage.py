@@ -92,6 +92,14 @@ def h2h_heatmap_chart_path(week):
     return _path(f"Week_{week}_H2H_Heatmap.png")
 
 
+def seeding_distribution_path(week):
+    return _path(f"Week_{week}_Seeding_Distribution.png")
+
+
+def weekly_scoring_density_path(week):
+    return _path(f"Week_{week}_Weekly_Scoring_Density.png")
+
+
 # ==============================================================================
 # JSON I/O helpers
 # ==============================================================================

@@ -37,6 +37,7 @@ from fantasy_sim.storage import (
     live_season_forecast_path, model_learning_report_path, syndicate_insights_path,
     syndicate_comprehensive_matrix_path, power_rankings_chart_path, season_outcomes_chart_path,
     all_teams_trajectories_chart_path, expected_wins_chart_path, h2h_heatmap_chart_path,
+    seeding_distribution_path, weekly_scoring_density_path
 )
 
 # The logging handler below opens SYNDICATE_WARNINGS_LOG_FILE immediately, at import time --
@@ -375,6 +376,8 @@ class FantasySimulationEngine:
         global_season_wins = {t: np.zeros(total_sims) for t in self.team_names}
         global_season_points = {t: np.zeros(total_sims) for t in self.team_names}
         global_trajectories = {t: np.zeros((total_sims, 14)) for t in self.team_names}
+        global_weekly_scores = {t: np.zeros((total_sims, 14)) for t in self.team_names}
+        seed_matrix = {t: np.zeros(len(self.team_names)) for t in self.team_names}
         h2h_matrix = {t: {opp: 0 for opp in self.team_names} for t in self.team_names}
         points_against = {t: 0.0 for t in self.team_names}
         all_play_wins = {t: 0 for t in self.team_names}
@@ -681,6 +684,11 @@ class FantasySimulationEngine:
                         total_score = sum(s[1] for s in starters)
                         week_scores[t_name] = total_score
                         sim_points[t_name] += total_score
+                        team_starters[t_name] = [(s[2], s[1]) for s in starters]
+
+                        if week_idx < 14:
+                            global_weekly_scores[t_name][sim_counter, week_idx] = total_score
+
                         # Keep (name, actual_score) pairs, not just names, so downstream
                         # "championship value" analysis can measure real point contribution
                         # instead of mere lineup-slot occupancy (see championship_player_shares
@@ -725,6 +733,10 @@ class FantasySimulationEngine:
                         if week_num == 14:
                             ranked = sorted(self.team_names, key=lambda t: (sim_wins[t], sim_points[t]), reverse=True)
                             top4 = ranked[:4]
+
+                            for rank_idx, team_ranked in enumerate(ranked):
+                                seed_matrix[team_ranked][rank_idx] += 1
+
                             for p in top4: b_playoffs[p] += 1
                             b_toilets[ranked[-1]] += 1
 
@@ -781,12 +793,13 @@ class FantasySimulationEngine:
             global_season_wins, global_season_points, batch_playoff_rates,
             batch_champ_rates, batch_toilet_rates, global_trajectories,
             h2h_matrix, points_against, all_play_wins, championship_player_shares,
-            max_single_week_score, max_score_team, max_score_week, audit_log, total_sims
+            max_single_week_score, max_score_team, max_score_week, audit_log, total_sims,
+            global_weekly_scores, seed_matrix
         )
 
     def export_and_visualize(self, wins, points, b_playoffs, b_champs, b_toilets, trajectories,
                              h2h, pts_against, all_play, champ_players, max_score, max_team, max_wk,
-                             audit_log, total_sims):
+                             audit_log, total_sims, global_weekly_scores, seed_matrix):
         sns.set_theme(style="whitegrid")
         plt.rcParams.update({'font.sans-serif': 'DejaVu Sans', 'font.size': 10})
         import matplotlib.ticker as mtick
@@ -1030,7 +1043,7 @@ class FantasySimulationEngine:
             "metadata": {"week": self.current_week, "simulations": total_sims, "batches": SIM_CONFIG["NUM_BATCHES"]},
             "power_rankings_baseline_pts": team_baselines,
             "season_outcomes": summary_df.to_dict(orient='records'),
-            "h2h_win_probability_matrix": win_pct_matrix.to_dict(),
+            "h2h_win_probability_matrix": win_pct_matrix.to_dict(orient='index'),
             "win_distributions": {},
             "weekly_trajectories": {}
         }
@@ -1050,6 +1063,63 @@ class FantasySimulationEngine:
             t_mat = trajectories[t]
             ai_matrix["weekly_trajectories"][t] = {
                 "expected_cumulative_wins_by_week": np.mean(t_mat, axis=0).tolist()
+            }
+
+        # -------------------------------------------------------------
+        # Finishing Seed Probability Distribution
+        # -------------------------------------------------------------
+        seed_df = pd.DataFrame.from_dict(seed_matrix, orient='index') / total_sims * 100
+        seed_df.columns = [f"Seed {i}" for i in range(1, len(self.team_names) + 1)]
+        seed_df = seed_df.loc[summary_df['Team']] # Sort by expected wins
+
+        plt.figure(figsize=(11, 7))
+        sns.heatmap(seed_df, annot=True, fmt=".1f", cmap="Purples", cbar_kws={'label': 'Probability (%)'}, linewidths=.5)
+        plt.title(f"Week {self.current_week} Regular Season Finishing Seed Probabilities", fontsize=13, fontweight='bold', pad=15)
+        plt.tight_layout()
+        plt.savefig(seeding_distribution_path(self.current_week), dpi=300)
+        plt.close()
+
+        # -------------------------------------------------------------
+        # Weekly Scoring Density (KDE)
+        # -------------------------------------------------------------
+        plt.figure(figsize=(14, 7))
+        
+        # Calculate the average median cutoff across simulations to plot a baseline
+        median_cutoffs = []
+        for s_idx in range(min(total_sims, 1000)): # Sample first 1000 for speed
+            for w_idx in range(14):
+                scores = [global_weekly_scores[t][s_idx, w_idx] for t in self.team_names]
+                median_cutoffs.append(np.median(scores))
+        avg_median_cut = float(np.mean(median_cutoffs))
+
+        for t in summary_df['Team']:
+            all_scores_flat = global_weekly_scores[t].flatten()
+            sns.kdeplot(all_scores_flat, label=f"{t} (Exp: {np.mean(all_scores_flat):.1f})", linewidth=2.0)
+
+        plt.axvline(avg_median_cut, color='black', linestyle='--', linewidth=2.0, label=f"Avg Median Cut({avg_median_cut:.1f})")
+        plt.title(f"Week {self.current_week} Team Weekly Scoring Density Profiles", fontsize=14, fontweight='bold', pad=15)
+        plt.xlabel("Simulated Weekly Points Scored", fontsize=11, fontweight='bold')
+        plt.ylabel("Probability Density", fontsize=11, fontweight='bold')
+        plt.xlim(60, 250)
+        plt.legend(loc='upper right', frameon=True, facecolor='white', fontsize=9)
+        sns.despine()
+        plt.tight_layout()
+        plt.savefig(weekly_scoring_density_path(self.current_week), dpi=300)
+        plt.close()
+
+        # -------------------------------------------------------------
+        # NEW DATA: Append to ai_matrix before dumping to JSON
+        # -------------------------------------------------------------
+        ai_matrix["finishing_seed_probabilities"] = seed_df.to_dict(orient='index')
+        ai_matrix["weekly_score_percentiles"] = {}
+        
+        for t in self.team_names:
+            scores_flat = global_weekly_scores[t].flatten()
+            ai_matrix["weekly_score_percentiles"][t] = {
+                "mean": round(float(np.mean(scores_flat)), 2),
+                "std": round(float(np.std(scores_flat)), 2),
+                "p10_floor": round(float(np.percentile(scores_flat, 10)), 2),
+                "p90_ceiling": round(float(np.percentile(scores_flat, 90)), 2)
             }
 
         save_json(live_season_forecast_path(self.current_week), diagnostics)

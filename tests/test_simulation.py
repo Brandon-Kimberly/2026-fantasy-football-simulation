@@ -72,6 +72,95 @@ class TestFantasySimulation(unittest.TestCase):
         self.patch_load.stop()
         logging.getLogger().setLevel(self.previous_log_level)
 
+    def test_h2h_win_probability_matrix_export_is_not_transposed(self):
+        """Regression test for a real, precisely diagnosed bug: the exported
+        h2h_win_probability_matrix JSON was transposed relative to its intended
+        [subject_team][opponent_team] meaning. Root cause: pandas' DataFrame.to_dict()
+        defaults to orient='dict' (column-major: {column: {row: value}}), but win_pct_matrix
+        was built with rows=subject team, columns=opponent -- calling .to_dict() without
+        orient='index' silently swapped which team's win rate landed under which key. Found
+        by a real diagnostic: comparing a real exported matrix against that same run's actual
+        season_outcomes showed a PERFECT rank inversion across all 8 teams (the team with the
+        best average 'win probability' in the exported matrix had the WORST actual expected
+        wins, and vice versa) -- confirmed by hand-verifying pandas' default to_dict()
+        orientation directly.
+
+        This test constructs a lopsided matchup (StrongTeam's mean baseline far exceeds
+        WeakTeam's) and confirms the exported matrix correctly shows StrongTeam with a HIGH
+        win probability against WeakTeam under matrix[StrongTeam][WeakTeam] -- not, as the
+        transposed bug would produce, under matrix[WeakTeam][StrongTeam]."""
+        full_roster_strong = [
+            {"name": "Strong_QB", "pos": "QB", "team": "DET"}, {"name": "Strong_K", "pos": "K", "team": "DET"},
+            {"name": "Strong_DB", "pos": "DB", "team": "DET"}, {"name": "Strong_DL", "pos": "DL", "team": "DET"},
+            {"name": "Strong_LB", "pos": "LB", "team": "DET"}, {"name": "Strong_RB1", "pos": "RB", "team": "DET"},
+            {"name": "Strong_RB2", "pos": "RB", "team": "DET"}, {"name": "Strong_WR1", "pos": "WR", "team": "DET"},
+            {"name": "Strong_WR2", "pos": "WR", "team": "DET"}, {"name": "Strong_TE1", "pos": "TE", "team": "DET"},
+            {"name": "Strong_TE2", "pos": "TE", "team": "DET"}, {"name": "Strong_WR3", "pos": "WR", "team": "DET"},
+            {"name": "Strong_WR4", "pos": "WR", "team": "DET"},
+        ]
+        full_roster_weak = [
+            {"name": "Weak_QB", "pos": "QB", "team": "SF"}, {"name": "Weak_K", "pos": "K", "team": "SF"},
+            {"name": "Weak_DB", "pos": "DB", "team": "SF"}, {"name": "Weak_DL", "pos": "DL", "team": "SF"},
+            {"name": "Weak_LB", "pos": "LB", "team": "SF"}, {"name": "Weak_RB1", "pos": "RB", "team": "SF"},
+            {"name": "Weak_RB2", "pos": "RB", "team": "SF"}, {"name": "Weak_WR1", "pos": "WR", "team": "SF"},
+            {"name": "Weak_WR2", "pos": "WR", "team": "SF"}, {"name": "Weak_TE1", "pos": "TE", "team": "SF"},
+            {"name": "Weak_TE2", "pos": "TE", "team": "SF"}, {"name": "Weak_WR3", "pos": "WR", "team": "SF"},
+            {"name": "Weak_WR4", "pos": "WR", "team": "SF"},
+        ]
+        filler_a, filler_b = self.test_teams[2], self.test_teams[3]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {
+            "StrongTeam": full_roster_strong, "WeakTeam": full_roster_weak,
+            filler_a: [{"name": "Filler_QB_A", "pos": "QB", "team": "FA"}],
+            filler_b: [{"name": "Filler_QB_B", "pos": "QB", "team": "FA"}],
+        }
+        self.mock_fs[BASELINES_FILE] = {
+            **{p["name"]: {"mean": 30.0, "std_aleatoric": 2.0, "std_epistemic": 1.0, "pos": p["pos"], "team": "DET"}
+               for p in full_roster_strong},
+            **{p["name"]: {"mean": 4.0, "std_aleatoric": 2.0, "std_epistemic": 1.0, "pos": p["pos"], "team": "SF"}
+               for p in full_roster_weak},
+            "Filler_QB_A": {"mean": 15.0, "std_aleatoric": 2.0, "std_epistemic": 1.5, "pos": "QB", "team": "FA"},
+            "Filler_QB_B": {"mean": 15.0, "std_aleatoric": 2.0, "std_epistemic": 1.5, "pos": "QB", "team": "FA"},
+        }
+        self.mock_fs[LEAGUE_STANDINGS_FILE] = {t: {"remaining_faab": 100} for t in self.mock_fs[LIVE_ROSTERS_FILE]}
+        team_names = list(self.mock_fs[LIVE_ROSTERS_FILE].keys())
+        self.mock_fs[LEAGUE_SCHEDULE_FILE] = [
+            [[team_names[0], team_names[1]], [team_names[2], team_names[3]]]
+        ] * 14
+
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 50
+        try:
+            saved_files = {}
+
+            def recording_save_json(path, data, indent=2):
+                saved_files[path] = data
+
+            with patch('matplotlib.pyplot.savefig'), patch('matplotlib.pyplot.close'), \
+                 patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        matrix_path = [p for p in saved_files if 'syndicate_comprehensive_matrix' in p]
+        self.assertEqual(len(matrix_path), 1, "Expected exactly one comprehensive matrix export.")
+        h2h = saved_files[matrix_path[0]]["h2h_win_probability_matrix"]
+
+        strong_vs_weak = h2h["StrongTeam"]["WeakTeam"]
+        weak_vs_strong = h2h["WeakTeam"]["StrongTeam"]
+        self.assertGreater(
+            strong_vs_weak, 50.0,
+            f"StrongTeam's win probability against WeakTeam should clearly exceed 50% given "
+            f"the large baseline gap, but matrix['StrongTeam']['WeakTeam'] = {strong_vs_weak} "
+            f"-- matrix may be transposed again."
+        )
+        self.assertLess(
+            weak_vs_strong, 50.0,
+            f"WeakTeam's win probability against StrongTeam should clearly be below 50%, but "
+            f"matrix['WeakTeam']['StrongTeam'] = {weak_vs_strong} -- matrix may be transposed again."
+        )
+
     def test_max_realistic_weekly_score_caps_extreme_draws(self):
         """Regression/verification test for a real, empirically-confirmed gap: no ceiling
         previously existed on an individual player's simulated weekly score. Forces every
