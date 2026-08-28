@@ -74,7 +74,7 @@ refuses with a `ValueError` for `current_week > 14` that names the limitation an
 entry-point test asserts the refusal (and flips to "these weeks run" when F3 lands). No golden
 movement.
 
-### 2. A banked H2H tie is truncated in the forecast record
+### 2. A banked H2H tie is truncated in the forecast record — **FIXED**
 
 ```python
 'actual_wins_banked': int(self.actual_h2h_wins[t] + self.actual_median_wins[t])
@@ -87,6 +87,10 @@ in the same record keeps the half (10.5), so `banked + expected_future ≠ expec
 (2 + 8.0 vs 10.5). The magic number is off by one for the same team. **Severity: low** (ties are
 rare; the record is internally inconsistent when they happen). Moves no hash on the fixtures
 (no banked ties).
+
+**Fixed.** `actual_wins_banked` and `approximate_magic_number` are now the float the engine
+holds. The forecast payload's golden hash moved in both scenarios with every moment identical
+(int 2 → float 2.0 in the canonical rendering); `stage_a` is byte-identical.
 
 ### 3. `is_mathematically_eliminated` is a Monte Carlo zero, not a proof
 
@@ -102,7 +106,7 @@ false claim in a headline field; the fix is either rename to `no_playoff_appeara
 or compute a real sufficient condition from banked decisions). Moves no `stage_a` hash; moves
 `stage_b`/`stage_c` in week06 only if the value changes there.
 
-### 4. Playoff ties advance the *lower* seed — reported
+### 4. Playoff ties advance the *lower* seed — **FIXED**
 
 ```python
 w1 = s1 if week_scores.get(s1, 0) > week_scores.get(s4, 0) else s4
@@ -113,6 +117,11 @@ Strict `>` sends a tied semi-final to seed 4 (over seed 1) and a tied final to t
 Sleeper advances the higher seed on a tie. Measure-zero with continuous scores — never observed
 — but the direction is wrong and it is one character. **Severity: low.** Not tested (inline,
 unreachable without a contrived engine); reported.
+
+**Fixed.** The rule is extracted as `_playoff_winner(a, b, week_scores, seed_order)`: higher
+score wins, an exact tie goes to the earlier seed. Tested directly (semi-final, final, argument
+order). The golden master confirms the extraction changed no outcome — `stage_a` byte-identical
+in both scenarios.
 
 ### 5. A score exactly on the median awards five median wins — reported
 
@@ -141,11 +150,11 @@ gitignored, so this is a local orphan from before the rename: delete it. No code
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
 | 1 | Engine crashes for `current_week` ≥ 15 — **refuses cleanly now; F3 makes it run** | High, latent (week 15) | every playoff-week forecast | none |
-| 2 | Banked H2H tie truncated; forecast record inconsistent | Low | teams with a tie on record | none on fixtures |
+| 2 | Banked H2H tie truncated; forecast record inconsistent — **fixed** (float) | Low | teams with a tie on record | forecast payload, representation only |
 | 3 | `is_mathematically_eliminated` is a sample zero | Low-medium | headline forecast field | week06 `stage_b/c` at most |
-| 4 | Playoff ties advance the lower seed | Low (measure-zero) | — | none |
+| 4 | Playoff ties advance the lower seed — **fixed** (`_playoff_winner`, tested) | Low (measure-zero) | — | none (verified) |
 | 5 | Exact-median tie awards 5 median wins | Low (measure-zero) | — | none |
 | 6 | Magic number 16 unsourced | Low | labelled approximate | — |
-| 7 | Orphan PNG in `data/` | — | local only | — |
+| 7 | Orphan PNG in `data/` — **deleted locally** | — | local only | — |
 
 None of these touch baseline computation or the weekly draw; the backtest gate does not apply.

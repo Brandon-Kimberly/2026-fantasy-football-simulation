@@ -113,6 +113,21 @@ class TestSeedingAndBracket(unittest.TestCase):
                     self.assertEqual(np.mean(run.args["b_champs"][t]), 0.0)
 
 
+class TestPlayoffTieRule(unittest.TestCase):
+    def test_a_tied_playoff_game_advances_the_higher_seed(self):
+        """Regression guard for Phase 5 finding 4. Sleeper advances the higher seed on a
+        tie; the inline `>` used to send a tied semi-final to seed 4 over seed 1 and a tied
+        final to whichever side was compared second. Extracted as _playoff_winner so the
+        rule is testable; the golden master confirms the extraction changed no outcome."""
+        top4 = ["S1", "S2", "S3", "S4"]
+        win = FantasySimulationEngine._playoff_winner
+        self.assertEqual(win("S1", "S4", {"S1": 100.0, "S4": 100.0}, top4), "S1")
+        self.assertEqual(win("S2", "S3", {"S2": 90.0, "S3": 90.0}, top4), "S2")
+        self.assertEqual(win("S4", "S2", {"S4": 88.0, "S2": 88.0}, top4), "S2")   # final: seed 2 over seed 4
+        self.assertEqual(win("S1", "S4", {"S1": 99.0, "S4": 100.0}, top4), "S4")   # no tie: score wins
+        self.assertEqual(win("S4", "S1", {"S1": 99.0, "S4": 100.0}, top4), "S4")   # argument order irrelevant
+
+
 class TestWeekIndexingEntryPoints(unittest.TestCase):
     """The plan: confirm range(current_week - 1, 16) and the 14-week season line up at
     every entry point. Sleeper's /state/nfl reports week 15-18 during the playoffs, and
@@ -235,10 +250,11 @@ class TestForecastRecordConsistency(unittest.TestCase):
         return team, engine, fc
 
     def test_banked_plus_expected_future_equals_expected_final(self):
-        """FAILS -- finding 2. actual_wins_banked is int(h2h + median), so a banked H2H tie
-        (0.5) is truncated away: banked 2.5 exports as 2 while expected_final_wins (10.5)
-        keeps the half, and the record no longer adds up (2 + 8.0 != 10.5). Ties are real
-        Sleeper outcomes and sync records them as 0.5."""
+        """Regression guard for Phase 5 finding 2. actual_wins_banked was int(h2h + median),
+        so a banked H2H tie (0.5) was truncated away: banked 2.5 exported as 2 while
+        expected_final_wins (10.5) kept the half, and the record no longer added up
+        (2 + 8.0 != 10.5). Ties are real Sleeper outcomes and sync records them as 0.5. The
+        field is now the float the engine holds."""
         team, engine, fc = self._forecast_with_tie()
         rec = fc[team]
         banked_engine = engine.actual_h2h_wins[team] + engine.actual_median_wins[team]

@@ -606,6 +606,18 @@ class FantasySimulationEngine:
         ]
         return float(np.mean(totals)) if totals else LEAGUE_AVG_PPG
 
+    @staticmethod
+    def _playoff_winner(a, b, week_scores, seed_order):
+        """Winner of a playoff game between a and b: higher score, and on an exact tie the
+        HIGHER seed (earlier in seed_order), which is Sleeper's rule. Previously a strict `>`
+        sent a tied semi-final to seed 4 over seed 1 and a tied final to the seed-2 side.
+        Measure-zero with continuous scores, but the direction was wrong.
+        AUDIT_PHASE_5_6_FINDINGS.md finding 4. Extracted so the tie rule is testable."""
+        sa, sb = week_scores.get(a, 0), week_scores.get(b, 0)
+        if sa != sb:
+            return a if sa > sb else b
+        return a if seed_order.index(a) < seed_order.index(b) else b
+
     def run_simulation(self):
         if self.current_week > REGULAR_SEASON_WEEKS:
             # Explicit refusal, not an internal error. The season loop seeds the playoff
@@ -1076,11 +1088,11 @@ class FantasySimulationEngine:
 
                     elif week_num == 15:
                         s1, s2, s3, s4 = top4[0], top4[1], top4[2], top4[3]
-                        w1 = s1 if week_scores.get(s1, 0) > week_scores.get(s4, 0) else s4
-                        w2 = s2 if week_scores.get(s2, 0) > week_scores.get(s3, 0) else s3
+                        w1 = self._playoff_winner(s1, s4, week_scores, top4)
+                        w2 = self._playoff_winner(s2, s3, week_scores, top4)
 
                     elif week_num == 16:
-                        champ = w1 if week_scores.get(w1, 0) > week_scores.get(w2, 0) else w2
+                        champ = self._playoff_winner(w1, w2, week_scores, top4)
                         b_champs[champ] += 1
                         for p, p_score in team_starters.get(champ, []):
                             if "STREAMER" not in p:
@@ -1377,12 +1389,19 @@ class FantasySimulationEngine:
             p_prob = summary_df.loc[summary_df['Team'] == t, 'Playoff_Pct'].values[0]
             p_se = summary_df.loc[summary_df['Team'] == t, 'Playoff_SE'].values[0]
             exp_w = summary_df.loc[summary_df['Team'] == t, 'Expected_Wins'].values[0]
-            exp_future = exp_w - (self.actual_h2h_wins[t] + self.actual_median_wins[t])
-            magic_num = max(0, 16 - int(self.actual_h2h_wins[t] + self.actual_median_wins[t]))
+            # Banked decisions can be a half: Sleeper records an H2H tie and sync stores it as
+            # 0.5. int() truncated it, so a team with 2.5 banked exported 2 while
+            # expected_final_wins kept the half and the record no longer added up.
+            # AUDIT_PHASE_5_6_FINDINGS.md finding 2.
+            banked = float(self.actual_h2h_wins[t] + self.actual_median_wins[t])
+            exp_future = exp_w - banked
+            # 16 of 28 decisions as the playoff lock is an UNSOURCED heuristic (finding 6,
+            # deferred to Phase 7); the field is labelled approximate for that reason.
+            magic_num = max(0.0, 16 - banked)
 
             diagnostics[t] = {
                 'current_state': {
-                    'actual_wins_banked': int(self.actual_h2h_wins[t] + self.actual_median_wins[t]),
+                    'actual_wins_banked': banked,
                     'actual_points_banked': round(float(self.actual_points[t]), 2),
                     'remaining_faab': float(self.current_faab[t]),
                 },
@@ -1392,7 +1411,7 @@ class FantasySimulationEngine:
                     'playoff_probability_pct': round(float(p_prob), 1),
                     'playoff_standard_error': round(float(p_se), 3),
                     'is_mathematically_eliminated': bool(p_prob == 0.0),
-                    'approximate_magic_number': int(magic_num),
+                    'approximate_magic_number': magic_num,
                 },
             }
 

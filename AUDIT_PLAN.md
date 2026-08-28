@@ -327,15 +327,15 @@ Findings:
    (`top4` never seeded), KeyError at 16, UnboundLocalError at 17 — and sync writes Sleeper's
    playoff-week numbers straight into `league_state.json`. No bracket-from-banked-standings path,
    no explicit refusal.
-2. LOW. `actual_wins_banked` and the magic number use `int()`, truncating a banked H2H tie (0.5);
+2. LOW, FIXED (float). `actual_wins_banked` and the magic number used `int()`, truncating a banked H2H tie (0.5);
    the forecast record then does not add up (banked + future ≠ final).
 3. LOW-MED. `is_mathematically_eliminated` is `Playoff_Pct == 0.0`: a sample zero. Flags 1 team
    at 16 sims and 3 at 2 sims on the same week06 season.
-4. LOW, measure-zero. Tied playoff games advance the lower seed (strict `>`); Sleeper advances
+4. LOW, measure-zero, FIXED (`_playoff_winner`, tested; no outcome change). Tied playoff games advanced the lower seed (strict `>`); Sleeper advances
    the higher.
 5. LOW, measure-zero. A score exactly on the 8-team median awards five median wins (`>=`).
 6. LOW. `approximate_magic_number = 16 − banked`: unsourced heuristic, labelled approximate.
-7. Housekeeping. `data/Week_1_Scoring_Density_KDE.png` is an orphan from a rename; `data/` is
+7. Housekeeping, DONE (deleted locally). `data/Week_1_Scoring_Density_KDE.png` was an orphan from a rename; `data/` is
    gitignored — delete locally.
 
 ---
