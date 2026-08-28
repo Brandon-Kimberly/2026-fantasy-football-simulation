@@ -304,16 +304,16 @@ class FantasySimulationEngine:
         for wk_key in completed_weeks:
             wk_data = actuals[wk_key]
             for p_name, pts in wk_data.get('player_scores', {}).items():
-                # A week of exactly 0.0 is a bye or a DNP, not an observed performance, and
-                # statistically it should be excluded here (backtest_player does). It is
-                # deliberately NOT excluded yet. The engine cannot model byes (Phase 1
-                # finding 7: Sleeper's payload never populates team_bye), so these zeros
-                # are the only bye/absence signal the posterior ever sees; dropping them
-                # made the posterior "per game played" while the engine scores every player
-                # every week. Measured on the real 2025 season (paired inputs and seed):
-                # excluding zeros biased simulated weekly team points +4.3% on average and
-                # +7.6% by week 12, mean z -0.34, >5 SE. Fix this together with bye
-                # modelling, not before it. See AUDIT_PHASE_2_FINDINGS.md finding 5.
+                # A week of exactly 0.0 is a bye or a DNP, not an observed performance;
+                # backtest_player.collect_real_player_weekly_scores excludes them for the
+                # same reason. Skipping them was applied in Phase 2 and REVERTED (+4.3%
+                # real-2025 points bias): with byes unmodelled, these zeros were the only
+                # absence signal the posterior ever saw. Byes are modelled now (bye-modelling
+                # steps 1-4): the draw side already skips a player's bye week, so scoring it
+                # as a game here counted the same absence twice -- step 5a measured that
+                # overshoot at -1.8% points bias. Phase 2 finding 5; see AUDIT_PHASE_2_FINDINGS.md.
+                if pts == 0:
+                    continue
                 player_history.setdefault(p_name, []).append(pts)
 
             for t_name, stats_dict in wk_data['team_results'].items():

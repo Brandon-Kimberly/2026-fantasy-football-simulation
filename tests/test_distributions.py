@@ -437,9 +437,8 @@ class TestBayesianUpdate(unittest.TestCase):
                                msg="engine posterior std %.3f vs conjugate %.3f"
                                    % (engine.baselines["P"]["std_epistemic"], cf_std))
 
-    @unittest.expectedFailure
     def test_zero_score_weeks_are_not_treated_as_observed_performance(self):
-        """CHARACTERISATION, deliberately still failing -- Phase 2 finding 5, fix REVERTED.
+        """GUARD for Phase 2 finding 5 -- fixed in bye-modelling step 5b.
 
         A weekly score of exactly 0.0 is a bye or a DNP, and
         backtest_player.collect_real_player_weekly_scores excludes them for that reason.
@@ -447,12 +446,13 @@ class TestBayesianUpdate(unittest.TestCase):
         prior of 10, plus one 0.0, pull the posterior BELOW the prior. 20 of the 780
         player-weeks in the week06 fixture are exactly 0.0.
 
-        The fix (skip zeros) was applied and then reverted on evidence. The engine cannot
-        model byes (Phase 1 finding 7), so these zeros are the only absence signal the
-        posterior sees; excluding them made simulated weekly team points +4.3% high on
-        average and +7.6% by week 12 against the real 2025 season (paired inputs and seed,
-        mean z -0.34, >5 SE). DEPENDENCY: fix together with bye modelling, not before it.
-        When that lands, remove the expectedFailure -- this test then becomes the guard."""
+        The fix (skip zeros) was applied in Phase 2 and reverted on evidence: with byes
+        unmodelled, these zeros were the only absence signal the posterior saw, and
+        excluding them made simulated weekly team points +4.3% high against the real 2025
+        season. Byes are modelled now (bye-modelling steps 1-4), and with them alone the
+        same paired backtest overshot to -1.8% because the draw side skipped the bye while
+        the history side still scored it as a game. Step 5b removes that double count;
+        this test is its guard."""
         engine = self._engine_with_scores([12.0, 0.0, 13.0])
         self.assertGreater(engine.baselines["P"]["mean"], self.PRIOR,
                            msg="two above-prior games plus one 0.0 week moved the posterior to "

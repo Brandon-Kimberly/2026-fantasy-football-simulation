@@ -133,8 +133,17 @@ than fixed, because neither is a code change:
    respectively): the zeros in history and the extra shrinkage were each an accidental
    compensation for absences the engine cannot represent (zero-week share rises 9.6% → 25.3%
    from weeks 1–5 to 6–11). Whatever lands byes must re-attempt both, and the acceptance test
-   is fixed: on that backtest, posteriors must follow the first five weeks with empirical
-   weight ≈0.49 (QB 0.64, RB 0.71, WR 0.11), and points bias must not rise. Sleeper's payload has no `team_bye` key
+   was originally set at empirical weight ≈0.49 (QB 0.64, RB 0.71, WR 0.11) and REVISED to ≈0.68 in
+   bye-modelling step 5a (reasoning under Phase 2 finding 4 below); points bias must not rise.
+   STEP 5a RESULT (byes alone, paired at 300 sims): bias +1.47 → −2.29 pts (+1.1% → −1.8%), cover80 0.62 → 0.65 —
+   through zero and past it, because the draw side now skips a bye the history side still scored as a game.
+   STEP 5b RESULT (+ Phase 2 finding 5, skip zero weeks): bias −2.29 → +3.45 pts (+2.7%), cover80 0.65, i.e. the
+   predicted direction, but with a gradient: cp3 −1.4%, cp6 +1.9%, cp9 +3.4%, cp12 +6.9%. The remaining zeros are
+   injuries, and a player who is out NOW (last two non-bye weeks both 0) carries 1.0% of rostered prior mean at cp3,
+   6.4% at cp6, 8.9% at cp9, 8.2% at cp12 — the same shape as the gradient. Those zeros were the only current-injury
+   signal the engine had: neither sync nor the backtest harness ingests Sleeper's `injury_status`, so with finding 5
+   fixed an IR player is projected at full strength for the rest of the season. NEW FOLLOW-UP: current-injury-status
+   ingestion (F4 below). Finding 5's fix stands: it is correct per game played and the residual is a missing input. Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
    can never fire. The existing sync test passes only because its fixture invents the field.
    Needs a real bye-week source, which Sleeper does not supply — not a code change.
@@ -190,7 +199,7 @@ Eight findings:
    calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
 3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score
    correlations run 12–14% below target even with the gate closed.
-4. HIGH (mid-season), OPEN — conjugate fix applied in Phase 3 and reverted on real-data evidence (+8.5% bias); blocked on bye modelling, target weight ≈0.49. `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
+4. HIGH (mid-season), OPEN — conjugate fix applied in Phase 3 and reverted on real-data evidence (+8.5% bias); was blocked on bye modelling. TARGET REVISED 0.49 → ≈0.68 (bye-modelling step 5a, 2026-08-28): the 0.49 was measured on bye-contaminated data — each player's bye week sat as a 0 in both the first-five and the weeks-6–11 windows. With the bye week excluded from both windows, which is what the engine now does on the draw side, the same regression (post − prior = w·(pre − prior), slope through the origin, 74 players with ≥4 weeks each side) gives w = 0.68 (QB 0.91, RB 0.85, WR 0.30); the zero-week share becomes 8.1% → 17.6% instead of 9.7% → 25.6% and the weeks-6–11 drop 9% instead of 17%. The two forms already tested sit on OPPOSITE sides of the new target: old n₀=4 gives 0.71 (over by 0.03), conjugate gives 0.81 (over by 0.13). 5c is therefore a genuine recalibration, not a revert-and-reapply of the conjugate form. WR's residual 0.30 is not absence-driven (QB/RB sit at 0.85–0.91 on the same data); it is the `EPISTEMIC_ERROR_RATES` mis-specification, Phase 7's. `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
    precision and the likelihood variance is a 5-sample variance floored at half the prior, not
    `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
    sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
@@ -254,7 +263,7 @@ one-season caveat, "consistency" comment replaced). Player half APPLIED THEN REV
 paired real-data backtest: real-2025 points bias +1.1% → +8.5% (mean z −0.51). Empirical data
 weight after five weeks is ≈0.49 (WR 0.11) vs the conjugate 0.81 — absences (zero-week share
 9.6% → 25.3%) and a mis-specified prior variance. Blocked on bye modelling (Phase 1 #7) and
-Phase 7 re-derivation of `EPISTEMIC_ERROR_RATES`; acceptance target ≈0.49 on that backtest.
+Phase 7 re-derivation of `EPISTEMIC_ERROR_RATES`; acceptance target ≈0.49 on that backtest — REVISED to ≈0.68 once bye weeks are excluded (bye-modelling step 5a; full reasoning under Phase 2 finding 4).
 
 ---
 
@@ -514,3 +523,34 @@ Sleeper's `/state/nfl` rolls to week 15 — NFL 2026 week 14's last game kicks o
 ESPN's published 2026 schedule (`scoreboard?week=15&seasontype=2&dates=2026`, 16 games, fetched
 2026-08-28). The first sync on or after 2026-12-15 will hit the interim refusal. Otherwise any
 time.
+
+### F4 — Ingest current injury status (a player who is out now is not a full-strength draw)
+
+**Origin:** bye-modelling step 5b (2026-08-28). With byes modelled and Phase 2 finding 5 fixed
+(zero weeks no longer scored as games), the paired real-2025 backtest bias runs −1.4% at cp3 but
++1.9%, +3.4%, +6.9% at cp6/9/12. The gradient tracks the prior mean carried by players who are
+out *now* (last two non-bye completed weeks both 0.0): 1.0% of rostered prior mean at cp3, 6.4% at
+cp6, 8.9% at cp9, 8.2% at cp12. Until 5b those zeros were, by accident, the only current-injury
+signal the posterior saw; the engine models injury *onset* (`INJURY_RATES`, `injury_clocks`) but
+nothing tells it a player is already on IR, so from the checkpoint on he is drawn at full strength
+every week. Neither `sync.py` nor `backtest_season.py` reads Sleeper's per-player `injury_status`, although the
+data is there: the committed `sleeper_players_cache.json` carries 110 `IR`, 41 `PUP`, 8 `Out`, 10 `Sus`,
+451 `Questionable` entries (grep, 2026-08-28) and no production module references the key.
+
+**Scope (sized, not implemented):**
+
+| piece | what | size |
+|---|---|---|
+| sync | carry Sleeper `injury_status` (`IR`, `Out`, `Doubtful`, `Questionable`, `PUP`, …) and `injury_start_date` into each baseline (additive fields) | ~10 lines |
+| engine | at sim start, a player with `IR`/`Out`/`PUP` status enters with an `injury_clocks` entry drawn from the existing duration model (`INJURY_DURATION_*`) rather than healthy; `Questionable`/`Doubtful` need a game-time probability or nothing — a source is required, not a guess | ~20 lines |
+| backtest harness | the historical equivalent: a player whose last k completed weeks are 0.0 enters the checkpoint injured (k and the clock draw to be justified against 2025 return times, not tuned to the bias) | ~20 lines |
+| tests | guard: an `IR` player contributes no starter points in week `current_week`; conservation of `injury_clocks` unchanged; goldens move only in fixtures that carry a status (fixture regeneration from `data/`) | small |
+
+**Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, the cp3→cp12 bias
+gradient flattens to within ±1.5 pts across checkpoints (it is 10.7 pts wide after 5b) with
+cover80 not below 0.65, and the empirical data weight (step 5a diagnostic, bye-aware) is
+re-measured — it may move, since currently-out players are in that regression's weeks-6–11 window.
+
+**When:** after bye modelling merges and before Phase 7 recalibrates `EPISTEMIC_ERROR_RATES`,
+because Phase 7 fits rostered-player variance and an unmodelled IR population would be absorbed
+into it as spurious uncertainty. Interacts with F1 only through key names.
