@@ -152,7 +152,7 @@ at 60). The chart's median-cut baseline is dragged by the same zeros:
 | week01 | 178.41 | 178.41 |
 | week06 | **112.82** | 175.50 — 35.7% low |
 
-### 5. `Expected_Points` includes the playoff weeks — **affects every run, including week 1**
+### 5. `Expected_Points` includes the playoff weeks — **FIXED**
 
 `sim_points` accumulates for all 8 teams through weeks 15 and 16, but only 4 teams play a
 semi-final and 2 play the final. `Expected_Points` is reported beside `Expected_Wins`, which
@@ -162,6 +162,21 @@ Every team is credited with roughly two extra weeks of scoring (+327 to +379, ab
 including the four eliminated at week 14 and the team that finished last. Seeding is unaffected —
 the week-14 tiebreak reads `sim_points` before the playoff weeks are added — so this is a
 reporting defect, not a standings one.
+
+**Fixed** by gating the `sim_points` accumulation on `week_num <= REGULAR_SEASON_WEEKS`.
+`week_scores` still carries weeks 15–16, since the playoff rounds are decided on them.
+
+The "seeding is unaffected" claim above was asserted from reading the code; the golden deltas
+then confirmed it empirically. Of `stage_a`'s 17 outputs, **exactly one moved** — `points`.
+`wins`, `trajectories`, `seed_matrix`, `b_playoffs`, `b_champs`, `b_toilets`, `h2h`, `all_play`,
+`pts_against`, `champ_players`, `global_weekly_scores` and `audit_log` are all byte-identical, so
+no standing, seed, playoff berth or championship outcome changed. In the exports, only
+`syndicate_comprehensive_matrix` moved; `syndicate_insights`, `live_season_forecast` and
+`model_learning_report` are untouched.
+
+The size of the move also cross-checks: the mean per-team reduction is −353.73 (week01) and
+−346.87 (week06), against the +327…+379 and +314…+389 excesses measured before the fix. It
+removes the playoff-week contribution and nothing else.
 
 ### 6. A config constant is mutated in place by running the engine — **FIXED**
 
@@ -263,7 +278,7 @@ Minor, and Phase 6's territory rather than Phase 1's. Reported, not fixed.
 | 2 | Fixed, one caveat open (span mismatch) | week06 `stage_b` + `stage_c` |
 | 3 | Fixed | week06 `stage_b` + `stage_c` |
 | 4 | Fixed | week06 `stage_b` + `stage_c` |
-| 5 | Open | both scenarios, `stage_a` + `stage_b` + `stage_c` |
+| 5 | Fixed | both scenarios, `stage_a` (`points` only) + `stage_b` + `stage_c` |
 | 6 | Fixed | none |
 | 7 | Open — needs a bye-week data source Sleeper does not supply | n/a |
 | 8 | Open — reported only, Phase 6 | n/a |

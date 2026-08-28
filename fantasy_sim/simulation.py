@@ -802,7 +802,20 @@ class FantasySimulationEngine:
 
                         total_score = sum(s[1] for s in starters)
                         week_scores[t_name] = total_score
-                        sim_points[t_name] += total_score
+                        # Regular season only. week_scores still carries weeks 15-16 -- the
+                        # playoff rounds are decided on them just below -- but sim_points is
+                        # what becomes the exported Expected_Points, which sits beside
+                        # Expected_Wins, a 14-week figure.
+                        #
+                        # Every team scores a week 15 and a week 16 here, including the four
+                        # eliminated at week 14 and the team that finished last, so folding
+                        # those in credited all 8 teams with roughly two extra weeks of
+                        # scoring (+327 to +379, about 12%) for games six of them never
+                        # played. Seeding was never affected: the week-14 tiebreak below and
+                        # the week 6-10 trade logic both read sim_points before any playoff
+                        # week is added. See AUDIT_PHASE_1_FINDINGS.md finding 5.
+                        if week_num <= REGULAR_SEASON_WEEKS:
+                            sim_points[t_name] += total_score
                         team_starters[t_name] = [(s[2], s[1]) for s in starters]
 
                         if week_idx < 14:
