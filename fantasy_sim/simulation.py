@@ -116,6 +116,21 @@ class FantasySimulationEngine:
                         # tests/test_invariants.py::TestConfigConstantsSurviveARun.
                         self.baselines[p_name] = copy.deepcopy(SIM_CONFIG["KNOWN_MISSING_ASSETS"][p_name])
                         print(f"[INFO] Imputed whitelisted missing asset: {p_name} ({t})")
+                        # The whitelist is hand-typed and drifts from Sleeper's record. The
+                        # roster file is built from that record, so compare against it and
+                        # say so: a wrong team here silently drops the player from his real
+                        # NFL position group and pass-catcher ranking (Phase 3 finding 6).
+                        checks = (
+                            ('team', self.baselines[p_name].get('team'), meta.get('team') or 'FA'),
+                            ('pos', normalize_position(self.baselines[p_name].get('pos', 'FLEX')),
+                             normalize_position(meta.get('pos', 'FLEX'))),
+                        )
+                        for field, listed, actual in checks:
+                            if listed != actual:
+                                logging.warning(
+                                    "KNOWN_MISSING_ASSETS[%r] says %s=%r but the roster (from "
+                                    "Sleeper) says %r. Fix the whitelist entry in config.py.",
+                                    p_name, field, listed, actual)
                     else:
                         missing_players.append((t, p_name, meta['pos']))
 

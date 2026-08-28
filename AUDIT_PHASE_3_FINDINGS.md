@@ -164,13 +164,26 @@ baseline is the WR's — by iteration order, not by design. Byron Murphy's commi
 position and team. Neither is rostered today. `live_rosters.json` is keyed the same way, so the
 engine has no way to distinguish them even if baselines did. **Severity: medium, latent.**
 
-### 6. A rostered player with a zero projection is silently dropped, then hand-imputed with the wrong team
+### 6. A rostered player with a zero projection is silently dropped, then hand-imputed with the wrong team — **PARTLY FIXED (whitelist team + runtime guard); silent drop still open**
 
 Jordyn Tyson (WR) is in the week-1 projection payload with 0 points → `continue` → absent from
 baselines → the engine aborts unless the name is in `KNOWN_MISSING_ASSETS`. His whitelist entry
 says `team: "FA"`. Sleeper's database — committed in `data/` — says **NO**. He therefore gets the
 `FA` environment fallback and no teammate correlation. The drop itself emits nothing; the only
 signal is a crash one stage later, resolved by hand-typing a number. **Severity: medium.**
+
+**Fixed (data + runtime guard).** The whitelist entry now says `team: "NO"`, matching Sleeper pid
+13281 (WR, NO, rookie, `depth_chart_order` 3, `injury_status` Doubtful) and the committed roster
+file; the config comment records the source and marks `mean 6.5` as unverified. The engine now
+compares every imputed whitelist entry's team and (normalised) position against the roster at
+construction and logs a WARNING naming the entry on any mismatch -- the entry is still used as
+written, so the fix lives in `config.py`, not in a silent override. Two tests: the data test
+cross-checks every whitelist entry against both the cache and the roster; the runtime test
+injects a mismatching entry and asserts the warning. Golden movement: both scenarios, one
+player wide (weekly team mean +0.004 / -0.005).
+
+Still open from this finding: the silent `continue` on a zero projection (P5) -- the drop that
+makes the whitelist necessary in the first place.
 
 ### 7. The player cache is never refreshed
 
@@ -282,7 +295,7 @@ half). They should be two commits.
 | 3 | Constants looked up by raw position → anonymous defaults | Medium | 5 rostered DEs now; any CB/S/FB/DT | live now |
 | 4 | `team: null` in baselines | Low | 2 baselines; tolerated by consumers | live, harmless today |
 | 5 | Name-keyed baselines/rosters; duplicates overwrite | Medium | 2 names today; Byron Murphy wrong | latent |
-| 6 | Zero-projection player silently dropped; whitelist team wrong | Medium | Jordyn Tyson's environment/correlation | live now |
+| 6 | Zero-projection player silently dropped; whitelist team wrong — **team fixed + runtime guard; silent drop open** | Medium | Jordyn Tyson's environment/correlation | live now |
 | 7 | Player cache never refreshed | Medium | every name/team/position | grows daily |
 | 8 | Defensive prior fallback 21.5 vs table 22.8 | Low | any team missing from the table | latent |
 | 9 | Weather / injury_status / standings fields never read | Low | wasted calls; unmodelled injuries | — |

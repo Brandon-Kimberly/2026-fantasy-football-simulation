@@ -357,24 +357,71 @@ class TestBaselineIngestion(_BaselineHarness):
              self.assertLogs(level="WARNING"):
             sync.generate_player_baselines(self.SCORING, db, live, "2026", 1)
 
-    def test_known_missing_asset_team_matches_the_player_database(self):
-        """FAILS -- finding 6 (data). The whitelist is the engine's only source for this
-        player; it hard-codes team 'FA', so he gets the FA environment fallback and no
-        teammate correlation, while Sleeper's database -- committed in data/ -- lists NO."""
+    def test_known_missing_asset_matches_the_player_database_and_roster(self):
+        """Regression guard for Phase 3 finding 6 (data). The whitelist is the engine's only
+        baseline for a player Sleeper publishes no projection for, and it is hand-typed. Its
+        team and position must agree with Sleeper's record -- committed in data/ as both the
+        player cache and the roster file -- because the engine reads them for the real-NFL
+        position group and the pass-catcher ranking. Jordyn Tyson's entry said 'FA' while
+        both files said NO; corrected. This test makes the next drift a red test, not a
+        manual audit."""
         import json
-        cache_path = PLAYER_CACHE_FILE
-        if not os.path.exists(cache_path):
-            self.skipTest("player cache not present")
-        cache = json.load(open(cache_path))
+        from fantasy_sim.simulation import normalize_position
+        if not os.path.exists(PLAYER_CACHE_FILE) or not os.path.exists(LIVE_ROSTERS_FILE):
+            self.skipTest("committed data files not present")
+        cache = json.load(open(PLAYER_CACHE_FILE))
+        rosters = json.load(open(LIVE_ROSTERS_FILE))
+        rostered = {p["name"]: p for team in rosters.values() for p in team}
+        checked = 0
         for name, entry in SIM_CONFIG["KNOWN_MISSING_ASSETS"].items():
             first, last = name.split(" ", 1)
             real = [p for p in cache.values() if isinstance(p, dict)
                     and p.get("first_name") == first and p.get("last_name") == last]
-            if not real:
-                continue
-            self.assertEqual(entry["team"], real[0].get("team") or "FA",
-                             "%s: whitelist says %r, Sleeper says %r"
-                             % (name, entry["team"], real[0].get("team")))
+            for source, rec in (("cache", real[0] if real else None), ("roster", rostered.get(name))):
+                if rec is None:
+                    continue
+                checked += 1
+                self.assertEqual(entry["team"], rec.get("team") or "FA",
+                                 "%s: whitelist team %r, %s says %r"
+                                 % (name, entry["team"], source, rec.get("team")))
+                self.assertEqual(normalize_position(entry["pos"]),
+                                 normalize_position(rec.get("position") or rec.get("pos")),
+                                 "%s: whitelist pos %r, %s says %r"
+                                 % (name, entry["pos"], source, rec.get("position") or rec.get("pos")))
+        self.assertGreater(checked, 0, "no whitelisted player could be cross-checked")
+
+    def test_engine_warns_when_a_whitelisted_team_disagrees_with_the_roster(self):
+        """Regression guard for Phase 3 finding 6 (runtime). The engine consults the roster
+        at imputation time and says so when the hand-typed entry disagrees, so the drift is
+        visible on every run, not only when someone re-audits config.py."""
+        from fantasy_sim.simulation import FantasySimulationEngine
+        fs = {
+            LEAGUE_STATE_FILE: {"current_week": 1},
+            LEAGUE_STANDINGS_FILE: {"T": {"remaining_faab": 100}},
+            # stamped for the current week so the Vegas staleness check stays silent and the
+            # only WARNING that can appear is the whitelist one under test
+            VEGAS_FILE: {"_meta": {"week": 1, "source": "odds_api", "fetched_at": "x"}},
+            TEAM_RATINGS_FILE: {}, DEFENSIVE_RATINGS_FILE: {},
+            DEFENSIVE_TIERS_FILE: {"TOP_DEFENSE": [], "BOTTOM_DEFENSE": []},
+            LEAGUE_SCHEDULE_FILE: [], NFL_SCHEDULE_FILE: {}, WEEKLY_ACTUALS_FILE: {},
+            LIVE_ROSTERS_FILE: {"T": [{"name": "Ghost Player", "pos": "WR", "team": "NO"}]},
+            BASELINES_FILE: {},
+        }
+        entry = {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.2, "pos": "WR", "team": "FA", "bye": 0}
+        with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]), \
+             patch.dict(SIM_CONFIG["KNOWN_MISSING_ASSETS"], {"Ghost Player": entry}, clear=True), \
+             self.assertLogs(level="WARNING") as logs:
+            engine = FantasySimulationEngine()
+        self.assertTrue(any("KNOWN_MISSING_ASSETS" in m and "'FA'" in m and "'NO'" in m for m in logs.output),
+                        logs.output)
+        # the entry is used as written (the fix is in config.py, not a silent override) ...
+        self.assertEqual(engine.baselines["Ghost Player"]["team"], "FA")
+        # ... and an agreeing entry is silent.
+        entry_ok = dict(entry, team="NO")
+        with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]), \
+             patch.dict(SIM_CONFIG["KNOWN_MISSING_ASSETS"], {"Ghost Player": entry_ok}, clear=True), \
+             _no_logs(self):
+            FantasySimulationEngine()
 
     def test_espn_blend_is_applied_when_a_match_exists(self):
         """Passes -- locks the blend path the live measurement relied on (97% of rostered

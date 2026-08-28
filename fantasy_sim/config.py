@@ -344,7 +344,16 @@ SIM_CONFIG = {
     # signal (TOP_DEFENSE / BOTTOM_DEFENSE) rather than a separate pass/rush split -- the old
     # hardcoded lists were never actually built from a real pass/rush-specific data source
     # either, so this trades an illusory distinction for a real, if coarser, one.
+    # Hand-typed baselines for rostered players Sleeper publishes no projection for. The
+    # `team` field MUST match Sleeper's record for the player: the engine reads it for the
+    # real-NFL position group (vacated-volume apportionment) and the pass-catcher ranking
+    # (QB correlation), so a wrong team silently drops the player from both. It is checked
+    # against the roster at engine start (a mismatch logs a WARNING) and against the player
+    # cache by tests/test_ingestion.py.
+    #   Jordyn Tyson: WR, NO (Sleeper pid 13281, rookie, depth_chart_order 3). Sleeper's week-1
+    #   projection entry exists but carries an empty stats block, so sync drops him. mean 6.5 is
+    #   UNVERIFIED (carried over); team was 'FA' until Phase 3 finding 6 corrected it to NO.
     "KNOWN_MISSING_ASSETS": {
-        "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "FA", "bye": 0}
+        "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "NO", "bye": 0}
     }
 }

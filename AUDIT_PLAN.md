@@ -230,7 +230,7 @@ Nine findings, plus the bounded `n_0` decision kept separate:
 4. LOW. `team: null` reaches baselines (2 today); consumers tolerate it individually.
 5. MED, latent. Name-keyed baselines/rosters; 2 duplicate names today, last pid wins — Byron
    Murphy's committed baseline is the wrong player's.
-6. MED. Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
+6. MED, PARTLY FIXED (whitelist team corrected to NO; engine warns on whitelist/roster mismatch; the silent drop itself is still open). Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
    where Sleeper says NO (Jordyn Tyson).
 7. MED. Player cache never refreshed after first fetch.
 8. LOW. Defensive prior fallback 21.5 vs prior-table mean 22.8 (and 2025 real 23.0).
