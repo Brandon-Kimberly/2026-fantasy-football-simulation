@@ -227,14 +227,14 @@ Nine findings, plus the bounded `n_0` decision kept separate:
    week's fantasy matchups one index earlier.
 3. MED, FIXED (`normalize_position` moved to config; sync applies it first). `VOLATILITY_CONSTANTS`/`EPISTEMIC_ERROR_RATES` were looked up by raw Sleeper position
    (DE/DT/CB/S/FB) → anonymous defaults. 5 rostered DEs affected today.
-4. LOW. `team: null` reaches baselines (2 today); consumers tolerate it individually.
+4. LOW, FIXED. `team: null` reached baselines (2 today); consumers tolerated it individually.
 5. MED, MITIGATED (sole rostered claimant keeps the plain name, others suffixed `(pid)`, warnings, raise on two rostered; prior blend now pid-tracked). Full rekey tracked as follow-up F1. Name-keyed baselines/rosters; 2 duplicate names today, last pid won — Byron
    Murphy's committed baseline is the wrong player's.
 6. MED, PARTLY FIXED (whitelist team corrected to NO; engine warns on whitelist/roster mismatch; the silent drop itself is still open). Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
    where Sleeper says NO (Jordyn Tyson).
 7. MED, FIXED (refresh past 24h or on force=True; loud on failure). Player cache was never refreshed after first fetch.
-8. LOW. Defensive prior fallback 21.5 vs prior-table mean 22.8 (and 2025 real 23.0).
-9. LOW. Weather, `injury_status`, standings `h2h_wins`/`points_scored` ingested and never read.
+8. LOW, FIXED (fallback derived from the table mean). Defensive prior fallback was 21.5 vs prior-table mean 22.8 (and 2025 real 23.0).
+9. LOW, CLOSED as reported (no code change; `injury_status` is a Phase 4/7 modelling question). Weather, `injury_status`, standings `h2h_wins`/`points_scored` ingested and never read.
 
 `n_0` (bounded piece): the two uses are different constructs — a pseudo-count *is* the
 defensive prior's variance (none is stated), but multiplies an already-stated variance on the

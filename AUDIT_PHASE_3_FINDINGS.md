@@ -164,7 +164,7 @@ raw; the engine normalises on read, as before. Positions with no calibrated cons
 `DEF`, `FLEX`) are summarised in one WARNING per sync. No golden movement (the fixtures' baselines
 are committed; verified).
 
-### 4. `team: null` survives into baselines
+### 4. `team: null` survives into baselines — **FIXED**
 
 `_build_roster_player_entry` documents this exact bug ("`.get('team', 'FA')` does NOT catch an
 explicit None") and fixes it for rosters. `generate_player_baselines` has the same line, unfixed.
@@ -225,6 +225,9 @@ player wide (weekly team mean +0.004 / -0.005).
 Still open from this finding: the silent `continue` on a zero projection (P5) -- the drop that
 makes the whitelist necessary in the first place.
 
+**P5 closed:** the drop now logs a WARNING naming the player, the whitelist, and the team the
+entry must carry. The characterisation test passes as the guard.
+
 ### 7. The player cache is never refreshed — **FIXED**
 
 `update_player_cache` fetches once and reads the file forever. There is no age check, no force
@@ -238,7 +241,7 @@ older than a day (Sleeper's own once-a-day guidance for the 20 MB endpoint) or o
 logs the refresh and its reason at INFO, and on a failed refresh serves the stale file with a
 WARNING stating its age rather than crashing. Client only; no golden movement.
 
-### 8. The defensive prior fallback is on a different scale from the prior table
+### 8. The defensive prior fallback is on a different scale from the prior table — **FIXED (fallback = table mean, derived)**
 
 Teams missing from `PRESEASON_DEFENSIVE_PRIOR` fall back to `LEAGUE_AVG_PPG = 21.5`. The table
 itself averages **22.81**, and real 2025 points allowed averaged **23.01**. A missing team would
@@ -246,7 +249,7 @@ be ranked an above-average defence by construction. All 32 are present, so laten
 the third place (after Phase 2's `22.0` normaliser and the ratings' 22.6) where 21.5 does not
 match the data it stands beside. `LEAGUE_AVG_PPG` has no sourcing comment. **Severity: low.**
 
-### 9. Fields ingested and never read
+### 9. Fields ingested and never read — **CLOSED as reported; no code change**
 
 - **Weather.** Up to ~16 Open-Meteo calls per in-season sync populate `wind_mph` and
   `precip_prob`. The engine reads neither — they appear only in its default dicts.
@@ -346,10 +349,10 @@ passes. Golden movement week06 only: weekly team mean +1.8%, season-points std 1
 | 2 | Failed schedule week → flat week + defensive undercount, silently — **fixed** (recorded in `_meta`, warned) | Medium | that week + defensive ratings | guarded |
 | 2b | Failed league-schedule week shifts every later week's matchups — **fixed** (empty week keeps the index) | High | standings, H2H, playoffs | guarded |
 | 3 | Constants looked up by raw position → anonymous defaults — **fixed** | Medium | 5 rostered DEs; any CB/S/FB/DT | fixed |
-| 4 | `team: null` in baselines | Low | 2 baselines; tolerated by consumers | live, harmless today |
+| 4 | `team: null` in baselines — **fixed** (`or "FA"`) | Low | 2 baselines | fixed |
 | 5 | Name-keyed baselines/rosters; duplicates overwrite — **mitigated: loud, deterministic collision keys + pid-tracked prior; rekey = F1** | Medium | 2 names today | guarded |
 | 6 | Zero-projection player silently dropped; whitelist team wrong — **team fixed + runtime guard; silent drop open** | Medium | Jordyn Tyson's environment/correlation | live now |
 | 7 | Player cache never refreshed — **fixed** (24h max age, force, loud failure) | Medium | every name/team/position | fixed |
-| 8 | Defensive prior fallback 21.5 vs table 22.8 | Low | any team missing from the table | latent |
-| 9 | Weather / injury_status / standings fields never read | Low | wasted calls; unmodelled injuries | — |
+| 8 | Defensive prior fallback 21.5 vs table 22.8 — **fixed** (fallback derived from the table mean, announced) | Low | any team missing from the table | fixed |
+| 9 | Weather / injury_status / standings fields never read — **closed as reported**; `injury_status` is a modelling decision for Phase 4/7, not ingestion | Low | wasted calls; unmodelled injuries | — |
 | n₀ | Two different constructs sharing a number; defensive n₀ 3× too trusting | High (bounded piece) | posterior widths; in-season defensive tiers | in-season |

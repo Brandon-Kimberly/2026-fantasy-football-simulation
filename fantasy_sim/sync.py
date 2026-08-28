@@ -143,11 +143,22 @@ def generate_defensive_ratings(completed_results):
     for team, pts_allowed in completed_results:
         per_team_allowed.setdefault(team, []).append(pts_allowed)
 
+    # A team missing from the prior table gets the TABLE's own mean, not LEAGUE_AVG_PPG: the
+    # table averages ~22.8 (and real 2025 points allowed 23.0) against 21.5, so the old
+    # fallback would have ranked a missing team as an above-average defence by construction
+    # (Phase 3 finding 8). LEAGUE_AVG_PPG remains the fallback only when the table is empty.
+    table_mean = (sum(PRESEASON_DEFENSIVE_PRIOR.values()) / len(PRESEASON_DEFENSIVE_PRIOR)
+                  if PRESEASON_DEFENSIVE_PRIOR else LEAGUE_AVG_PPG)
+    missing = [t for t in NFL_TEAM_ABBREVIATIONS.values() if t not in PRESEASON_DEFENSIVE_PRIOR]
+    if missing and PRESEASON_DEFENSIVE_PRIOR:
+        logging.warning("DEFENSIVE RATINGS: %d teams missing from PRESEASON_DEFENSIVE_PRIOR use the "
+                        "table mean %.2f as their prior: %s", len(missing), table_mean, ", ".join(missing))
+
     ratings = {}
     for team in NFL_TEAM_ABBREVIATIONS.values():
         samples = per_team_allowed.get(team, [])
         n = len(samples)
-        prior = PRESEASON_DEFENSIVE_PRIOR.get(team, LEAGUE_AVG_PPG)
+        prior = PRESEASON_DEFENSIVE_PRIOR.get(team, table_mean)
         if n == 0:
             estimate = prior
         else:
@@ -426,13 +437,18 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
 
     baselines = {}
     unconstrained_positions = {}
+    rostered_names = {p.get("name") for team in (live_rosters or {}).values() for p in team}
     for pid, proj_data in projections.items():
         player = players_db.get(str(pid))
         if not player: continue
 
         name = keys[str(pid)]
         raw_pos = player.get("position", "FLEX")
-        team = player.get("team", "FA")
+        # `or "FA"`, not a .get default: Sleeper sends an explicit null team for anyone not on
+        # an active roster, and .get's default only covers a MISSING key. Same bug
+        # _build_roster_player_entry documents; it had been fixed there and not here
+        # (Phase 3 finding 4).
+        team = player.get("team") or "FA"
         stats_dict = proj_data.get("stats", proj_data)
 
         games_played = stats_dict.get("gp", 16.0) if fallback_season else 1.0
@@ -442,7 +458,18 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         if total_pts <= 0.0: total_pts = stats_dict.get("pts_half_ppr", stats_dict.get("pts_ppr", stats_dict.get("pts_std", 0.0)))
 
         sleeper_weekly_mean = round(total_pts / games_played, 2)
-        if sleeper_weekly_mean <= 0.0: continue
+        if sleeper_weekly_mean <= 0.0:
+            if name in rostered_names:
+                # A rostered player with no projection has no baseline; the engine aborts on
+                # him unless KNOWN_MISSING_ASSETS carries a hand-typed entry. That used to
+                # happen silently, and the only signal was the crash one stage later
+                # (Phase 3 finding 6 / inventory P5).
+                logging.warning(
+                    "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper projection "
+                    "and is NOT in baselines. The engine will abort on him unless "
+                    "SIM_CONFIG['KNOWN_MISSING_ASSETS'] carries an entry (team must match: %s).",
+                    name, raw_pos, team, team)
+            continue
 
         # Multi-source blend: if ESPN has an independent projection for this player this week,
         # average the two sources instead of trusting Sleeper alone, and use how much the two

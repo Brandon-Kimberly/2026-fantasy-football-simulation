@@ -358,10 +358,10 @@ class TestBaselineIngestion(_BaselineHarness):
                                    % (out["B Back"]["std_epistemic"] / 6.0, EPISTEMIC_ERROR_RATES["RB"]))
 
     def test_explicit_none_team_is_stored_as_fa(self):
-        """FAILS -- finding 4. _build_roster_player_entry documents exactly this bug for
-        rosters (`.get('team', 'FA')` does not catch an explicit null) and fixes it there;
-        generate_player_baselines has the same line and does not. Two baselines in the
-        committed data carry team: null."""
+        """Regression guard for Phase 3 finding 4. _build_roster_player_entry documents exactly
+        this bug for rosters (`.get('team', 'FA')` does not catch an explicit null) and fixed
+        it there; generate_player_baselines had the same line unfixed, and two committed
+        baselines carried team: null."""
         db = {"1": {"first_name": "Free", "last_name": "Agent", "position": "WR", "team": None}}
         out, _ = self._run(db, {"1": {"stats": {"rush_yd": 50.0}}})
         self.assertEqual(out["Free Agent"]["team"], "FA")
@@ -450,10 +450,11 @@ class TestBaselineIngestion(_BaselineHarness):
         self.assertEqual(scores, {"Byron Murphy": 8.0, "Byron Murphy (2)": 4.0})
 
     def test_rostered_player_with_no_projection_is_loud(self):
-        """FAILS -- finding 6. A rostered player whose projection totals 0 (today: Jordyn
-        Tyson, WR/NO, present in the payload with 0 points) is skipped with `continue`. The
-        engine then aborts unless the name is hand-typed into KNOWN_MISSING_ASSETS -- whose
-        entry for him says team 'FA' although Sleeper says NO. The drop itself is silent."""
+        """Regression guard for Phase 3 finding 6 / inventory P5. A rostered player whose
+        projection totals 0 (today: Jordyn Tyson, WR/NO, present in the payload with an empty
+        stats block) is skipped. The engine then aborts unless the name is hand-typed into
+        KNOWN_MISSING_ASSETS. The drop used to be silent; it now warns, naming the player,
+        the whitelist, and the team the entry must carry."""
         db = {"1": {"first_name": "Jordyn", "last_name": "Tyson", "position": "WR", "team": "NO"}}
         live = {"T": [{"name": "Jordyn Tyson", "pos": "WR", "team": "NO"}]}
         saved, fake_save = _capture_saves()
@@ -598,13 +599,23 @@ class TestDefensiveRatingShrinkage(unittest.TestCase):
             prev = est
 
     def test_prior_fallback_is_on_the_same_scale_as_the_prior_table(self):
-        """FAILS -- finding 8. A team missing from PRESEASON_DEFENSIVE_PRIOR falls back to
-        LEAGUE_AVG_PPG = 21.5, but the table itself averages 22.72 (and real 2025 points
-        allowed averaged 23.01). The fallback would rank such a team as an above-average
-        defence by construction. All 32 teams are present today, so this is latent."""
-        table_mean = sum(PRESEASON_DEFENSIVE_PRIOR.values()) / len(PRESEASON_DEFENSIVE_PRIOR)
-        self.assertAlmostEqual(LEAGUE_AVG_PPG, table_mean, delta=0.5,
-                               msg="fallback %.2f vs prior-table mean %.2f" % (LEAGUE_AVG_PPG, table_mean))
+        """Regression guard for Phase 3 finding 8. A team missing from PRESEASON_DEFENSIVE_PRIOR
+        used to fall back to LEAGUE_AVG_PPG = 21.5 while the table averages ~22.8 (and real
+        2025 points allowed 23.0), ranking the missing team as an above-average defence by
+        construction. The fallback is now the table's own mean -- derived, not another
+        hardcoded constant -- and is announced. LEAGUE_AVG_PPG remains the fallback only when
+        the table is empty (test_sync covers that path)."""
+        table = dict(PRESEASON_DEFENSIVE_PRIOR)
+        table.pop("ARI")
+        table_mean = sum(table.values()) / len(table)
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "PRESEASON_DEFENSIVE_PRIOR", table), \
+             self.assertLogs(level="WARNING") as logs:
+            ratings, _ = sync.generate_defensive_ratings([])
+        self.assertAlmostEqual(ratings["ARI"]["points_allowed_estimate"], table_mean, places=2)
+        self.assertNotAlmostEqual(ratings["ARI"]["points_allowed_estimate"], LEAGUE_AVG_PPG, places=1)
+        self.assertTrue(any("ARI" in m for m in logs.output))
 
 
 # ------------------------------------------------------------------------------ live
