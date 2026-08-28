@@ -20,6 +20,7 @@ from fantasy_sim.config import (
     BASE_URL, LEAGUE_ID, TEAM_NAME_MAP, ODDS_API_KEY, LEAGUE_AVG_PPG, DEF_RATING_SHRINKAGE_N0,
     PRESEASON_DEFENSIVE_PRIOR, NFL_TEAM_ABBREVIATIONS, OUTDOOR_STADIUMS, WEEK_1_VERIFIED_VEGAS,
     DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
+    derive_bye_weeks,
 )
 from fantasy_sim.storage import (
     PLAYER_CACHE_FILE, VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
@@ -108,7 +109,16 @@ def generate_nfl_schedule(current_nfl_week=1):
         if 1 in failed_weeks:
             logging.warning("NFL SCHEDULE: week 1 populated from the verified preseason table.")
 
-    nfl_schedule["_meta"] = {"failed_weeks": failed_weeks}
+    # Bye weeks, derived from the pairings (config.derive_bye_weeks): the one usable week a
+    # team appears in no game. Written into _meta so baselines, the roster and the engine's
+    # whitelist imputation all read one value. Teams with no derivable bye are announced.
+    byes = derive_bye_weeks(nfl_schedule, failed_weeks)
+    missing_bye = [t for t in NFL_TEAM_ABBREVIATIONS.values() if t not in byes]
+    if missing_bye:
+        logging.warning("NFL SCHEDULE: no single bye week derivable for %d teams (absent from 0 or "
+                        "several usable weeks; failed_weeks=%s): %s. Their players get bye 0 (never on bye).",
+                        len(missing_bye), failed_weeks, ", ".join(missing_bye))
+    nfl_schedule["_meta"] = {"failed_weeks": failed_weeks, "byes": byes}
     save_json(NFL_SCHEDULE_FILE, nfl_schedule)
 
     return completed_results
@@ -388,7 +398,7 @@ def resolve_player_keys(pids, players_db, rostered_pids=None):
 
 
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
-                              rostered_pids=None):
+                              rostered_pids=None, byes=None):
     existing_baselines = {}
     if os.path.exists(BASELINES_FILE):
         try:
@@ -526,7 +536,9 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         baselines[name] = {
             "pos": raw_pos, "mean": final_mean,
             "std_aleatoric": std_aleatoric, "std_epistemic": std_epistemic,
-            "bye": player.get("team_bye", 0), "team": team,
+            # From the NFL schedule (config.derive_bye_weeks), not from Sleeper: its payload
+            # has no bye field, which is why this was 0 for every player until the bye work.
+            "bye": (byes or {}).get(team, 0), "team": team,
             # Sleeper's id, so the prior blend above can follow this player across a name-key
             # change. The engine does not read it.
             "player_id": str(pid),
@@ -694,9 +706,12 @@ def sync_all(sharp_polling=False):
     generate_league_schedule(roster_map)
     completed_results = generate_nfl_schedule(current_nfl_week)
     generate_defensive_ratings(completed_results)
+    # Bye weeks come from the schedule just written (its _meta.byes), so every baseline
+    # carries the same value the engine will read.
+    byes = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("byes", {})
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
     generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
-                              rostered_pids=rostered_pids)
+                              rostered_pids=rostered_pids, byes=byes)
     fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling)
 
     all_weeks_actuals = {}

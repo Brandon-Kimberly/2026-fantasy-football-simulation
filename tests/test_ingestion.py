@@ -618,6 +618,90 @@ class TestDefensiveRatingShrinkage(unittest.TestCase):
         self.assertTrue(any("ARI" in m for m in logs.output))
 
 
+# ---------------------------------------------------------------------- bye weeks (step 1)
+class TestByeWeekDerivation(unittest.TestCase):
+    """Bye modelling, step 1: the data source. Sleeper's payload has no bye field (Phase 1
+    finding 7) and ESPN's team endpoint returns None; the scoreboard pairings sync already
+    fetches make it derivable. On the committed 2026 schedule every team is absent from
+    exactly one week in 5-14 (32/32), and the same holds for 2025."""
+
+    def _schedule(self, absent_by_week):
+        from fantasy_sim.config import NFL_TEAMS
+        sched = {}
+        for w in range(1, 19):
+            playing = [t for t in NFL_TEAMS if t not in absent_by_week.get(w, ())]
+            sched[str(w)] = {t: playing[(i + 1) % len(playing)] for i, t in enumerate(playing)}
+        return sched
+
+    def test_bye_is_the_one_week_a_team_appears_in_no_pairing(self):
+        from fantasy_sim.config import derive_bye_weeks
+        byes = derive_bye_weeks(self._schedule({6: ("DET", "MIN"), 9: ("KC",)}))
+        self.assertEqual(byes["DET"], 6)
+        self.assertEqual(byes["MIN"], 6)
+        self.assertEqual(byes["KC"], 9)
+        self.assertNotIn("BUF", byes)
+
+    def test_a_failed_fetch_week_is_not_a_bye(self):
+        """Week 7 failed (empty) AND DET is genuinely off in week 6: without the exclusion
+        DET would be absent from two weeks and get no bye; with it, week 6 stands."""
+        from fantasy_sim.config import derive_bye_weeks
+        sched = self._schedule({6: ("DET",)})
+        sched["7"] = {}
+        self.assertNotIn("DET", derive_bye_weeks(sched))            # ambiguous without the record
+        self.assertEqual(derive_bye_weeks(sched, failed_weeks=[7])["DET"], 6)
+
+    def test_ambiguous_teams_get_no_bye_rather_than_a_guess(self):
+        from fantasy_sim.config import derive_bye_weeks
+        byes = derive_bye_weeks(self._schedule({6: ("DET",), 11: ("DET",)}))
+        self.assertNotIn("DET", byes)
+
+    def test_committed_2026_schedule_yields_one_bye_per_team(self):
+        from fantasy_sim.config import NFL_TEAMS, derive_bye_weeks
+        if not os.path.exists(NFL_SCHEDULE_FILE):
+            self.skipTest("no synced schedule on disk")
+        import json
+        sched = json.load(open(NFL_SCHEDULE_FILE))
+        byes = derive_bye_weeks(sched, sched.get("_meta", {}).get("failed_weeks", []))
+        self.assertEqual(sorted(byes), sorted(NFL_TEAMS))
+        self.assertTrue(all(5 <= w <= 14 for w in byes.values()), byes)
+
+    def test_generate_nfl_schedule_records_byes_and_warns_on_the_underivable(self):
+        saved, fake_save = _capture_saves()
+
+        def scoreboard(url, timeout=5):
+            wk = int(url.split("week=")[1].split("&")[0])
+            m = MagicMock()
+            m.status_code = 200
+            # DET plays CHI every week except 6 (both absent); everyone else absent always
+            m.json.return_value = {"events": []} if wk == 6 else {"events": [{"competitions": [{
+                "competitors": [{"team": {"abbreviation": "DET"}, "score": "0"}, {"team": {"abbreviation": "CHI"}, "score": "0"}],
+                "status": {"type": {"completed": False}}}]}]}
+            return m
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.requests, "get", side_effect=scoreboard), \
+             self.assertLogs(level="WARNING") as logs:
+            sync.generate_nfl_schedule(1)
+        meta = saved[os.path.basename(NFL_SCHEDULE_FILE)]["_meta"]
+        self.assertEqual(meta["byes"], {"DET": 6, "CHI": 6})
+        self.assertTrue(any("no single bye week derivable" in m for m in logs.output))
+
+    def test_baselines_carry_the_schedule_bye(self):
+        db = {"1": {"first_name": "Amon-Ra", "last_name": "St. Brown", "position": "WR", "team": "DET"},
+              "2": {"first_name": "Free", "last_name": "Agent", "position": "WR", "team": None}}
+        proj = {"1": {"stats": {"rush_yd": 100.0}}, "2": {"stats": {"rush_yd": 50.0}}}
+        saved, fake_save = _capture_saves()
+        weekly = MagicMock()
+        weekly.status_code = 200
+        weekly.json.return_value = proj
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.os.path, "exists", return_value=False), \
+             patch.object(sync.requests, "get", return_value=weekly), \
+             patch.object(sync, "fetch_espn_projections", return_value={}):
+            out = sync.generate_player_baselines({"rush_yd": 0.1}, db, {}, "2026", 1, byes={"DET": 6})
+        self.assertEqual(out["Amon-Ra St. Brown"]["bye"], 6)
+        self.assertEqual(out["Free Agent"]["bye"], 0)
+
+
 # ------------------------------------------------------------------------------ live
 @unittest.skipUnless(os.environ.get("RUN_LIVE_INGESTION_TESTS") == "1",
                      "set RUN_LIVE_INGESTION_TESTS=1 to hit Sleeper/ESPN")

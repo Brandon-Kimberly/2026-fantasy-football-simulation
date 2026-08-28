@@ -242,6 +242,31 @@ def normalize_position(raw_pos):
     return 'FLEX'
 
 
+def derive_bye_weeks(nfl_schedule, failed_weeks=()):
+    """{team_abbr: bye_week} from a week-keyed NFL schedule ({week: {team: opponent}}).
+
+    A team's bye is the one regular-season week it appears in no pairing. Sleeper's player
+    payload carries no bye field at all (Phase 1 finding 7: `team_bye` is absent from every
+    one of 12,225 records), and ESPN's team endpoint returns byeWeek: None -- but the
+    scoreboard pairings sync already fetches for every week make the bye derivable: on the
+    2026 schedule every one of the 32 teams is absent from exactly one week in 5-14, and the
+    same holds for 2025. Weeks in `failed_weeks` (a fetch that failed, recorded by
+    generate_nfl_schedule) are excluded: absence from a week nobody could fetch is not a bye.
+
+    A team absent from zero or several usable weeks gets NO bye (0) -- it is not guessed --
+    and the caller is expected to warn. Shared by sync (which writes the value into every
+    baseline) and the engine (which reads it when imputing a whitelisted player)."""
+    failed = {int(w) for w in failed_weeks}
+    usable = [w for w in nfl_schedule if w != "_meta" and int(w) not in failed and 1 <= int(w) <= 18]
+    absent = {}
+    for w in usable:
+        playing = set(nfl_schedule[w].keys())
+        for team in NFL_TEAMS:
+            if team not in playing:
+                absent.setdefault(team, []).append(int(w))
+    return {team: weeks[0] for team, weeks in absent.items() if len(weeks) == 1}
+
+
 # ==============================================================================
 # ROSTER FORMAT
 # ==============================================================================

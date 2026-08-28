@@ -108,6 +108,13 @@ class FantasySimulationEngine:
                         # the engine in a loop and were exposed. See
                         # tests/test_invariants.py::TestConfigConstantsSurviveARun.
                         self.baselines[p_name] = copy.deepcopy(SIM_CONFIG["KNOWN_MISSING_ASSETS"][p_name])
+                        # The whitelist has no bye field worth trusting; take it from what
+                        # sync wrote into nfl_schedule.json's _meta.byes, the same value every
+                        # other baseline carries. Read, never re-derived here: sync is the one
+                        # derivation point, so a schedule file written before the bye work
+                        # (the golden fixtures) yields bye 0 -- exactly as its baselines do.
+                        byes = self.nfl_schedule.get('_meta', {}).get('byes', {}) if isinstance(self.nfl_schedule, dict) else {}
+                        self.baselines[p_name]['bye'] = byes.get(self.baselines[p_name].get('team'), 0)
                         print(f"[INFO] Imputed whitelisted missing asset: {p_name} ({t})")
                         # The whitelist is hand-typed and drifts from Sleeper's record. The
                         # roster file is built from that record, so compare against it and
