@@ -52,6 +52,11 @@ These are non-negotiable and exist because each was learned the hard way on this
    cause before editing either side. Loosening an assertion to make a suite green is a
    regression in disguise.
 
+8. **Every phase branches from `main`, never from another phase's branch.** After a phase
+   merges, delete its branch. If `git log <new-branch> --oneline` shows commits from a
+   different `audit/phase-N-*` branch, the branch point was wrong — stop and re-branch from
+   `main` before doing any work.
+
 ## Deliberate decisions — do not "fix" these
 
 Each of these looks like a defect and is not. Changing any of them requires explicit discussion.
