@@ -290,7 +290,7 @@ Findings:
    `MANAGER_PROFILES['trade_will']` therefore has no observable effect.
 2. MED (HIGH if 1 is fixed). A completed trade shrinks the rich roster by one (gives two,
    receives one, drops nothing); the desperate side is conserved. Reproduced on a crafted league.
-3. MED-HIGH. Won streamers are valued by league-wide bid rank (12.0, 11.5, …) regardless of
+3. MED-HIGH, FIXED (capped at the position's data-derived replacement level; backtest +1.1% → +1.1%, production-like −0.43%). Won streamers were valued by league-wide bid rank (12.0, 11.5, …) regardless of
    position; a rank-1 streamer beats the replacement level everywhere but QB and out-projects
    105 of 156 rostered players. A roster hole at DB/DL/TE/K is an upgrade for ~3.5 FAAB.
 4. LOW, latent. A streamer won for next week's hole is discarded (won_streamers is rebuilt

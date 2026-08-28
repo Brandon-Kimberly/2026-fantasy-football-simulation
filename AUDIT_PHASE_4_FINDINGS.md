@@ -80,7 +80,7 @@ point it starts injecting streamers — which, per finding 3, may *help* it. Als
 the traded players' entries stay in `sim_meta[r_team]` (stale, harmless). **Severity: medium
 today** (few trades complete), **high if finding 1 is fixed** (trades become frequent).
 
-### 3. A won streamer is valued by league-wide bid rank, not by position — and beats real starters
+### 3. A won streamer is valued by league-wide bid rank, not by position — and beats real starters — **FIXED**
 
 ```python
 available_streamers = [max(4.0, 12.0 - (i * 0.5)) for i in range(...)]   # by bid rank
@@ -109,6 +109,23 @@ medium-high**: it rewards the thing streaming is meant to penalise, and it inter
 finding 2 (a shrinking roster becomes a streamer factory). Fixing it moves `stage_a` wherever a
 streamer starts — most sims on both fixtures.
 
+**Fixed.** A won streamer is capped at its position's replacement level at the point it fills a
+slot (where the position is known) — but **only where that replacement level was computed from
+real players**. `_calc_replacement_levels` now records which positions had data; a position
+absent from the baseline pool keeps the ladder value rather than being pinned to the unverified
+4.0 default.
+
+That qualifier came from the backtest, run as insurance although the change touches no baseline
+computation. The first version (cap unconditionally) moved the real-2025 points bias from +1.1%
+to **−5.2%** (mean z +0.33, ~5 SE) — not because the cap is wrong, but because the 2025 rosters
+have no DB/DL/LB players at all (team-DEF era), so every IDP slot is a streamer every week and
+the cap pinned all of them to 4.0. The tightened version leaves the backtest at **+1.1% → +1.1%**
+(cp3 +1.19 → +1.24 pts; the rest identical). Production-like effect, isolated at 400 seasons on
+the week01 fixture: weekly team mean 175.71 → 174.95, **−0.43%**. The 30-season golden
+summaries show +1.3% at week01 — that is RNG reshuffle (the trade block's `rand()` calls depend
+on the standings, which the cap perturbs from week 6 on), not the cap; see the golden-master
+docstring on summary size vs. interpretive precision.
+
 ### 4. Latent: a won streamer is discarded if the hole is next week's, and the FAAB is still spent
 
 `won_streamers` is rebuilt empty every week, but needs are `max(this week, next week)` and the
@@ -135,7 +152,7 @@ the two absence-blocked Phase 2 findings.
 |---|---|---|---|---|
 | 1 | Trades effectively never complete; `trade_will` inert | Medium | manager model claims; nothing distributional today | `stage_a`, any scenario with a completed trade |
 | 2 | Rich roster −1 per completed trade | Medium → high if 1 is fixed | roster size, streamer injection | `stage_a`, same |
-| 3 | Streamer value by bid rank beats real starters | Medium-high | any team-week with a hole (~1/week) | `stage_a`, both scenarios |
+| 3 | Streamer value by bid rank beats real starters — **fixed** (capped at data-derived replacement level; backtest neutral, −0.43% production-like) | Medium-high | any team-week with a hole | `stage_a`, both |
 | 4 | Won streamer discarded when the hole is next week (latent) | Low → medium with byes | FAAB, streamers | none today |
 | 5 | Cosmetic notes | — | — | — |
 

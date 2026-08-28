@@ -186,12 +186,13 @@ class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
 
 class TestStreamerValueBound(unittest.TestCase):
     def test_a_won_streamer_is_never_worth_more_than_the_replacement_level(self):
-        """FAILS -- finding 3. Won streamers take their mean from a league-wide bid ladder
-        (12.0, 11.5, 11.0, ... floor 4.0) regardless of position. Replacement level is 8.4
-        at DL, 7.7 at TE, 8.8 at DB, 10.7 at K; a rank-1 streamer at 12.0 out-projects 105 of
-        156 rostered players. A roster hole at those positions is therefore an UPGRADE for a
-        ~3.5 FAAB bid. Observed through the audit log (sim 0), whose starters carry the
-        streamer's expected value."""
+        """Regression guard for Phase 4 finding 3. Won streamers used to take their mean from
+        a league-wide bid ladder (12.0, 11.5, 11.0, ... floor 4.0) regardless of position.
+        Replacement level is 8.4 at DL, 7.7 at TE, 8.8 at DB, 10.7 at K; a rank-1 streamer at
+        12.0 out-projected 105 of 156 rostered players, so a roster hole at those positions
+        was an UPGRADE for a ~3.5 FAAB bid. A won streamer is now capped at the position's
+        replacement level where it fills the slot. Observed through the audit log (sim 0),
+        whose starters carry the streamer's expected value."""
         run = _FixtureRun.get("week01")
         worst = []
         for wk, wd in run.args["audit_log"]["weeks"].items():

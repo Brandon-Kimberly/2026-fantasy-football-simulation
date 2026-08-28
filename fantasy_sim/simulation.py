@@ -246,11 +246,23 @@ class FantasySimulationEngine:
         
         depths = {'QB': 10, 'RB': 24, 'WR': 24, 'TE': 12, 'K': 8, 'DL': 10, 'LB': 10, 'DB': 10}
         replacements = {}
+        # Positions whose replacement level came from real players in the baseline pool, as
+        # opposed to the unverified 4.0 default a position with no players falls to. The
+        # streamer cap (run_simulation) applies only to the former: capping at a defaulted
+        # level would pin every streamer at that position to a guess -- exactly what happened
+        # in the 2025 backtest, whose team-DEF-era rosters have no DB/DL/LB at all.
+        self.replacement_level_from_data = set()
         for pos, vals in means.items():
             vals.sort(reverse=True)
             idx = min(depths[pos], len(vals)-1) if vals else 0
-            replacements[pos] = vals[idx] if len(vals) > idx else 4.0
+            if len(vals) > idx:
+                replacements[pos] = vals[idx]
+                self.replacement_level_from_data.add(pos)
+            else:
+                replacements[pos] = 4.0  # UNVERIFIED default: no players at this position in the pool
         replacements['FLEX'] = min(replacements['RB'], replacements['WR'])
+        if 'RB' in self.replacement_level_from_data and 'WR' in self.replacement_level_from_data:
+            self.replacement_level_from_data.add('FLEX')
         return replacements
 
     def _build_pass_catcher_hierarchy(self):
@@ -915,7 +927,22 @@ class FantasySimulationEngine:
                         streamers_used = {k: 0 for k in BASE_STREAMER_MEANS.keys()}
                         for po in unfilled_slots:
                             if won_streamers[t_name]:
+                                # A won streamer's value comes from the league-wide bid
+                                # ladder (12.0, 11.5, ...), assigned before anyone knows which
+                                # slot it will fill. Cap it here, where the position IS known,
+                                # at that position's replacement level -- the projection of a
+                                # freely available player. Uncapped, a rank-1 streamer (12.0)
+                                # out-projected the replacement level at every position but
+                                # QB and 105 of 156 rostered players, so a roster hole at
+                                # DB/DL/TE/K was an UPGRADE for a ~3.5 FAAB bid.
+                                # AUDIT_PHASE_4_FINDINGS.md finding 3. The cap applies only
+                                # where the replacement level was computed from real players
+                                # (see _calc_replacement_levels); a position absent from the
+                                # baseline pool keeps the ladder value rather than being
+                                # pinned to the unverified 4.0 default.
                                 m_str = won_streamers[t_name].pop(0)
+                                if po in self.replacement_level_from_data:
+                                    m_str = min(m_str, self.replacement_levels[po])
                             else:
                                 m_str = max(self.replacement_levels.get(po, 4.0) * 0.8, BASE_STREAMER_MEANS.get(po, 8.0) * (SIM_CONFIG['STREAMER_DECAY_RATE'] ** streamers_used[po]))
                             s_score = max(0.0, np.random.normal(m_str, 2.2))
