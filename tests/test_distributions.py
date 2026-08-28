@@ -51,12 +51,11 @@ from fantasy_sim.storage import (
 )
 from tests.golden_master import STAGE_A_ARG_NAMES, _sandbox
 
-# The engine's environment normaliser. It is an inline literal in run_simulation
-# (`v_tot / 22.0`, twice); it is named here so the tests can say what they are comparing
-# against, and so a future move of that literal into config.py has one place to update.
-ENV_NORMALISER = 22.0
-ENV_NOISE_SD = 0.10          # env_var ~ N(v_tot / 22, 0.10), inline in run_simulation
-FA_FALLBACK_TOTAL = 21.5     # the total assigned when a player's team is FA / has no opponent
+ENV_NOISE_SD = 0.10          # env_var ~ N(v_tot / env_norm, 0.10), inline in run_simulation
+# In a controlled season every player is on team FA, so every environment is the 21.5
+# fallback, the normaliser (mean implied total over the simulated schedule) is 21.5, and the
+# environment multiplier is exactly 1. Before the finding-1 fix it was 21.5 / 22.0 = 0.977.
+CONTROLLED_ENV_MULTIPLIER = 1.0
 
 TEAMS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 SLOT_POSITIONS = ["QB", "K", "DB", "DL", "LB", "RB", "RB", "RB", "WR", "WR", "WR", "TE", "TE"]
@@ -120,11 +119,11 @@ def controlled_season(mean, std_aleatoric, std_epistemic, sims, roster_override=
     return np.vstack([captured["global_weekly_scores"][t] for t in TEAMS])
 
 
-def player_weekly_var(mean, std_a, v_tot=FA_FALLBACK_TOTAL):
+def player_weekly_var(mean, std_a, e_mu=CONTROLLED_ENV_MULTIPLIER):
     """Var[base * env] for one player: base ~ lognormal(E=mean, Var=std_a^2),
-    env ~ N(v_tot/22, 0.10) independent.
+    env ~ N(e_mu, 0.10) independent.
     Var[BE] = Var[B]Var[E] + Var[B]E[E]^2 + E[B]^2 Var[E]."""
-    e_mu, e_var = v_tot / ENV_NORMALISER, ENV_NOISE_SD ** 2
+    e_var = ENV_NOISE_SD ** 2
     return std_a ** 2 * (e_var + e_mu ** 2) + mean ** 2 * e_var
 
 
@@ -140,10 +139,9 @@ class TestWeeklyDrawMoments(unittest.TestCase):
         cls.W = controlled_season(cls.MEAN, cls.STD_A, std_epistemic=0.0, sims=cls.SIMS)
 
     def test_team_weekly_mean_equals_thirteen_times_the_environment_scaled_player_mean(self):
-        """13 players x mean x (21.5 / 22). The 21.5/22 factor is the FA-fallback environment
-        multiplier and is itself a finding (see TestEnvironmentModel); here it is simply the
-        engine's stated formula, and the lognormal identity is what is under test."""
-        expected = 13 * self.MEAN * (FA_FALLBACK_TOTAL / ENV_NORMALISER)
+        """13 players x mean x 1. Every player is FA so the environment multiplier is exactly
+        1 (see CONTROLLED_ENV_MULTIPLIER); the lognormal identity is what is under test."""
+        expected = 13 * self.MEAN * CONTROLLED_ENV_MULTIPLIER
         se = self.W.std() / np.sqrt(self.W.size)
         self.assertAlmostEqual(float(self.W.mean()), expected, delta=5 * se + 0.05,
                                msg="E[team score] %.3f vs analytic %.3f (SE %.3f): the "
@@ -181,7 +179,7 @@ class TestEpistemicStructure(unittest.TestCase):
         return float(C[~np.eye(W.shape[1], dtype=bool)].mean())
 
     def test_epistemic_draw_is_held_within_a_season(self):
-        e_mu = FA_FALLBACK_TOTAL / ENV_NORMALISER
+        e_mu = CONTROLLED_ENV_MULTIPLIER
         held_var = 13 * self.STD_E ** 2 * e_mu ** 2          # season-level shift, 13 players
         week_var = 13 * player_weekly_var(self.MEAN, self.STD_A)
         predicted_corr = held_var / (held_var + week_var)
@@ -203,7 +201,7 @@ class TestEpistemicStructure(unittest.TestCase):
         for a sum of 14 weeks sharing a shift s per player: Var[sum] = 14 Var[week] +
         14 * 13 * Var[s] per player, so Var[sum]/14 - Var[week] = 13 * Var[s] summed over
         the 13 players."""
-        e_mu = FA_FALLBACK_TOTAL / ENV_NORMALISER
+        e_mu = CONTROLLED_ENV_MULTIPLIER
         predicted_excess = 13 * 13 * self.STD_E ** 2 * e_mu ** 2
         season = self.W_on.sum(axis=1)
         excess = season.var() / REGULAR_SEASON_WEEKS - self.W_on.var()
@@ -284,16 +282,18 @@ class TestCovarianceMatrix(unittest.TestCase):
 
 # ------------------------------------------------------------------- shared game-script z
 class TestSharedGameScript(unittest.TestCase):
-    """In run_simulation, for QB/WR/TE when (v_tot + v_spr) > 23.0 the player's z becomes
-    0.8 * z_corr + 0.6 * shared_z, where shared_z is one N(0,1) per NFL game. That keeps each
-    marginal at unit variance (0.64 + 0.36) but adds 0.36 correlation between EVERY pair of
-    qualifying pass-catchers on the team, on top of whatever the copula set."""
+    """Regression guards for Phase 2 finding 2. run_simulation used to give every QB/WR/TE
+    z = 0.8 * z_corr + 0.6 * shared_z (one N(0,1) per NFL game) whenever total + spread > 23.
+    That kept each marginal at unit variance but added 0.36 correlation between EVERY pair of
+    qualifying pass-catchers on the team, on top of the copula -- overriding the calibrated
+    SIM_CONFIG['CORRELATIONS'] for 44% of team-weeks. The mix has been removed; the copula is
+    the one place correlation is set."""
 
-    def test_the_gate_is_the_opponents_implied_total(self):
-        """Characterises what the gate measures. total + spread is identically the OPPONENT's
-        implied total (for Vegas weeks and for the model's future weeks alike), so the
-        condition is not 'high-scoring game' but 'opponent projected above 23'. Passes; it
-        pins semantics that finding B3 depends on."""
+    def test_total_plus_spread_is_the_opponents_implied_total(self):
+        """Pins a property of the environment model that the removed gate silently depended
+        on: total + spread is identically the OPPONENT's implied total, for Vegas weeks and
+        the model's future weeks alike. Any future 'high-scoring game' condition built on
+        these fields needs to know that."""
         with _sandbox("week01", 1, 1):
             with patch.object(FantasySimulationEngine, "export_and_visualize", lambda s, *a: None):
                 engine = FantasySimulationEngine()
@@ -317,14 +317,14 @@ class TestSharedGameScript(unittest.TestCase):
         self.assertGreater(checked, 300)
 
     def test_wr_wr_covariance_stays_near_its_calibrated_target_when_the_gate_fires(self):
-        """FAILS -- finding B3. SIM_CONFIG['CORRELATIONS']['WR_WR'] = -0.004 was measured
-        on real same-team receiver pairs (backtest_player.analyze_correlations). Two DET
-        receivers, nothing else rostered (the other 11 slots become streamers, whose variance
-        does not depend on the environment), run with the gate ON (opponent total 28) and
-        OFF (opponent total 20). Environment-scaling differences are removed analytically;
-        what remains is 2 * (Cov_on - Cov_off), which under the calibrated target is ~0.
-        The engine injects ~0.32 score correlation instead. Measured through the real
-        run_simulation."""
+        """SIM_CONFIG['CORRELATIONS']['WR_WR'] = -0.004 was measured on real same-team
+        receiver pairs (backtest_player.analyze_correlations). Two DET receivers, nothing else
+        rostered (the other 11 slots become streamers, whose variance does not depend on the
+        environment), run with the opponent's implied total at 28 and at 20 -- the two sides
+        of the removed gate. DET's own total is 24 in both, so the receivers' marginals are
+        identical and 2 * (Cov_28 - Cov_20) must be ~0 under the calibrated target. Before
+        the fix it was +57 (SE 6): the gate injected ~0.32 score correlation. Measured through
+        the real run_simulation."""
         mean, std_a = 20.0, 8.0
         roster = {t: [{"name": "%s_WR1" % t, "pos": "WR", "team": "DET"},
                       {"name": "%s_WR2" % t, "pos": "WR", "team": "DET"}] for t in TEAMS}
@@ -437,26 +437,32 @@ class TestBayesianUpdate(unittest.TestCase):
 # ------------------------------------------------------------------------- environment
 class TestEnvironmentModel(unittest.TestCase):
     def test_environment_multiplier_is_mean_preserving_over_the_schedule(self):
-        """FAILS -- finding A3. Every expected and realised score is multiplied by
-        v_tot / 22.0. For the environment model to leave the calibrated means intact, that
-        multiplier must average 1 over the games actually played. On the week01 fixture's
-        real power/defensive ratings and real schedule it averages 1.028: every player's
-        mean is inflated 2.8% in every non-Vegas week, and the variance budget by +17%.
-        The three constants involved -- the 22.0 normaliser, LEAGUE_AVG_PPG = 21.5, and the
-        ~22.6 mean of the power/defensive ratings -- do not agree."""
+        """Regression guard for Phase 2 finding 1. Every expected and realised score is
+        multiplied by v_tot / env_norm. For the environment model to leave the calibrated
+        means intact, that multiplier must average 1 over the games actually simulated.
+
+        env_norm used to be a hardcoded 22.0, which matched neither LEAGUE_AVG_PPG (21.5)
+        nor the ratings it divided (mean ~22.6): on the week01 fixture the multiplier
+        averaged 1.028 -- every mean inflated 2.8%, every weekly variance 17%. It is now the
+        mean implied total over the simulated schedule, built from the same
+        _compute_week_environment the weekly loop uses, so this holds by construction; the
+        test exists so a future literal cannot creep back in."""
         with _sandbox("week01", 1, 1):
             with patch.object(FantasySimulationEngine, "export_and_visualize", lambda s, *a: None):
                 engine = FantasySimulationEngine()
-        mult = []
-        for wk in range(2, REGULAR_SEASON_WEEKS + 1):
-            for t in NFL_TEAMS:
-                opp = engine.nfl_schedule.get(str(wk), {}).get(t, "FA")
-                mult.append(engine._compute_future_week_matchup_environment(t, opp)["total"] / ENV_NORMALISER)
-        avg = float(np.mean(mult))
-        self.assertAlmostEqual(avg, 1.0, delta=0.01,
-                               msg="mean environment multiplier over weeks 2-14 is %.4f: the "
-                                   "model shifts every calibrated mean by %+.1f%%"
-                                   % (avg, 100 * (avg - 1)))
+        norm = engine._compute_environment_normaliser()
+        self.assertGreater(norm, 15.0)
+        self.assertLess(norm, 30.0)
+        mult = [engine._compute_week_environment(wk, t)["total"] / norm
+                for wk in range(engine.current_week, 17) for t in NFL_TEAMS]
+        self.assertAlmostEqual(float(np.mean(mult)), 1.0, places=9,
+                               msg="mean environment multiplier over the simulated schedule "
+                                   "is %.6f, not 1" % float(np.mean(mult)))
+        # And the regular-season weeks alone, which is where every exported statistic
+        # comes from, must not sit materially off 1 either.
+        reg = [engine._compute_week_environment(wk, t)["total"] / norm
+               for wk in range(engine.current_week, REGULAR_SEASON_WEEKS + 1) for t in NFL_TEAMS]
+        self.assertAlmostEqual(float(np.mean(reg)), 1.0, delta=0.01)
 
 
 if __name__ == "__main__":

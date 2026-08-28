@@ -174,9 +174,9 @@ the hardcoded `v_tot / 22.0` normaliser against a schedule mean of 22.6 (finding
 
 Eight findings:
 
-1. HIGH. Environment multiplier `v_tot / 22.0` averages 1.028 over the real schedule, not 1;
+1. HIGH, FIXED. Environment multiplier `v_tot / 22.0` averaged 1.028 over the real schedule, not 1;
    `22.0`, `LEAGUE_AVG_PPG = 21.5` and the ratings' ~22.6 mean disagree. Every player, every week.
-2. HIGH. `shared_z` gate is literally "opponent implied total > 23" (open 44% of team-weeks) and
+2. HIGH, FIXED (mix removed). `shared_z` gate was literally "opponent implied total > 23" (open 44% of team-weeks) and
    injects +0.32 score correlation into every same-team QB/WR/TE pair, including WR–WR whose
    calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
 3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score

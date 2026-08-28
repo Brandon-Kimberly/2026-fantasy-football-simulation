@@ -81,7 +81,7 @@ mean 2.8% above, and the largest single cause is one hardcoded constant.
 
 ## Findings
 
-### 1. The environment multiplier is not mean-preserving — `v_tot / 22.0` vs a schedule mean of 22.6
+### 1. The environment multiplier is not mean-preserving — `v_tot / 22.0` vs a schedule mean of 22.6 — **FIXED**
 
 Every expected and realised score is multiplied by `v_tot / 22.0` (inline, twice). For that to
 leave calibrated means intact it must average 1 over the games actually played. On the week01
@@ -102,7 +102,19 @@ line, and the backtest CRPS against real points) carries a +2.8% mean and +17% v
 against the calibration it claims to rest on. Fixing it moves `stage_a` hashes in both
 scenarios. **Severity: high** (silent, systematic, contradicts the calibration).
 
-### 2. `shared_z` injects +0.32 correlation into every pass-catcher pair for 44% of team-weeks
+**Fixed.** The normaliser is now `_compute_environment_normaliser()`: the mean implied total
+over every (NFL team, week) the run simulates, built from the same `_compute_week_environment`
+the weekly loop uses (extracted so there is one code path, not a mirror). The multiplier
+therefore averages exactly 1 by construction; the regression test asserts it to 9 places.
+Deterministic, so no RNG order changed.
+
+Observed on regeneration (fixed together with finding 2, so the RNG stream also moved): week01
+weekly team mean 179.9 → 171.7 (**−4.6%**), larger than the league-average 2.8% because rostered
+players concentrate on high-total offences and so sat above the league's mean multiplier; weekly
+sd 34.8 → 32.5 (−6.5%). Every conserved quantity from Phase 1 — win sums, all-play and h2h
+totals, playoff/champ/toilet shares, seed counts — is unchanged.
+
+### 2. `shared_z` injects +0.32 correlation into every pass-catcher pair for 44% of team-weeks — **FIXED**
 
 ```python
 eff_z = (z_corr[idx] * 0.8) + (shared_z * 0.6) if (p_pos in ['WR','TE','QB'] and (v_tot + v_spr) > 23.0) else z_corr[idx]
@@ -133,6 +145,13 @@ target predicts ~0.
 Season-averaged, WR–WR realised correlation is ≈ 0.44 × 0.32 ≈ **0.14 against a calibrated
 −0.004**. `CORRELATIONS` was measured on real data by `backtest_player.analyze_correlations`;
 the engine then overrides it for nearly half the season. **Severity: high.** Moves `stage_a`.
+
+**Fixed** by removing the mix and its per-game draw. The copula is the one place correlation
+is set, and `CORRELATIONS` — measured on real scores — already contains whatever shared
+game-script effect exists in reality. The engine-level test now passes (2·ΔCov within noise of
+0). The gate's semantics are kept pinned by a passing test so any future "high-scoring game"
+condition is built on the right field. Removing the draw shifts the RNG stream, so this
+commit's hash movement is not separable from finding 1's; both are one cause pair by design.
 
 ### 3. Copula targets are applied on `z` but were calibrated on scores — 12–14% attenuation
 
@@ -223,8 +242,8 @@ roster with ≥ 3 same-team pass-catchers).
 
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
-| 1 | Environment normaliser not mean-preserving (+2.8% mean, +17% var) | High | every player, every week, both scenarios | `stage_a`, both |
-| 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
+| 1 | Environment normaliser not mean-preserving (+2.8% mean, +17% var) — **fixed** | High | every player, every week, both scenarios | `stage_a`, both |
+| 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks — **fixed** | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
 | 3 | Copula targets calibrated on scores, applied on `z` (−12–14%) | Low–Med | all correlated pairs | `stage_a`, both |
 | 4 | Bayesian update not conjugate; over-confident posterior | High (mid-season) | every player with completed weeks | week06 `stage_a` |
 | 5 | Zero-score weeks treated as observed | Medium | players with a bye/DNP in history | week06 `stage_a` |

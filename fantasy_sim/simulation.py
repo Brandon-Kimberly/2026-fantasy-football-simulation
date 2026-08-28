@@ -471,8 +471,37 @@ class FantasySimulationEngine:
         game_spread = round(opp_implied - implied_tot, 2)
         return {'total': implied_tot, 'spread': game_spread, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': opp}
 
+    def _compute_week_environment(self, week_num, nfl_team):
+        """The scoring environment one real NFL team faces in one week: Vegas for the current
+        week, the two-sided ratings model for every later week. Extracted from run_simulation
+        so the environment normaliser below can be built from exactly the values the weekly
+        loop will use -- one code path, not a mirror of it."""
+        if week_num == self.current_week:
+            return self.vegas.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
+        opp = self.nfl_schedule.get(str(week_num), {}).get(nfl_team, 'FA')
+        return self._compute_future_week_matchup_environment(nfl_team, opp)
+
+    def _compute_environment_normaliser(self):
+        """Mean implied team total over every (NFL team, week) the simulation will play, weeks
+        current_week..16. The weekly draw scales every player's mean by v_tot / normaliser, so
+        for the environment model to leave the calibrated means intact the multiplier must
+        average 1 over the games actually simulated -- which this makes true by construction.
+
+        Replaces a hardcoded 22.0. That literal matched neither LEAGUE_AVG_PPG (21.5) nor the
+        power/defensive ratings it was dividing (mean ~22.6), so on the real schedule the
+        multiplier averaged 1.028: every calibrated mean inflated 2.8% and every per-player
+        weekly variance 17%, in every week (AUDIT_PHASE_2_FINDINGS.md finding 1). Deterministic
+        -- no RNG -- so computing it up front changes no draw order."""
+        totals = [
+            self._compute_week_environment(week_idx + 1, nfl_team)['total']
+            for week_idx in range(self.current_week - 1, 16)
+            for nfl_team in NFL_TEAMS
+        ]
+        return float(np.mean(totals)) if totals else LEAGUE_AVG_PPG
+
     def run_simulation(self):
         num_batches = SIM_CONFIG["NUM_BATCHES"]
+        env_norm = self._compute_environment_normaliser()
         sims_per_batch = SIM_CONFIG["SIMS_PER_BATCH"]
         total_sims = num_batches * sims_per_batch
 
@@ -534,20 +563,17 @@ class FantasySimulationEngine:
 
                     if sim_counter == 0: audit_log['weeks'][week_num] = {'teams': {}}
 
-                    team_environments = {}
-                    nfl_matchup_variance = {}
-                    for nfl_team in NFL_TEAMS:
-                        if week_num == self.current_week:
-                            vegas_data = self.vegas.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
-                        else:
-                            opp = self.nfl_schedule.get(str(week_num), {}).get(nfl_team, 'FA')
-                            vegas_data = self._compute_future_week_matchup_environment(nfl_team, opp)
-                        
-                        team_environments[nfl_team] = vegas_data
-                        opp = vegas_data.get('opponent', 'FA')
-                        matchup_key = tuple(sorted([nfl_team, opp]))
-                        if matchup_key not in nfl_matchup_variance:
-                            nfl_matchup_variance[matchup_key] = np.random.normal(0, 1.0)
+                    # No per-game "shared_z" draw any more. It used to add 0.6 * N(0,1) per NFL
+                    # game to every QB/WR/TE's z whenever the OPPONENT's implied total exceeded
+                    # 23 (that is what total + spread is) -- 44% of team-weeks on the real
+                    # schedule -- injecting +0.32 score correlation into every same-team
+                    # pass-catcher pair on top of the copula, including WR-WR whose calibrated
+                    # target is -0.004. SIM_CONFIG['CORRELATIONS'] was measured on real scores
+                    # by backtest_player.analyze_correlations and therefore already contains
+                    # whatever shared game-script effect exists; the copula is the one place
+                    # correlation is set. See AUDIT_PHASE_2_FINDINGS.md finding 2.
+                    team_environments = {nfl_team: self._compute_week_environment(week_num, nfl_team)
+                                         for nfl_team in NFL_TEAMS}
 
                     if 6 <= week_num <= 10:
                         standings_order = sorted(self.team_names, key=lambda t: (sim_wins[t], sim_points[t]), reverse=True)
@@ -730,8 +756,7 @@ class FantasySimulationEngine:
                             veg = team_environments.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
                             v_tot, v_spr, v_opp = veg['total'], veg['spread'], veg['opponent']
 
-                            shared_z = nfl_matchup_variance.get(tuple(sorted([nfl_team, v_opp])), 0.0)
-                            eff_z = (z_corr[idx] * 0.8) + (shared_z * 0.6) if (p_pos in ['WR', 'TE', 'QB'] and (v_tot + v_spr) > 23.0) else z_corr[idx]
+                            eff_z = z_corr[idx]
 
                             if mean_val <= 0.01:
                                 base_score = 0.0
@@ -761,9 +786,13 @@ class FantasySimulationEngine:
                                 elif p_pos == 'RB': script_mult -= 0.10
 
                             contingency_pts = contingency_by_player.get(p_name, 0.0)
-                            env_var = float(np.random.normal(v_tot / 22.0, 0.10))
+                            # env_norm is the mean implied total over the simulated schedule
+                            # (see _compute_environment_normaliser), so this multiplier
+                            # averages exactly 1 across the season and the calibrated means
+                            # survive the environment model intact.
+                            env_var = float(np.random.normal(v_tot / env_norm, 0.10))
 
-                            expected_pre = mean_val * (v_tot / 22.0) * script_mult + contingency_pts
+                            expected_pre = mean_val * (v_tot / env_norm) * script_mult + contingency_pts
                             final_score = (base_score + contingency_pts) * env_var * script_mult
                             # Applied AFTER environmental scaling, not to base_score before it,
                             # so this never interferes with the model's designed v_tot/script
