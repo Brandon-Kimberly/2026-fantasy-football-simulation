@@ -109,9 +109,14 @@ therefore averages exactly 1 by construction; the regression test asserts it to 
 Deterministic, so no RNG order changed.
 
 Observed on regeneration (fixed together with finding 2, so the RNG stream also moved): week01
-weekly team mean 179.9 → 171.7 (**−4.6%**), larger than the league-average 2.8% because rostered
-players concentrate on high-total offences and so sat above the league's mean multiplier; weekly
-sd 34.8 → 32.5 (−6.5%). The Phase 1 conserved quantities — win sums, all-play and h2h
+weekly team mean 179.9 → 171.7 (−4.6%) at the golden size of 30 seasons. **That figure is
+mostly noise.** Isolated at 400 seasons: pinning the new normaliser back to 22.0 on the same RNG
+stream gives −2.65% (prediction 22.0/22.63 = −2.78%) for finding 1 alone; finding 2.s removal
+moves the mean +0.27% ± 0.34 (nil, as a unit-variance mix should); total old → new is −2.39%
+(180.05 → 175.75, SE 0.43 each). An earlier draft attributed the gap to rostered players sitting
+on high-total offences; that cannot be right — the normaliser ratio is uniform across players —
+and is withdrawn. The rostered-weighted mean `v_tot` is 23.09 (vs 22.63 league-wide), but that
+affects the level under both normalisers equally, not the change. The Phase 1 conserved quantities — win sums, all-play and h2h
 totals, playoff/champ/toilet shares, seed counts — are **sum-identical, not bit-identical**: the
 arrays themselves (and their `stage_a` hashes) all moved, because different simulations now win.
 Their sums are invariant to any draw by construction (each week awards exactly one decision
