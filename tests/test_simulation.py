@@ -646,18 +646,19 @@ class TestFantasySimulation(unittest.TestCase):
         
         sim = FantasySimulationEngine()
         
-        # Expected Math:
-        # prior_mean = 20.0, prior_var = 2.25
+        # Expected math -- conjugate normal, known observation variance (Phase 3 n_0 decision):
+        # prior_mean = 20.0, prior_var = std_epistemic^2 = 1.5^2 = 2.25
+        # obs_var = std_aleatoric^2 = 2.0^2 = 4.0
         # actuals = [18, 20, 19] -> n = 3, actual_mean = 19.0
-        # raw_actual_var = var([18,20,19]) = 0.666
-        # actual_var = max(0.666, 0.5 * 2.25) = 1.125
-        # n_0 = 4.0
-        # post_var = 1.0 / ((4.0 / 2.25) + (3.0 / 1.125)) = 1.0 / (1.777 + 2.666) = 0.225
-        # post_mean = ((4.0 * 20.0 / 2.25) + (3.0 * 19.0 / 1.125)) * post_var = (35.555 + 50.666) * 0.225 = 19.4
-        
+        # post_precision = 1/2.25 + 3/4.0 = 0.4444 + 0.75 = 1.19444
+        # post_mean = (20/2.25 + 3*19/4.0) / 1.19444 = (8.8889 + 14.25) / 1.19444 = 19.372
+        # post_std  = sqrt(1 / 1.19444) = 0.9150
+        # (The retired n_0 = 4 form gave 19.4 / 0.474: a more prior-anchored mean and a
+        # posterior std about half the conjugate value.)
+
         updated_mean = sim.baselines["QB_1"]["mean"]
-        self.assertAlmostEqual(updated_mean, 19.4, places=1)
-        self.assertAlmostEqual(sim.baselines["QB_1"]["std_epistemic"], np.sqrt(0.225), places=2)
+        self.assertAlmostEqual(updated_mean, 19.372, places=2)
+        self.assertAlmostEqual(sim.baselines["QB_1"]["std_epistemic"], 0.9150, places=3)
 
     def test_faab_bid_never_exceeds_remaining_budget(self):
         """A team with very little FAAB left must never be modeled as bidding more than it has,

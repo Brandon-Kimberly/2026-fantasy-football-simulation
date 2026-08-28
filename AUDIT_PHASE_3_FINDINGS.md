@@ -328,6 +328,14 @@ Both halves move hashes (week06 `stage_a` for the player side; defensive ratings
 once `games_sampled > 0`, so the golden fixtures — all at 0 — would not move for the defensive
 half). They should be two commits.
 
+**Applied — player half.** `_apply_bayesian_updates` and its `backtest_player` mirror now use
+the conjugate form above (no `n_0`, `std_aleatoric²` as the likelihood variance). The Phase 2
+finding-4 tests pass as regression guards; the mirror's parity test against the real method
+passes. Golden movement week06 only: weekly team mean +1.8%, season-points std 153 → 172.
+
+**Applied — defensive half.** See the next commit: `DEF_RATING_SHRINKAGE_N0` 4.0 → 12.0 with the
+2025 derivation as its source, and the "statistical consistency" comment replaced.
+
 ---
 
 ## Triage table

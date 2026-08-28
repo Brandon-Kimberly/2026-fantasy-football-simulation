@@ -402,12 +402,10 @@ class TestBayesianUpdate(unittest.TestCase):
         mean = (self.PRIOR / v0 + n * float(np.mean(scores)) / s2) / prec
         return mean, float(np.sqrt(1.0 / prec))
 
-    @unittest.expectedFailure
     def test_posterior_mean_matches_conjugate_normal(self):
-        """CHARACTERISATION, deliberately still failing -- Phase 2 finding 4, DEFERRED to
-        Phase 3 jointly with DEF_RATING_SHRINKAGE_N0 (same n_0 construct). Five games
-        averaging 14 against a prior of 10: the conjugate posterior puts 82% of the weight
-        on the data; the engine puts 71%. Remove the expectedFailure when fixed."""
+        """Regression guard for Phase 2 finding 4, resolved in Phase 3's n_0 decision. Five
+        games averaging 14 against a prior of 10: the conjugate posterior puts 82% of the
+        weight on the data; the retired n_0 = 4 form put 71%."""
         scores = [13.0, 15.0, 14.0, 13.0, 15.0]
         engine = self._engine_with_scores(scores)
         cf_mean, _ = self._closed_form(scores)
@@ -415,13 +413,11 @@ class TestBayesianUpdate(unittest.TestCase):
                                msg="engine posterior mean %.3f vs conjugate %.3f"
                                    % (engine.baselines["P"]["mean"], cf_mean))
 
-    @unittest.expectedFailure
     def test_posterior_std_matches_conjugate_normal(self):
-        """CHARACTERISATION, deliberately still failing -- Phase 2 finding 4, DEFERRED to
-        Phase 3 jointly with DEF_RATING_SHRINKAGE_N0. The posterior std is what feeds the
-        once-per-season epistemic draw, so an over-confident posterior narrows every
-        downstream season distribution. The engine's posterior std is ~0.63x the conjugate
-        value here. Remove the expectedFailure when fixed."""
+        """Regression guard for Phase 2 finding 4, resolved in Phase 3's n_0 decision. The
+        posterior std is what feeds the once-per-season epistemic draw, so an over-confident
+        posterior narrows every downstream season distribution. The retired form gave ~0.63x
+        the conjugate value here."""
         scores = [13.0, 15.0, 14.0, 13.0, 15.0]
         engine = self._engine_with_scores(scores)
         _, cf_std = self._closed_form(scores)

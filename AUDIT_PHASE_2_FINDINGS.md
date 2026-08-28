@@ -175,7 +175,7 @@ attenuates further. `analyze_correlations` measures Pearson on real *scores*, so
 are already score-scale numbers being fed into a `z`-scale copula. **Severity: low–medium**
 (consistent undershoot; direction is opposite to Finding 2 and partially masks it).
 
-### 4. `_apply_bayesian_updates` is not the conjugate normal it stands in for
+### 4. `_apply_bayesian_updates` is not the conjugate normal it stands in for — **FIXED (Phase 3)**
 
 ```python
 post_var  = 1 / (n_0 / prior_var + n / actual_var)      # n_0 = 4.0

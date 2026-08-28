@@ -181,7 +181,7 @@ Eight findings:
    calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
 3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score
    correlations run 12–14% below target even with the gate closed.
-4. HIGH (mid-season). `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
+4. HIGH (mid-season), FIXED in Phase 3 (conjugate form; no n_0; std_aleatoric² as the likelihood variance). `_apply_bayesian_updates` was not conjugate: `n_0 = 4` quadruples prior
    precision and the likelihood variance is a 5-sample variance floored at half the prior, not
    `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
    sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
