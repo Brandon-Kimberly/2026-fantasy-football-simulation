@@ -126,14 +126,14 @@
       }
     },
     "points": {
-      "hash": "2fdd96f7ed1db0b3e43c02ca72a78b0468bbdcf00ff368a5bc7cc34b5368d8b5",
+      "hash": "d7676c0cb5bf22f8523ca5f2fcf6b74ba84cc808245f7f08c07e1f7ea7ab9b19",
       "summary": {
-        "max": 4088.963491,
-        "mean": 2872.558228,
-        "min": 1942.599527,
+        "max": 3596.124963,
+        "mean": 2518.830753,
+        "min": 1732.679523,
         "n": 240,
-        "std": 372.494347,
-        "sum": 689413.97461
+        "std": 329.232077,
+        "sum": 604519.380746
       }
     },
     "pts_against": {
@@ -227,14 +227,14 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "fb27df77c719b8fcd22e33b0adba9cd177dabd2b1e92ff737eb1472e76094f5e",
+      "hash": "62258aaf819f08602ce90891bcb2e6146eb08da0d888855d23104f0734018bd3",
       "summary": {
-        "max": 3006.435643,
-        "mean": 90.695195,
+        "max": 2631.54073,
+        "mean": 83.382999,
         "min": 0.0,
         "n": 395,
-        "std": 407.102283,
-        "sum": 35099.040487
+        "std": 357.145011,
+        "sum": 32269.220692
       }
     },
     "syndicate_insights_week_1.json": {
@@ -284,14 +284,14 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "fb27df77c719b8fcd22e33b0adba9cd177dabd2b1e92ff737eb1472e76094f5e",
+      "hash": "62258aaf819f08602ce90891bcb2e6146eb08da0d888855d23104f0734018bd3",
       "summary": {
-        "max": 3006.435643,
-        "mean": 90.695195,
+        "max": 2631.54073,
+        "mean": 83.382999,
         "min": 0.0,
         "n": 395,
-        "std": 407.102283,
-        "sum": 35099.040487
+        "std": 357.145011,
+        "sum": 32269.220692
       }
     },
     "syndicate_insights_week_1.json": {
