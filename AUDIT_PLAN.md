@@ -508,5 +508,9 @@ matches, and the two regular-season golden scenarios are byte-identical (nothing
 changes). Roughly 50–70 lines across `run_simulation` and `export_and_visualize`, plus the
 fixture. Touches no baseline computation; the backtest gate does not apply.
 
-**When:** before week 15 of the 2026 season (2026-12-08 kickoff week, per Sleeper's
-`playoff_week_start`) if playoff-week forecasts are wanted; otherwise any time.
+**When:** before **Tuesday 2026-12-15** if playoff-week forecasts are wanted. That is the day
+Sleeper's `/state/nfl` rolls to week 15 — NFL 2026 week 14's last game kicks off Monday
+2026-12-14 (8:15 pm ET) and week 15's first game is Thursday 2026-12-17 (8:15 pm ET), per
+ESPN's published 2026 schedule (`scoreboard?week=15&seasontype=2&dates=2026`, 16 games, fetched
+2026-08-28). The first sync on or after 2026-12-15 will hit the interim refusal. Otherwise any
+time.
