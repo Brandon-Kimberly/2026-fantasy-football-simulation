@@ -273,6 +273,30 @@ Phase 7 re-derivation of `EPISTEMIC_ERROR_RATES`; acceptance target ≈0.49 on t
 
 **Deliverable:** `tests/test_lineup_optimality.py` with brute-force cross-checks.
 
+**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_4_FINDINGS.md`.
+7 tests added (154 → 161); 4 lock verified properties, 3 characterise defects. Nothing fixed.
+
+Verified: the Hungarian assignment is exactly optimal (1,700 random rosters vs exhaustive
+search, 0 suboptimal, incl. dual-eligibility and FLEX); no lookahead (49,920 candidate values all
+equal the baseline mean while draws varied); streamer needs equal the assignment's unfilled
+slots every week on both fixtures. The 2-week deficit lookahead is a no-op until byes exist;
+FAAB spend is 3–6 of 100 per season (no bite).
+
+Findings:
+
+1. MED. Trades effectively never complete: 0 of 548 evaluations accepted on week01 (100 seasons),
+   16 of 691 on week06. The rich team's 6th/7th-best are starters and the offered player is a QB
+   99% of the time; the rich side's optimal score falls every time on week01 (max −3.2).
+   `MANAGER_PROFILES['trade_will']` therefore has no observable effect.
+2. MED (HIGH if 1 is fixed). A completed trade shrinks the rich roster by one (gives two,
+   receives one, drops nothing); the desperate side is conserved. Reproduced on a crafted league.
+3. MED-HIGH. Won streamers are valued by league-wide bid rank (12.0, 11.5, …) regardless of
+   position; a rank-1 streamer beats the replacement level everywhere but QB and out-projects
+   105 of 156 rostered players. A roster hole at DB/DL/TE/K is an upgrade for ~3.5 FAAB.
+4. LOW, latent. A streamer won for next week's hole is discarded (won_streamers is rebuilt
+   weekly) while the FAAB is spent this week; unreachable until byes make the lookahead live.
+5. Cosmetic: stale `sim_meta` entries after trades; non-playoff teams keep bidding in weeks 15–16.
+
 ---
 
 ## Phase 5 — Season and playoff mechanics
