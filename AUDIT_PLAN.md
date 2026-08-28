@@ -56,6 +56,20 @@ measurable in magnitude.
 - Establish a runtime/memory baseline (current: 10 batches x 1,000 sims).
 - Add a `--seed` CLI flag so runs are reproducible from the command line.
 
+Gap 1: the hashes are platform-locked
+
+On Linux/Python 3.12, 6 of 84 fail with every moment delta exactly 0 — sum identical to six decimals. Pure last-ulp representation difference. Regenerating locally gives 84/84.
+
+The harness's own error message anticipates this, which is good design, but it isn't resolved. Consequences: Phase 8's CI item fails on any Linux runner out of the box, and anyone cloning your repo sees 6 red tests — a bad look for the showcase goal.
+
+Gap 2: the sync pipeline is completely uncovered — and this isn't in the findings' gaps list
+
+I perturbed VOLATILITY_CONSTANTS['QB'] by 0.6% and the golden master stayed green. That turned out not to be a defect: the constant is referenced zero times in the engine. It's applied in sync.py and baked into the fixtures as a derived value (std_aleatoric: 5.31).
+
+So the golden master covers run_simulation and export_and_visualize only. VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, PRESEASON_DEFENSIVE_PRIOR, and DEF_RATING_SHRINKAGE_N0 can all change with the suite fully green.
+
+That matters because Phase 7 is explicitly about recalibrating those exact constants. Walking into it believing you have a safety net you don't have is the specific failure mode this whole audit structure exists to prevent.
+
 **Deliverable:** `tests/test_golden_master.py`, a committed fixture set, a perf baseline number.
 
 ---
