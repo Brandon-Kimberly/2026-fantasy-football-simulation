@@ -228,7 +228,7 @@ Nine findings, plus the bounded `n_0` decision kept separate:
 3. MED. `VOLATILITY_CONSTANTS`/`EPISTEMIC_ERROR_RATES` looked up by raw Sleeper position
    (DE/DT/CB/S/FB) → anonymous defaults. 5 rostered DEs affected today.
 4. LOW. `team: null` reaches baselines (2 today); consumers tolerate it individually.
-5. MED, latent. Name-keyed baselines/rosters; 2 duplicate names today, last pid wins — Byron
+5. MED, MITIGATED (sole rostered claimant keeps the plain name, others suffixed `(pid)`, warnings, raise on two rostered; prior blend now pid-tracked). Full rekey tracked as follow-up F1. Name-keyed baselines/rosters; 2 duplicate names today, last pid won — Byron
    Murphy's committed baseline is the wrong player's.
 6. MED, PARTLY FIXED (whitelist team corrected to NO; engine warns on whitelist/roster mismatch; the silent drop itself is still open). Zero-projection rostered player silently dropped, then hand-imputed with team `FA`
    where Sleeper says NO (Jordyn Tyson).
@@ -342,3 +342,43 @@ defences with the derivation as its source, retire the "consistency" comment.
 
 Phases 1–6 are independent once Phase 0 exists and can be reordered or parallelised.
 Phase 7 partly depends on accumulating real 2026 results, so it can run late or continuously.
+
+---
+
+## Tracked follow-ups (outside any phase's branch)
+
+### F1 — Rekey players by Sleeper `player_id` instead of full name
+
+**Origin:** Phase 3 finding 5. Every player-keyed structure in the pipeline is keyed by
+`f"{first_name} {last_name}"`, and Sleeper has duplicate names (two Justin Jeffersons, two
+Byron Murphys as of 2026-08-28). The interim guard — `sync.resolve_player_keys`, which gives the
+sole rostered claimant the plain name, suffixes the rest as `"Name (pid)"`, warns on every
+collision and raises if two rostered players collide — makes corruption loud and self-correcting,
+and stores `player_id` inside each baseline so the sync-to-sync prior follows the player across a
+key flip. It does not remove the limitation: two rostered same-name players cannot be represented.
+
+**Scope (measured, not estimated):**
+
+| area | what changes | size |
+|---|---|---|
+| `sync.py` | key `baselines` and `weekly_actuals.player_scores` by pid (keep `"name"` inside the entry); add `"player_id"` to each `live_rosters` entry (additive); resolve `DUAL_ELIGIBILITY` (8 names) and `KNOWN_MISSING_ASSETS` (1) name→pid at sync so config stays readable | 3 minting sites already have the pid in hand |
+| `simulation.py` | key = pid throughout — 62 lines / ~14 dicts, all opaque to the engine; display name via `baselines[pid]["name"]` at the three output sites (audit-log starters and `injury_ward`, MVP list, whitelist warning) | mechanical |
+| `backtest_season.py` | pass pids through (it has them); blank baselines keyed by pid | small |
+| `backtest_player.py` | standalone name-keyed analysis: leave, add the collision guard | small |
+| `storage.py`, clients | nothing | 0 |
+| golden fixtures | regenerate both scenarios' `live_rosters` (156 entries each), `player_baselines` (964 keys), `weekly_actuals.player_scores` (780 keys, week06) from `data/`; re-golden | scripted |
+| `tests/test_simulation.py` | 52 name entries / 47 literal baseline dicts gain a `player_id` | the bulk of the churn |
+| other test files | `test_distributions` 4/3, `test_ingestion` 3/3, `test_sync` 4/1, backtest tests ~1 each | small |
+
+Roughly 6 production files and 150–250 lines, plus fixture regeneration. The risk is in the
+test churn, not the logic.
+
+**Sequencing:** one branch, one behaviour-changing commit for sync + engine + fixtures (an
+intermediate state with only one side rekeyed cannot run). Preceded by the existing collision
+characterisation test; verified not by the golden hashes — key strings change the canonical
+JSON, so they move regardless — but by a one-off equivalence run: pre-rekey and post-rekey
+engines on the same real data, every `stage_a` output asserted identical after mapping
+pid→name. Regenerate goldens only after that equivalence holds.
+
+**When:** after Phase 3 closes. Engineering-shaped, data-integrity motivated; pairs naturally
+with Phase 8 if it has not been done by then.

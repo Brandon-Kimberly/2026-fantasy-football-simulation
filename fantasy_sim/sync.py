@@ -289,12 +289,82 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
 
     return _write_vegas(implied_totals, current_nfl_week, "odds_api")
 
-def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1):
+def _player_name(player):
+    return f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
+
+
+def resolve_player_keys(pids, players_db, rostered_pids=None):
+    """Maps each Sleeper pid to the NAME KEY the rest of the pipeline uses, made unique.
+
+    Every downstream structure -- baselines, rosters, weekly player scores, the engine's
+    dicts -- is keyed by full name, and Sleeper has players who share one (today: two Justin
+    Jeffersons, two Byron Murphys). Before this, `baselines[name] = ...` let whichever pid
+    iterated last silently overwrite the other; Byron Murphy's committed baseline was the
+    SEA DL's, not the MIN CB's. See AUDIT_PHASE_3_FINDINGS.md finding 5.
+
+    Collision rule, deterministic and loud:
+      - exactly one colliding pid is rostered -> it keeps the plain name (rosters are minted
+        from the same name, so the rostered player's baseline stays reachable); every other
+        colliding pid becomes "Name (pid)". WARNING.
+      - none rostered -> all become "Name (pid)". If one is rostered later, the plain name
+        will not match and the engine's pre-flight abort fires -- loud at the point of
+        rostering, and self-correcting on the next sync, which will see him rostered.
+      - two or more colliding pids rostered -> genuinely ambiguous under name keying: raise.
+        The pid-based rekey (AUDIT_PLAN.md, follow-up F1) is the real fix.
+    Non-colliding names are returned unchanged. This is the interim guard, not the rekey."""
+    rostered_pids = set(str(p) for p in (rostered_pids or ()))
+    by_name = {}
+    # dict.fromkeys: dedupe while keeping first-seen order. The same pid can legitimately
+    # appear more than once in the input (e.g. once per matchup entry that lists him) and
+    # must never be treated as colliding with itself.
+    for pid in dict.fromkeys(str(p) for p in pids):
+        player = players_db.get(pid)
+        if not player:
+            continue
+        by_name.setdefault(_player_name(player), []).append(str(pid))
+
+    keys = {}
+    for name, group in by_name.items():
+        if len(group) == 1:
+            keys[group[0]] = name
+            continue
+        records = ", ".join(
+            "pid %s (%s, %s)" % (p, players_db[p].get("position"), players_db[p].get("team"))
+            for p in group)
+        rostered = [p for p in group if p in rostered_pids]
+        if len(rostered) > 1:
+            raise ValueError(
+                f"NAME COLLISION between rostered players: {name!r} is {records}, and "
+                f"{len(rostered)} of them are on league rosters. Name-keyed data cannot "
+                f"represent this; the pid-based rekey (AUDIT_PLAN.md F1) is required.")
+        logging.warning(
+            "NAME COLLISION: %r is %s. %s", name, records,
+            ("pid %s is rostered and keeps the plain name; the rest are stored as 'Name (pid)'."
+             % rostered[0]) if rostered else
+            "None are rostered; all are stored as 'Name (pid)' until one is rostered.")
+        for p in group:
+            keys[p] = name if p in rostered_pids else f"{name} ({p})"
+    return keys
+
+
+def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
+                              rostered_pids=None):
     existing_baselines = {}
     if os.path.exists(BASELINES_FILE):
         try:
             existing_baselines = load_json(BASELINES_FILE)
         except Exception: pass
+    # The prior blend below smooths this sync's projection with LAST sync's stored mean (an
+    # exponential moving average across syncs, weight 0.4). Look that prior up by pid, not by
+    # name: a player whose name key flips between "Name" and "Name (pid)" as roster status
+    # changes must carry his own history across the flip, and must never inherit the OTHER
+    # same-name player's -- which is exactly what a name lookup did (the committed file held
+    # the SEA DL under the plain "Byron Murphy"). Entries written before this change carry no
+    # player_id; for those, fall back to the name only when the name is not a collision.
+    existing_by_pid = {
+        str(entry["player_id"]): entry for entry in existing_baselines.values()
+        if isinstance(entry, dict) and entry.get("player_id") is not None
+    }
 
     projections = {}
     url_weekly = f"{BASE_URL}/projections/nfl/regular/{current_year}/{week}"
@@ -322,12 +392,15 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     except Exception:
         espn_projections = {}
 
+    keys = resolve_player_keys(projections.keys(), players_db, rostered_pids)
+    colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}
+
     baselines = {}
     for pid, proj_data in projections.items():
         player = players_db.get(str(pid))
         if not player: continue
 
-        name = f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
+        name = keys[str(pid)]
         raw_pos = player.get("position", "FLEX")
         team = player.get("team", "FA")
         stats_dict = proj_data.get("stats", proj_data)
@@ -346,7 +419,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # sources DISAGREE as a real, data-driven signal for how uncertain we should be --
         # two independent estimates disagreeing is genuine evidence of uncertainty, not just a
         # hand-picked positional error rate.
-        espn_key = _normalize_player_name_for_matching(name)
+        espn_key = _normalize_player_name_for_matching(_player_name(player))  # plain name, never the "(pid)" key
         espn_weekly_mean = espn_projections.get(espn_key)
         source_disagreement = None
         if espn_weekly_mean is not None and espn_weekly_mean > 0:
@@ -355,8 +428,20 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         else:
             fresh_mean = sleeper_weekly_mean
 
-        if name in existing_baselines:
-            posterior_mean = existing_baselines[name].get("mean", fresh_mean)
+        prior = existing_by_pid.get(str(pid))
+        if prior is None and not existing_by_pid and name in existing_baselines:
+            # Legacy file (no pids anywhere). A plain colliding name could be either player,
+            # so only trust it when the name is unambiguous.
+            plain = _player_name(player)
+            if plain in colliding_names:
+                logging.warning(
+                    "PRIOR SKIPPED: %r collides and the previous baselines file carries no "
+                    "player_id, so its stored mean cannot be attributed. Fresh projection only "
+                    "this sync; the pid is written now and carries forward from here.", name)
+            else:
+                prior = existing_baselines[name]
+        if prior is not None:
+            posterior_mean = prior.get("mean", fresh_mean)
             final_mean = round((fresh_mean * 0.6) + (posterior_mean * 0.4), 2)
         else:
             final_mean = fresh_mean
@@ -379,6 +464,9 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             "pos": raw_pos, "mean": final_mean,
             "std_aleatoric": std_aleatoric, "std_epistemic": std_epistemic,
             "bye": player.get("team_bye", 0), "team": team,
+            # Sleeper's id, so the prior blend above can follow this player across a name-key
+            # change. The engine does not read it.
+            "player_id": str(pid),
         }
 
     save_json(BASELINES_FILE, baselines)
@@ -436,7 +524,7 @@ def _extract_weekly_h2h_results(wk_matchups, roster_map):
             if t2: h2h_results[t2] = 0.5
     return h2h_results
 
-def _extract_weekly_player_scores(wk_matchups, players_db):
+def _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids=None):
     """
     Extracts real per-player weekly actual fantasy scores from a Sleeper matchups response,
     keyed by full player name (matching self.baselines' keying convention in the simulation
@@ -447,13 +535,14 @@ def _extract_weekly_player_scores(wk_matchups, players_db):
     refinement (in the simulation engine) has never had real data to update against in
     production, silently, since it was written.
     """
+    all_pids = [pid for entry in wk_matchups for pid in entry.get("players_points", {})]
+    # Same collision rule as the baselines, so a colliding player's scores land under the
+    # same key his baseline uses (see resolve_player_keys).
+    keys = resolve_player_keys(all_pids, players_db, rostered_pids)
     wk_player_scores = {}
     for entry in wk_matchups:
         for pid, pts in entry.get("players_points", {}).items():
-            player = players_db.get(str(pid))
-            if not player:
-                continue
-            name = f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
+            name = keys.get(str(pid))
             if name and pts is not None:
                 wk_player_scores[name] = float(pts)
     return wk_player_scores
@@ -513,7 +602,9 @@ def sync_all(sharp_polling=False):
     generate_league_schedule(roster_map)
     completed_results = generate_nfl_schedule(current_nfl_week)
     generate_defensive_ratings(completed_results)
-    generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week)
+    rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
+    generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
+                              rostered_pids=rostered_pids)
     fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling)
 
     all_weeks_actuals = {}
@@ -530,7 +621,7 @@ def sync_all(sharp_polling=False):
         # refinement in the simulation engine -- previously always empty (see
         # _extract_weekly_player_scores docstring), meaning that update loop has never
         # executed against real data in production.
-        wk_player_scores = _extract_weekly_player_scores(wk_matchups, players_db)
+        wk_player_scores = _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids)
         # Real head-to-head win/loss per team -- previously hardcoded to 0 for everyone, every
         # week (see _extract_weekly_h2h_results docstring for the consequence of that).
         wk_h2h_results = _extract_weekly_h2h_results(wk_matchups, roster_map)

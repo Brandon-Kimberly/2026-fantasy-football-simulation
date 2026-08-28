@@ -324,20 +324,88 @@ class TestBaselineIngestion(_BaselineHarness):
         out, _ = self._run(db, {"1": {"stats": {"rush_yd": 50.0}}})
         self.assertEqual(out["Free Agent"]["team"], "FA")
 
+    MURPHYS = {"1": {"first_name": "Byron", "last_name": "Murphy", "position": "CB", "team": "MIN"},
+               "2": {"first_name": "Byron", "last_name": "Murphy", "position": "DL", "team": "SEA"}}
+    MURPHY_PROJ = {"1": {"stats": {"idp_tkl_solo": 7.0}}, "2": {"stats": {"idp_tkl_solo": 6.5}}}
+
+    def _run_rostered(self, players_db, projections, rostered, existing=None):
+        saved, fake_save = _capture_saves()
+        weekly = MagicMock()
+        weekly.status_code = 200
+        weekly.json.return_value = projections
+        with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync.os.path, "exists", return_value=existing is not None), \
+             patch.object(sync, "load_json", return_value=existing or {}), \
+             patch.object(sync.requests, "get", return_value=weekly), \
+             patch.object(sync, "fetch_espn_projections", return_value={}):
+            return sync.generate_player_baselines(self.SCORING, players_db, {}, "2026", 1,
+                                                  rostered_pids=rostered)
+
     def test_two_players_sharing_a_name_do_not_overwrite_each_other(self):
-        """FAILS -- finding 5. Baselines are keyed by full name and Sleeper has duplicate
-        names (today: Justin Jefferson WR/MIN and LB/CLE; Byron Murphy CB/MIN and DL/SEA).
-        Whichever pid iterates last wins, silently, and the loser's projection, position and
-        team are gone. Byron Murphy's committed baseline is the SEA DL's. Rosters are keyed
-        the same way, so a manager rostering the CB would be simulated with the DL's line."""
-        db = {"1": {"first_name": "Byron", "last_name": "Murphy", "position": "CB", "team": "MIN"},
-              "2": {"first_name": "Byron", "last_name": "Murphy", "position": "DL", "team": "SEA"}}
-        proj = {"1": {"stats": {"idp_tkl_solo": 7.0}}, "2": {"stats": {"idp_tkl_solo": 6.5}}}
-        out, _ = self._run(db, proj)
-        kept = [k for k in out if "Murphy" in k]
-        self.assertEqual(len(kept), 2,
-                         "only %r survived: one real player's baseline silently replaced "
-                         "another's" % kept)
+        """Regression guard for Phase 3 finding 5 (interim). Baselines are keyed by full name
+        and Sleeper has duplicate names (today: Justin Jefferson WR/MIN and LB/CLE; Byron
+        Murphy CB/MIN and DL/SEA). Whichever pid iterated last used to win, silently -- Byron
+        Murphy's committed baseline was the SEA DL's. Neither rostered: both are now stored as
+        'Name (pid)', loudly."""
+        with self.assertLogs(level="WARNING") as logs:
+            out = self._run_rostered(self.MURPHYS, self.MURPHY_PROJ, rostered=set())
+        self.assertEqual(sorted(k for k in out if "Murphy" in k), ["Byron Murphy (1)", "Byron Murphy (2)"])
+        self.assertEqual(out["Byron Murphy (1)"]["pos"], "CB")
+        self.assertEqual(out["Byron Murphy (2)"]["pos"], "DL")
+        self.assertTrue(any("NAME COLLISION" in m for m in logs.output))
+
+    def test_sole_rostered_claimant_keeps_the_plain_name(self):
+        """Rosters are minted from the same plain name, so the rostered player must stay
+        reachable under it; the other pid is suffixed."""
+        with self.assertLogs(level="WARNING"):
+            out = self._run_rostered(self.MURPHYS, self.MURPHY_PROJ, rostered={"1"})
+        self.assertEqual(out["Byron Murphy"]["pos"], "CB")
+        self.assertEqual(out["Byron Murphy (2)"]["pos"], "DL")
+        self.assertEqual(out["Byron Murphy"]["player_id"], "1")
+
+    def test_two_rostered_players_sharing_a_name_fail_loudly(self):
+        """Genuinely unrepresentable under name keying (AUDIT_PLAN.md F1 is the fix)."""
+        with self.assertRaises(ValueError):
+            self._run_rostered(self.MURPHYS, self.MURPHY_PROJ, rostered={"1", "2"})
+
+    def test_prior_follows_the_player_across_a_key_flip_in_both_directions(self):
+        """The sync-to-sync prior blend (0.6 fresh + 0.4 last mean) is looked up by pid, so a
+        player whose key flips 'Name (pid)' <-> 'Name' as his roster status changes carries
+        his OWN history and never inherits the other same-name player's."""
+        # sync 1: neither rostered -> suffixed keys, pids stored
+        with self.assertLogs(level="WARNING"):
+            first = self._run_rostered(self.MURPHYS, self.MURPHY_PROJ, rostered=set())
+        self.assertEqual(first["Byron Murphy (1)"]["mean"], 7.0)
+        # sync 2: the CB is rostered -> plain key; prior must be HIS 7.0, not the DL's 6.5
+        with self.assertLogs(level="WARNING"):
+            second = self._run_rostered(self.MURPHYS, self.MURPHY_PROJ, rostered={"1"}, existing=first)
+        self.assertAlmostEqual(second["Byron Murphy"]["mean"], round(0.6 * 7.0 + 0.4 * 7.0, 2))
+        self.assertAlmostEqual(second["Byron Murphy (2)"]["mean"], round(0.6 * 6.5 + 0.4 * 6.5, 2))
+        # sync 3: CB dropped -> back to suffixed; history still his
+        proj3 = {"1": {"stats": {"idp_tkl_solo": 9.0}}, "2": {"stats": {"idp_tkl_solo": 6.5}}}
+        with self.assertLogs(level="WARNING"):
+            third = self._run_rostered(self.MURPHYS, proj3, rostered=set(), existing=second)
+        self.assertAlmostEqual(third["Byron Murphy (1)"]["mean"], round(0.6 * 9.0 + 0.4 * second["Byron Murphy"]["mean"], 2))
+
+    def test_legacy_pidless_file_never_lends_a_colliding_name_its_history(self):
+        """The committed baselines file predates player_id and holds the SEA DL under the
+        plain 'Byron Murphy'. A newly rostered CB must not be blended with it: fresh-only for
+        this one sync, with a WARNING; a non-colliding name still gets its legacy prior."""
+        db = dict(self.MURPHYS, **{"3": {"first_name": "Solo", "last_name": "Player", "position": "WR", "team": "DET"}})
+        proj = dict(self.MURPHY_PROJ, **{"3": {"stats": {"rush_yd": 100.0}}})
+        legacy = {"Byron Murphy": {"pos": "DL", "mean": 6.64, "team": "SEA"},
+                  "Solo Player": {"pos": "WR", "mean": 12.0, "team": "DET"}}
+        with self.assertLogs(level="WARNING") as logs:
+            out = self._run_rostered(db, proj, rostered={"1"}, existing=legacy)
+        self.assertEqual(out["Byron Murphy"]["mean"], 7.0, "CB inherited the DL's stored mean")
+        self.assertTrue(any("PRIOR SKIPPED" in m for m in logs.output))
+        self.assertAlmostEqual(out["Solo Player"]["mean"], round(0.6 * 10.0 + 0.4 * 12.0, 2))
+
+    def test_weekly_player_scores_use_the_same_collision_keys_as_baselines(self):
+        matchups = [{"roster_id": 1, "players_points": {"1": 8.0, "2": 4.0}}]
+        with self.assertLogs(level="WARNING"):
+            scores = sync._extract_weekly_player_scores(matchups, self.MURPHYS, rostered_pids={"1"})
+        self.assertEqual(scores, {"Byron Murphy": 8.0, "Byron Murphy (2)": 4.0})
 
     def test_rostered_player_with_no_projection_is_loud(self):
         """FAILS -- finding 6. A rostered player whose projection totals 0 (today: Jordyn

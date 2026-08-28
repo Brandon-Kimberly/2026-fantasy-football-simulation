@@ -2,14 +2,16 @@
 
 **Invariant under test:** every field that looks live is live; every fallback is loud.
 
-**Deliverable:** `tests/test_ingestion.py` — 20 tests. 5 pass and lock verified behaviour;
-14 fail and characterise the defects below; 1 is a live ESPN match-rate check behind
-`RUN_LIVE_INGESTION_TESTS=1` (skipped by default so the suite never touches the network).
-Plus the fallback inventory the plan asked for (§ Fallback inventory).
+**Deliverable:** `tests/test_ingestion.py` — 29 tests as of the finding-5 guard (20 at
+characterisation). 1 is a live ESPN match-rate check behind `RUN_LIVE_INGESTION_TESTS=1`
+(skipped by default so the suite never touches the network). Plus the fallback inventory the
+plan asked for (§ Fallback inventory).
 
-**Suite:** 124 → 144 tests. No pre-existing test changed behaviour.
+**Suite:** 124 → 153 tests. No pre-existing test changed behaviour.
 
-**Status:** characterisation only. Nothing is fixed. Triage before remediation, as in Phases 1–2.
+**Status:** finding 1 fixed; finding 6 team corrected + runtime guard; finding 5 mitigated with
+the pid rekey tracked as `AUDIT_PLAN.md` F1. Findings 2, 3, 4, 7, 8, the P5 silent drop and the
+`n_0` piece are open, 7 tests red by design. Triage before further remediation.
 
 The bounded joint decision on `_apply_bayesian_updates` (Phase 2 finding 4) and
 `DEF_RATING_SHRINKAGE_N0` is in its own section at the end (§ The `n_0` decision) and is kept
@@ -155,7 +157,7 @@ happens to tolerate `None` today (`or 'FA'`, `not in ['FA', None]`, `isinstance(
 this is latent — but each of those guards is a separate place the fix has to be remembered.
 **Severity: low.**
 
-### 5. Baselines and rosters are keyed by full name; Sleeper has duplicate names
+### 5. Baselines and rosters are keyed by full name; Sleeper has duplicate names — **MITIGATED (interim guard); rekey tracked as F1**
 
 Two of 962 baseline-producing names collide today: **Justin Jefferson** (WR/MIN 13.82 vs LB/CLE
 3.04) and **Byron Murphy** (CB/MIN 6.95 vs DL/SEA 6.64). Last pid wins. Jefferson's committed
@@ -163,6 +165,28 @@ baseline is the WR's — by iteration order, not by design. Byron Murphy's commi
 **is the SEA DL's**; a manager rostering the MIN CB would be simulated with the DL's projection,
 position and team. Neither is rostered today. `live_rosters.json` is keyed the same way, so the
 engine has no way to distinguish them even if baselines did. **Severity: medium, latent.**
+
+**Mitigated (interim guard, sync-only). The pid rekey is tracked as `AUDIT_PLAN.md` F1.**
+`sync.resolve_player_keys` now assigns every name key: for a colliding name, the sole rostered
+claimant keeps the plain name (rosters are minted from it), every other claimant is stored as
+`"Name (pid)"`, each collision logs a WARNING with both records, and two rostered claimants
+**raise** — that case is unrepresentable under name keying. Applied identically to baselines and
+`weekly_actuals.player_scores`. Today: Justin Jefferson's LB becomes `"Justin Jefferson (13524)"`;
+both Byron Murphys are suffixed until one is rostered.
+
+Found while scoping the guard, and fixed with it: the sync-to-sync prior blend
+(`0.6·fresh + 0.4·last mean`) looked the prior up **by the current name key**, so a key flip
+either dropped the player's own smoothing or — worse — blended a newly rostered CB with the DL's
+stored mean (reproduced: `0.6·7.00 + 0.4·6.64 = 6.86`). Each baseline now stores `player_id` and
+the prior is looked up by pid first; the name fallback applies only to a legacy pid-less file and
+never to a colliding name (fresh-only for that one sync, with a WARNING). Tests cover the flip in
+both directions and the legacy case.
+
+Verified against the run, not predicted: **the golden master did not move** (sync-layer only;
+the engine runs on committed inputs), and the still-open findings 2, 3, 7, 8 fail with identical
+messages before and after — no interaction. `backtest_season` passes no rostered pids, so in the
+backtest all colliders are suffixed and a rostered collider would abort loudly at pre-flight
+rather than be mis-simulated.
 
 ### 6. A rostered player with a zero projection is silently dropped, then hand-imputed with the wrong team — **PARTLY FIXED (whitelist team + runtime guard); silent drop still open**
 
@@ -294,7 +318,7 @@ half). They should be two commits.
 | 2b | Failed league-schedule week shifts every later week's matchups | High | standings, H2H, playoffs | on first 404/empty |
 | 3 | Constants looked up by raw position → anonymous defaults | Medium | 5 rostered DEs now; any CB/S/FB/DT | live now |
 | 4 | `team: null` in baselines | Low | 2 baselines; tolerated by consumers | live, harmless today |
-| 5 | Name-keyed baselines/rosters; duplicates overwrite | Medium | 2 names today; Byron Murphy wrong | latent |
+| 5 | Name-keyed baselines/rosters; duplicates overwrite — **mitigated: loud, deterministic collision keys + pid-tracked prior; rekey = F1** | Medium | 2 names today | guarded |
 | 6 | Zero-projection player silently dropped; whitelist team wrong — **team fixed + runtime guard; silent drop open** | Medium | Jordyn Tyson's environment/correlation | live now |
 | 7 | Player cache never refreshed | Medium | every name/team/position | grows daily |
 | 8 | Defensive prior fallback 21.5 vs table 22.8 | Low | any team missing from the table | latent |
