@@ -160,8 +160,8 @@ week 1 now, so they were caught latent.
 
 **Deliverable:** `tests/test_distributions.py` plus a short written finding on variance budget.
 
-**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_2_FINDINGS.md`.
-14 tests added (110 → 124); 7 lock verified properties, 7 characterise defects. Nothing fixed.
+**Status: complete except two deliberate deferrals.** See `AUDIT_PHASE_2_FINDINGS.md`. Findings 1, 2, 5, 6, 7 fixed; 3 left in place (partially offsets 2 — fix it after 2 has been validated out of sample); 4 deferred to Phase 3 jointly with `DEF_RATING_SHRINKAGE_N0`, which uses the identical `n_0` construct. Suite: 124 tests, 2 failing by design (finding 4).
+14 tests added (110 → 124); 7 lock verified properties, 7 characterised defects, 5 of which now pass as regression guards.
 
 Verified and locked: lognormal `E[X] = mean` (engine-level), the `env_var` variance model,
 epistemic drawn once per season and held (within-season week correlation 0.247 vs 0.252
