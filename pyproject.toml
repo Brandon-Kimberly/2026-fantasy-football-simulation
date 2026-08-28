@@ -18,5 +18,11 @@ dependencies = [
     "espn_api",
 ]
 
+# Property-based testing for the Phase 1 invariant suite (tests/test_invariants.py).
+# Optional, and handled the same way as espn_api: without it those tests skip cleanly rather
+# than erroring, so `pip install -r requirements.txt` still leaves a runnable suite.
+[project.optional-dependencies]
+test = ["hypothesis"]
+
 [tool.setuptools]
 packages = ["fantasy_sim", "fantasy_sim.clients"]

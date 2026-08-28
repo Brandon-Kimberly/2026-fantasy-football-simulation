@@ -92,6 +92,34 @@ yield in this codebase and property testing is built exactly for it.
 
 **Deliverable:** `tests/test_invariants.py`.
 
+**Status: characterisation complete.** See `AUDIT_PHASE_1_FINDINGS.md`. 26 tests added (84 → 110);
+19 lock invariants that hold, 7 characterise defects. Every invariant listed above holds except
+the bye-week one, which could not be tested at all.
+
+Seven findings, six of them defects:
+
+1. H2H "Any Given Sunday" matrix divided by a hardcoded 14 rather than weeks actually simulated —
+   every cell deflated to 64% of true value at week 6, correct at week 1.
+2. `schedule_luck_index` not zero-sum mid-season (+142.86 at week 6, 0.00 at week 1); every team
+   reported as lucky. Same hardcoded 14, plus a hardcoded 7 and a 28.0 that also assumes
+   `MEDIAN_SCORING_ENABLED`.
+3. `avg_points_against_per_game` divides by 14 regardless of weeks played (113.75 vs 176.94).
+4. `weekly_score_percentiles` and the KDE chart computed over an array that is 35.7% structural
+   zeros at week 6; `p10_floor` is exactly 0.00 for every team.
+5. `Expected_Points` includes playoff weeks 15–16 for all 8 teams (+12%), including the four
+   eliminated at week 14. Affects week 1 too.
+6. `KNOWN_MISSING_ASSETS` is aliased into `self.baselines` rather than copied, so
+   `_apply_bayesian_updates` overwrites a sourced config constant in place. Makes results
+   order-dependent and compounds across repeated runs — `std_epistemic` collapses 87% in three
+   runs on double-counted evidence. **Phase 0 gap 3:** the golden master passes only because its
+   scenario and module ordering happen to be safe; reverse it and all six tests fail.
+7. The bye-week mechanism is dead code end to end. Sleeper's payload has no `team_bye` key
+   (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
+   can never fire. The existing sync test passes only because its fixture invents the field.
+   `depth_chart_order`, which Phase 7 wants, *is* present (1,812 non-null) and is being discarded.
+
+Findings 1–4 are invisible at week 1 and activate from week 2 — production is at week 1 now.
+
 ---
 
 ## Phase 2 — Statistical core

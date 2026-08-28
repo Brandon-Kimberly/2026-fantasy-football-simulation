@@ -21,3 +21,6 @@ venv/
 .vscode/
 .idea/
 .DS_Store
+
+# Hypothesis property-testing cache (tests/test_invariants.py)
+.hypothesis/
