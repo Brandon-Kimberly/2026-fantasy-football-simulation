@@ -720,7 +720,15 @@ class FantasySimulationEngine:
                                                 sim_meta[d_team][p3] = sim_meta[r_team].get(p3, {})
                                                 sim_meta[r_team][p1] = sim_meta[d_team].get(p1, {})
                                                 sim_meta[r_team][dropped] = sim_meta[d_team].get(dropped, {})
-                                                if dropped in sim_meta[d_team]: del sim_meta[d_team][dropped]
+                                                # Remove the departed players' meta from the side
+                                                # that gave them up. Nothing reads the stale entries
+                                                # (every lookup is over the current roster), but a
+                                                # roster's meta should describe its roster.
+                                                # AUDIT_PHASE_4_FINDINGS.md finding 5.
+                                                for gone in (p1, dropped):
+                                                    sim_meta[d_team].pop(gone, None)
+                                                for gone in (p2, p3):
+                                                    sim_meta[r_team].pop(gone, None)
                                                 break
 
                     streamer_needs = {t: 0 for t in self.team_names}

@@ -8,7 +8,9 @@ properties; 3 fail and characterise the defects below.
 
 **Suite:** 154 → 161 tests. No pre-existing test changed behaviour.
 
-**Status:** characterisation only. Nothing is fixed. Triage before remediation, as in Phases 1–3.
+**Status:** findings 3 and 2 fixed (each with its own golden regeneration); 5 closed; 1 tracked as
+`AUDIT_PLAN.md` F2, sized and not implemented, its characterisation test left red; 4 latent,
+recorded for the bye work. Suite: 161 tests, 1 failure by design (finding 1).
 
 **Method note.** Optimality questions were answered by brute force and closed-form cross-checks.
 The real-data backtest was not used: it is the gate for a decision-logic change that might touch
@@ -42,7 +44,7 @@ Two things verified by reading and measurement, reported rather than asserted:
 
 ## Findings
 
-### 1. The trade mechanism is effectively dead — `trade_will` has no observable effect
+### 1. The trade mechanism is effectively dead — `trade_will` has no observable effect — **OPEN, tracked as `AUDIT_PLAN.md` F2 (sized, not implemented)**
 
 Every trade offer is "the desperate team's best player for the rich team's 6th- and 7th-best".
 Reconstructed from the real engine (evaluations are 3 or 4 `get_optimal_score` calls, because
@@ -143,12 +145,13 @@ whose hole is next week pays this week, receives nothing, and pays again next we
 low now, medium once byes land.** Recorded so the bye work re-checks it; it is the same class as
 the two absence-blocked Phase 2 findings.
 
-### 5. Minor, reported only
+### 5. Minor — **CLOSED** (stale `sim_meta` entries removed; the rest reported only)
 
 - The desperate side always offers its single highest-mean player, which is nearly always its
   QB (finding 1's mechanism); there is no position-awareness in offer construction.
-- `sim_meta[r_team]` keeps `p2`/`p3` after a trade; `sim_meta[d_team]` keeps `p1`. Stale
-  entries, read by nothing. Cosmetic.
+- `sim_meta[r_team]` kept `p2`/`p3` after a trade; `sim_meta[d_team]` kept `p1`. Stale
+  entries, read by nothing. **Removed** with the finding-2 throw-in change; verified to move no
+  golden hash.
 - Weeks 15–16: non-playoff teams keep bidding and simulating lineups. Cosmetic, no effect on
   outputs (regular-season quantities stop at week 14 since Phase 1).
 
@@ -158,11 +161,11 @@ the two absence-blocked Phase 2 findings.
 
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
-| 1 | Trades effectively never complete; `trade_will` inert | Medium | manager model claims; nothing distributional today | `stage_a`, any scenario with a completed trade |
+| 1 | Trades effectively never complete; `trade_will` inert — **tracked as F2, sized** | Medium | manager model claims; nothing distributional today | `stage_a`, when it lands |
 | 2 | Rich roster −1 per completed trade — **fixed** (2-for-2 with the dropped player as throw-in) | Medium → high if 1 is fixed | roster size, streamer injection | week06 `stage_a` |
 | 3 | Streamer value by bid rank beats real starters — **fixed** (capped at data-derived replacement level; backtest neutral, −0.43% production-like) | Medium-high | any team-week with a hole | `stage_a`, both |
 | 4 | Won streamer discarded when the hole is next week (latent) | Low → medium with byes | FAAB, streamers | none today |
-| 5 | Cosmetic notes | — | — | — |
+| 5 | Cosmetic notes — **closed** (stale meta removed; weeks 15–16 bidding left: harmless, and stopping it would reshuffle the RNG stream for no output change) | — | — | — |
 
 Findings 1 and 2 belong together: fixing 1 without 2 makes 2 frequent. Finding 3 is the one with
 present-day distributional effect. None of the three touches baseline computation, so the

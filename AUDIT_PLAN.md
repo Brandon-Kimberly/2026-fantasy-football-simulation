@@ -284,7 +284,7 @@ FAAB spend is 3–6 of 100 per season (no bite).
 
 Findings:
 
-1. MED. Trades effectively never complete: 0 of 548 evaluations accepted on week01 (100 seasons),
+1. MED, OPEN — tracked as follow-up F2 (sized). Trades effectively never complete: 0 of 548 evaluations accepted on week01 (100 seasons),
    16 of 691 on week06. The rich team's 6th/7th-best are starters and the offered player is a QB
    99% of the time; the rich side's optimal score falls every time on week01 (max −3.2).
    `MANAGER_PROFILES['trade_will']` therefore has no observable effect.
@@ -295,7 +295,7 @@ Findings:
    105 of 156 rostered players. A roster hole at DB/DL/TE/K is an upgrade for ~3.5 FAAB.
 4. LOW, latent. A streamer won for next week's hole is discarded (won_streamers is rebuilt
    weekly) while the FAAB is spent this week; unreachable until byes make the lookahead live.
-5. Cosmetic: stale `sim_meta` entries after trades; non-playoff teams keep bidding in weeks 15–16.
+5. CLOSED. Stale `sim_meta` entries after trades removed (no hash movement); non-playoff teams still bid in weeks 15–16 — harmless, and stopping it would reshuffle the RNG stream for no output change.
 
 ---
 
@@ -419,3 +419,32 @@ pid→name. Regenerate goldens only after that equivalence holds.
 
 **When:** after Phase 3 closes. Engineering-shaped, data-integrity motivated; pairs naturally
 with Phase 8 if it has not been done by then.
+
+### F2 — Make the trade mechanism live
+
+**Origin:** Phase 4 finding 1. Every offer is "the desperate team's best player for the rich
+team's 6th- and 7th-best". In a 13-starter format the rich team's 6th/7th-best are starters
+(medians 12.7 / 12.2), the offered player is a QB 99% of the time (highest means), and the rich
+team already starts an equal-or-better QB in 49–78% of cases — so the rich side's optimal score
+falls on essentially every evaluation. Measured: **0 of 548** evaluations accepted over 100
+week01 seasons, 16 of 691 on week06. `MANAGER_PROFILES['trade_will']` therefore has no
+observable effect; the characterisation test `test_trades_are_live_on_the_preseason_fixture`
+stays red until this lands. Roster conservation (finding 2) is already fixed, so a live mechanism
+will not shrink rosters.
+
+**Scope (sized, not implemented):**
+
+| piece | what | size |
+|---|---|---|
+| offer construction | replace "best-for-6th/7th" with a position-aware search: the desperate side offers the player whose loss costs its own optimal lineup least while filling a rich-side lineup hole (or upgrading the rich side's weakest starter at that position); the rich side gives bench depth at positions where the desperate side is short | ~40 lines, inside the existing week-6–10 block |
+| acceptance | keep "both optimal scores improve" (`get_optimal_score` already includes the 0.1 × bench term, so depth is valued) | unchanged |
+| RNG | the block's `rand()` calls already depend on the standings; any change here reshuffles the stream from week 6 on, so size effects at ≥400 seasons, not from the 30-season summaries | — |
+| acceptance criterion for the work | on week01, a non-trivial acceptance rate (the desperate side accepts 67% today; a symmetric mechanism should complete on the order of 10–30% of evaluations); **and** the paired real-data backtest unchanged within noise — trades do not touch baselines, so any movement there would mean the redesign leaked into scoring | measured, not asserted |
+| tests | flip `test_trades_are_live_on_the_preseason_fixture` from characterisation to guard; keep `test_a_completed_trade_conserves_roster_sizes` | small |
+
+Roughly one file, ~40–60 lines, plus a golden regeneration in any scenario where a trade
+completes (both, once it works). The design question that is *not* engineering — what offers
+real managers make — is Phase 7-adjacent; the sizing above assumes the simplest symmetric
+lineup-improving search, not a calibrated behavioural model.
+
+**When:** any time after Phase 4 closes; independent of F1.
