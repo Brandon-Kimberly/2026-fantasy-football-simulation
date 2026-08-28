@@ -218,6 +218,194 @@ class TestFantasySimulation(unittest.TestCase):
         finally:
             SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
 
+    def _make_sim_with_group(self, baselines_extra):
+        """Builds a real FantasySimulationEngine whose baselines include the given extra
+        players, so tests can exercise the real _build_nfl_position_groups /
+        _apportion_vacated_volume code paths against a controlled position group."""
+        self.mock_fs[BASELINES_FILE] = {
+            **self.mock_fs[BASELINES_FILE],
+            **baselines_extra,
+        }
+        return FantasySimulationEngine()
+
+    def test_nfl_position_groups_include_unrostered_players(self):
+        """_build_nfl_position_groups must span the ENTIRE real NFL population from
+        player_baselines.json, not just fantasy-rostered players -- that is precisely what makes
+        it possible to withhold the share of vacated volume that really flows to teammates nobody
+        rosters. Verified against the real method on a real engine instance."""
+        sim = self._make_sim_with_group({
+            "Rostered_DET_WR": {"mean": 14.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "Unrostered_DET_WR": {"mean": 9.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "Unrostered_SF_WR": {"mean": 11.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "SF"},
+            "Free_Agent_WR": {"mean": 8.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "FA"},
+        })
+
+        det_wrs = dict(sim.nfl_position_groups.get(("WR", "DET"), []))
+        self.assertIn("Rostered_DET_WR", det_wrs)
+        self.assertIn("Unrostered_DET_WR", det_wrs,
+                      "Unrostered players must appear in the real NFL position group.")
+        self.assertNotIn("Unrostered_SF_WR", det_wrs, "Group must be keyed by real NFL team.")
+        # Free agents have no real NFL team whose vacated volume they could inherit.
+        self.assertNotIn(("WR", "FA"), sim.nfl_position_groups)
+
+    def test_vacated_volume_is_conserved_not_multiplied(self):
+        """Regression test for a real over-distribution bug found by reproducing the production
+        assignment/lookup rules: contingency_pts used to be a bare pool lookup, so every rostered
+        player sharing the injured player's team and position received the FULL vacated amount
+        (three claimants -> 3x the vacated volume injected into the league, points that never
+        existed). Calls the REAL _apportion_vacated_volume and asserts total awarded equals
+        exactly the amount vacated, never a multiple of it."""
+        sim = self._make_sim_with_group({
+            "DET_WR_1": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "DET_WR_2": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "DET_WR_3": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+        })
+
+        vacated = 13.0
+        awarded = sim._apportion_vacated_volume({"WR": {"DET": vacated}, "TE": {}, "RB": {}}, {}, set())
+
+        total_awarded = sum(awarded.values())
+        self.assertAlmostEqual(
+            total_awarded, vacated, places=6,
+            msg=f"Total awarded ({total_awarded}) must equal the volume vacated ({vacated}); "
+                f"the old bug awarded each of the 3 claimants the full amount (3x)."
+        )
+        # Equal baseline means -> equal shares, and each share is strictly less than the whole.
+        for name, pts in awarded.items():
+            self.assertAlmostEqual(pts, vacated / 3.0, places=6)
+            self.assertLess(pts, vacated)
+
+    def test_vacated_volume_withheld_from_unrostered_share(self):
+        """The substance of 'extend redistribution into the real NFL depth chart': when part of
+        an injured player's real position group is unrostered, the rostered claimant must receive
+        only its proportional share -- the rest is correctly never awarded to anyone, rather than
+        being handed in full to whichever rostered player happens to share the team and position.
+        Exercises the real _apportion_vacated_volume."""
+        sim = self._make_sim_with_group({
+            "Rostered_WR": {"mean": 10.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "Unrostered_WR_A": {"mean": 20.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "Unrostered_WR_B": {"mean": 10.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+        })
+
+        vacated = 20.0
+        awarded = sim._apportion_vacated_volume({"WR": {"DET": vacated}, "TE": {}, "RB": {}}, {}, set())
+
+        # Rostered_WR's weight is 10 of the group's total 40 -> exactly a quarter.
+        self.assertAlmostEqual(awarded["Rostered_WR"], vacated * (10.0 / 40.0), places=6)
+        self.assertLess(
+            awarded["Rostered_WR"], vacated,
+            "Rostered claimant must not absorb volume that really flows to unrostered teammates."
+        )
+
+    def test_vacated_volume_accumulates_across_multiple_injuries(self):
+        """Regression test for a real overwrite bug: PASS 1 used a plain assignment, so when two
+        players at the same position on the same real NFL team were injured in one week, the
+        second injury silently clobbered the first and that vacated volume vanished. Calls the
+        REAL _record_vacated_volume twice, exactly as PASS 1 does for two injuries."""
+        sim = self._make_sim_with_group({
+            "DET_WR_HEALTHY": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+        })
+        rate = SIM_CONFIG['VACATED_VOLUME_CAPTURE_RATE']
+
+        pools = {pos: {} for pos in SIM_CONFIG['VACATED_VOLUME_ELIGIBLE_POSITIONS']}
+        sim._record_vacated_volume(pools, "WR", "DET", 20.0)
+        first_only = pools["WR"]["DET"]
+        sim._record_vacated_volume(pools, "WR", "DET", 14.0)
+
+        self.assertAlmostEqual(
+            pools["WR"]["DET"], (20.0 + 14.0) * rate, places=6,
+            msg="Second injury must ADD to the pool, not overwrite the first injury's volume."
+        )
+        self.assertGreater(pools["WR"]["DET"], first_only)
+
+        # Ineligible positions vacate nothing at all -- this is what keeps pools siloed.
+        sim._record_vacated_volume(pools, "K", "DET", 30.0)
+        sim._record_vacated_volume(pools, "DB", "DET", 30.0)
+        self.assertNotIn("K", pools)
+        self.assertNotIn("DB", pools)
+        self.assertEqual(pools["TE"], {}, "A WR/K/DB injury must never populate the TE pool.")
+
+        # And the accumulated pool apportions in full.
+        awarded = sim._apportion_vacated_volume(pools, {}, set())
+        self.assertAlmostEqual(sum(awarded.values()), (20.0 + 14.0) * rate, places=6)
+
+    def test_vacated_volume_skips_injured_and_respects_position_siloing(self):
+        """Injured players must never inherit vacated volume (including the player injured this
+        very week), and a WR injury must never leak into the TE pool. Exercises the real
+        _apportion_vacated_volume."""
+        sim = self._make_sim_with_group({
+            "DET_WR_OUT": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "DET_WR_HURT_NOW": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "DET_WR_OK": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+            "DET_TE_OK": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "TE", "team": "DET"},
+        })
+
+        vacated = 13.0
+        awarded = sim._apportion_vacated_volume(
+            {"WR": {"DET": vacated}, "TE": {}, "RB": {}},
+            {"DET_WR_OUT": 3},                 # already out from a prior week
+            {"DET_WR_HURT_NOW"},               # newly injured this week
+        )
+
+        self.assertNotIn("DET_WR_OUT", awarded, "A player already injured must not inherit volume.")
+        self.assertNotIn("DET_WR_HURT_NOW", awarded, "A player injured this week must not inherit volume.")
+        self.assertNotIn("DET_TE_OK", awarded, "A WR injury must not leak into the TE pool.")
+        self.assertAlmostEqual(awarded["DET_WR_OK"], vacated, places=6,
+                               msg="The sole healthy WR should inherit the entire WR pool.")
+
+    def test_vacated_volume_vanishes_when_no_healthy_teammate_remains(self):
+        """If every member of the real position group is injured, the vacated volume must simply
+        vanish rather than being awarded to someone ineligible or crashing on a zero-weight
+        division."""
+        sim = self._make_sim_with_group({
+            "DET_WR_ONLY": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": "WR", "team": "DET"},
+        })
+        awarded = sim._apportion_vacated_volume(
+            {"WR": {"DET": 13.0}, "TE": {}, "RB": {}}, {"DET_WR_ONLY": 2}, set()
+        )
+        self.assertEqual(awarded, {})
+
+    def test_wr_te_injuries_run_end_to_end_in_the_real_engine(self):
+        """The test above verifies the vacated-volume mechanism's logic directly, not the
+        actual production code path -- if fantasy_sim/simulation.py were reverted to the old
+        RB-only version, that test would still pass (it mirrors the intended logic, it
+        doesn't call into simulation.py). This closes that gap: runs the REAL engine, through
+        its real public API, with RB/WR/TE injury rates all simultaneously elevated, and
+        confirms it completes without error and produces sane, non-degenerate team point
+        totals -- a real smoke test against actual production code, not a mirror of it."""
+        full_roster = [
+            {"name": "QB_1", "pos": "QB", "team": "DET"}, {"name": "K_1", "pos": "K", "team": "DET"},
+            {"name": "DB_1", "pos": "DB", "team": "DET"}, {"name": "DL_1", "pos": "DL", "team": "DET"},
+            {"name": "LB_1", "pos": "LB", "team": "DET"}, {"name": "RB_1", "pos": "RB", "team": "DET"},
+            {"name": "RB_2", "pos": "RB", "team": "DET"}, {"name": "WR_1", "pos": "WR", "team": "DET"},
+            {"name": "WR_2", "pos": "WR", "team": "DET"}, {"name": "TE_1", "pos": "TE", "team": "DET"},
+            {"name": "TE_2", "pos": "TE", "team": "DET"}, {"name": "WR_3", "pos": "WR", "team": "DET"},
+            {"name": "WR_4", "pos": "WR", "team": "DET"},
+        ]
+        self.mock_fs[LIVE_ROSTERS_FILE] = {t: full_roster for t in self.test_teams}
+        self.mock_fs[BASELINES_FILE] = {
+            p["name"]: {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 3.0, "pos": p["pos"], "team": "DET"}
+            for p in full_roster
+        }
+
+        sim = FantasySimulationEngine()
+        original_rates = dict(SIM_CONFIG['INJURY_RATES'])
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['INJURY_RATES'] = {k: 0.6 for k in original_rates}  # elevated across the board, not just one position
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 5
+        try:
+            with patch.object(sim, 'export_and_visualize') as mock_export:
+                sim.run_simulation()
+            global_season_points = mock_export.call_args[0][1]
+        finally:
+            SIM_CONFIG['INJURY_RATES'] = original_rates
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        for team, points_array in global_season_points.items():
+            self.assertTrue(np.all(np.isfinite(points_array)), f"{team} produced non-finite season points.")
+            self.assertGreater(float(np.mean(points_array)), 0.0, f"{team}'s mean season points was not positive.")
+
     def test_vacated_rb_volume_pass_ordering_is_correct(self):
         """Regression test for a real order-dependence bug: whether a same-real-NFL-team
         backup RB received the vacated-volume bonus THE SAME WEEK a starter got injured used

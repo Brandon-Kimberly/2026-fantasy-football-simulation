@@ -287,6 +287,29 @@ SIM_CONFIG = {
     "INJURY_SEVERE_PROBABILITY": 0.125,
     "INJURY_TYPICAL_DURATION_SCALE": 1.66,
     "INJURY_SEVERE_DURATION_SCALE": 12.3,
+    # Vacated-volume redistribution: when a player at one of these positions is injured, some
+    # of their production flows to a healthy teammate at the SAME position on the SAME real
+    # NFL team, modeling real target/touch redistribution rather than assuming vacated
+    # opportunity simply vanishes. Originally RB-only; extended to WR and TE here as separate,
+    # position-siloed pools (a WR injury only boosts other WRs, a TE injury only boosts other
+    # TEs) rather than a shared WR/TE pool -- real redistribution clearly does sometimes cross
+    # between WR and TE (and even to RBs receiving work, per real examples like the 2021 Colts
+    # backfield absorbing volume after WR injuries), but the SPLIT of how much crosses each
+    # boundary isn't precisely quantifiable from available data, so this stays conservatively
+    # scoped to same-position redistribution only, an honest limitation rather than a modeled
+    # guess.
+    #
+    # VACATED_VOLUME_CAPTURE_RATE (0.65, applied to all three positions) is NOT as precisely
+    # grounded as the injury-rate or duration-mixture constants above -- no clean aggregate
+    # statistic was found for "what fraction of a departed player's production a teammate
+    # captures." It carries over the RB value unchanged (itself not independently derived from
+    # data) for consistency rather than a fresh derivation. Real, concrete anecdotal support it
+    # isn't zero or trivial: George Pickens' target share rose from 15.3% to 24.3% (a real,
+    # documented jump) after CeeDee Lamb's 2025 injury. Treat this constant as directionally
+    # reasonable, not precisely calibrated -- a good candidate for tightening if better
+    # aggregate redistribution data turns up.
+    "VACATED_VOLUME_CAPTURE_RATE": 0.65,
+    "VACATED_VOLUME_ELIGIBLE_POSITIONS": ['RB', 'WR', 'TE'],
     "CORRELATIONS": {
         "QB_WR1": 0.4, "QB_WR2": 0.315, "QB_TE": 0.35, "QB_RB": 0, "WR_WR": -0.004
     },

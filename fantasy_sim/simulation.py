@@ -119,7 +119,102 @@ class FantasySimulationEngine:
 
         self.replacement_levels = self._calc_replacement_levels()
         self.pass_catchers_meta = self._build_pass_catcher_hierarchy()
+        self.nfl_position_groups = self._build_nfl_position_groups()
         self.calibration_report = self._apply_bayesian_updates()
+
+    def _build_nfl_position_groups(self):
+        """Maps (normalized_position, real_nfl_team) -> [(player_name, baseline_mean), ...] across
+        the ENTIRE real NFL player population, not just players rostered in this fantasy league.
+
+        This is what makes honest vacated-volume conservation possible. player_baselines.json
+        covers every player Sleeper publishes projections for (verified: generate_player_baselines
+        iterates all projections, not live_rosters), so a real NFL team's full position group is
+        known here even though only a fraction of it is fantasy-rostered. When a starter is
+        injured, the vacated volume can then be apportioned across the whole REAL group -- and
+        the share that would flow to unrostered teammates correctly does NOT get handed to a
+        rostered player who happens to share the same team and position.
+        """
+        groups = {}
+        for name, data in self.baselines.items():
+            if not isinstance(data, dict):
+                continue
+            pos = normalize_position(data.get('pos', 'FLEX'))
+            team = data.get('team') or 'FA'
+            if team == 'FA':
+                continue  # free agents have no real NFL team whose volume they could inherit
+            groups.setdefault((pos, team), []).append((name, float(data.get('mean', 0.0) or 0.0)))
+        return groups
+
+    @staticmethod
+    def _record_vacated_volume(team_vacated_volume, p_pos, nfl_team, season_mean):
+        """Records one injured player's vacated production into the (position, real NFL team)
+        pool, ACCUMULATING rather than overwriting.
+
+        Regression guard for a real bug: this was previously a plain assignment, so when two
+        players at the same position on the same real NFL team were injured in the same week, the
+        second injury silently clobbered the first and that vacated volume vanished entirely.
+
+        Positions outside VACATED_VOLUME_ELIGIBLE_POSITIONS are ignored, which is what keeps the
+        pools position-siloed (a WR injury can never feed a TE, and a K/DB/DL/LB injury vacates
+        nothing at all).
+
+        Extracted as a method rather than left inline specifically so tests can exercise this real
+        production code path directly instead of re-implementing a mirror of it.
+        """
+        if p_pos not in team_vacated_volume:
+            return
+        team_vacated_volume[p_pos][nfl_team] = (
+            team_vacated_volume[p_pos].get(nfl_team, 0.0)
+            + season_mean * SIM_CONFIG['VACATED_VOLUME_CAPTURE_RATE']
+        )
+
+    def _apportion_vacated_volume(self, team_vacated_volume, injury_clocks, newly_injured_this_week):
+        """Apportions each (position, real NFL team) pool of injury-vacated volume across the
+        HEALTHY members of that real NFL position group, weighted by baseline mean, returning a
+        direct {player_name: contingency_pts} map.
+
+        Fixes a real over-distribution bug: contingency_pts used to be a bare pool lookup, so
+        EVERY rostered player sharing the injured player's team and position received the FULL
+        vacated amount. Three fantasy teams each rostering a healthy DET WR meant one DET WR
+        injury injected 3x its vacated volume into the league -- points that never existed,
+        inflating scores in exactly the way an uncapped tail would.
+
+        Weighting runs over the whole REAL group (from self.nfl_position_groups, built from every
+        player in player_baselines.json, not just the fantasy-rostered ones), so the share
+        attributable to unrostered teammates is simply never awarded. Volume that in reality
+        flows to a player nobody rosters should not land on a rostered player's stat line. That
+        is the substantive part of what "extend redistribution into the real NFL depth chart" was
+        reaching for, achieved with data already on hand.
+
+        KNOWN LIMITATION: mean-weighting is a proxy for depth-chart order, and it is imperfect in
+        exactly the handcuff case -- a true backup RB carries a LOW projection precisely because
+        he sits behind the starter, yet he is the man who most inherits that starter's role. Real
+        depth-chart ordering (Sleeper exposes depth_chart_order on its player objects) would model
+        this properly and is the natural next improvement. Mean-weighting is still a strict
+        improvement over awarding every claimant 100%.
+
+        Extracted as a method rather than left inline specifically so tests can exercise this
+        real production code path directly, instead of re-implementing a mirror of it.
+        """
+        contingency_by_player = {}
+        for vac_pos, team_pools in team_vacated_volume.items():
+            for vac_team, vacated_amount in team_pools.items():
+                if vacated_amount <= 0.0:
+                    continue
+                group = self.nfl_position_groups.get((vac_pos, vac_team), [])
+                healthy = [
+                    (nm, mn) for nm, mn in group
+                    if injury_clocks.get(nm, 0) <= 0 and nm not in newly_injured_this_week and mn > 0.0
+                ]
+                total_weight = sum(mn for _, mn in healthy)
+                if total_weight <= 0.0:
+                    continue  # nobody healthy left to inherit; the volume correctly vanishes
+                for nm, mn in healthy:
+                    contingency_by_player[nm] = (
+                        contingency_by_player.get(nm, 0.0)
+                        + vacated_amount * (mn / total_weight)
+                    )
+        return contingency_by_player
 
     def _calc_replacement_levels(self):
         means = {pos: [] for pos in SIM_CONFIG['INJURY_RATES'].keys()}
@@ -533,14 +628,20 @@ class FantasySimulationEngine:
                         faab[t_name] -= min(b_amt, faab[t_name])
                         won_streamers[t_name].append(available_streamers[i])
 
-                    team_vacated_rb = {}
+                    # team_vacated_volume is keyed by [position][nfl_team] -- generalizes what
+                    # was originally an RB-only mechanism (team_vacated_rb) to also cover WR
+                    # and TE, as three separate, position-siloed pools (see SIM_CONFIG's
+                    # VACATED_VOLUME_CAPTURE_RATE comment for why WR and TE aren't merged into
+                    # one shared pool, and for this constant's real-data grounding and its
+                    # honest limitations).
+                    team_vacated_volume = {pos: {} for pos in SIM_CONFIG['VACATED_VOLUME_ELIGIBLE_POSITIONS']}
                     # PASS 1: determine ALL injury onsets across the WHOLE league for this
                     # week FIRST, before computing any scores. Fixes a real order-dependence
                     # bug: previously, whether a same-real-team backup RB received the
                     # vacated-volume bonus THE SAME WEEK a starter got hurt depended on which
                     # fantasy team happened to be processed first that week, and which order
                     # players appeared within a roster -- both arbitrary, neither by design.
-                    # Now every injury for the week is fully known (and team_vacated_rb fully
+                    # Now every injury for the week is fully known (and team_vacated_volume fully
                     # populated) before any score or contingency_pts lookup happens in PASS 2,
                     # regardless of iteration order.
                     newly_injured_this_week = set()
@@ -571,7 +672,13 @@ class FantasySimulationEngine:
                                     weeks_missed = int(np.random.exponential(scale=SIM_CONFIG['INJURY_TYPICAL_DURATION_SCALE'])) + 1
                                 injury_clocks[p_name] = min(16, weeks_missed)
                                 newly_injured_this_week.add(p_name)
-                                if p_pos == 'RB': team_vacated_rb[nfl_team] = season_mean * 0.65
+                                self._record_vacated_volume(team_vacated_volume, p_pos, nfl_team, season_mean)
+
+                    # Apportion each pool across the real NFL position group, once per week
+                    # (see _apportion_vacated_volume for the full rationale and limitations).
+                    contingency_by_player = self._apportion_vacated_volume(
+                        team_vacated_volume, injury_clocks, newly_injured_this_week
+                    )
 
                     for t_name in self.team_names:
                         p_list = sim_rosters[t_name]
@@ -641,7 +748,7 @@ class FantasySimulationEngine:
                                 if p_pos in ['QB', 'WR', 'TE']: script_mult += 0.10
                                 elif p_pos == 'RB': script_mult -= 0.10
 
-                            contingency_pts = team_vacated_rb.get(nfl_team, 0.0) if p_pos == 'RB' else 0.0
+                            contingency_pts = contingency_by_player.get(p_name, 0.0)
                             env_var = float(np.random.normal(v_tot / 22.0, 0.10))
 
                             expected_pre = mean_val * (v_tot / 22.0) * script_mult + contingency_pts
