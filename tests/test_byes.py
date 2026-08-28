@@ -233,5 +233,46 @@ class TestByeAndInjuries(unittest.TestCase):
         self.assertGreater(paid_out, 0, "no DET contingency ever paid out; the check would be vacuous")
 
 
+# --------------------------------------------------------------------------- step 3
+class TestStreamerPersistence(unittest.TestCase):
+    """Phase 4 finding 4, live now that byes exist. Needs are max(this week, next week), so a
+    bye hole in week 6 is bid for in week 5. Before: won_streamers was rebuilt empty every
+    week, so the week-5 streamer was discarded and week 6 bid again -- FAAB spent twice for
+    one hole. Now a won streamer persists for one week and reduces next week's need."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.league = ByeLeague(det_slots={0}, current_week=5, sims=4)   # DET QB, bye week 6
+
+    def test_one_bid_per_bye_hole_not_two(self):
+        by_week = {}
+        for wk, needs in self.league.bids:
+            by_week[wk] = by_week.get(wk, 0) + 1
+        n = len(TEAMS) * self.league.sims
+        self.assertEqual(by_week.get(BYE_WEEK - 1, 0), n, "week 5 should bid once per team for next week's hole: %s" % by_week)
+        self.assertEqual(by_week.get(BYE_WEEK, 0), 0, "week 6 must not bid again for the hole already covered: %s" % by_week)
+        self.assertEqual(sum(by_week.values()), n, "one bid per team-season in total: %s" % by_week)
+
+    def test_the_carried_streamer_fills_the_bye_hole(self):
+        """Every team has exactly one unfilled slot in week 6 (the DET QB) and it is filled
+        by the streamer won in week 5: the audit log's week-6 STREAMER_QB carries the ladder
+        value (>= 4.0 floor, capped at the QB replacement level), not the unbid fallback."""
+        unfilled_w6 = [u for wk, u in self.league.unfilled if wk == BYE_WEEK]
+        self.assertEqual(unfilled_w6, [1] * len(unfilled_w6))
+        log = self.league.args["audit_log"]["weeks"][BYE_WEEK]["teams"]
+        for t, td in log.items():
+            streamers = [s for s in td["starters"] if s["name"].startswith("STREAMER_QB")]
+            self.assertEqual(len(streamers), 1, t)
+
+    def test_persistence_is_one_week_only(self):
+        """A streamer won in week 5 for the week-6 hole is consumed in week 6; nothing is
+        carried into week 7 and no phantom streamer starts there (13 candidates, 0 unfilled)."""
+        unfilled_w7 = [u for wk, u in self.league.unfilled if wk == BYE_WEEK + 1]
+        self.assertEqual(unfilled_w7, [0] * len(unfilled_w7))
+        log = self.league.args["audit_log"]["weeks"][BYE_WEEK + 1]["teams"]
+        for t, td in log.items():
+            self.assertFalse(any(s["name"].startswith("STREAMER") for s in td["starters"]), t)
+
+
 if __name__ == "__main__":
     unittest.main()

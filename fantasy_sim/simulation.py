@@ -680,6 +680,14 @@ class FantasySimulationEngine:
                 sim_meta = copy.deepcopy(self.meta)
                 faab = copy.deepcopy(self.current_faab)
                 injury_clocks = {p: 0 for t in sim_rosters.values() for p in t}
+                # Streamers won last week and not yet used: (ladder value, week won). A won
+                # streamer is usable in the week it is won and the following week, then
+                # discarded -- one-week persistence. It matches the ladder's semantics
+                # (weekly replacement-level availability decaying by STREAMER_DECAY_RATE, not
+                # a specific persistent player) and closes Phase 4 finding 4: needs are the
+                # max over this week and next, so a bye hole next week was bid for this week,
+                # the streamer discarded at the week boundary, and the hole bid for again.
+                carried_streamers = {t: [] for t in self.team_names}
 
                 sim_wins = {t: float(self.actual_h2h_wins[t] + self.actual_median_wins[t]) for t in self.team_names}
                 sim_points = {t: float(self.actual_points[t]) for t in self.team_names}
@@ -804,7 +812,8 @@ class FantasySimulationEngine:
                                 if flex_taken == 3: break
                             if flex_taken < 3: wk_deficits += (3 - flex_taken)
                             max_deficits = max(max_deficits, wk_deficits)
-                        streamer_needs[t_name] = max_deficits
+                        # A streamer already held from last week covers a hole without a bid.
+                        streamer_needs[t_name] = max(0, max_deficits - len(carried_streamers[t_name]))
 
                     total_faab = sum(faab.values())
                     avg_faab = total_faab / len(self.team_names)
@@ -820,10 +829,11 @@ class FantasySimulationEngine:
 
                     bids.sort(key=lambda x: (x[0], MANAGER_PROFILES.get(x[1], {}).get('faab_agg', 0.5)), reverse=True)
                     available_streamers = [max(4.0, 12.0 - (i * 0.5)) for i in range(max(40, len(bids)))]
-                    won_streamers = {t: [] for t in self.team_names}
+                    # Start from what was carried in from last week, then add this week's wins.
+                    won_streamers = {t: list(carried_streamers[t]) for t in self.team_names}
                     for i, (b_amt, t_name) in enumerate(bids):
                         faab[t_name] -= min(b_amt, faab[t_name])
-                        won_streamers[t_name].append(available_streamers[i])
+                        won_streamers[t_name].append((available_streamers[i], week_num))
 
                     # team_vacated_volume is keyed by [position][nfl_team] -- generalizes what
                     # was originally an RB-only mechanism (team_vacated_rb) to also cover WR
@@ -992,7 +1002,7 @@ class FantasySimulationEngine:
                                 # (see _calc_replacement_levels); a position absent from the
                                 # baseline pool keeps the ladder value rather than being
                                 # pinned to the unverified 4.0 default.
-                                m_str = won_streamers[t_name].pop(0)
+                                m_str, _won_week = won_streamers[t_name].pop(0)
                                 if po in self.replacement_level_from_data:
                                     m_str = min(m_str, self.replacement_levels[po])
                             else:
@@ -1109,6 +1119,11 @@ class FantasySimulationEngine:
 
                     for p in list(injury_clocks.keys()):
                         if injury_clocks[p] > 0: injury_clocks[p] -= 1
+                    # Unused streamers won THIS week carry into next week; anything older
+                    # (carried in and still unused) is discarded -- one-week persistence.
+                    carried_streamers = {
+                        t: [(v, w) for v, w in won_streamers[t] if w == week_num] for t in self.team_names
+                    }
                 
                 assert week_num >= 16, "CRITICAL ERROR: Simulation loop did not properly execute Weeks 15/16 playoff resolution."
 
