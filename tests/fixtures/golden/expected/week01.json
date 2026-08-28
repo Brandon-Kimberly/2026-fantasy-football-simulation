@@ -194,7 +194,7 @@
   },
   "stage_b__export_and_visualize": {
     "live_season_forecast_week_1.json": {
-      "hash": "d1ae9388e6134d1ebe17ebc182ca09a8b4f2ce02c46381264fc056c0da95adb8",
+      "hash": "0286f551520aae16ae42cfba21d033339069c31249c87e46efa8bc78c5d5c209",
       "summary": {
         "max": 100.0,
         "mean": 25.079359,
@@ -251,7 +251,7 @@
   },
   "stage_c__export_champ_ranking": {
     "live_season_forecast_week_1.json": {
-      "hash": "d1ae9388e6134d1ebe17ebc182ca09a8b4f2ce02c46381264fc056c0da95adb8",
+      "hash": "0286f551520aae16ae42cfba21d033339069c31249c87e46efa8bc78c5d5c209",
       "summary": {
         "max": 100.0,
         "mean": 25.079359,
