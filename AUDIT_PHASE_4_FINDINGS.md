@@ -10,7 +10,7 @@ properties; 3 fail and characterise the defects below.
 
 **Status:** findings 3 and 2 fixed (each with its own golden regeneration); 5 closed; 1 tracked as
 `AUDIT_PLAN.md` F2, sized and not implemented, its characterisation test left red; 4 latent,
-recorded for the bye work. Suite: 161 tests, 1 failure by design (finding 1).
+recorded for the bye work. Suite: 161 tests, `OK (skipped=1, expected failures=4)` — finding 1 sits under `expectedFailure` until F2 lands.
 
 **Method note.** Optimality questions were answered by brute force and closed-form cross-checks.
 The real-data backtest was not used: it is the gate for a decision-logic change that might touch

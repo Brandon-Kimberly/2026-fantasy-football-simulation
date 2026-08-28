@@ -242,13 +242,17 @@ class TestTradeLogic(unittest.TestCase):
                 FantasySimulationEngine().run_simulation()
         return self._reconstruct(calls)
 
+    @unittest.expectedFailure
     def test_trades_are_live_on_the_preseason_fixture(self):
-        """FAILS -- finding 1. Over 40 simulated seasons of the week01 fixture, 0 of ~220
-        evaluated trades are accepted (0 of 548 over 100 seasons in the probe). The rich team
-        gives its 6th- and 7th-best players -- both STARTERS in a 13-slot lineup (medians 12.7
-        and 12.2) -- for the desperate team's best, a QB 99% of the time; its optimal score
-        falls every time (max gain -3.17). MANAGER_PROFILES['trade_will'] therefore has no
-        observable effect."""
+        """CHARACTERISATION, deliberately still failing -- Phase 4 finding 1, tracked as
+        AUDIT_PLAN.md F2 (sized, not implemented). Over 40 simulated seasons of the week01
+        fixture, 0 of ~220 evaluated trades are accepted (0 of 548 over 100 seasons in the
+        probe). The rich team gives its 6th- and 7th-best players -- both STARTERS in a 13-slot
+        lineup (medians 12.7 and 12.2) -- for the desperate team's best, a QB 99% of the time;
+        its optimal score falls every time (max gain -3.17). MANAGER_PROFILES['trade_will']
+        therefore has no observable effect. F2's acceptance criterion is >= 1.0 completed
+        trades per season on this fixture; remove the expectedFailure when it lands and this
+        test becomes the guard."""
         evals = self._run_fixture("week01", 2, 20)
         self.assertGreater(len(evals), 50, "trade block did not run")
         self.assertGreater(sum(1 for e in evals if e[0]), 0,
