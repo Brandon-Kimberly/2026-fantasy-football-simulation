@@ -111,8 +111,13 @@ Deterministic, so no RNG order changed.
 Observed on regeneration (fixed together with finding 2, so the RNG stream also moved): week01
 weekly team mean 179.9 → 171.7 (**−4.6%**), larger than the league-average 2.8% because rostered
 players concentrate on high-total offences and so sat above the league's mean multiplier; weekly
-sd 34.8 → 32.5 (−6.5%). Every conserved quantity from Phase 1 — win sums, all-play and h2h
-totals, playoff/champ/toilet shares, seed counts — is unchanged.
+sd 34.8 → 32.5 (−6.5%). The Phase 1 conserved quantities — win sums, all-play and h2h
+totals, playoff/champ/toilet shares, seed counts — are **sum-identical, not bit-identical**: the
+arrays themselves (and their `stage_a` hashes) all moved, because different simulations now win.
+Their sums are invariant to any draw by construction (each week awards exactly one decision
+per team, every pair plays every week, every season seats exactly 4/1/1), which is precisely
+what Phase 1 locked; the sums held is a check that those invariants survived the change, not
+a claim that the outcomes did.
 
 ### 2. `shared_z` injects +0.32 correlation into every pass-catcher pair for 44% of team-weeks — **FIXED**
 
