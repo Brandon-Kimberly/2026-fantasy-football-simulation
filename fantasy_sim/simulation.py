@@ -221,6 +221,33 @@ class FantasySimulationEngine:
             hazard = SIM_CONFIG["ABSENCE_RETURN_HAZARD_STEADY"]
         return weeks
 
+    def _script_multiplier(self, p_pos, veg):
+        """Pre-game game-script multiplier for one player: defensive-tier and spread effects.
+        Extracted (F6) so the intended lineup -- solved before this week's onsets are drawn --
+        values players exactly as the final assignment does; behaviour byte-identical to the
+        inline block it replaces (golden master)."""
+        v_spr, v_opp = veg['spread'], veg['opponent']
+        script_mult = 1.0
+        # Empirically-derived defensive tiers (see nfl_defensive_tiers.json,
+        # built from real completed-game points-allowed data). Applied to
+        # both pass- and rush-relevant positions using the same overall
+        # defensive-strength signal -- see SIM_CONFIG's DEFENSIVE_RANKS
+        # removal comment for why this is no longer split by pass vs. rush.
+        top_def = self.defensive_tiers.get('TOP_DEFENSE', [])
+        bottom_def = self.defensive_tiers.get('BOTTOM_DEFENSE', [])
+        if v_opp in top_def and p_pos in ['QB', 'WR', 'TE']: script_mult -= 0.06
+        elif v_opp in bottom_def and p_pos in ['QB', 'WR', 'TE']: script_mult += 0.06
+        if v_opp in top_def and p_pos == 'RB': script_mult -= 0.06
+        elif v_opp in bottom_def and p_pos == 'RB': script_mult += 0.06
+
+        if v_spr <= -5.5:
+            if p_pos == 'RB': script_mult += 0.15
+            elif p_pos in ['DL', 'DEF']: script_mult += 0.10
+        elif v_spr >= 5.5:
+            if p_pos in ['QB', 'WR', 'TE']: script_mult += 0.10
+            elif p_pos == 'RB': script_mult -= 0.10
+        return script_mult
+
     def _apportion_vacated_volume(self, team_vacated_volume, injury_clocks, newly_injured_this_week):
         """Apportions each (position, real NFL team) pool of injury-vacated volume across the
         HEALTHY members of that real NFL position group, weighted by baseline mean, returning a
@@ -878,6 +905,31 @@ class FantasySimulationEngine:
                     # VACATED_VOLUME_CAPTURE_RATE comment for why WR and TE aren't merged into
                     # one shared pool, and for this constant's real-data grounding and its
                     # honest limitations).
+                    # F6 (AUDIT_PLAN.md): the INTENDED lineup -- what a manager sets before this
+                    # week's injuries exist. Solved on healthy, non-bye players at their pre-game
+                    # expectation WITHOUT contingency (this week's onsets have not been drawn, so
+                    # there is nothing to apportion; no lookahead). It drives two things in PASS 1
+                    # below: the onset hazard (starters take the snaps) and which onsets can be
+                    # locked-lineup zeros (the 0.21 was measured on previous-week starters). The
+                    # FINAL lineup is still chosen in PASS 2 on expected_pre with contingency.
+                    intended_starters = set()
+                    for t_name in self.team_names:
+                        intended_cands = []
+                        for p_name in sim_rosters[t_name]:
+                            p_info = self.baselines.get(p_name, {})
+                            if not isinstance(p_info, dict): p_info = {}
+                            p_meta = sim_meta.get(t_name, {}).get(p_name, {})
+                            if not isinstance(p_meta, dict): p_meta = {}
+                            if week_num == p_info.get('bye') or injury_clocks.get(p_name, 0) > 0: continue
+                            p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))
+                            nfl_team = p_meta.get('team', p_info.get('team', 'FA'))
+                            season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
+                            veg = team_environments.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
+                            value = season_mean * (veg['total'] / env_norm) * self._script_multiplier(p_pos, veg)
+                            intended_cands.append((p_name, DUAL_ELIGIBILITY.get(p_name, [p_pos]), value))
+                        intended_assigned, _ = self._solve_optimal_assignment(intended_cands)
+                        intended_starters.update(n for n, _, _ in intended_assigned)
+
                     team_vacated_volume = {pos: {} for pos in SIM_CONFIG['VACATED_VOLUME_ELIGIBLE_POSITIONS']}
                     # PASS 1: determine ALL injury onsets across the WHOLE league for this
                     # week FIRST, before computing any scores. Fixes a real order-dependence
@@ -903,7 +955,10 @@ class FantasySimulationEngine:
 
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
 
-                            if np.random.rand() < SIM_CONFIG['INJURY_RATES'].get(p_pos, 0.025):
+                            # F6: hazard scaled by intended-lineup membership (starters take the
+                            # snaps); the roster-weighted hazard is unchanged by construction.
+                            exposure = SIM_CONFIG['ONSET_EXPOSURE_STARTER'] if p_name in intended_starters else SIM_CONFIG['ONSET_EXPOSURE_BENCH']
+                            if np.random.rand() < SIM_CONFIG['INJURY_RATES'].get(p_pos, 0.025) * exposure:
                                 # Two-component duration mixture (see SIM_CONFIG's
                                 # INJURY_SEVERE_PROBABILITY comment for the real-data sourcing
                                 # and moment-matching solve behind these three parameters) --
@@ -920,7 +975,10 @@ class FantasySimulationEngine:
                                 # F5 step 2: with LOCKED_ONSET_PROBABILITY the manager did not know
                                 # before lock -- the player stays a lineup candidate at his pre-game
                                 # expectation and realises 0 (see SIM_CONFIG for the 2025 derivation).
-                                if np.random.rand() < SIM_CONFIG['LOCKED_ONSET_PROBABILITY']:
+                                # F6: only an INTENDED starter can be a locked zero -- the 0.21 was
+                                # measured among previous-week starters; a bench onset simply
+                                # never had the slot.
+                                if p_name in intended_starters and np.random.rand() < SIM_CONFIG['LOCKED_ONSET_PROBABILITY']:
                                     locked_zero_this_week.add(p_name)
                                 self._record_vacated_volume(team_vacated_volume, p_pos, nfl_team, season_mean)
 
@@ -982,25 +1040,7 @@ class FantasySimulationEngine:
                                 mu_a = np.log(mean_val) - (sigma_a ** 2 / 2)
                                 base_score = float(np.exp(mu_a + sigma_a * eff_z))
 
-                            script_mult = 1.0
-                            # Empirically-derived defensive tiers (see nfl_defensive_tiers.json,
-                            # built from real completed-game points-allowed data). Applied to
-                            # both pass- and rush-relevant positions using the same overall
-                            # defensive-strength signal -- see SIM_CONFIG's DEFENSIVE_RANKS
-                            # removal comment for why this is no longer split by pass vs. rush.
-                            top_def = self.defensive_tiers.get('TOP_DEFENSE', [])
-                            bottom_def = self.defensive_tiers.get('BOTTOM_DEFENSE', [])
-                            if v_opp in top_def and p_pos in ['QB', 'WR', 'TE']: script_mult -= 0.06
-                            elif v_opp in bottom_def and p_pos in ['QB', 'WR', 'TE']: script_mult += 0.06
-                            if v_opp in top_def and p_pos == 'RB': script_mult -= 0.06
-                            elif v_opp in bottom_def and p_pos == 'RB': script_mult += 0.06
-
-                            if v_spr <= -5.5:
-                                if p_pos == 'RB': script_mult += 0.15
-                                elif p_pos in ['DL', 'DEF']: script_mult += 0.10
-                            elif v_spr >= 5.5:
-                                if p_pos in ['QB', 'WR', 'TE']: script_mult += 0.10
-                                elif p_pos == 'RB': script_mult -= 0.10
+                            script_mult = self._script_multiplier(p_pos, veg)
 
                             contingency_pts = contingency_by_player.get(p_name, 0.0)
                             # env_norm is the mean implied total over the simulated schedule

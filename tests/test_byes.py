@@ -90,10 +90,16 @@ class ByeLeague(object):
         real_faab = FantasySimulationEngine._compute_faab_bid
         me = self
 
+        solves_this_week = [0]
+
         def solve(c):
             a, u = real_solve(c)
-            me.candidates.append((me.last_week(), len(c), tuple(sorted(n for n, _, _ in c))))
-            me.unfilled.append((me.last_week(), len(u)))
+            # Only the 8 solves right after the apportion boundary are this week's lineups;
+            # later ones (trade evaluation, next week's intended lineup -- F6) are not.
+            solves_this_week[0] += 1
+            if solves_this_week[0] <= len(TEAMS):
+                me.candidates.append((me.last_week(), len(c), tuple(sorted(n for n, _, _ in c))))
+                me.unfilled.append((me.last_week(), len(u)))
             return a, u
 
         def record(pools, p_pos, nfl_team, season_mean):
@@ -103,6 +109,7 @@ class ByeLeague(object):
         def apportion(engine, pools, clocks, newly):
             wk = me.next_week()                               # this call opens week wk
             me.opened += 1
+            solves_this_week[0] = 0
             me.pools.append((wk, {(pos, tm): v for pos, d in pools.items() for tm, v in d.items() if v > 0}))
             out = real_apportion(engine, pools, clocks, newly)
             me.recipients.append((wk, dict(out)))

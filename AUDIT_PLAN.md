@@ -924,3 +924,47 @@ order, not by value, and it exists to count holes, not to pick starters. (e) Cha
 before the change: on the real engine, the onset count among intended-lineup players vs bench
 players equals the exposure ratio (brute force on the fixture, as F5 step 2 was verified), and
 the pooled hazard is unchanged.
+
+**Correction during implementation (2026-08-28).** The "bench hazard ≈ 0.55 × starter" (and the
+1.18 / 0.63 factors sketched from it) mixed two definitions: onsets were classified by
+previous-week status, exposure by this-week status, and "benched player-weeks" included the
+already-out zeros, inflating the bench denominator. On ONE consistent definition — a player-
+week is exposed if the player scored > 0 the previous week, classified by whether he started
+that previous week — real 2025 gives starters 61 / 1,060 = 0.0575, bench 14 / 303 = 0.0462,
+**ratio 0.80** (n = 14; interval roughly 0.6–1.1), starters 77.8% of exposures. Factors built
+in: **starter 1.05, bench 0.84** (0.778 × 1.05 + 0.222 × 0.84 = 1.00). The effect is about a
+third of what the scoping sketched; the acceptance criterion (starter-onsets 4.7/wk, started-
+zero rate ±0.05) is left as written and will be judged against it honestly. The
+characterisation measured the engine at 0.91 on the same proxy.
+
+**Result (2026-08-28) — built as scoped with the corrected factors, fixture-verified, gate
+NOT met; prediction missed in a way that is itself the finding.** Fixture cross-check (week01,
+2 × 15 seasons, 2,700 onsets): observed ÷ expected-at-base-rate 1.028 for intended starters,
+0.862 for the bench, ratio 1.19 against the built-in 1.25 (SE ≈ 0.03); pooled hazard 0.0406 vs
+0.0421 roster-weighted (the fixture's starter share is 72.7% against the 77.8% the factors were
+normalised at — ≈ 2% fewer onsets, a known level effect); every locked zero an intended starter
+(0 of 435 otherwise); engine lineup persistence 0.861 vs real 0.890; wall clock 1.4 s vs a
+1.2–1.4 s baseline (the extra Hungarian per team-week is within noise). Paired 300-sim backtest,
+same F4 inputs and seed: bias **+1.77 → +1.51 pts** (+1.4% → +1.2%), mean z −0.089 → −0.068,
+cover80 0.66 → 0.64, gradient 9.0 → 9.0 pts. Gate quantities, measured exactly as the real ones:
+started-zero starters per team-week **0.099** (weeks 6–14) / **0.096** (3–14) against real
+0.236 / 0.198 — unchanged from F5 step 2's 0.093 / 0.096; **starter-onsets per week 3.24**
+against real 4.7; pooled hazard −2 to −3% (within ±0.01). Stated prediction beforehand: 0.09 →
+≈ 0.11. It landed at 0.099 — a null result, not the predicted rise: restricting the locked draw
+to intended starters removed roughly as many eligible onsets as the 1.05 factor added.
+
+Why, decomposed rather than tuned: the 2025 league had no IDP players (team-DEF era), so each
+real roster's ≈ 9–10 true starters are all offence and their measured hazard is 0.0575/week;
+the engine's per-position rates for that same offence mix give ≈ 0.043 (RB 0.070, WR 0.040,
+TE 0.035, QB 0.025, × 1.05). 76 starter-slots × 0.043 ≈ 3.3 onsets/week = what the simulation
+shows; × 0.0575 ≈ 4.4 = what reality shows. Per position on the real data (weeks 1–11, players
+with ≥ 2 recorded weeks): QB 0.039, RB 0.041, **WR 0.068**, **TE 0.063** against config QB 0.025,
+RB 0.070, WR 0.040, TE 0.035 — WR and TE roughly 70–80% under, RB over; n = 3 / 11 / 20 / 4
+onsets respectively. The remaining starter-onset shortfall is therefore the LEVEL of
+`INJURY_RATES` by position, not its distribution across the roster — F6's scope row "source
+check" — and that is Phase 7 calibration, to be done on the per-position statistic with the
+n above written next to it, not by scaling the exposure factors. F6's exposure split stands as
+built (correct on its own claim: onsets redistributed toward starters at the measured ratio,
+pooled hazard held, locked draw on the right denominator); its acceptance criterion moves with
+the cause to Phase 7's `INJURY_RATES` item, where "starter-onsets 4.7/week ± 0.5 and started-zero
+rate ± 0.05 with `LOCKED_ONSET_PROBABILITY` and the exposure factors unchanged" is the test.

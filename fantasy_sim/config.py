@@ -407,6 +407,22 @@ SIM_CONFIG = {
     # (the lineup is chosen on expected_pre -- the manager did not know) and his realised score
     # is 0; otherwise he is excluded from candidates and the bench or a streamer fills the slot.
     "LOCKED_ONSET_PROBABILITY": 0.21,
+    # Onset exposure (F6, AUDIT_PLAN.md). INJURY_RATES is sourced from per-ACTIVE-player
+    # injury statistics but was drawn for every rostered player regardless of role. Real 2025
+    # (Sleeper matchup payloads), ONE consistent definition -- a player-week is exposed to a
+    # fresh onset if the player scored > 0 the previous week, classified by whether he STARTED
+    # that previous week: starters 61 onsets / 1,060 exposures = 0.0575/week; bench 14 / 303 =
+    # 0.0462/week; bench/starter hazard ratio 0.80; starters are 77.8% of exposures. ONE
+    # SEASON, n = 14 bench onsets (the ratio's interval is roughly 0.6-1.1). An earlier
+    # derivation in AUDIT_PLAN F6 gave 0.51 by counting benched player-weeks -- which include
+    # the already-out zeros -- as bench exposure; that was a definition mismatch and is
+    # superseded by these numbers. The two factors scale INJURY_RATES[pos] for players in / out
+    # of the INTENDED lineup (solved before the onset draw, see run_simulation) and are
+    # normalised so the roster-weighted hazard is unchanged at that split:
+    # 0.778 x 1.05 + 0.222 x 0.84 = 1.00 -- onsets are redistributed toward starters, not added.
+    # Re-derive with a second season.
+    "ONSET_EXPOSURE_STARTER": 1.05,
+    "ONSET_EXPOSURE_BENCH": 0.84,
     # Vacated-volume redistribution: when a player at one of these positions is injured, some
     # of their production flows to a healthy teammate at the SAME position on the SAME real
     # NFL team, modeling real target/touch redistribution rather than assuming vacated
