@@ -448,6 +448,35 @@ Phase 7 partly depends on accumulating real 2026 results, so it can run late or 
 
 ---
 
+## Reproducibility watch — open
+
+### R1 — Intermittent `setUpClass` error in `test_distributions` controlled seasons (first seen 2026-08-28)
+
+**Symptom.** In a full `python -m unittest discover tests` run, `TestWeeklyDrawMoments` and/or
+`TestEpistemicStructure` fail in `setUpClass` → `controlled_season` → `run_simulation`, at the
+PASS-1 onset scan (`p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))`)
+with `TypeError: descriptor 'get' for 'dict' objects doesn't apply to a 'str' object`. One
+further run terminated with process exit code 5 and no verdict. Frequency: 3 of ~9 ordinary
+full runs on branch `audit/f5-forward-absence` (working tree, `data/` present); the rest were
+`Ran 206 tests, OK (skipped=1, expected failures=5)`.
+
+**What is ruled out (all 0 failures):** `test_distributions` alone ×3; the modules that run
+before it (`test_backtest_player`, `test_backtest_season`, `test_byes`) + `test_distributions`
+under `PYTHONHASHSEED` 0–5; the full suite on a clean detached worktree of `main` (a4368c7)
+×3 without and ×3 with `data/` copied in; the full suite ×4 in this tree with a diagnostic
+`RuntimeError` inserted immediately before the failing line (checking `sim_meta[t_name]` and
+`self.baselines` are dicts) — it never fired; the failing pair ×3 under `-X faulthandler`.
+The new F5 tests (`test_injury_status`) run AFTER `test_distributions` in discovery order and
+cannot affect it at run time; the failing statement is preceded by `isinstance(…, dict)` guards
+on both operands, so the message is not consistent with the code as read. Nothing in the
+working tree rebinds `dict`; no test patches `builtins` other than `open` in `test_sync`
+(which runs later).
+
+**Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
+run with `-X faulthandler -v` to a file and record the test that ran immediately before the
+failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
+observation and 3/9 without.
+
 ## Tracked follow-ups (outside any phase's branch)
 
 ### F1 — Rekey players by Sleeper `player_id` instead of full name

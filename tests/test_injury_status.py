@@ -193,3 +193,131 @@ class TestInitialAbsenceClock(unittest.TestCase):
         self.assertAlmostEqual((d == 2).sum() / (d >= 2).sum(), h, delta=0.015)
         # on the IR slot, "Out" is stage two like everyone else
         self.assertAlmostEqual((self._draws("Out", True) == 1).mean(), h, delta=0.01)
+
+
+# ----------------------------------------------------------------------- F5: onset week
+class OnsetLeague(object):
+    """F5 harness. Same controlled league as InjuryLeague, no initial absences; one exposed
+    player (OUT_PLAYER, an RB) with onset rate 1.0 in a league where everyone else has rate 0,
+    and the duration draw pinned so every onset yields exactly `n` (np.random.exponential is
+    patched to return n - 1 -> int(n - 1) + 1 == n). Records, per simulated week: the
+    newly-injured set, the exposed player's clock, and whether he was a lineup candidate."""
+
+    def __init__(self, n, current_week=3, sims=2):
+        roster, baselines = {}, {}
+        for t in TEAMS:
+            roster[t] = []
+            for i, pos in enumerate(SLOTS):
+                name = "%s_%s%d" % (t, pos, i)
+                # the exposed player is the only RB on team A; everyone else is a K, so the
+                # rate patch below (RB 1.0, all else 0) exposes exactly one player
+                real_pos = pos if name == OUT_PLAYER else ("K" if pos == "RB" else pos)
+                roster[t].append({"name": name, "pos": real_pos, "team": "FA"})
+                baselines[name] = {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 0.0,
+                                   "pos": real_pos, "team": "FA", "bye": 0}
+        fs = {
+            LEAGUE_STATE_FILE: {"current_week": current_week},
+            LEAGUE_STANDINGS_FILE: {t: {"remaining_faab": 100} for t in TEAMS},
+            VEGAS_FILE: {"_meta": {"week": current_week, "source": "odds_api", "fetched_at": "x"}},
+            LIVE_ROSTERS_FILE: roster, BASELINES_FILE: baselines,
+            TEAM_RATINGS_FILE: {}, DEFENSIVE_RATINGS_FILE: {},
+            DEFENSIVE_TIERS_FILE: {"TOP_DEFENSE": [], "BOTTOM_DEFENSE": []},
+            LEAGUE_SCHEDULE_FILE: [[["A", "B"], ["C", "D"], ["E", "F"], ["G", "H"]]] * REGULAR_SEASON_WEEKS,
+            NFL_SCHEDULE_FILE: _full_schedule(),
+            WEEKLY_ACTUALS_FILE: {},
+        }
+        self.span = 17 - current_week
+        self.weeks = []          # per simulated week: dict(newly=bool, clock=int, candidate=bool, pool=float)
+        real_solve = FantasySimulationEngine._solve_optimal_assignment
+        real_apportion = FantasySimulationEngine._apportion_vacated_volume
+        me = self
+
+        def apportion(engine, pools, clocks, newly):
+            me.weeks.append({"newly": OUT_PLAYER in newly, "clock": clocks.get(OUT_PLAYER, 0),
+                             "candidate": False, "pool": sum(v for d in pools.values() for v in d.values())})
+            return real_apportion(engine, pools, clocks, newly)
+
+        def solve(c):
+            if me.weeks and any(nm == OUT_PLAYER for nm, _, _ in c):
+                me.weeks[-1]["candidate"] = True
+            return real_solve(c)
+        rates = {k: 0.0 for k in SIM_CONFIG["INJURY_RATES"]}
+        rates["RB"] = 1.0
+        profiles = {t: {"faab_agg": 0.5, "trade_will": 0.0} for t in TEAMS}
+        prev = logging.getLogger().getEffectiveLevel()
+        logging.getLogger().setLevel(logging.ERROR)
+        orig = SIM_CONFIG["NUM_BATCHES"], SIM_CONFIG["SIMS_PER_BATCH"]
+        SIM_CONFIG["NUM_BATCHES"], SIM_CONFIG["SIMS_PER_BATCH"] = 1, sims
+        try:
+            with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]):
+                with patch.dict(SIM_CONFIG["INJURY_RATES"], rates):
+                    with patch.dict("fantasy_sim.simulation.MANAGER_PROFILES", profiles, clear=True):
+                        with patch.object(FantasySimulationEngine, "_solve_optimal_assignment", staticmethod(solve)):
+                            with patch.object(FantasySimulationEngine, "_apportion_vacated_volume", apportion):
+                                with patch.object(FantasySimulationEngine, "export_and_visualize", lambda s, *a: None):
+                                    with patch("fantasy_sim.simulation.np.random.exponential", lambda scale: float(n - 1)):
+                                        FantasySimulationEngine().run_simulation()
+        finally:
+            SIM_CONFIG["NUM_BATCHES"], SIM_CONFIG["SIMS_PER_BATCH"] = orig
+            logging.getLogger().setLevel(prev)
+
+    def spells(self):
+        """(onset week index, weeks fully absent after it) for each onset, per simulated season."""
+        out = []
+        for s in range(0, len(self.weeks), self.span):
+            season = self.weeks[s:s + self.span]
+            i = 0
+            while i < len(season):
+                if season[i]["newly"]:
+                    j = i + 1
+                    while j < len(season) and not season[j]["candidate"] and not season[j]["newly"]:
+                        j += 1
+                    out.append((i, j - i - 1, season[i]["candidate"]))
+                    i = j
+                else:
+                    i += 1
+        return out
+
+
+class TestOnsetWeekSemantics(unittest.TestCase):
+    """F5 candidate (b) / the off-by-one. The calibration behind the duration mixture counts
+    games MISSED (64% of injuries <= 2 games missed, mean 3.1), and the real-2025 absence
+    spells were measured as runs of exact zeros. The engine sets the clock to n in the onset
+    week, lets the player PLAY that week at 0.35x, and decrements the clock at the end of the
+    same week -- so a drawn n yields n - 1 fully absent weeks, and n = 1 (40% of onsets) is
+    never absent at all. Measured in-simulation: out-on-clock / newly-hurt = 2.08 against the
+    mixture's mean of 3.11."""
+
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(5)
+        cls.n1, cls.n3 = OnsetLeague(1), OnsetLeague(3)
+
+    @unittest.expectedFailure
+    def test_an_onset_week_is_a_missed_game(self):
+        """CHARACTERISATION. The newly injured player must not be a lineup candidate in the
+        onset week (a missed game is a zero, as the calibration data counted it)."""
+        for league in (self.n1, self.n3):
+            for onset_idx, absent_after, played_onset_week in league.spells():
+                self.assertFalse(played_onset_week, "newly injured player was a lineup candidate in his onset week")
+
+    @unittest.expectedFailure
+    def test_a_drawn_n_produces_n_missed_games(self):
+        """CHARACTERISATION. With the duration pinned at n, the spell must be n missed games:
+        the onset week plus n - 1 further weeks. Today it is the onset week (played) plus n - 1."""
+        for n, league in ((1, self.n1), (3, self.n3)):
+            spells = league.spells()
+            self.assertGreater(len(spells), 0)
+            for onset_idx, absent_after, played in spells:
+                if onset_idx + n > league.span:       # spell truncated by the end of the season
+                    continue
+                missed = absent_after + (0 if played else 1)
+                self.assertEqual(missed, n, "n=%d: onset at index %d, %d fully absent weeks after, played onset week: %s"
+                                 % (n, onset_idx, absent_after, played))
+
+    def test_vacated_volume_is_recorded_in_the_onset_week(self):
+        """Guard that must survive the fix: the onset week opens the teammates' pool."""
+        for league in (self.n1, self.n3):
+            for w in league.weeks:
+                if w["newly"]:
+                    self.assertGreater(w["pool"], 0.0)
