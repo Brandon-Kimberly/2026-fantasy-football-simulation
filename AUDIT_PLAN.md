@@ -153,8 +153,12 @@ than fixed, because neither is a code change:
    6–11 *excluding* injury zeros it is 0.80 (conjugate 0.81 — calibrated); vs weeks 6–11 *including* them 0.57
    (post/pre 0.884 vs 1.012). So the conjugate posterior is right per game played and the +10.8% is entirely the
    absence the engine does not draw: forward injury onsets under `INJURY_RATES` plus no current-IR input (F4)
-   remove far less than the 12.4% of weeks 6–11 that real rostered players actually missed. Under the old form
-   that gap was hidden by an under-weighted posterior. Finding 4 stays open, its target restated: any posterior
+   remove far less than the 12.4% of weeks 6–11 that real rostered players actually missed — MEASURED: the engine
+   draws 4.1% of bye-excluded rostered player-weeks as absent in weeks 6–11 (0.0% at week 6, 5.9% by week 11; 300
+   seasons, cp6) vs 14.7% real zero weeks for the same players and weeks. Under the old form that 10.6-point gap
+   was hidden by an under-weighted posterior: the blank-slate prior is far below per-game means (RB 9.0 vs 12.79),
+   so w = 0.47 pulled posteriors down (RB 11.05 vs conjugate 12.09) by about the absence factor reality applies
+   (12.09 × 0.884 ≈ 10.7) — two errors of opposite sign, and the conjugate form removed one. Finding 4 stays open, its target restated: any posterior
    change is gated on the backtest, which cannot pass until F4 lands; the weight criterion is already met.
    Patch retained at scratch `conjugate_5c.patch` (= 948902f's engine/backtest_player hunks). Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
@@ -564,6 +568,11 @@ gradient flattens to within ±1.5 pts across checkpoints (it is 10.7 pts wide af
 cover80 not below 0.65, and the empirical data weight (step 5a diagnostic, bye-aware) is
 re-measured — it may move, since currently-out players are in that regression's weeks-6–11 window.
 
-**When:** after bye modelling merges and before Phase 7 recalibrates `EPISTEMIC_ERROR_RATES`,
-because Phase 7 fits rostered-player variance and an unmodelled IR population would be absorbed
-into it as spurious uncertainty. Interacts with F1 only through key names.
+**When:** after bye modelling merges and BEFORE Phase 7 recalibrates `EPISTEMIC_ERROR_RATES`.
+Step 5c made this a measured requirement, not a precaution: the engine realises 4.1% absence in
+weeks 6–11 against 14.7% real, and that gap alone is +10.8% points bias once the posterior is
+calibrated per game played. Phase 7 fits rostered-player variance on the same backtest; with F4
+unbuilt it would absorb a ~10% scoring gap into `EPISTEMIC_ERROR_RATES` (and into any re-tuned
+`INJURY_RATES`) as spurious uncertainty and tune the wrong constants by a measurable amount.
+Phase 2 finding 4 (conjugate posterior) is gated on F4 for the same reason and should be
+re-run immediately after it, with the weight criterion already met. Interacts with F1 only through key names.

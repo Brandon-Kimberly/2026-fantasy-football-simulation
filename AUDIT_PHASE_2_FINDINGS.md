@@ -234,8 +234,19 @@ applies: the conjugate form puts **0.71** on real n≈4 histories (inside 0.68 �
 0.47. Against weeks 6–11 *excluding* injury zeros the empirical weight is 0.80 (conjugate 0.81):
 the posterior is calibrated per game played. The bias is absence the engine does not draw —
 real rostered players missed 12.4% of weeks 6–11; `INJURY_RATES` onsets plus no current-IR
-input (follow-up F4) remove far less. The old form hid that gap by under-weighting. Blocked on
-F4 now, not on the weight. The defensive
+input (follow-up F4) remove far less. MEASURED IN SIMULATED OUTPUT (300 seasons from the week-6
+checkpoint, hook on the once-per-week vacated-volume call, 133 rostered players): the engine draws
+**4.1%** of bye-excluded rostered player-weeks as absent in weeks 6–11 (0.0% in week 6 — every
+player starts healthy — rising to 5.9% by week 11; a further ~5 players/week are newly hurt and
+play at 0.35×) against **14.7%** real zero weeks for the same players and weeks (22.5% with byes).
+The 10.6-point absence gap is the same size as the bias the conjugate form exposes.
+
+Why the old form compensated: the blank-slate prior sits well below rostered players' per-game
+means (RB prior 9.0 vs observed 12.79 at cp6), so under-weighting the data pulls the posterior
+*down* toward the prior — old form 11.05, conjugate 12.09. Reality applies an absence factor
+of 0.884 to per-game scoring (12.4% of weeks 6–11 missed): 12.09 × 0.884 ≈ 10.7, close to the
+old posterior. Two errors of opposite sign, and the conjugate form removed one of them. Blocked
+on F4 now, not on the weight. The defensive
 half of the decision (`DEF_RATING_SHRINKAGE_N0` → 12) stands: different construct, derived from
 variance components, invisible to this backtest.
 
