@@ -726,6 +726,49 @@ more absence cost the backtest nothing. The real-world counterpart is a locked l
 models). The absence RATE is right; the absence PRICE is not. This is the next F5 question
 and it is a decision-logic change to how holes are filled, not a constant.
 
+**Step 2 scoping — how an absence is priced (2026-08-28, no code written).** Real target derived
+from Sleeper's 2025 matchup payloads (`starters` + `players_points` per roster-week, weeks 1–14,
+bye weeks excluded, 1,768 rostered player-weeks). "Same-week zero" is NOT one regime:
+
+| rostered player-week | n | share |
+|---|---|---|
+| started, > 0 | 1,199 | 67.8% |
+| **started, zero** (a zero sat in a locked slot) | **21** | **1.2%** |
+| benched, > 0 | 366 | 20.7% |
+| benched, zero (manager knew; swapped) | 182 | 10.3% |
+
+Of 203 zero weeks, **90% were benched** — the manager knew before lock and the bench filled the
+slot, which is exactly what the engine's assignment already models (bench fills; a streamer only
+where no bench player fits). Only **10% (21) were started zeros**: 18 fresh onsets (in-game
+injury or inactive after lock), 3 already-out players left in. Price of a started zero = the
+starter's own mean-to-date, **11.0 pts** (n = 20); the engine hands that slot a replacement-
+level streamer worth 7.5–10.5 instead. Frequency: 0.19 started zeros per team-week, 17 of 112
+team-weeks — ≈ 2.1 pts/team-week (≈ 1.5% of a ~140-pt score), the size of the remaining backtest
+bias (+1.9%). By position: WR 3.2% of starts, TE 3.1%, K 0.9%, **QB and RB 0 of 468 starts** —
+regime B is a pass-catcher phenomenon in this sample (a QB/RB who is hurt is known before lock).
+
+The parameter a mechanism would need — the share of FRESH onsets that land in a locked lineup:
+**23%** of 75 (weeks 2–14); **21%** of 61 restricted to players who started the previous week,
+Wilson 95% 0.13–0.33; QB 0/8, RB 0/19, WR 11/38 (29%), TE 3/7 (43%). One season; n small; the
+position split is suggestive, not established.
+
+**Proposed mechanism (Phase 4 treatment — brute-force cross-check on the fill logic, then the
+paired backtest as the baseline-contamination gate):** at onset, with probability p_locked the
+player is a "locked zero": he stays in the candidate list at his pre-game expectation (the
+lineup is chosen on `expected_pre`, as it must be — the manager did not know) and his realised
+score is 0; otherwise (known pre-game) he is excluded from candidates as step 1 does now, and the
+bench or a streamer fills the slot. No partial production either way. p_locked enters as a
+measured constant with the n above and the one-season caveat, position-specific only if the
+QB/RB-vs-WR/TE split survives a second season; a single pooled 0.21 otherwise. Expected effect:
+≈ −0.19 × (11.0 − 9) ≈ −0.4 pts/team-week from the price alone plus the removal of the free
+replacement-level fill on those onsets — the backtest sizes it. Acceptance: on the paired
+real-2025 backtest, started-zero starters per team-week in simulation within ±0.05 of the real
+0.19, bias moves toward zero from +1.9%, cover80 not below 0.63, gradient not wider; the streamer
+-needs tests keep their onset accounting (a locked zero leaves NO unfilled slot). Not touched:
+regime A's timing (a known-out player's waiver pickup the same week) — the engine bids before
+onsets, so a bench-uncoverable known absence takes the unbid fallback without FAAB; measured
+small (regime A holes are bench-covered in the assignment) and left as a note.
+
 **Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, realised
 bye-excluded absence in weeks 6–11 within 2 points of the real rate (14.7%, or the injury-only
 rate once a real 2025 injury list separates scratches from injuries), the cp3→cp12 bias
