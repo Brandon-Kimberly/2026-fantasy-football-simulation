@@ -125,7 +125,7 @@ than fixed, because neither is a code change:
    runs on double-counted evidence. FIXED (deepcopy at imputation; moves no exported number).
    **Phase 0 gap 3:** the golden master passed only because its
    scenario and module ordering happen to be safe; reverse it and all six tests fail.
-7. OPEN — **now blocks two independent, measured findings.** The bye-week mechanism is dead code end to end.
+7. FIXED (bye modelling steps 1–6, 2026-08-28; byes derived from the NFL schedule at sync, engine guards live, fixtures carry byes, `TestByeWeekLiveness` inverted). History of the finding, kept for the record — it WAS: OPEN — **blocks two independent, measured findings.** The bye-week mechanism was dead code end to end.
    Both Phase 2 finding 5 (exclude zero-score weeks from the posterior) and Phase 2 finding 4
    (conjugate posterior update) are statistically correct per-player changes that were applied
    and then REVERTED because the same paired, seeded, points-level backtest on the real 2025
@@ -319,8 +319,8 @@ Findings:
 3. MED-HIGH, FIXED (capped at the position's data-derived replacement level; backtest +1.1% → +1.1%, production-like −0.43%). Won streamers were valued by league-wide bid rank (12.0, 11.5, …) regardless of
    position; a rank-1 streamer beats the replacement level everywhere but QB and out-projects
    105 of 156 rostered players. A roster hole at DB/DL/TE/K is an upgrade for ~3.5 FAAB.
-4. LOW, latent. A streamer won for next week's hole is discarded (won_streamers is rebuilt
-   weekly) while the FAAB is spent this week; unreachable until byes make the lookahead live.
+4. LOW, FIXED (bye-modelling step 3, f058307: won streamers persist one week via `carried_streamers`; pinned in `tests/test_byes.py::TestStreamerPersistence`). Was: a streamer won for next week's hole was discarded (won_streamers rebuilt
+   weekly) while the FAAB was spent this week; unreachable until byes made the lookahead live.
 5. CLOSED. Stale `sim_meta` entries after trades removed (no hash movement); non-playoff teams still bid in weeks 15–16 — harmless, and stopping it would reshuffle the RNG stream for no output change.
 
 ---

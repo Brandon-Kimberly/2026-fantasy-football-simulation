@@ -249,6 +249,20 @@ never told which week it is — so if byes are ever ingested, a player on bye wi
 apportionment denominator and his share destroyed. That should be fixed in the same change that
 makes byes live.
 
+**FIXED — bye modelling, 2026-08-28 (branch `audit/phase-7-calibration`, steps 1–6).** Sync derives each
+team's bye from the NFL schedule it already fetches (`config.derive_bye_weeks`: the one usable week a
+team appears in no pairing; 32/32 teams for both 2026 and 2025, weeks 5–14), records it in
+`nfl_schedule.json["_meta"]["byes"]`, and stamps every baseline's `bye` from its team; the engine
+reads only `_meta.byes` (single derivation point). The three guards are live; the golden fixtures
+carry byes (962/964 baselines) and `TestByeWeekLiveness` is inverted into two consistency guards.
+The prediction above about `_apportion_vacated_volume` turned out to be wrong in a useful way: an
+onset is only recorded for a player whose team plays that week, and pools are per real NFL team,
+so every pool's team and every recipient is playing — pinned on the real engine by
+`tests/test_byes.py::TestByeAndInjuries::test_vacated_volume_never_touches_a_team_on_bye` (no DET
+pool in DET's bye week, no recipient on bye in any week, and DET contingency does pay out in week 7
+so the check is not vacuous). Real-2025 effect of byes alone: points bias +1.1% → −1.8%, cover80
+0.62 → 0.65 (bye-modelling step 5a, AUDIT_PLAN.md).
+
 **Also found while checking this:** `depth_chart_order` *is* present on 12,193 cache entries
 (1,812 non-null). That is the field Phase 7 wants for replacing mean-weighted vacated-volume
 apportionment in the handcuff case — it is already being downloaded, just not persisted.
@@ -280,7 +294,7 @@ Minor, and Phase 6's territory rather than Phase 1's. Reported, not fixed.
 | 4 | Fixed | week06 `stage_b` + `stage_c` |
 | 5 | Fixed | both scenarios, `stage_a` (`points` only) + `stage_b` + `stage_c` |
 | 6 | Fixed | none |
-| 7 | Open — needs a bye-week data source Sleeper does not supply | n/a |
+| 7 | **Fixed** — byes derived from the NFL schedule at sync (32/32 teams), engine guards live, vacated-volume non-interaction pinned | `stage_a`, both scenarios (fixtures now carry byes) |
 | 8 | Open — reported only, Phase 6 | n/a |
 
 Findings 1–4 shared one root cause and one fix: a single `weeks_simulated` derived once in

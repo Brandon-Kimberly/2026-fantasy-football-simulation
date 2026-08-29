@@ -597,56 +597,52 @@ class TestConfigConstantsSurviveARun(unittest.TestCase):
 class TestByeWeekLiveness(unittest.TestCase):
     """AUDIT_PLAN Phase 1: 'a player on bye never scores and never absorbs vacated volume.'
 
-    That invariant cannot currently be violated, because no player ever has a bye. The engine
-    guards it in three places (run_simulation's streamer-need scan, its injury pass, and its
-    scoring pass, all comparing `week_num == p_info.get('bye')`), but the field they read is
-    always 0 and week numbers start at 1.
+    Phase 1 finding 7 characterised this as unreachable: Sleeper's payload has no bye field, so
+    every baseline carried `bye: 0` and the engine's three `week_num == bye` guards were dead
+    code. Bye modelling (steps 1-6, 2026-08-28) derives each team's bye from the NFL schedule
+    at sync time (`config.derive_bye_weeks`: the one usable week a team appears in no pairing),
+    writes it to `nfl_schedule.json["_meta"]["byes"]`, and stamps every baseline's `bye` from
+    its team. The fixtures now carry exactly that (populated from their own pairings).
 
-    The cause is in the sync layer, one line: `"bye": player.get("team_bye", 0)`. Sleeper's
-    /players/nfl payload has no `team_bye` key -- nor any other key containing "bye", at the
-    top level or inside `metadata`. The default fires for every player, every sync.
+    These are the inverted characterisation tests: they pin that the fixtures are live and
+    self-consistent. The engine-level consequences (no score, no onset, no vacated volume, a
+    streamer bid per bye hole, one-week persistence) are pinned in tests/test_byes.py."""
 
-    tests/test_sync.py already covers this line and passes, because its fixture supplies a
-    `team_bye` field of its own. That is why the gap survived: the test proves the code reads
-    the field correctly, not that the field exists.
-
-    These tests assert the *observable consequence* on committed data rather than mocking the
-    API, so they stay honest about what is actually true of the pipeline today."""
-
-    def _baselines(self, scenario):
+    def _fixture(self, scenario, name):
         import json
         import os
         here = os.path.dirname(os.path.abspath(__file__))
-        path = os.path.join(here, "fixtures", "golden", scenario, "player_baselines.json")
-        with open(path) as handle:
+        with open(os.path.join(here, "fixtures", "golden", scenario, name)) as handle:
             return json.load(handle)
 
-    def test_no_player_baseline_carries_a_real_bye_week(self):
-        """Characterises the defect. When byes are ingested for real this test must be
-        inverted -- it is a record of a known gap, not a property worth preserving."""
+    def test_every_nfl_team_has_one_bye_in_the_fixture_schedule(self):
+        """32/32 teams, each with a single derivable bye in weeks 5-14, recorded in _meta and
+        identical to what derive_bye_weeks yields from the pairings (single derivation point)."""
+        from fantasy_sim.config import NFL_TEAMS, derive_bye_weeks
         for scenario in ("week01", "week06"):
-            baselines = self._baselines(scenario)
-            byes = collections.Counter(
-                v.get("bye") for v in baselines.values() if isinstance(v, dict))
-            self.assertEqual(
-                dict(byes), {0: len(baselines)},
-                msg=scenario + ": bye distribution is " + repr(dict(byes))
-                    + " -- if this now has real weeks in it, the bye mechanism is live and "
-                      "the end-to-end bye invariant needs real coverage")
+            sched = self._fixture(scenario, "nfl_schedule.json")
+            byes = sched.get("_meta", {}).get("byes", {})
+            self.assertEqual(sorted(byes), sorted(NFL_TEAMS), msg=scenario + ": teams with a bye")
+            self.assertTrue(all(5 <= w <= 14 for w in byes.values()), msg=scenario + ": " + repr(byes))
+            self.assertEqual(byes, derive_bye_weeks(sched, sched["_meta"].get("failed_weeks", [])),
+                             msg=scenario + ": _meta.byes disagrees with the pairings it was derived from")
 
-    def test_bye_guards_in_the_engine_are_unreachable_with_current_data(self):
-        """The three `week_num == bye` guards can only fire for a bye in 1..16. With every
-        bye at 0 they are dead code, so real bye weeks are simply not modelled: rosters are
-        never short-handed, streamer demand never spikes, and FAAB is never spent covering a
-        bye."""
+    def test_every_baseline_carries_its_team_bye(self):
+        """Every player with an NFL team carries that team's bye; a player with no team carries
+        0 (never on bye, never absent). So the engine's guards are reachable for essentially the
+        whole roster pool -- the exact inverse of the Phase 1 characterisation."""
         for scenario in ("week01", "week06"):
-            baselines = self._baselines(scenario)
-            reachable = [name for name, data in baselines.items()
-                         if isinstance(data, dict) and 1 <= (data.get("bye") or 0) <= 16]
-            self.assertEqual(
-                reachable, [],
-                msg=scenario + ": " + str(len(reachable)) + " players now carry a real bye "
-                    "week; the engine's bye handling is live and needs end-to-end tests")
+            byes = self._fixture(scenario, "nfl_schedule.json")["_meta"]["byes"]
+            baselines = self._fixture(scenario, "player_baselines.json")
+            reachable = 0
+            for name, data in baselines.items():
+                expected = byes.get(data.get("team"), 0)
+                self.assertEqual(data.get("bye"), expected,
+                                 msg="%s: %s (%s) carries bye %r, team bye is %r"
+                                     % (scenario, name, data.get("team"), data.get("bye"), expected))
+                reachable += 1 <= (data.get("bye") or 0) <= 16
+            self.assertGreater(reachable, 0.95 * len(baselines),
+                               msg=scenario + ": only %d of %d baselines carry a real bye" % (reachable, len(baselines)))
 
 
 # ------------------------------------------------------------------------ property-based

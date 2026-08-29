@@ -145,6 +145,17 @@ whose hole is next week pays this week, receives nothing, and pays again next we
 low now, medium once byes land.** Recorded so the bye work re-checks it; it is the same class as
 the two absence-blocked Phase 2 findings.
 
+**FIXED — bye modelling step 3 (f058307, 2026-08-28).** A won streamer now persists for exactly one
+week: `carried_streamers` (initialised beside `injury_clocks`, per sim) holds `(value, week_won)`
+pairs; this week's need is reduced by the carried count, a carried streamer fills the hole first, and
+anything not consumed by the following week is dropped. One-week persistence was chosen over
+indefinite because the streamer ladder models weekly replacement-level availability via
+`STREAMER_DECAY_RATE`, not a specific persistent player; one week closes the double-spend without
+changing what a streamer represents. Pinned in `tests/test_byes.py::TestStreamerPersistence` (one bid
+per bye hole, the carried streamer fills the bye week, nothing persists past it). Goldens were
+byte-identical until the fixtures carried byes — without absences, needs never differ week to week
+and nothing is ever carried.
+
 ### 5. Minor — **CLOSED** (stale `sim_meta` entries removed; the rest reported only)
 
 - The desperate side always offers its single highest-mean player, which is nearly always its
@@ -164,7 +175,7 @@ the two absence-blocked Phase 2 findings.
 | 1 | Trades effectively never complete; `trade_will` inert — **tracked as F2, sized** | Medium | manager model claims; nothing distributional today | `stage_a`, when it lands |
 | 2 | Rich roster −1 per completed trade — **fixed** (2-for-2 with the dropped player as throw-in) | Medium → high if 1 is fixed | roster size, streamer injection | week06 `stage_a` |
 | 3 | Streamer value by bid rank beats real starters — **fixed** (capped at data-derived replacement level; backtest neutral, −0.43% production-like) | Medium-high | any team-week with a hole | `stage_a`, both |
-| 4 | Won streamer discarded when the hole is next week (latent) | Low → medium with byes | FAAB, streamers | none today |
+| 4 | Won streamer discarded when the hole is next week — **fixed** (one-week persistence, bye-modelling step 3) | Low → medium with byes | FAAB, streamers | `stage_a` once fixtures carry byes |
 | 5 | Cosmetic notes — **closed** (stale meta removed; weeks 15–16 bidding left: harmless, and stopping it would reshuffle the RNG stream for no output change) | — | — | — |
 
 Findings 1 and 2 belong together: fixing 1 without 2 makes 2 frequent. Finding 3 is the one with
