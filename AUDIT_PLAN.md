@@ -448,6 +448,43 @@ Phase 7 partly depends on accumulating real 2026 results, so it can run late or 
 
 ---
 
+## Absence modelling — the arc, consolidated (2026-08-28)
+
+Every entry below exists in full elsewhere in this file or the phase findings; this section is
+the reading order and the numbers at each stage, so the chain is followable without the
+transcript. All backtest figures are the paired, seeded, points-level backtest on the real 2025
+season (scratch `bt_points.py`; 300 sims; checkpoints 3/6/9/12; bias = simulated − real weekly
+team points; cover80 = share of real scores inside the simulated 10–90% band).
+
+| stage | what changed | bias (all) | cover80 | absence, wks 6–11, bye-excl. | notes |
+|---|---|---|---|---|---|
+| baseline (Phase 3 close) | — | +1.47 (+1.1%) | 0.62 | not modelled | zero weeks in history were the only absence signal |
+| Phase 2 f5 alone (reverted) | skip zero weeks | +4.3% | — | — | reverted: removed the accidental signal |
+| Phase 3 f4 alone (reverted) | conjugate posterior | +8.5% | — | — | reverted: "over-confident" — the wrong diagnosis, see 5c |
+| bye modelling 5a | byes from the NFL schedule, draw side | −2.29 (−1.8%) | 0.65 | byes only | overshoot: byes double-counted with history zeros |
+| 5b | + skip zero weeks (f5 re-applied, stands) | +3.45 (+2.7%) | 0.65 | 4.1% vs 14.7% real | gradient cp3 −1.4% → cp12 +6.9%: players out NOW drawn healthy |
+| 5c (reverted) | + conjugate posterior | +13.96 (+10.8%) | 0.56 | — | weight criterion MET (applies 0.71 vs target 0.68); the bias is undrawn absence, not the posterior |
+| F4 | initial state: out-now players enter on a measured two-stage clock (0.29 / 0.16) | +1.84 (+1.4%) | 0.63 | 7.9%; week 6: 5.6% vs 5.3% real | initial state verified; level offset → F5 |
+| F5 step 1 | onset week is a missed game; 0.35× partial-week mechanic removed | +2.43 (+1.9%) | 0.63 | 11.9% (analytic 11.3%) | engine now delivers its constants: r 0.047 vs 0.050, D 2.90 vs 3.11; bias UP because an onset hole was filled free at replacement level |
+| F5 step 2 | locked-lineup onsets (p = 0.21) stay candidates and realise 0 | +1.77 (+1.4%) | 0.66 | — | started-zero rate 0.09 vs 0.20–0.24 real: denominator mismatch → F6 |
+| F6 (open) | onset hazard by lineup exposure | — | — | — | acceptance: starter-onsets 4.7/wk, started-zero rate ±0.05, pooled hazard unchanged |
+
+What each stage settled, in one line each: byes are derived, not fetched (5a); history zeros
+are not games (5b, stands); the posterior weight was never the problem (5c: 0.71 applied vs
+0.68 target — Phase 2 finding 4 is gated on the backtest bias, which is gated on F6); absence
+has an initial state (F4) and a forward model (F5), and they are measured separately; the
+forward model's constants are right and were being under-delivered by an off-by-one (F5 step
+1); an absence is priced by who fills the slot, and a same-week zero is two regimes, 90% known
+and bench-covered, 10% locked (F5 step 2); the remaining half of the locked-zero gap is that
+onsets are drawn roster-wide from a per-active-player rate (F6). Constants introduced along the
+way and their evidence: `ABSENCE_RETURN_HAZARD_FIRST_WEEK` 0.29 (n=101), `_STEADY` 0.16 (n=62/43/29),
+`LOCKED_ONSET_PROBABILITY` 0.21 (13/61, Wilson 0.13–0.33) — all one-season 2025, all written
+that way. Constants deliberately NOT changed: `INJURY_RATES`, the duration scales (both closed
+on their own statistics), and 0.21 (not re-tuned to a different mechanism's gap).
+Decisions deliberately made and recorded: on_ir = absent regardless of status; no Doubtful
+mechanic (no source, no live case); onset week = missed game (a reversal, not a re-timing);
+pooled p_locked with the position split as next season's hypothesis.
+
 ## Reproducibility watch — open
 
 ### R1 — Intermittent `setUpClass` error in `test_distributions` controlled seasons (first seen 2026-08-28)
@@ -842,3 +879,48 @@ within ±0.01 of 0.050 (the exposure split must redistribute onsets, not add the
 gradient criterion is re-read, and Phase 2 finding 4 is re-run.
 
 **When:** before Phase 7 touches `INJURY_RATES`; otherwise any time. Independent of F1–F3.
+
+**PASS-1 ordering, scoped before implementation (2026-08-28).** The weekly loop today, by line:
+streamer-need scan and bids (814–878) → PASS 1: onset draws, clocks, vacated-volume RECORD
+(891–925) → apportion (929) → PASS 2: per-player scoring with `expected_pre` that INCLUDES this
+week's contingency (1005–1012) → assignment on `expected_pre` (1036) → streamers for unfilled
+slots (1040) → clock decrement (1171). "Draw onsets after the assignment" as literally stated
+IS circular: the assignment's `expected_pre` carries contingency points, contingency comes from
+apportioning vacated volume, and vacated volume is recorded at onset; and candidacy itself
+(excluded vs locked) depends on the onset. Drawing onsets after the final assignment would
+mean the lineup was chosen before it knew who is out — wrong in the other direction.
+
+Resolution: the exposure model does not need the FINAL lineup, it needs the INTENDED one —
+the lineup a manager would set before this week's injuries exist, which is exactly what the
+data conditioned on ("started the previous week" ≈ "is a starter"). So the order becomes:
+(1) bids as now; (2) NEW: intended lineup per team — `_solve_optimal_assignment` on the
+candidates who are healthy and not on bye, valued at `mean × (v_tot / env_norm) × script_mult`
+with NO contingency (this week's onsets do not exist yet, so there is nothing to apportion; no
+lookahead); (3) PASS 1 onset draws with hazard `INJURY_RATES[pos] × (starter factor if in the
+intended lineup else bench factor)`, clocks, vacated-volume record — unchanged otherwise;
+(4) apportion; (5) PASS 2 scoring and the FINAL assignment exactly as now, on `expected_pre`
+with contingency, candidates = healthy ∪ locked. No cycle: (2) reads only state that precedes
+(3); (3) reads (2); (5) reads (3)–(4). The intended and final lineups differ only through this
+week's onsets and contingency, which is what they should differ by.
+
+Consequences to decide, then pin: (a) the locked draw should apply only to onsets by players
+in the intended lineup — that is the denominator the 0.21 was measured on (previous-week
+starters), which directly removes the "starter-conditional rate applied roster-wide" mismatch
+F5 step 2 identified; bench onsets are simply excluded (their slot was never theirs). The 4
+real bench-promoted locked zeros (0.04/team-week) are then a known, named under-count, not a
+hidden one. (b) Cost: one extra Hungarian solve per team-week (≤ 20 × 13; the trade block
+already runs several per evaluation) — measure, expect a few percent of runtime. (c) RNG: the
+per-player onset draw stays one `rand()` per healthy player in roster order, so the stream is
+consumed identically; only the comparison threshold changes — goldens move only where a
+player's draw crosses the scaled threshold, and the pooled hazard shifts unless the factors
+are set so that the roster-weighted hazard is unchanged (the acceptance criterion says it must
+be, within ±0.01). Derive the split from the real data — 61 starter / 14 bench onsets over
+≈ 73% / 27% of rostered player-weeks → bench hazard ≈ 0.55 × starter hazard (n = 14, one season,
+written that way) — then set the factors so the roster-weighted mean equals the current
+`INJURY_RATES[pos]` (starter ≈ 1.14×, bench ≈ 0.63× at a 73/27 split): the per-active-player
+sourcing stays honest and onsets are redistributed, not added. (d) The streamer-need scan's own
+greedy fill is NOT reused as the intended lineup: it fills positional requirements in roster
+order, not by value, and it exists to count holes, not to pick starters. (e) Characterisation
+before the change: on the real engine, the onset count among intended-lineup players vs bench
+players equals the exposure ratio (brute force on the fixture, as F5 step 2 was verified), and
+the pooled hazard is unchanged.
