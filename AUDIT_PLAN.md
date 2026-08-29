@@ -610,6 +610,42 @@ measured 0.16 return hazard (a one-season, censored measurement — the F4 const
 same caveat); (d) the vacated-volume pathway for initial absences on blank-slate priors.
 Each is a change to baseline computation and takes the paired backtest gate.
 
+**Interaction scoping (2026-08-28, before any implementation).** Candidates (a) onset rate and
+(c) duration are NOT separately identifiable from the absence gate: in steady state the absent
+share is A = r·D / (1 + r·D), so any change to `INJURY_RATES` shifts what the duration scales
+must be to hit the same A, and vice versa — the same coupling the n₀ split had between the
+player and defensive halves. They ARE separately identifiable from the direct statistics, so
+that is how each must be gated: r from onsets (P(zero | previous non-bye week > 0)) and D from
+absence spells (maximal runs of zeros), never from A. Measured on real 2025, weeks 1–11, 117
+rostered players with ≥ 2 recorded non-bye weeks:
+
+| | real 2025 | engine constants | note |
+|---|---|---|---|
+| weekly onset hazard r | **0.050** (39 onsets / 782 present player-weeks; RB 0.041, WR 0.068, QB 0.039, TE 0.063) | 0.041 roster-weighted | close; RB matches exactly |
+| spell length D (weeks) | **2.56**, P(1 week) 0.54, 14 of 39 spells right-censored (true D higher) | mixture mean 3.11, P(1) 0.40 | nominally close |
+| absence share A | 0.116 (weeks 1–11); 0.147 (weeks 6–11, cp6 rosters) | r·D/(1+r·D) = **0.113** analytic | the engine's constants already imply ≈ the real share |
+| realised in simulation | — | **0.079** (weeks 6–11); out-on-clock ÷ newly-hurt = 10.1 ÷ 4.85 = **2.08** weeks | the engine does not deliver its own D |
+
+So the constants are approximately right and the engine under-delivers them. Cause, read
+from the code and confirmed by the 2.08: the clock is set to `weeks_missed` in the onset
+week, the player then PLAYS that week at 0.35×, and the clock is decremented at the end of
+that same week — so a spell of `weeks_missed` = n produces n − 1 fully absent weeks plus one
+reduced game. 40% of onsets draw n = 1 and are never absent at all. The calibration target
+(64% of injuries ≤ 2 games missed, mean 3.1 games missed) counts games MISSED; the engine
+delivers mean 2.11 misses plus a 0.35× game. Candidate (b) and this off-by-one are the same
+defect, and it is worth ≈ r × 1 × (1 − A) ≈ 4 points of absence — most of the 14.7 − 7.9 gap.
+The remainder is non-stationarity (censored long spells accumulate through the season; real
+A rises from 11.6% over weeks 1–11 to 14.7% over 6–11) which the severe component should
+reproduce once the onset week counts.
+
+**Sequencing that follows from the coupling:** (1) fix the onset-week semantics first — it
+changes effective D without touching either constant, so it must land before (a) or (c) can
+be judged; re-measure realised r and D from the simulation the same way as from the real
+data (onsets per present player-week; out-on-clock ÷ newly-hurt). (2) Only then compare (a)
+against real r and (c) against real D, each on its own statistic. (3) A is the acceptance
+check, never the calibration target. (d) vacated volume on blank-slate priors is independent
+of all three (it changes who scores, not who is absent) and is judged on the backtest bias.
+
 **Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, realised
 bye-excluded absence in weeks 6–11 within 2 points of the real rate (14.7%, or the injury-only
 rate once a real 2025 injury list separates scratches from injuries), the cp3→cp12 bias
