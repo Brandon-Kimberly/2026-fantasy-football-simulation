@@ -550,6 +550,23 @@ its 5 property tests from iteration 2 on — an artifact of re-running them in o
 R1 (iteration 1: 0 errors). So object identity / GC timing within a process does not reproduce
 it either. Total under observation: 0 of 36 (16 fresh processes + 20 in-process iterations).
 
+
+**Invocation context captured (2026-08-29, F3 branch).** A full-suite run under `-X faulthandler`
+died with process exit code **−1073741819 = 0xC0000005, a Windows access violation**, and the
+faulting Python frame was `tests/test_lineup_optimality.py:62` in `brute_force_best` — a pure-Python
+list comprehension inside `itertools.product`, in a test that has just made ~1,700
+`scipy.optimize.linear_sum_assignment` calls. A fault in pure Python means the heap was already
+corrupted by native code before that frame. That is consistent with all three R1 symptoms seen so
+far: the impossible `TypeError` at an `isinstance`-guarded line (a corrupted object), the earlier
+"exit code 5" runs (the same crash with the code reported through a different shell path), and the
+0-of-36 non-reproduction under any deterministic condition. Environment at the time: Python 3.8.10
+(Windows Store build), numpy 1.24.4, scipy 1.10.1, pandas 2.0.3, matplotlib 3.7.5. The immediate
+re-run passed (232 tests). Standing instruction updated: R1 is a **native memory fault in the
+test process, not a test-ordering or shared-state defect**; the next step when it recurs is to
+capture the faulthandler frame again and compare — if `linear_sum_assignment` or the pandas/
+numpy percentile paths are the common ancestor, pin or upgrade that library and re-run the
+20-iteration probe. Suite runs that die this way must be re-run, never counted as green.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
@@ -654,6 +671,36 @@ Sleeper's `/state/nfl` rolls to week 15 — NFL 2026 week 14's last game kicks o
 ESPN's published 2026 schedule (`scoreboard?week=15&seasontype=2&dates=2026`, 16 games, fetched
 2026-08-28). The first sync on or after 2026-12-15 will hit the interim refusal. Otherwise any
 time.
+
+**DONE (2026-08-29, branch `audit/f3-playoff-seeding`).** Survey found a prerequisite defect first:
+sync banks `weekly_actuals` for every week below `current_week`, and Sleeper's `/matchups/15` and
+`/16` carry all eight teams with `matchup_id`s (semifinals plus consolation games — verified on
+the 2025 league), so from the first week-16 sync the banked "regular-season" standings included
+playoff-week wins, median wins and points. Characterised on the week06 fixture with a week_15
+entry written as sync writes one (every team's banked figures moved), then fixed: standings are
+banked from weeks ≤ 14 only; the posterior keeps using every completed week's player scores.
+
+Built: `sync.generate_playoff_bracket` fetches `/winners_bracket` each sync and writes
+`data/playoff_bracket.json` resolved to team names (round, match, t1, t2, winner, loser; seeds
+1v4 then 2v3; `{}` on failure, warned). Engine: `_seed_from_banked_standings` — seeds = top four
+by (banked wins, banked points), the week-14 block's own key; Sleeper's bracket field overrides
+it with a warning when they disagree; at week 16 the round-1 winners come from the bracket, or
+from `weekly_actuals` week_15 `h2h_win` among the field, or the run refuses by name. Week 17+
+refuses as "season complete" (the plan's open decision: exporting a banked final state adds
+surface for no forecast value). Per sim, `seed_matrix` / `b_playoffs` / `b_toilets` are banked
+from the ranking since the week-14 block does not run; `_playoff_winner` and the week-15/16
+blocks are reused unchanged. Export: `weeks_simulated` may be 0 — every regular-season rate then
+divides by 1 and is 0 by construction, flagged `regular_season_banked: true` in schedule luck;
+the weekly-score distribution is exported as nulls with the same flag; the density plot and
+median-cut line skip. `assert weeks_simulated >= 0`.
+
+Acceptance, measured: at week 15 `b_playoffs` is exactly 0/1 per team and equals the seeds;
+`Playoff_Pct` sums to 400 and `Champ_Pct` to 100; the champion is always a seed, and at week 16
+always one of the two recorded semifinal winners; the bracket-override and the week-17 refusal
+are tested. Stage A of both regular-season goldens is **byte-identical**; stage B/C moved only in
+`syndicate_insights` by the additive `regular_season_banked` key. A third golden scenario
+`week15` (week06 rosters, deterministic fabricated weeks 6–14 actuals, a bracket file) now pins
+playoff-week behaviour by hash. Suite 232 tests (223 + 9), OK (skipped=1, expected failures=4).
 
 ### F4 — Ingest current injury status (a player who is out now is not a full-strength draw)
 

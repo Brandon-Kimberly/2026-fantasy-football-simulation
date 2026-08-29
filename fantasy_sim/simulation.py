@@ -34,7 +34,7 @@ from fantasy_sim.storage import (
     load_json, save_json, ensure_data_dir, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
-    NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE,
+    NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
     live_season_forecast_path, model_learning_report_path, syndicate_insights_path,
     syndicate_comprehensive_matrix_path, power_rankings_chart_path, season_outcomes_chart_path,
     all_teams_trajectories_chart_path, expected_wins_chart_path, h2h_heatmap_chart_path,
@@ -75,6 +75,12 @@ class FantasySimulationEngine:
     def __init__(self):
         self.state = load_json(LEAGUE_STATE_FILE)
         self.current_week = self.state.get('current_week', 1)
+        # F3: Sleeper's winners bracket as sync writes it (team names); {} when absent.
+        try:
+            self.playoff_bracket = load_json(PLAYOFF_BRACKET_FILE) or {}
+        except Exception:
+            self.playoff_bracket = {}
+        self.weekly_actuals = {}
         self.standings = load_json(LEAGUE_STANDINGS_FILE)
         self.vegas = load_json(VEGAS_FILE)
         self.rosters_raw = load_json(LIVE_ROSTERS_FILE)
@@ -342,6 +348,7 @@ class FantasySimulationEngine:
         }
         try:
             actuals = load_json(WEEKLY_ACTUALS_FILE)
+            self.weekly_actuals = actuals
         except FileNotFoundError:
             return report
 
@@ -396,6 +403,16 @@ class FantasySimulationEngine:
                 self.baselines[p_name]['std_epistemic'] = float(np.sqrt(post_var))
 
         for wk_key in completed_weeks:
+            # F3: standings are a REGULAR-SEASON quantity. Sleeper returns matchup_ids for the
+            # playoff weeks too (semifinals plus consolation games), and sync banks every
+            # completed week, so without this cap a week-16 run would seed the bracket from
+            # standings that already contain week 15. The posterior above keeps using every
+            # completed week's player scores -- a different quantity.
+            try:
+                if int(str(wk_key).split('_')[-1]) > REGULAR_SEASON_WEEKS:
+                    continue
+            except ValueError:
+                pass
             wk_data = actuals[wk_key]
             for t_name, stats_dict in wk_data['team_results'].items():
                 self.actual_h2h_wins[t_name] += stats_dict.get('h2h_win', 0)
@@ -664,6 +681,55 @@ class FantasySimulationEngine:
         ]
         return float(np.mean(totals)) if totals else LEAGUE_AVG_PPG
 
+    def _seed_from_banked_standings(self):
+        """F3 (AUDIT_PLAN.md). For a run that starts inside the playoffs, the bracket the
+        week-14 block would have produced is already decided by the banked regular season:
+        seeds = top 4 by (banked wins, banked points) -- the same key the week-14 block uses.
+        If sync wrote playoff_bracket.json (Sleeper's /winners_bracket, resolved to team
+        names), its round-1 pairs are the authority and a disagreement with the banked
+        ranking is logged (Sleeper's tiebreak can differ from ours). Returns
+        (top4, ranked, round1_winners) where round1_winners is (w1, w2) when the bracket
+        records them (current_week >= 16) and (None, None) otherwise."""
+        ranked = sorted(self.team_names,
+                        key=lambda t: (self.actual_h2h_wins[t] + self.actual_median_wins[t], self.actual_points[t]),
+                        reverse=True)
+        top4 = ranked[:4]
+        w1 = w2 = None
+        bracket = self.playoff_bracket or {}
+        rounds = bracket.get("rounds") or []
+        r1 = [m for m in rounds if m.get("round") == 1 and m.get("t1") and m.get("t2")]
+        if len(r1) == 2:
+            bracket_field = {m["t1"] for m in r1} | {m["t2"] for m in r1}
+            if bracket_field != set(top4):
+                logging.warning("PLAYOFFS: Sleeper's bracket field %s differs from the banked-standings top four %s; "
+                                "using Sleeper's.", sorted(bracket_field), top4)
+                # keep Sleeper's field, ordered by our ranking so seed_order tiebreaks stay defined
+                top4 = [t for t in ranked if t in bracket_field]
+            # seed order from the bracket: match 1 is 1 v 4, match 2 is 2 v 3
+            m1, m2 = sorted(r1, key=lambda m: m.get("match", 0))[:2]
+            ordered = [m1["t1"], m2["t1"], m2["t2"], m1["t2"]]
+            if set(ordered) == set(top4):
+                top4 = ordered
+            if self.current_week >= 16:
+                w1, w2 = m1.get("winner"), m2.get("winner")
+        if self.current_week >= 16 and (w1 is None or w2 is None):
+            # fallback: the real week-15 results in weekly_actuals (h2h_win among the field)
+            wk15 = (self.weekly_actuals.get("week_15") or {}).get("team_results", {})
+            s1, s2, s3, s4 = top4
+            def won(a, b):
+                ra, rb = wk15.get(a, {}), wk15.get(b, {})
+                if ra.get("h2h_win", 0) > rb.get("h2h_win", 0): return a
+                if rb.get("h2h_win", 0) > ra.get("h2h_win", 0): return b
+                return None
+            w1 = w1 or won(s1, s4)
+            w2 = w2 or won(s2, s3)
+            if w1 is None or w2 is None:
+                raise ValueError(
+                    f"run_simulation: current_week={self.current_week} is the playoff final but the "
+                    f"semifinal winners are not recorded -- playoff_bracket.json carries no round-1 "
+                    f"winners and weekly_actuals has no week_15 h2h results. Re-run the sync.")
+        return top4, ranked, (w1, w2)
+
     @staticmethod
     def _playoff_winner(a, b, week_scores, seed_order):
         """Winner of a playoff game between a and b: higher score, and on an exact tie the
@@ -677,22 +743,21 @@ class FantasySimulationEngine:
         return a if seed_order.index(a) < seed_order.index(b) else b
 
     def run_simulation(self):
-        if self.current_week > REGULAR_SEASON_WEEKS:
-            # Explicit refusal, not an internal error. The season loop seeds the playoff
-            # bracket (top4) only in the week-14 seeding block, so a run starting at week
-            # 15 raised IndexError, 16 raised KeyError: None (w1/w2 never set) and 17
-            # raised UnboundLocalError (the loop never executed). Sleeper's /state/nfl
-            # reports 15-18 during and after the playoffs and sync writes it straight to
-            # league_state.json, so the first playoff-week sync used to turn every
-            # forecast into a stack trace. Seeding the bracket from banked standings and
-            # simulating only the remaining rounds is the real feature -- tracked as
-            # AUDIT_PLAN.md F3. AUDIT_PHASE_5_6_FINDINGS.md finding 1.
+        if self.current_week > REGULAR_SEASON_WEEKS + 2:
+            # F3: the two playoff rounds are weeks 15 and 16. From week 17 the season is over
+            # and there is nothing to forecast; refuse with a statement, not a stack trace.
             raise ValueError(
-                f"run_simulation: current_week={self.current_week} is past the {REGULAR_SEASON_WEEKS}-week "
-                f"regular season. The engine cannot yet simulate from inside the playoffs (the bracket is "
-                f"seeded only by simulating week {REGULAR_SEASON_WEEKS}); see AUDIT_PLAN.md F3. Re-run "
-                f"with league_state.json at week <= {REGULAR_SEASON_WEEKS}, or wait for F3."
+                f"run_simulation: current_week={self.current_week} is past the playoff final (week "
+                f"{REGULAR_SEASON_WEEKS + 2}). The season is complete; there is nothing to forecast. "
+                f"See AUDIT_PLAN.md F3."
             )
+        # F3: inside the playoffs the bracket is already decided by the banked regular season
+        # (and Sleeper's bracket file when sync wrote one); seed it once, use it in every sim.
+        seeded_top4, seeded_ranked, (seeded_w1, seeded_w2) = ([], [], (None, None))
+        if self.current_week > REGULAR_SEASON_WEEKS:
+            seeded_top4, seeded_ranked, (seeded_w1, seeded_w2) = self._seed_from_banked_standings()
+            logging.info("PLAYOFFS: seeding from banked standings at week %d: %s%s", self.current_week, seeded_top4,
+                         (" ; semifinal winners %s, %s" % (seeded_w1, seeded_w2)) if seeded_w1 else "")
         num_batches = SIM_CONFIG["NUM_BATCHES"]
         env_norm = self._compute_environment_normaliser()
         sims_per_batch = SIM_CONFIG["SIMS_PER_BATCH"]
@@ -755,8 +820,14 @@ class FantasySimulationEngine:
 
                 sim_wins = {t: float(self.actual_h2h_wins[t] + self.actual_median_wins[t]) for t in self.team_names}
                 sim_points = {t: float(self.actual_points[t]) for t in self.team_names}
-                top4 = []
-                w1, w2 = None, None
+                top4 = list(seeded_top4)
+                w1, w2 = seeded_w1, seeded_w2
+                if self.current_week > REGULAR_SEASON_WEEKS:
+                    # the week-14 seeding block will not run: bank its bookkeeping now
+                    for rank_idx, team_ranked in enumerate(seeded_ranked):
+                        seed_matrix[team_ranked][rank_idx] += 1
+                    for p in top4: b_playoffs[p] += 1
+                    b_toilets[seeded_ranked[-1]] += 1
                 
                 sim_season_means = {}
                 for p_name, p_info in self.baselines.items():
@@ -1265,10 +1336,14 @@ class FantasySimulationEngine:
         # never populated, so week 15 indexes an empty list). Asserted anyway because the
         # failure mode without it is silent: these are float divisions, so a non-positive
         # divisor exports inf/nan rather than raising. Week indexing is Phase 5's subject.
-        assert weeks_simulated > 0, (
-            f"CRITICAL ABORT: current_week={self.current_week} leaves no regular-season weeks "
-            f"to normalise against."
+        # F3: inside the playoffs there are no regular-season weeks to simulate; every
+        # regular-season rate below is then 0 by construction (its accumulator never ran) and
+        # the export flags it as banked rather than dividing by zero.
+        assert weeks_simulated >= 0, (
+            f"CRITICAL ABORT: current_week={self.current_week} is beyond the playoff final."
         )
+        regular_season_banked = weeks_simulated == 0
+        weeks_divisor = max(weeks_simulated, 1)
         opponents_per_week = len(self.team_names) - 1
         # 2 decisions per team per week under the league's hybrid H2H + median-beat format,
         # 1 when median scoring is off (the season backtest runs that way -- see
@@ -1424,7 +1499,7 @@ class FantasySimulationEngine:
         plt.savefig(expected_wins_chart_path(self.current_week), dpi=300)
         plt.close()
 
-        win_pct_matrix = pd.DataFrame.from_dict(h2h, orient='index') / (total_sims * weeks_simulated) * 100
+        win_pct_matrix = pd.DataFrame.from_dict(h2h, orient='index') / (total_sims * weeks_divisor) * 100
         # NOTE: do not mutate win_pct_matrix.values in place (np.fill_diagonal). Under pandas'
         # Copy-on-Write semantics (default from pandas 2.x, mandatory in 3.x), .values on a
         # DataFrame produced by arithmetic can be a read-only view, and this raises
@@ -1474,11 +1549,12 @@ class FantasySimulationEngine:
         # Recorded as an open item rather than papered over.
         schedule_luck = {}
         for t in self.team_names:
-            true_win_pct = all_play[t] / (total_sims * weeks_simulated * opponents_per_week)
+            true_win_pct = all_play[t] / (total_sims * weeks_divisor * opponents_per_week)
             actual_exp_pct = np.mean(wins[t]) / max_season_decisions
             schedule_luck[t] = {
                 "luck_rating": round(float(actual_exp_pct - true_win_pct) * 100, 2),
-                "avg_points_against_per_game": round(float(pts_against[t] / total_sims) / weeks_simulated, 2)
+                "avg_points_against_per_game": round(float(pts_against[t] / total_sims) / weeks_divisor, 2),
+                "regular_season_banked": regular_season_banked,
             }
 
         syndicate_insights = {
@@ -1595,13 +1671,16 @@ class FantasySimulationEngine:
             for w_idx in range(weeks_simulated):
                 scores = [played_weekly_scores[t][s_idx, w_idx] for t in self.team_names]
                 median_cutoffs.append(np.median(scores))
-        avg_median_cut = float(np.mean(median_cutoffs))
+        avg_median_cut = float(np.mean(median_cutoffs)) if median_cutoffs else None   # F3: undefined inside the playoffs
 
         for t in summary_df['Team']:
             all_scores_flat = played_weekly_scores[t].flatten()
+            if all_scores_flat.size == 0:
+                continue          # F3: no regular-season week simulated; nothing to draw
             sns.kdeplot(all_scores_flat, label=f"{t} (Exp: {np.mean(all_scores_flat):.1f})", linewidth=2.0)
 
-        plt.axvline(avg_median_cut, color='black', linestyle='--', linewidth=2.0, label=f"Avg Median Cut({avg_median_cut:.1f})")
+        if avg_median_cut is not None:
+            plt.axvline(avg_median_cut, color='black', linestyle='--', linewidth=2.0, label=f"Avg Median Cut({avg_median_cut:.1f})")
         plt.title(f"Week {self.current_week} Team Weekly Scoring Density Profiles", fontsize=14, fontweight='bold', pad=15)
         plt.xlabel("Simulated Weekly Points Scored", fontsize=11, fontweight='bold')
         plt.ylabel("Probability Density", fontsize=11, fontweight='bold')
@@ -1623,6 +1702,13 @@ class FantasySimulationEngine:
             # columns put p10_floor at exactly 0.00 for every team, i.e. the export stated a
             # 10% chance of a team scoring nothing in a week.
             scores_flat = played_weekly_scores[t].flatten()
+            if scores_flat.size == 0:
+                # F3: no regular-season week was simulated (run started inside the playoffs);
+                # the distribution is undefined, not zero -- say so rather than percentile an
+                # empty array.
+                ai_matrix["weekly_score_percentiles"][t] = {"mean": None, "std": None, "p10_floor": None,
+                                                            "p90_ceiling": None, "regular_season_banked": True}
+                continue
             ai_matrix["weekly_score_percentiles"][t] = {
                 "mean": round(float(np.mean(scores_flat)), 2),
                 "std": round(float(np.std(scores_flat)), 2),

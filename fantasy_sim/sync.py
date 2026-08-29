@@ -26,7 +26,7 @@ from fantasy_sim.config import (
 from fantasy_sim.storage import (
     PLAYER_CACHE_FILE, VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
-    LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE,
+    LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -731,6 +731,7 @@ def sync_all(sharp_polling=False):
     save_json(LEAGUE_STANDINGS_FILE, standings_payload)
 
     generate_league_schedule(roster_map)
+    generate_playoff_bracket(league_info, roster_map)
     completed_results = generate_nfl_schedule(current_nfl_week)
     generate_defensive_ratings(completed_results)
     # Bye weeks come from the schedule just written (its _meta.byes), so every baseline
@@ -789,3 +790,40 @@ def append_projection_log(rows, path=PROJECTION_LOG_FILE):
         logging.warning("PROJECTION LOG: could not append %d rows to %s (%s). Projection error "
                         "for this week cannot be measured next season.", len(rows), path, ex)
         return 0
+
+
+def generate_playoff_bracket(league_info, roster_map):
+    """
+    F3 (AUDIT_PLAN.md). Fetches Sleeper's /winners_bracket and writes playoff_bracket.json with
+    every roster id resolved to the engine's team name: {"playoff_week_start", "playoff_teams",
+    "seeds" (round-1 participants, 1 v 4 first then 2 v 3), "rounds": [{"round", "match", "t1",
+    "t2", "winner", "loser"}, ...]}. Round-2 entries whose sides are "from" earlier matches carry
+    t1/t2 as None until Sleeper fills them. The engine seeds from banked standings and uses this
+    file as the authority on the field and on round-1 winners when it exists; a fetch failure
+    writes {} and warns, and the engine then falls back to weekly_actuals' week-15 results.
+    """
+    settings = (league_info or {}).get("settings", {}) or {}
+    payload = {"playoff_week_start": settings.get("playoff_week_start"), "playoff_teams": settings.get("playoff_teams"),
+               "seeds": [], "rounds": []}
+    try:
+        resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/winners_bracket", timeout=8)
+        matches = resp.json() if resp.status_code == 200 else None
+    except Exception as ex:
+        matches = None
+        logging.warning("PLAYOFF BRACKET: fetch failed (%s); writing an empty bracket. The engine will seed from banked standings only.", ex)
+    if not matches:
+        save_json(PLAYOFF_BRACKET_FILE, {})
+        return {}
+    name = lambda rid: roster_map.get(rid) if rid is not None else None
+    for m in sorted(matches, key=lambda x: (x.get("r", 0), x.get("m", 0))):
+        entry = {"round": m.get("r"), "match": m.get("m"), "t1": name(m.get("t1")), "t2": name(m.get("t2")),
+                 "winner": name(m.get("w")), "loser": name(m.get("l"))}
+        if m.get("p") is not None:
+            entry["place"] = m.get("p")
+        payload["rounds"].append(entry)
+    r1 = [e for e in payload["rounds"] if e["round"] == 1 and e["t1"] and e["t2"]]
+    if len(r1) == 2:
+        m1, m2 = sorted(r1, key=lambda e: e["match"])
+        payload["seeds"] = [m1["t1"], m2["t1"], m2["t2"], m1["t2"]]
+    save_json(PLAYOFF_BRACKET_FILE, payload)
+    return payload

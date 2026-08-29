@@ -1,0 +1,37 @@
+{
+  "playoff_week_start": 15,
+  "playoff_teams": 4,
+  "seeds": [
+    "Drunk Cats",
+    "The Glutton",
+    "Femboy Cats",
+    "Legion of Coom"
+  ],
+  "rounds": [
+    {
+      "round": 1,
+      "match": 1,
+      "t1": "Drunk Cats",
+      "t2": "Legion of Coom",
+      "winner": null,
+      "loser": null
+    },
+    {
+      "round": 1,
+      "match": 2,
+      "t1": "The Glutton",
+      "t2": "Femboy Cats",
+      "winner": null,
+      "loser": null
+    },
+    {
+      "round": 2,
+      "match": 3,
+      "t1": null,
+      "t2": null,
+      "winner": null,
+      "loser": null,
+      "final": true
+    }
+  ]
+}

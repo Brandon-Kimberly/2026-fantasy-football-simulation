@@ -9,7 +9,7 @@ now pass as regression guards.
 
 **Suite:** 161 → 174 tests. No pre-existing test changed behaviour.
 
-**Status:** 1 interim-fixed (explicit refusal; graceful seeding tracked as F3); 2 and 4 fixed;
+**Status:** 1 FIXED (F3, 2026-08-29: seeded from banked standings; week 17+ refuses as "season complete"); 2 and 4 fixed;
 3 renamed to what it measures; 5 reported (measure-zero); 6 deferred to Phase 7; 7 done. Suite
 OK with the four pre-existing expected failures.
 
@@ -55,7 +55,7 @@ Schedule-luck decomposition and `all_play_wins` were verified and fixed in Phase
 
 ## Findings
 
-### 1. The engine crashes on any playoff or post-season `current_week` — **INTERIM FIX (explicit refusal); graceful seeding tracked as F3**
+### 1. The engine crashes on any playoff or post-season `current_week` — **FIXED (F3)**
 
 | `current_week` | outcome |
 |---|---|
@@ -75,6 +75,11 @@ that says so. Either moves no golden hash (both fixtures are regular-season).
 **Immediate half fixed; graceful version tracked as `AUDIT_PLAN.md` F3.** `run_simulation` now
 refuses with a `ValueError` for `current_week > 14` that names the limitation and F3. The
 entry-point test asserts the refusal (and flips to "these weeks run" when F3 lands). No golden
+
+**F3 landed (2026-08-29).** Weeks 15 and 16 run, seeded from the banked regular season (weeks ≤ 14
+only — the survey found sync had been banking playoff-week results into standings) and from
+Sleeper's `/winners_bracket` when sync wrote one; week 17+ refuses as "season complete". Details,
+acceptance measurements and the new `week15` golden scenario: AUDIT_PLAN.md F3.
 movement.
 
 ### 2. A banked H2H tie is truncated in the forecast record — **FIXED**
@@ -157,7 +162,7 @@ gitignored, so this is a local orphan from before the rename: delete it. No code
 
 | # | Finding | Severity | Blast radius | Moves hashes |
 |---|---|---|---|---|
-| 1 | Engine crashes for `current_week` ≥ 15 — **refuses cleanly now; F3 makes it run** | High, latent (week 15) | every playoff-week forecast | none |
+| 1 | Engine crashes for `current_week` ≥ 15 — **fixed (F3): weeks 15-16 run from banked standings and Sleeper's bracket; 17+ refuses as season complete; standings banked from weeks <= 14 only** | High, latent (week 15) | every playoff-week forecast | none |
 | 2 | Banked H2H tie truncated; forecast record inconsistent — **fixed** (float) | Low | teams with a tie on record | forecast payload, representation only |
 | 3 | `is_mathematically_eliminated` is a sample zero — **renamed to what it measures** | Low-medium | headline forecast field | forecast payload, both |
 | 4 | Playoff ties advance the lower seed — **fixed** (`_playoff_winner`, tested) | Low (measure-zero) | — | none (verified) |

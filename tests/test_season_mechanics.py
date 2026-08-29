@@ -171,11 +171,15 @@ class TestWeekIndexingEntryPoints(unittest.TestCase):
         refuses with a ValueError that names the limitation and F3, the graceful
         bracket-from-banked-standings version tracked in AUDIT_PLAN.md. When F3 lands this
         test flips: these weeks must RUN, and the ValueError branch below goes."""
-        for cw in (PLAYOFF_WEEK_START, PLAYOFF_WEEK_START + 1, PLAYOFF_WEEK_START + 2):
-            with self.assertRaises(ValueError) as ctx:
-                self._run_at(cw)
-            self.assertIn("F3", str(ctx.exception))
-            self.assertIn(str(cw), str(ctx.exception))
+        # F3 landed: weeks 15 and 16 RUN (seeded from banked standings; the week06 fixture
+        # banks weeks 1-5, so week 16 needs a bracket or week-15 results and is covered in
+        # tests/test_playoffs.py); week 17 refuses as "season complete", by name, not by crash.
+        cap = self._run_at(PLAYOFF_WEEK_START)
+        self.assertEqual(sum(float(np.mean(cap["b_playoffs"][t])) for t in cap["b_playoffs"]), 4.0)
+        with self.assertRaises(ValueError) as ctx:
+            self._run_at(PLAYOFF_WEEK_START + 2)
+        self.assertIn("complete", str(ctx.exception))
+        self.assertIn(str(PLAYOFF_WEEK_START + 2), str(ctx.exception))
 
 
 # ----------------------------------------------------------------------------- Phase 6

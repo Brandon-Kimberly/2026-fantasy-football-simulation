@@ -119,14 +119,14 @@ EXPECTED_DIR = os.path.join(FIXTURE_ROOT, "expected")
 GOLDEN_BATCHES = 2
 GOLDEN_SIMS_PER_BATCH = 15
 
-SCENARIOS = ("week01", "week06")
+SCENARIOS = ("week01", "week06", "week15")   # week15: F3, seeded from banked standings
 
 # Every file FantasySimulationEngine reads, keyed by the basename the storage layer resolves to.
 FIXTURE_INPUTS = (
     "league_state.json", "league_standings.json", "vegas_totals.json", "live_rosters.json",
     "player_baselines.json", "nfl_team_power_ratings.json", "nfl_defensive_ratings.json",
     "nfl_defensive_tiers.json", "league_schedule.json", "nfl_schedule.json",
-    "weekly_actuals.json",
+    "weekly_actuals.json", "playoff_bracket.json",
 )
 
 # The names of the 17 positional arguments run_simulation passes to export_and_visualize.

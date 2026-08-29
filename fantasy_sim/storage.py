@@ -52,6 +52,8 @@ WEEKLY_ACTUALS_FILE = _path("weekly_actuals.json")
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.
 PROJECTION_LOG_FILE = _path("projection_log.jsonl")
+# F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
+PLAYOFF_BRACKET_FILE = _path("playoff_bracket.json")
 
 # ==============================================================================
 # Simulation engine outputs (week-parameterized -- one set per week the sim is run for)
