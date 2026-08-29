@@ -410,12 +410,17 @@ class _ExposureRun(object):
         real_solve = FantasySimulationEngine._solve_optimal_assignment
         real_app = FantasySimulationEngine._apportion_vacated_volume
 
+        all_solves = []
+
         def app(engine, pools, clocks, newly):
-            weeks.append({"newly": set(newly), "clocks": {p for p, c in clocks.items() if c > 0}, "lineups": []})
+            # F6: the 8 solves immediately BEFORE this boundary are this week's INTENDED lineups
+            intended = set().union(*[a for a in all_solves[-8:]]) if len(all_solves) >= 8 else set()
+            weeks.append({"newly": set(newly), "clocks": {p for p, c in clocks.items() if c > 0}, "lineups": [], "intended": intended})
             return real_app(engine, pools, clocks, newly)
 
         def solve(c):
             a, u = real_solve(c)
+            all_solves.append({n for n, _, _ in a})
             if weeks and len(weeks[-1]["lineups"]) < 8:
                 weeks[-1]["lineups"].append({n for n, _, _ in a})
             return a, u
@@ -433,6 +438,8 @@ class _ExposureRun(object):
         # classify onsets and count exposure (present player-weeks) by previous-week lineup status
         self.onsets = {"starter": 0, "bench": 0}; self.exposure = {"starter": 0, "bench": 0}
         self.base = {"starter": 0.0, "bench": 0.0}      # expected onsets at INJURY_RATES, no exposure factor
+        # by INTENDED-lineup membership (what the engine actually scales on), F6 guard
+        self.i_onsets = {"starter": 0, "bench": 0}; self.i_exposure = {"starter": 0, "bench": 0}; self.i_base = {"starter": 0.0, "bench": 0.0}
         self.by_pos = {}                                 # pos -> [exposures, onsets] (Phase 7)
         rates = SIM_CONFIG["INJURY_RATES"]
         for i, w in enumerate(weeks):
@@ -451,6 +458,10 @@ class _ExposureRun(object):
                     self.exposure[grp] += 1
                     self.onsets[grp] += p in w["newly"]
                     self.base[grp] += rates.get(simmod.normalize_position((self.engine.baselines.get(p) or {}).get("pos", "FLEX")), 0.025)
+                    ig = "starter" if p in w["intended"] else "bench"
+                    self.i_exposure[ig] += 1
+                    self.i_onsets[ig] += p in w["newly"]
+                    self.i_base[ig] += rates.get(simmod.normalize_position((self.engine.baselines.get(p) or {}).get("pos", "FLEX")), 0.025)
                     pos = simmod.normalize_position((self.engine.baselines.get(p) or {}).get("pos", "FLEX"))
                     self.by_pos.setdefault(pos, [0, 0])
                     self.by_pos[pos][0] += 1
@@ -469,6 +480,9 @@ class _ExposureRun(object):
         """Observed onsets over the onsets INJURY_RATES alone would give this group -- removes
         the positional slot mix (K and three IDP slots start; RB/WR crowd the bench)."""
         return self.onsets[grp] / self.base[grp]
+
+    def relative_intended(self, grp):
+        return self.i_onsets[grp] / self.i_base[grp]
 
 
 class TestOnsetExposure(unittest.TestCase):
@@ -501,16 +515,18 @@ class TestOnsetExposure(unittest.TestCase):
         status for both exposure and onset): starter hazard 0.0575, bench 0.0462, ratio 1.25
         (n = 14 bench onsets; interval roughly 0.9-1.7). The engine was 0.91 before F6 because
         INJURY_RATES was applied uniformly. With ONSET_EXPOSURE_STARTER / _BENCH = 1.05 / 0.84
-        on the intended lineup, the previous-week-lineup proxy used here dilutes the ratio a
-        little, and the positional slot mix (K and three IDP slots start at low rates; RB/WR
+        on the intended lineup, the ratio is taken on INTENDED-lineup membership (the 8 solves
+        before each apportion boundary) -- the previous-week-lineup proxy the real data had to
+        use dilutes as onset churn rises (1.19 at the old rates, 1.03 at Phase 7's) -- and
+        the positional slot mix (K and three IDP slots start at low rates; RB/WR
         crowd the bench at high ones) confounds the RAW hazards -- so the ratio is taken on
         observed / expected-at-INJURY_RATES per group. Assert it sits above 1.0 and inside
         the real interval."""
         run = _ExposureRun.get()
         self.assertGreater(run.onsets["bench"], 100, "too few bench onsets to judge")
-        ratio = run.relative("starter") / run.relative("bench")
-        self.assertTrue(1.05 <= ratio <= 1.5, "starter/bench onset ratio, positional mix removed: %.2f (starter obs/exp %.3f on %d exposures, bench %.3f on %d; raw hazards %.4f vs %.4f)"
-                        % (ratio, run.relative("starter"), run.exposure["starter"], run.relative("bench"), run.exposure["bench"], run.hazard("starter"), run.hazard("bench")))
+        ratio = run.relative_intended("starter") / run.relative_intended("bench")
+        self.assertTrue(1.05 <= ratio <= 1.5, "intended-starter/bench onset ratio, positional mix removed: %.2f (starter obs/exp %.3f on %d exposures, bench %.3f on %d); previous-week-lineup proxy ratio %.2f"
+                        % (ratio, run.relative_intended("starter"), run.i_exposure["starter"], run.relative_intended("bench"), run.i_exposure["bench"], run.relative("starter") / run.relative("bench")))
 
     def test_wall_clock_baseline_is_recorded(self):
         """Not an assertion on speed -- records the pre-F6 wall clock of the instrumented
@@ -545,18 +561,16 @@ class TestInjuryRateLevel(unittest.TestCase):
         self.assertGreater(n, 2000, "%s: too few exposures on the fixture" % pos)
         return k / float(n), n, k
 
-    @unittest.expectedFailure
     def test_wr_onset_hazard_is_inside_the_real_interval(self):
-        """CHARACTERISATION. WR realises ~0.040 on the fixture; real 2025 is 0.081 (38/472),
-        interval 0.059-0.109. Remove the expectedFailure when the WR rate is re-derived."""
+        """GUARD (Phase 7; was characterisation at 0.040). WR re-derived to 0.081 (38/472),
+        interval 0.059-0.109; the fixture must realise a hazard inside it."""
         h, n, k = self._hazard("WR")
         lo, hi = REAL_2025_ALL_CAUSE_HAZARD["WR"][2:]
         self.assertTrue(lo <= h <= hi, "WR realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (h, k, n, lo, hi))
 
-    @unittest.expectedFailure
     def test_qb_onset_hazard_is_inside_the_real_interval(self):
-        """CHARACTERISATION. QB realises ~0.025; real 2025 is 0.054 (8/149, n thin), interval
-        0.027-0.102. Remove the expectedFailure when the QB rate is re-derived."""
+        """GUARD (Phase 7; was characterisation at 0.025). QB re-derived to 0.054 (8/149, n
+        thin), interval 0.027-0.102; the fixture must realise a hazard inside it."""
         h, n, k = self._hazard("QB")
         lo, hi = REAL_2025_ALL_CAUSE_HAZARD["QB"][2:]
         self.assertTrue(lo <= h <= hi, "QB realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (h, k, n, lo, hi))

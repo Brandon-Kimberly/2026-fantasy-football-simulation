@@ -327,6 +327,46 @@ SIM_CONFIG = {
     # Allen, 51.9, QB, 2024) so it only ever clips the truly-unrealistic extreme tail, never
     # the legitimate right-skew the variance calibration was built to capture.
     "MAX_REALISTIC_WEEKLY_SCORE": 80.0,
+    # INJURY_RATES -- REDEFINED in Phase 7 (2026-08-29) as the weekly ALL-CAUSE absence-onset
+    # hazard for a rostered player: P(scores exactly 0 this week | scored > 0 last week), any
+    # cause -- injury, inactive, coach's decision, suspension. That is the quantity the engine
+    # must reproduce, because the real-2025 points backtest scores simulated team points
+    # against real ones and a real absence is a zero whatever caused it. The values in the dict
+    # below were previously an INJURY-only onset hazard converted from "% of players missing
+    # >= 1 game per season" studies via 1-(1-p)^(1/17); that derivation (kept below for the
+    # record) no longer defines the constant, and the two sources' population -- all active NFL
+    # players -- is not the engine's, which simulates the ~19 players an 8-team fantasy manager
+    # chose to roster.
+    #
+    # Measured on real 2025 (Sleeper matchup payloads, weeks 2-14, rostered player-weeks where
+    # the player scored > 0 the previous week; hazard = share scoring 0 this week; Wilson 95%):
+    #   QB   8 /  149 = 0.054   interval 0.027-0.102   config 0.025 -> OUTSIDE (below)
+    #   RB  19 /  414 = 0.046   interval 0.030-0.071   config 0.070 -> inside, at the top edge
+    #   WR  38 /  472 = 0.081   interval 0.059-0.109   config 0.040 -> OUTSIDE (below)
+    #   TE   7 /  142 = 0.049   interval 0.024-0.098   config 0.035 -> inside
+    #   K    0 /   94 = 0.000   interval 0.000-0.039   config 0.005 -> inside
+    #   DL / LB / DB: NO DATA -- the 2025 league rostered no IDP players (team-DEF era).
+    # Decision rule, applied without exception: a rate moves only where the config value lies
+    # OUTSIDE the interval, and then to the point estimate with the interval written beside it.
+    # So WR 0.040 -> 0.081 (n = 38, well supported) and QB 0.025 -> 0.054 (n = 8: the interval
+    # spans a factor of four; this is the honest central value, not a confident one). RB stays
+    # at 0.070 (the data says 0.046 and the config sits at the interval's edge -- suggestive of
+    # high, consistent with the older 0.040 study cited below, not a contradiction; re-derive
+    # with a second season). TE stays (n = 7: not derivable from this sample). K stays. IDP
+    # rates are unmeasurable on this backtest and unchanged. ONE SEASON of an 8-team league;
+    # every interval above is that caveat in numbers.
+    #
+    # Fixed inputs to this derivation, NOT free parameters (AUDIT_PLAN.md, absence arc): the F6
+    # exposure factors ONSET_EXPOSURE_STARTER / _BENCH (1.05 / 0.84) and LOCKED_ONSET_PROBABILITY
+    # (0.21). If the backtest still misses after this change, the miss belongs here or to
+    # manager behaviour the engine does not model (bench-promoted and left-in locked zeros,
+    # ~0.07 started zeros per team-week in 2025), not to anything F6 touched.
+    #
+    # Prediction recorded before the change (Phase 7 step 1): starter-onsets per week
+    # 3.24 -> ~4.6 (real 4.7); started-zero starters per team-week 0.099 -> ~0.14 (real 0.236,
+    # residual ~0.07 = the manager cases above); weeks 6-11 absence 11.9% -> toward 14.7%.
+    #
+    # --- superseded derivation, kept for the record ---
     # Recalibrated against real NFL injury data (previous values were unjustified guesses --
     # see the conversation history for the initial critique that prompted this). Sourced from
     # two "percent of players missing at least one game per season" studies, converted to an
@@ -351,7 +391,7 @@ SIM_CONFIG = {
     # K is left unchanged -- no data found suggesting the existing very-low rate is wrong, and
     # kicker durability relative to every other position is well-established and uncontroversial.
     "INJURY_RATES": {
-        'RB': 0.070, 'WR': 0.040, 'TE': 0.035, 'QB': 0.025,
+        'RB': 0.070, 'WR': 0.081, 'TE': 0.035, 'QB': 0.054,
         'DL': 0.025, 'LB': 0.025, 'DB': 0.020, 'K': 0.005
     },
     # Injury DURATION model (given an onset event, from INJURY_RATES, has occurred -- i.e.

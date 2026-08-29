@@ -396,6 +396,17 @@ confirmed an orphan (finding 7).
 
 ## Phase 7 — Backtest and calibration validity
 
+**Status (2026-08-29): IN PROGRESS on `audit/phase-7-calibration`; findings in `AUDIT_PHASE_7_FINDINGS.md`.**
+Order fixed before starting: (1) per-position `INJURY_RATES` — DONE: redefined as the all-cause weekly
+absence-onset hazard; WR 0.040 → 0.081 (n = 38) and QB 0.025 → 0.054 (n = 8) by the rule "move only
+where the config lies outside the real 2025 Wilson interval"; RB/TE/K/IDP unchanged with reasons.
+Prediction held (starter-onsets 4.3–4.5 vs ≈ 4.6 predicted / 4.7 real; started-zero 0.136 vs ≈ 0.14;
+absence 14.6% vs 14.7% real); bias +1.51 → +0.72 pts. The started-zero residual (0.06–0.10) is the
+manager behaviour F5 named; the checkpoint gradient (10 pts, early-negative / late-positive) is now
+the prior/posterior question and passes unchanged to (2) `EPISTEMIC_ERROR_RATES`, then (3) the
+Phase 2 finding-4 re-run — in that order; (3) does not jump the queue. F6's 1.05 / 0.84 and 0.21 and
+F4's 0.29 / 0.16 are fixed inputs throughout.
+
 **Invariant:** calibration claims are supported by out-of-sample evidence.
 
 - CRPS implementation vs brute-force reference (already cross-checked once; re-verify).
