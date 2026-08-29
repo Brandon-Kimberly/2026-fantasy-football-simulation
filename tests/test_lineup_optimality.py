@@ -129,6 +129,7 @@ class _FixtureRun(object):
         real_faab = FantasySimulationEngine._compute_faab_bid
         real_apportion = FantasySimulationEngine._apportion_vacated_volume
         self.bids_by_week, self.solves, self.marks, self.args = [], [], [], {}
+        self.newly = []
         week = [0]
 
         def solve(c):
@@ -142,6 +143,7 @@ class _FixtureRun(object):
 
         def apportion(engine, *a):
             self.marks.append(len(self.solves))
+            self.newly.append(len(a[2]))          # F5: onsets this week, known only after bids
             week[0] += 1
             return real_apportion(engine, *a)
 
@@ -171,6 +173,9 @@ class _FixtureRun(object):
 
     def bids_in_week(self, w):
         return sum(1 for b in self.bids_by_week if b == w)
+
+    def onsets_in_week(self, w):
+        return self.newly[w]
 
 
 class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
@@ -213,12 +218,12 @@ class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
             for w in range(run.weeks):
                 wk = cw + (w % wps)
                 near_bye = bool({wk - 1, wk, wk + 1} & byes)
-                b, u = run.bids_in_week(w), run.unfilled_in_week(w)
+                b, u, o = run.bids_in_week(w), run.unfilled_in_week(w), run.onsets_in_week(w)
                 if not near_bye:
-                    self.assertEqual(b, u, "%s week %d (index %d): bids %d vs unfilled %d with no bye nearby"
-                                     % (scenario, wk, w, b, u))
+                    self.assertTrue(0 <= u - b <= o, "%s week %d (index %d): bids %d vs unfilled %d with %d onsets and no bye nearby"
+                                    % (scenario, wk, w, b, u, o))
                     exact += 1
-                elif b != u:
+                elif not (0 <= u - b <= o):
                     diverged += 1
             self.assertGreater(exact, 0, scenario + ": no lookahead-free weeks were checked")
             self.assertGreater(diverged, 0, scenario + ": the lookahead never bound next to a bye -- "
@@ -227,15 +232,16 @@ class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
     def test_every_real_hole_is_coverable_every_week(self):
         """Per team, need = max(0, max(holes_w, holes_w+1) - carried) and every bid wins, so
         bids_w + carried_w >= holes_w; carried_w <= bids_w-1 (one-week persistence, same sim).
-        League-wide: bids_w + bids_w-1 >= unfilled_w, with bids_w-1 = 0 at a sim's first week."""
+        League-wide: bids_w + bids_w-1 + onsets_w >= unfilled_w (onsets happen after the bids and
+        their holes take the fallback streamer), with bids_w-1 = 0 at a sim's first week."""
         for scenario in ("week01", "week06"):
             run = _FixtureRun.get(scenario)
             wps = run.weeks // run.n_sims
             for w in range(run.weeks):
                 prev = run.bids_in_week(w - 1) if w % wps else 0
-                self.assertGreaterEqual(run.bids_in_week(w) + prev, run.unfilled_in_week(w),
-                                        "%s week-index %d: %d holes, %d bids + %d carried-at-most"
-                                        % (scenario, w, run.unfilled_in_week(w), run.bids_in_week(w), prev))
+                self.assertGreaterEqual(run.bids_in_week(w) + prev + run.onsets_in_week(w), run.unfilled_in_week(w),
+                                        "%s week-index %d: %d holes, %d bids + %d carried-at-most + %d onsets"
+                                        % (scenario, w, run.unfilled_in_week(w), run.bids_in_week(w), prev, run.onsets_in_week(w)))
 
 
 class TestStreamerValueBound(unittest.TestCase):

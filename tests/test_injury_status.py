@@ -293,18 +293,16 @@ class TestOnsetWeekSemantics(unittest.TestCase):
         np.random.seed(5)
         cls.n1, cls.n3 = OnsetLeague(1), OnsetLeague(3)
 
-    @unittest.expectedFailure
     def test_an_onset_week_is_a_missed_game(self):
-        """CHARACTERISATION. The newly injured player must not be a lineup candidate in the
+        """GUARD (F5, was characterisation). The newly injured player must not be a lineup candidate in the
         onset week (a missed game is a zero, as the calibration data counted it)."""
         for league in (self.n1, self.n3):
             for onset_idx, absent_after, played_onset_week in league.spells():
                 self.assertFalse(played_onset_week, "newly injured player was a lineup candidate in his onset week")
 
-    @unittest.expectedFailure
     def test_a_drawn_n_produces_n_missed_games(self):
-        """CHARACTERISATION. With the duration pinned at n, the spell must be n missed games:
-        the onset week plus n - 1 further weeks. Today it is the onset week (played) plus n - 1."""
+        """GUARD (F5, was characterisation). With the duration pinned at n, the spell must be n missed games:
+        the onset week plus n - 1 further weeks. Before F5 it was the onset week (played) plus n - 1."""
         for n, league in ((1, self.n1), (3, self.n3)):
             spells = league.spells()
             self.assertGreater(len(spells), 0)

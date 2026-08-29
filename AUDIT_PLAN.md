@@ -472,6 +472,15 @@ on both operands, so the message is not consistent with the code as read. Nothin
 working tree rebinds `dict`; no test patches `builtins` other than `open` in `test_sync`
 (which runs later).
 
+**In-process repetition (2026-08-28, asked for because of this project's two prior shared-state bugs):**
+the full suite run 20 times inside ONE interpreter (modules imported once; class state, mock
+patches and GC history carried across iterations; `-X faulthandler`; a result class recording
+the most recently started test before any error). 20/20 iterations: 206 ran, 0 failures, 0
+TypeErrors, no crash. The only errors were Hypothesis's `differing_executors` health-check on
+its 5 property tests from iteration 2 on — an artifact of re-running them in one process, not
+R1 (iteration 1: 0 errors). So object identity / GC timing within a process does not reproduce
+it either. Total under observation: 0 of 36 (16 fresh processes + 20 in-process iterations).
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
@@ -674,6 +683,48 @@ data (onsets per present player-week; out-on-clock ÷ newly-hurt). (2) Only then
 against real r and (c) against real D, each on its own statistic. (3) A is the acceptance
 check, never the calibration target. (d) vacated volume on blank-slate priors is independent
 of all three (it changes who scores, not who is absent) and is judged on the backtest bias.
+
+**Step 1 — onset-week semantics (deliberate reversal, 2026-08-28).** The original injury model
+let a newly injured player PLAY his onset week at 0.35× mean / 0.5× std and burned the first
+unit of his clock at the end of that same week. That partial-week mechanic is REMOVED, not
+re-timed: (1) the duration mixture it feeds was calibrated on games MISSED (ProFootballLogic:
+64% of injuries ≤ 2 games missed, mean 3.1 games) and the real-2025 spells this phase measured
+are runs of exact zeros — in both, an onset week IS a missed game; (2) the 0.35× / 0.5× had no
+source, no comment beyond "exactly as before this restructuring", and no test; (3) measured
+in-simulation it delivered n − 1 missed games per drawn n (out-on-clock ÷ newly-hurt = 2.08
+against the mixture's 3.11) and made 40% of onsets (n = 1) vanish. Now: a player on a clock
+scores nothing from the onset week on, the clock covers n full weeks, vacated volume is still
+recorded in the onset week. If "hurt mid-game" realism is ever wanted, it must come back as its
+own small, SOURCED addition (a measured fraction of onsets that are in-game with a measured
+partial share), not as an unsourced multiplier that silently shortens every spell. Consequence
+worth knowing: an onset-week hole is filled by the unbid fallback streamer (the convention for
+every unfilled slot, since needs are bid before onsets are drawn), which is higher than the
+0.35× zombie it replaces — the 30-season golden means moved UP (+2.2% week01, +1.7% week06);
+the paired backtest sizes it.
+
+**Step 1 result and the onset-week hole, traced (2026-08-28).** In-simulation after the fix,
+measured the same way as the real data: r = 0.047 (real 0.050), D = 2.90 and still ramping at
+week 11 (mixture 3.11; real 2.56 censored), absence 11.9% (analytic steady state 11.3%; real
+14.7% over weeks 6–11, 11.6% over 1–11). The engine now delivers its constants; judged each on
+its own statistic, neither `INJURY_RATES` nor the duration scales is contradicted by the data
+— (a) and (c) closed without a change. Yet the paired backtest did not improve: bias +1.84 →
++2.43 pts, cover80 0.63 → 0.63, gradient 8.2 → 8.8 pts; the 30-season goldens moved UP (+2.2%
+week01, +1.7% week06). Traced through the real code on the week01 fixture (hooks on the
+assignment, the apportion boundary and the FAAB bid; sim 0's audit log for what actually
+started): needs are bid BEFORE onsets are drawn (need scan ~line 780, PASS 1 ~line 905), so a
+starter hurt this week leaves an "unfilled slot" at the assignment (line 1024), and every
+unfilled slot is filled at lines 1028–1051 by one of two paths — (i) a streamer the team had
+already won for some other hole, valued at the ladder capped at the position's data-derived
+replacement level (line 1045): week 6, Jaylen Waddle (WR, mean 11.06) hurt → two FLEX holes →
+`STREAMER_FLEX_0/1` at expected 10.53 = the FLEX replacement level, 95% of his mean; or (ii)
+with no won streamer, the unbid fallback at line 1047, `max(0.8 × replacement level, BASE ×
+decay^k)`: week 2, Danielle Hunter (DE, mean 9.14) hurt → `STREAMER_DL_0` at 7.50 = BASE, 82%
+of his mean. So an absence removes a starter and hands the slot a replacement-level body for
+free in the same week, no FAAB, no bench check beyond the assignment — which is why 4 points
+more absence cost the backtest nothing. The real-world counterpart is a locked lineup scoring
+0 in that slot (or, if ruled out pre-game, the best bench body, which the assignment already
+models). The absence RATE is right; the absence PRICE is not. This is the next F5 question
+and it is a decision-logic change to how holes are filled, not a constant.
 
 **Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, realised
 bye-excluded absence in weeks 6–11 within 2 points of the real rate (14.7%, or the injury-only

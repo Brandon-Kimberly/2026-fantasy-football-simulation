@@ -942,22 +942,23 @@ class FantasySimulationEngine:
                             p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))
                             nfl_team = p_meta.get('team', p_info.get('team', 'FA'))
 
-                            # A player already out from a PRIOR week's injury is still
-                            # excluded here; a player newly injured THIS week (determined in
-                            # PASS 1 above) is NOT excluded -- they still play a reduced role
-                            # the week they're hurt, exactly as before this restructuring.
-                            already_out_from_prior_week = injury_clocks.get(p_name, 0) > 0 and p_name not in newly_injured_this_week
-                            if week_num == p_info.get('bye') or already_out_from_prior_week: continue
+                            # A player on a clock -- from a PRIOR week or newly injured THIS week (PASS 1
+                            # above) -- scores nothing. F5 (AUDIT_PLAN.md): the onset week is a missed
+                            # game. The duration mixture was calibrated on games MISSED (64% of
+                            # injuries <= 2 games, mean 3.1) and the real-2025 absence spells were
+                            # measured as runs of exact zeros; the previous mechanic played the onset
+                            # week at 0.35x mean / 0.5x std and let the clock burn its first unit at
+                            # the end of that same week, so a drawn n delivered n - 1 missed games and
+                            # 40% of onsets (n = 1) were never absent at all (measured in-simulation:
+                            # out-on-clock / newly-hurt = 2.08 vs the mixture mean 3.11). The 0.35x
+                            # had no source. Deliberately removed, not just re-timed; see F5.
+                            if week_num == p_info.get('bye') or injury_clocks.get(p_name, 0) > 0: continue
 
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
                             std_aleatoric = p_info.get('std_aleatoric', 3.0)
 
-                            if p_name in newly_injured_this_week:
-                                mean_val = season_mean * 0.35
-                                std_val = std_aleatoric * 0.5
-                            else:
-                                mean_val = season_mean
-                                std_val = std_aleatoric
+                            mean_val = season_mean
+                            std_val = std_aleatoric
 
                             veg = team_environments.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
                             v_tot, v_spr, v_opp = veg['total'], veg['spread'], veg['opponent']
