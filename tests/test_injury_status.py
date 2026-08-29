@@ -433,6 +433,7 @@ class _ExposureRun(object):
         # classify onsets and count exposure (present player-weeks) by previous-week lineup status
         self.onsets = {"starter": 0, "bench": 0}; self.exposure = {"starter": 0, "bench": 0}
         self.base = {"starter": 0.0, "bench": 0.0}      # expected onsets at INJURY_RATES, no exposure factor
+        self.by_pos = {}                                 # pos -> [exposures, onsets] (Phase 7)
         rates = SIM_CONFIG["INJURY_RATES"]
         for i, w in enumerate(weeks):
             if i % self.span == 0:
@@ -450,6 +451,10 @@ class _ExposureRun(object):
                     self.exposure[grp] += 1
                     self.onsets[grp] += p in w["newly"]
                     self.base[grp] += rates.get(simmod.normalize_position((self.engine.baselines.get(p) or {}).get("pos", "FLEX")), 0.025)
+                    pos = simmod.normalize_position((self.engine.baselines.get(p) or {}).get("pos", "FLEX"))
+                    self.by_pos.setdefault(pos, [0, 0])
+                    self.by_pos[pos][0] += 1
+                    self.by_pos[pos][1] += p in w["newly"]
 
     @classmethod
     def get(cls):
@@ -513,3 +518,53 @@ class TestOnsetExposure(unittest.TestCase):
         run = _ExposureRun.get()
         self.assertGreater(run.seconds, 0.0)
         print("\n[F6 wall clock] instrumented week01 2x15 run: %.1f s" % run.seconds)
+
+
+# ------------------------------------------------------------- Phase 7: INJURY_RATES level
+REAL_2025_ALL_CAUSE_HAZARD = {
+    # pos: (onsets, exposures, Wilson 95% low, high). Real 2025, weeks 2-14, rostered players who
+    # scored > 0 the previous week; hazard = P(zero this week), ANY cause. One season.
+    "QB": (8, 149, 0.027, 0.102),
+    "RB": (19, 414, 0.030, 0.071),
+    "WR": (38, 472, 0.059, 0.109),
+    "TE": (7, 142, 0.024, 0.098),
+    "K": (0, 94, 0.000, 0.039),
+}
+
+
+class TestInjuryRateLevel(unittest.TestCase):
+    """Phase 7, INJURY_RATES. The engine's realised per-position onset hazard on the fixture
+    (which is INJURY_RATES[pos] up to the F6 exposure factors and sampling noise) against the
+    real 2025 all-cause interval. Decision rule: a rate moves only if the config value lies
+    OUTSIDE the interval, and then to the point estimate. QB (0.025 vs 0.027-0.102) and WR
+    (0.040 vs 0.059-0.109) are outside; RB, TE and K are inside and stay."""
+
+    def _hazard(self, pos):
+        run = _ExposureRun.get()
+        n, k = run.by_pos[pos]
+        self.assertGreater(n, 2000, "%s: too few exposures on the fixture" % pos)
+        return k / float(n), n, k
+
+    @unittest.expectedFailure
+    def test_wr_onset_hazard_is_inside_the_real_interval(self):
+        """CHARACTERISATION. WR realises ~0.040 on the fixture; real 2025 is 0.081 (38/472),
+        interval 0.059-0.109. Remove the expectedFailure when the WR rate is re-derived."""
+        h, n, k = self._hazard("WR")
+        lo, hi = REAL_2025_ALL_CAUSE_HAZARD["WR"][2:]
+        self.assertTrue(lo <= h <= hi, "WR realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (h, k, n, lo, hi))
+
+    @unittest.expectedFailure
+    def test_qb_onset_hazard_is_inside_the_real_interval(self):
+        """CHARACTERISATION. QB realises ~0.025; real 2025 is 0.054 (8/149, n thin), interval
+        0.027-0.102. Remove the expectedFailure when the QB rate is re-derived."""
+        h, n, k = self._hazard("QB")
+        lo, hi = REAL_2025_ALL_CAUSE_HAZARD["QB"][2:]
+        self.assertTrue(lo <= h <= hi, "QB realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (h, k, n, lo, hi))
+
+    def test_rb_te_k_onset_hazards_are_inside_the_real_interval(self):
+        """GUARD: these three are inside the real interval today and must stay there -- they
+        are deliberately NOT re-derived (RB at the top edge, TE n = 7, K 0/94)."""
+        for pos in ("RB", "TE", "K"):
+            h, n, k = self._hazard(pos)
+            lo, hi = REAL_2025_ALL_CAUSE_HAZARD[pos][2:]
+            self.assertTrue(lo <= h <= hi, "%s realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (pos, h, k, n, lo, hi))
