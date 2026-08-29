@@ -570,6 +570,48 @@ capture the faulthandler frame again and compare — if `linear_sum_assignment` 
 numpy percentile paths are the common ancestor, pin or upgrade that library and re-run the
 20-iteration probe. Suite runs that die this way must be re-run, never counted as green.
 
+
+**Infrastructure research (2026-08-29, asked for after the access violation).** R1 is no longer a
+watch item: `linear_sum_assignment` runs once per team per simulated week (plus once more per
+team-week since F6, and inside every trade evaluation), so a native fault on that path is a
+production risk for `run_simulation`, not a test curiosity. Findings:
+
+1. *Upstream:* no scipy release note (1.11–1.17) and no scipy issue describes a crash in
+   `linear_sum_assignment`; its known failure modes are `ValueError`s on NaN / inf inputs and a
+   size limit at 2^31 elements (scipy issues #14545, #6900, #13421). The engine's cost matrix is
+   finite (a `LARGE` sentinel for ineligible cells, `−value` otherwise), so those paths are not
+   reachable here. Nothing to pin *to*.
+2. *This environment cannot be upgraded:* the production interpreter is the Windows Store
+   Python 3.8.10, for which pip offers nothing newer than scipy 1.10.1 and numpy 1.24.4 — the
+   last releases for 3.8 (scipy 1.11 requires 3.9+). Both lines are end-of-life; whatever the
+   fault is, no fix will ever ship for this stack.
+3. *Direct stress, both stacks:* 300,000 calls of the real `_solve_optimal_assignment` on random
+   1–20-player rosters with interleaved numpy percentile / pandas work, under `faulthandler` —
+   **clean on 3.8 (33 s) and clean on 3.10 (31 s)**. Hammering the call alone does not reproduce
+   the fault; it needs the full suite's mix (matplotlib/seaborn, pandas, scipy, hypothesis) and
+   luck, which is consistent with heap corruption anywhere in that native mix, not necessarily
+   in scipy.
+4. *A supported stack exists on this machine and the engine is bit-identical on it:* Python
+   3.10.0 (`AppData\Local\Programs\Python\Python310`) had no packages; installed numpy 2.2.6,
+   scipy 1.15.3, pandas 2.3.3, matplotlib 3.10.9, seaborn 0.13.2, requests, hypothesis (this touched
+   only that interpreter's site-packages; reversible). Full suite there: **232 tests, OK
+   (skipped=4, expected failures=4)** — the extra three skips are the documented `espn_api`
+   optional skips (not installed on 3.10). **All three golden scenarios pass byte-for-byte on
+   numpy 2.2.6 / scipy 1.15.3**, i.e. the engine's numerics do not depend on the EOL stack.
+   One tooling caveat: hypothesis 6.165 fails internally on Python 3.10.0
+   (`'TreeNode' object has no attribute 'is_exhausted'`; not the example database — verified with
+   a fresh one); pinned `hypothesis<6.120` (6.119.4) and the five property tests pass. A newer
+   3.10.x patch release would likely remove the need for that pin.
+
+**Recommendation (decision for the user, not taken unilaterally):** move the runtime to Python
+3.10 with a pinned `requirements.txt` (numpy 2.2.6, scipy 1.15.3, pandas 2.3.3, matplotlib 3.10.9,
+seaborn 0.13.2, requests, `hypothesis<6.120`, `espn_api`), keep the golden hashes as they are
+(they already pass there), run the 20-iteration in-process probe and a few dozen fresh-process
+suite runs on 3.10 before declaring R1 closed, and retire the Store 3.8 interpreter. Until then:
+production runs stay on 3.8 with the standing rule that a run dying with `0xC0000005` (or an
+impossible `TypeError`) is re-run, never trusted; and the projection log (F7) should be
+confirmed to have appended after every sync, since a mid-sync fault would lose that week's rows.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under

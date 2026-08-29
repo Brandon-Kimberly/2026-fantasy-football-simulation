@@ -215,7 +215,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | Phase 2 finding 4 | conjugate posterior | F7 + F8 |
 | Phase 0 | closed-form `Playoff_SE` | reported, unimplemented |
 | Phase 7 rate/form record | `test_calibration.py`, red by design | resolves with F7/F8 |
-| R1 | intermittent native fault in the test process (0xC0000005 captured on 2026-08-29 after ~1,700 `linear_sum_assignment` calls; 0/36 reproductions under control) | re-run, never count as green; compare faulthandler frames |
+| R1 | native heap fault in the Python 3.8 (Windows Store) process — 0xC0000005 captured 2026-08-29; not reproducible by 300k direct `linear_sum_assignment` calls on either stack; the 3.8 stack (scipy 1.10.1 / numpy 1.24.4) is EOL with no upgrade path; the full suite and all three goldens pass byte-for-byte on Python 3.10 + numpy 2.2.6 + scipy 1.15.3. Recommendation: migrate the runtime to 3.10 (details in AUDIT_PLAN R1) | re-run, never count as green; compare faulthandler frames |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
