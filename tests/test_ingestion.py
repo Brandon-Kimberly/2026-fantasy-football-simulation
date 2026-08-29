@@ -723,3 +723,18 @@ class TestLiveIngestion(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestInjuryStatusIngestion(unittest.TestCase):
+    """F4 characterisation: the roster entry sync writes carries nothing about availability.
+    Sleeper's player record has `injury_status` (IR / PUP / Out / Doubtful / Questionable / ...)
+    and the league roster payload has a `reserve` list (the fantasy IR slot); neither reaches
+    live_rosters.json or player_baselines.json."""
+
+    @unittest.expectedFailure
+    def test_roster_entry_carries_the_players_injury_status(self):
+        from fantasy_sim.sync import _build_roster_player_entry
+        db = {"7640": {"first_name": "Micah", "last_name": "Parsons", "position": "LB", "team": "GB",
+                       "injury_status": "PUP", "status": "Active"}}
+        entry = _build_roster_player_entry("7640", db)
+        self.assertEqual(entry.get("injury_status"), "PUP", msg="entry is %r" % (entry,))
