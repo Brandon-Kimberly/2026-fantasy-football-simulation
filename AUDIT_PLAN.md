@@ -28,6 +28,9 @@ the way to test it, and the artifact it produces.
 
 ---
 
+> **Reading order for newcomers:** `AUDIT_SUMMARY.md` (one page per phase: found / fixed / left open / running
+> defect count), then the phase findings documents, then this plan for the open items and follow-ups.
+
 ## Phase ordering and why
 
 **Phase 0 must come first.** Two methods dominate the engine — `run_simulation` (~445 lines)
