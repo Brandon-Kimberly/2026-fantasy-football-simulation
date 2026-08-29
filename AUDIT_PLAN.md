@@ -467,7 +467,7 @@ team points; cover80 = share of real scores inside the simulated 10–90% band).
 | F4 | initial state: out-now players enter on a measured two-stage clock (0.29 / 0.16) | +1.84 (+1.4%) | 0.63 | 7.9%; week 6: 5.6% vs 5.3% real | initial state verified; level offset → F5 |
 | F5 step 1 | onset week is a missed game; 0.35× partial-week mechanic removed | +2.43 (+1.9%) | 0.63 | 11.9% (analytic 11.3%) | engine now delivers its constants: r 0.047 vs 0.050, D 2.90 vs 3.11; bias UP because an onset hole was filled free at replacement level |
 | F5 step 2 | locked-lineup onsets (p = 0.21) stay candidates and realise 0 | +1.77 (+1.4%) | 0.66 | — | started-zero rate 0.09 vs 0.20–0.24 real: denominator mismatch → F6 |
-| F6 (open) | onset hazard by lineup exposure | — | — | — | acceptance: starter-onsets 4.7/wk, started-zero rate ±0.05, pooled hazard unchanged |
+| F6 | onset hazard by intended-lineup exposure (1.05 / 0.84, pooled hazard held); locked draw on intended starters only | +1.51 (+1.2%) | 0.64 | — | started-zero rate 0.099 vs 0.236 and starter-onsets 3.24 vs 4.7: the LEVEL of per-position INJURY_RATES (WR 0.068 vs 0.040, TE 0.063 vs 0.035 real vs config) → Phase 7, with F6's factors and 0.21 fixed |
 
 What each stage settled, in one line each: byes are derived, not fetched (5a); history zeros
 are not games (5b, stands); the posterior weight was never the problem (5c: 0.71 applied vs
@@ -484,6 +484,22 @@ on their own statistics), and 0.21 (not re-tuned to a different mechanism's gap)
 Decisions deliberately made and recorded: on_ir = absent regardless of status; no Doubtful
 mechanic (no source, no live case); onset week = missed game (a reversal, not a re-timing);
 pooled p_locked with the position split as next season's hypothesis.
+
+**Fixed inputs to Phase 7 (recorded at F6's merge, 2026-08-28).** The exposure factors
+(`ONSET_EXPOSURE_STARTER` 1.05 / `ONSET_EXPOSURE_BENCH` 0.84) and `LOCKED_ONSET_PROBABILITY`
+(0.21) are FIXED inputs to Phase 7's per-position `INJURY_RATES` recalibration, not free
+parameters to compensate with. If the backtest still misses after that recalibration, the miss
+belongs to the position-level rates, not to anything F6 touched.
+
+Every time a fix in this chain was verified against real 2025 data rather than trusted on
+internal consistency alone, something was found that internal checks alone would have missed —
+a fix that looked correct in isolation and worsened real calibration (Phase 2, twice), a
+mechanism that measured right on its own statistic while a different, unexamined mechanism
+absorbed the consequence (F5's onset rate and duration versus locked-zero pricing), and a
+compensating error hiding inside an error already believed fixed (the old n₀=4 form masking the
+same absence gap the conjugate form later exposed). No single fix in this arc was accepted on
+the strength of its own internal logic; every one was required to move the real-data backtest
+in the direction it predicted, and more than half of them did not do so on the first attempt.
 
 ## Reproducibility watch — open
 
