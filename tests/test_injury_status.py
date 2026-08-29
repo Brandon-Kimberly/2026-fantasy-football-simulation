@@ -25,6 +25,7 @@ from tests.golden_master import STAGE_A_ARG_NAMES
 
 from fantasy_sim.config import SIM_CONFIG, REGULAR_SEASON_WEEKS, NFL_TEAMS
 from fantasy_sim.simulation import FantasySimulationEngine
+import fantasy_sim.simulation as simmod
 from fantasy_sim.storage import (
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
@@ -379,3 +380,111 @@ class TestLockedZero(unittest.TestCase):
             onset_weeks = [w for w in lg.weeks if w["newly"]]
             self.assertGreater(len(onset_weeks), 0)
             self.assertTrue(all(w["candidate"] == expect_candidate for w in onset_weeks))
+
+
+# ------------------------------------------------------------------ F6: onset exposure
+class _ExposureRun(object):
+    """F6 harness on the week01 fixture (2 x 15 seasons, real engine). Per simulated week:
+    the assigned lineup of every team (from _solve_optimal_assignment's return, first 8 solves
+    after the apportion boundary) and the newly-injured set. An onset is classified by whether
+    the player was in his team's lineup the PREVIOUS week -- the same definition the real 2025
+    hazard split used ("started the previous week"). Also times the run."""
+    _cache = None
+
+    def __init__(self):
+        import time
+        from tests.golden_master import _sandbox
+        weeks = []
+        real_solve = FantasySimulationEngine._solve_optimal_assignment
+        real_app = FantasySimulationEngine._apportion_vacated_volume
+
+        def app(engine, pools, clocks, newly):
+            weeks.append({"newly": set(newly), "clocks": {p for p, c in clocks.items() if c > 0}, "lineups": []})
+            return real_app(engine, pools, clocks, newly)
+
+        def solve(c):
+            a, u = real_solve(c)
+            if weeks and len(weeks[-1]["lineups"]) < 8:
+                weeks[-1]["lineups"].append({n for n, _, _ in a})
+            return a, u
+        t0 = time.time()
+        with _sandbox("week01", 2, 15):
+            with patch.object(FantasySimulationEngine, "_solve_optimal_assignment", staticmethod(solve)):
+                with patch.object(FantasySimulationEngine, "_apportion_vacated_volume", app):
+                    with patch.object(FantasySimulationEngine, "export_and_visualize", lambda s, *a: None):
+                        self.engine = FantasySimulationEngine()
+                        self.engine.run_simulation()
+        self.seconds = time.time() - t0
+        self.span = 17 - self.engine.current_week
+        self.teams = list(self.engine.team_names)
+        self.rosters = {t: set(self.engine.rosters[t]) for t in self.teams}
+        # classify onsets and count exposure (present player-weeks) by previous-week lineup status
+        self.onsets = {"starter": 0, "bench": 0}; self.exposure = {"starter": 0, "bench": 0}
+        for i, w in enumerate(weeks):
+            if i % self.span == 0:
+                continue                                   # no previous week in this season
+            prev = weeks[i - 1]
+            for ti, t in enumerate(self.teams):
+                prev_lineup = prev["lineups"][ti] if ti < len(prev["lineups"]) else set()
+                for p in self.rosters[t]:
+                    if p in w["clocks"] and p not in w["newly"]:
+                        continue                           # already out: not exposed this week
+                    bye = (self.engine.baselines.get(p) or {}).get("bye")
+                    if bye == self.engine.current_week + (i % self.span):
+                        continue
+                    grp = "starter" if p in prev_lineup else "bench"
+                    self.exposure[grp] += 1
+                    self.onsets[grp] += p in w["newly"]
+
+    @classmethod
+    def get(cls):
+        if cls._cache is None:
+            cls._cache = cls()
+        return cls._cache
+
+    def hazard(self, grp):
+        return self.onsets[grp] / float(self.exposure[grp])
+
+
+class TestOnsetExposure(unittest.TestCase):
+    """F6. Real 2025: 61 of 75 fresh onsets were by previous-week starters over about 73% of
+    rostered player-weeks, 14 by bench players over about 27% -- a per-player-week hazard ratio
+    of roughly 1.6 (one season, n = 14 bench onsets). The engine draws one hazard for every
+    rostered player regardless of role."""
+
+    def test_pooled_onset_hazard_matches_the_roster_weighted_rate(self):
+        """GUARD that must survive F6: the roster-weighted onset hazard stays at INJURY_RATES
+        (the exposure split must redistribute onsets, not add them). Tolerance: 3 SE on ~2,700
+        onsets."""
+        run = _ExposureRun.get()
+        rates = SIM_CONFIG["INJURY_RATES"]
+        expected = 0.0; n = 0
+        for t in run.teams:
+            for p in run.rosters[t]:
+                pos = simmod.normalize_position((run.engine.baselines.get(p) or {}).get("pos", "FLEX"))
+                expected += rates.get(pos, 0.025); n += 1
+        expected /= n
+        total_onsets = run.onsets["starter"] + run.onsets["bench"]
+        total_exposure = run.exposure["starter"] + run.exposure["bench"]
+        observed = total_onsets / float(total_exposure)
+        se = (expected * (1 - expected) / total_exposure) ** 0.5
+        self.assertAlmostEqual(observed, expected, delta=3 * se,
+                               msg="pooled hazard %.4f vs roster-weighted INJURY_RATES %.4f (SE %.4f)" % (observed, expected, se))
+
+    @unittest.expectedFailure
+    def test_previous_week_starters_face_a_higher_onset_hazard_than_the_bench(self):
+        """CHARACTERISATION (F6). Real 2025 hazard ratio starter/bench ~ 1.6; the engine's is
+        ~ 1.0 because INJURY_RATES is applied uniformly. Assert ratio >= 1.3 (well inside the
+        real figure, far outside 1.0 at this n). Remove the expectedFailure when F6 lands."""
+        run = _ExposureRun.get()
+        self.assertGreater(run.onsets["bench"], 100, "too few bench onsets to judge")
+        ratio = run.hazard("starter") / run.hazard("bench")
+        self.assertGreaterEqual(ratio, 1.3, "starter/bench onset hazard ratio %.2f (starter %.4f on %d exposures, bench %.4f on %d)"
+                                % (ratio, run.hazard("starter"), run.exposure["starter"], run.hazard("bench"), run.exposure["bench"]))
+
+    def test_wall_clock_baseline_is_recorded(self):
+        """Not an assertion on speed -- records the pre-F6 wall clock of the instrumented
+        2 x 15 fixture run so the one-extra-Hungarian cost can be measured against it."""
+        run = _ExposureRun.get()
+        self.assertGreater(run.seconds, 0.0)
+        print("\n[F6 wall clock] instrumented week01 2x15 run: %.1f s" % run.seconds)
