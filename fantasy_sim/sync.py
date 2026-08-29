@@ -398,7 +398,7 @@ def resolve_player_keys(pids, players_db, rostered_pids=None):
 
 
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
-                              rostered_pids=None, byes=None):
+                              rostered_pids=None, byes=None, reserve_pids=None):
     existing_baselines = {}
     if os.path.exists(BASELINES_FILE):
         try:
@@ -542,6 +542,9 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             # Sleeper's id, so the prior blend above can follow this player across a name-key
             # change. The engine does not read it.
             "player_id": str(pid),
+            # F4: availability, additive; semantics documented at _build_roster_player_entry.
+            "injury_status": player.get("injury_status"),
+            "on_ir": str(pid) in (reserve_pids or ()),
         }
 
     if unconstrained_positions:
@@ -651,7 +654,7 @@ def _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids=None):
                 wk_player_scores[name] = float(pts)
     return wk_player_scores
 
-def _build_roster_player_entry(pid, players_db):
+def _build_roster_player_entry(pid, players_db, reserve_pids=()):
     """
     Builds one player's live_rosters.json entry from Sleeper's player database. Handles a real
     bug found via a live backtest run: Sleeper's real player records commonly have "team":
@@ -669,6 +672,15 @@ def _build_roster_player_entry(pid, players_db):
         "name": f"{player.get('first_name', '')} {player.get('last_name', '')}".strip(),
         "pos": player.get("position", "FLEX"),
         "team": player.get("team") or "FA",
+        # F4 (AUDIT_PLAN.md): availability, additive. `injury_status` is Sleeper's own field
+        # (IR / PUP / Out / Sus / DNR / Doubtful / Questionable / COV / NA / None; its
+        # `injury_start_date` is never populated, so it is not carried). `on_ir` is the
+        # LEAGUE's IR slot (the roster payload's `reserve` list): a manager decision, treated
+        # as "absent regardless of status" because the player has been removed from the
+        # lineup, which is what the engine models. Accepted cost, recorded in AUDIT_PLAN F4:
+        # a Questionable player parked on IR is modelled as out.
+        "injury_status": player.get("injury_status"),
+        "on_ir": str(pid) in reserve_pids,
     }
 
 def sync_all(sharp_polling=False):
@@ -687,6 +699,7 @@ def sync_all(sharp_polling=False):
     roster_map = {r["roster_id"]: TEAM_NAME_MAP.get(user_map.get(r.get("owner_id"), ""), "Unknown") for r in rosters}
 
     live_rosters_payload, standings_payload = {}, {}
+    reserve_pids = set()
     for r in rosters:
         sim_name = roster_map[r["roster_id"]]
         settings = r.get("settings", {})
@@ -695,8 +708,10 @@ def sync_all(sharp_polling=False):
             "points_scored": float(f"{settings.get('fpts', 0)}.{settings.get('fpts_decimal', 0)}"),
             "remaining_faab": max(0.0, 100.0 - float(settings.get("waiver_budget_used", 0))),
         }
+        reserve = {str(p) for p in (r.get("reserve") or [])}
+        reserve_pids |= reserve
         live_rosters_payload[sim_name] = [
-            _build_roster_player_entry(pid, players_db)
+            _build_roster_player_entry(pid, players_db, reserve)
             for pid in r.get("players", []) if str(pid) in players_db
         ]
 
@@ -711,7 +726,7 @@ def sync_all(sharp_polling=False):
     byes = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("byes", {})
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
     generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
-                              rostered_pids=rostered_pids, byes=byes)
+                              rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids)
     fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling)
 
     all_weeks_actuals = {}

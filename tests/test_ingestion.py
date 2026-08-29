@@ -725,16 +725,46 @@ if __name__ == "__main__":
     unittest.main()
 
 
-class TestInjuryStatusIngestion(unittest.TestCase):
-    """F4 characterisation: the roster entry sync writes carries nothing about availability.
-    Sleeper's player record has `injury_status` (IR / PUP / Out / Doubtful / Questionable / ...)
-    and the league roster payload has a `reserve` list (the fantasy IR slot); neither reaches
-    live_rosters.json or player_baselines.json."""
 
-    @unittest.expectedFailure
+class TestInjuryStatusIngestion(unittest.TestCase):
+    """F4 step 1 guards (were characterisation). Sleeper's player record has `injury_status`
+    (IR / PUP / Out / Doubtful / Questionable / ...) and the league roster payload has a
+    `reserve` list (the fantasy IR slot); both now reach live_rosters.json and the baselines,
+    additively. The engine does not read them yet (step 2)."""
+
     def test_roster_entry_carries_the_players_injury_status(self):
-        from fantasy_sim.sync import _build_roster_player_entry
         db = {"7640": {"first_name": "Micah", "last_name": "Parsons", "position": "LB", "team": "GB",
                        "injury_status": "PUP", "status": "Active"}}
-        entry = _build_roster_player_entry("7640", db)
+        entry = sync._build_roster_player_entry("7640", db)
         self.assertEqual(entry.get("injury_status"), "PUP", msg="entry is %r" % (entry,))
+
+    def test_roster_entry_marks_the_league_ir_slot_regardless_of_status(self):
+        """`on_ir` follows the roster payload's `reserve` list, not the medical status: a
+        Questionable player a manager parked on IR is out (accepted cost, AUDIT_PLAN F4)."""
+        db = {"8142": {"first_name": "Alec", "last_name": "Pierce", "position": "WR", "team": "IND",
+                       "injury_status": "Questionable"},
+              "1": {"first_name": "Healthy", "last_name": "Guy", "position": "RB", "team": "SEA",
+                    "injury_status": None}}
+        on = sync._build_roster_player_entry("8142", db, reserve_pids={"8142"})
+        off = sync._build_roster_player_entry("1", db, reserve_pids={"8142"})
+        self.assertEqual((on["on_ir"], on["injury_status"]), (True, "Questionable"))
+        self.assertEqual((off["on_ir"], off["injury_status"]), (False, None))
+        self.assertFalse(sync._build_roster_player_entry("8142", db)["on_ir"], "default: not on IR")
+
+    def test_baselines_carry_injury_status_and_on_ir(self):
+        db = {"7640": {"first_name": "Micah", "last_name": "Parsons", "position": "LB", "team": "GB", "injury_status": "PUP"},
+              "1": {"first_name": "Healthy", "last_name": "Guy", "position": "RB", "team": "SEA", "injury_status": None}}
+        proj = {"7640": {"stats": {"rush_yd": 100.0}}, "1": {"stats": {"rush_yd": 50.0}}}
+        saved, fake_save = _capture_saves()
+        weekly = MagicMock()
+        weekly.status_code = 200
+        weekly.json.return_value = proj
+        with patch.object(sync, "save_json", side_effect=fake_save):
+            with patch.object(sync.os.path, "exists", return_value=False):
+                with patch.object(sync.requests, "get", return_value=weekly):
+                    with patch.object(sync, "fetch_espn_projections", return_value={}):
+                        out = sync.generate_player_baselines({"rush_yd": 0.1}, db, {}, "2026", 1,
+                                                             byes={"GB": 5}, reserve_pids={"7640"})
+        mp, hg = out["Micah Parsons"], out["Healthy Guy"]
+        self.assertEqual((mp["injury_status"], mp["on_ir"], mp["bye"]), ("PUP", True, 5))
+        self.assertEqual((hg["injury_status"], hg["on_ir"]), (None, False))
