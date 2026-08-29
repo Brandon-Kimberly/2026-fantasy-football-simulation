@@ -569,6 +569,8 @@ data is there: the committed `sleeper_players_cache.json` carries 110 `IR`, 41 `
 | **step 1 — DONE (2026-08-28)** | `_build_roster_player_entry` and the baselines carry `injury_status` (Sleeper's field; `injury_start_date` is populated on 0 of 12,225 cache entries and is not carried) and `on_ir` (the league roster payload's `reserve` list). **`on_ir` is treated as absent regardless of status** — a manager who moved a player to IR has removed him from the lineup, which is what the engine models. **Accepted, named cost:** a player parked on IR while only Questionable/Doubtful is modelled as out. On 2026-08-28 the four IR-slot players were Micah Parsons (PUP), Zach Charbonnet (PUP), Jordyn Tyson (Doubtful), Alec Pierce (Questionable): two of four are this case. Goldens byte-identical (fixtures carry no status). | done |
 | engine | at sim start, a player with `IR`/`Out`/`PUP` status enters with an `injury_clocks` entry drawn from the existing duration model (`INJURY_DURATION_*`) rather than healthy; `Questionable`/`Doubtful` need a game-time probability or nothing — a source is required, not a guess | ~20 lines |
 | **step 2 design — decided 2026-08-28** | **One clock, two entry points; no separate Doubtful mechanic.** A separate "Doubtful → out with p = 0.9 for week 1 only" mechanic was proposed and DROPPED: (a) the 0.9 had no data source and would have entered as an unverified constant; (b) there is no live boundary case to gate it against — the only rostered Doubtful player on 2026-08-28 (Jordyn Tyson) is also on the IR slot, and the 2025 backtest has no status history at all (Sleeper serves current status only), so Doubtful / Out / IR cannot be told apart retrospectively; (c) what the data DOES separate is elapsed time, not the label: P(zero next | 1 trailing zero) = 0.71, P(zero next | ≥ 2) = 0.84 and flat. The replacement: absence certain in the first simulated week for `IR`/`PUP`/`Out`/`Sus`/`DNR`/`on_ir`, then a two-stage weekly return hazard measured from real 2025 — **0.29 after the first week out, 0.16 per week thereafter**. `IR`/`PUP` (already ≥ 2 weeks in) enter at stage 2; a fresh `Out` enters at stage 1. `Doubtful` and `Questionable` off the IR slot are drawn healthy until a game-time-probability source exists (bounded, named cost: 1 rostered Doubtful today, on IR anyway). Do not re-introduce a status-specific probability without a citable source. | — |
+| **step 3 — DONE** | `backtest_season.mark_out_now` (k = 2 trailing non-bye zeros → `injury_status: "IR"`, stage 2). Marks 1 / 7 / 10 / 10 players at cp3/6/9/12 on real 2025. | done |
+| **step 4 — MEASURED 2026-08-28, gate NOT met; stopped, not iterated** | Paired 300-sim backtest, same inputs and seed as 5b plus the marks: bias **+3.45 → +1.84 pts** (+2.7% → +1.4%), mean z −0.164 → −0.086, cover80 0.65 → **0.63**, cover50 0.36 → 0.35. Per checkpoint: cp3 −1.5%, cp6 +1.0%, cp9 +1.4%, cp12 +4.9% — gradient **10.7 → 8.2 pts** wide (cp3–cp9 alone: 3.9 pts; cp12 is 24 observations, SE ≈ 5 pts). Criterion was ≤ 1.5 pts and cover80 ≥ 0.65: missed on both. **What F4 itself was built to fix is verified:** realised absence in the first simulated week 0.0% → **5.6%** against 5.3% real out-now (7/133), and week-by-week bye-excluded absence 4.1% → **7.9%** over weeks 6–11. **What remains is a level offset, not an initial-state error:** the realised rate plateaus at 8.2–8.6% from week 8 on while real rostered absence is 14.7% — the forward onset/duration model, F5 below, exactly the split pre-committed before this step. Empirical data weight re-measured with the seven week-6 absentees excluded: unchanged (0.57 vs weeks 6–11 with injury zeros, 0.80 per game played). Do not tune F4's constants to close the remaining gap; they are measured. | stopped |
 | backtest harness | the historical equivalent: a player whose last k completed weeks are 0.0 enters the checkpoint injured (k and the clock draw to be justified against 2025 return times, not tuned to the bias) | ~20 lines |
 | tests | guard: an `IR` player contributes no starter points in week `current_week`; conservation of `injury_clocks` unchanged; goldens move only in fixtures that carry a status (fixture regeneration from `data/`) | small |
 
@@ -585,3 +587,36 @@ unbuilt it would absorb a ~10% scoring gap into `EPISTEMIC_ERROR_RATES` (and int
 `INJURY_RATES`) as spurious uncertainty and tune the wrong constants by a measurable amount.
 Phase 2 finding 4 (conjugate posterior) is gated on F4 for the same reason and should be
 re-run immediately after it, with the weight criterion already met. Interacts with F1 only through key names.
+
+### F5 — Forward absence model: the engine draws about half the in-season absence reality shows
+
+**Origin:** F4 step 4 (2026-08-28), the pre-committed split. With byes modelled, zero weeks
+out of the posterior (5b) and players out at the checkpoint entering on a measured clock
+(F4), the engine realises **7.9%** bye-excluded absence over weeks 6–11 of real 2025 against
+**14.7%** real (upper bound: a real 0.0 is any absence — injury, healthy scratch, suspension).
+The first simulated week now matches (5.6% vs 5.3%), so the shortfall is the forward model:
+the realised rate plateaus at 8.2–8.6% from week 8 (≈5 new onsets/week on 133 players, each
+played at 0.35× in the onset week, then the two-component duration mixture) while real
+absence keeps accumulating. Conditional on being out, the engine's duration model returns
+next week with P = 0.32 (length-biased) against the measured 0.16; the memoryless tail is
+too short. This gap, not the posterior, is what the conjugate update (Phase 2 finding 4)
+exposes: +10.8% points bias when applied on top of 5b.
+
+**Candidates, none pre-selected:** (a) `INJURY_RATES` are calibrated to "% of players missing
+≥ 1 game per season", a season-level quantity, not a weekly onset hazard — check the
+conversion; (b) the onset-week convention (0.35× play) against the real data, where an onset
+week is mostly a full zero; (c) `INJURY_TYPICAL_DURATION_SCALE` / `INJURY_SEVERE_*` against the
+measured 0.16 return hazard (a one-season, censored measurement — the F4 constants carry the
+same caveat); (d) the vacated-volume pathway for initial absences on blank-slate priors.
+Each is a change to baseline computation and takes the paired backtest gate.
+
+**Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, realised
+bye-excluded absence in weeks 6–11 within 2 points of the real rate (14.7%, or the injury-only
+rate once a real 2025 injury list separates scratches from injuries), the cp3→cp12 bias
+gradient ≤ 1.5 pts, cover80 ≥ 0.65 — the F4 criterion, moved here where the cause is. Then
+re-run Phase 2 finding 4 (conjugate posterior): the weight criterion is already met; the
+backtest bias is what it waits on.
+
+**When:** after F4 merges and BEFORE Phase 7, for the reason F4 carried: Phase 7 fits
+`EPISTEMIC_ERROR_RATES` on this backtest, and an unmodelled ~7-point absence gap would be
+absorbed into it as spurious uncertainty.
