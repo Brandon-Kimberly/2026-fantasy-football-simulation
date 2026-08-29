@@ -412,7 +412,10 @@ class TestBayesianUpdate(unittest.TestCase):
         weeks 6-11 run 17% below weeks 1-5 as byes/injuries accumulate (zero-week share
         9.6% -> 25.3%) and the stated prior variance does not describe rostered players.
         DEPENDENCY: bye/absence modelling (Phase 1 finding 7) and re-derived
-        EPISTEMIC_ERROR_RATES (Phase 7); any replacement must hit ~0.49 on that backtest.
+        EPISTEMIC_ERROR_RATES (Phase 7). Re-run in bye-modelling step 5c: the conjugate form
+        applies w 0.71 on real players (inside the bye-aware target 0.68 +/- 0.05) yet moves the
+        real-2025 points bias +2.7% -> +10.8%, because the engine draws too little absence
+        (follow-up F4). Blocked on F4; the weight criterion is already met.
         Five games averaging 14 against a prior of 10: conjugate puts 82% on the data, the
         engine 71%. Remove the expectedFailure when a replacement passes the backtest."""
         scores = [13.0, 15.0, 14.0, 13.0, 15.0]
@@ -426,7 +429,7 @@ class TestBayesianUpdate(unittest.TestCase):
     def test_posterior_std_matches_conjugate_normal(self):
         """CHARACTERISATION, deliberately still failing -- Phase 2 finding 4, applied in
         Phase 3 and reverted on real-data evidence (see the sibling test's docstring for the
-        numbers and the dependency on bye/absence modelling). The posterior std is what feeds
+        numbers, the step-5c re-run and the dependency on F4). The posterior std is what feeds
         the once-per-season epistemic draw, so an over-confident posterior narrows every
         downstream season distribution. The engine's posterior std is ~0.63x the conjugate
         value here. Remove the expectedFailure when a replacement passes the backtest."""

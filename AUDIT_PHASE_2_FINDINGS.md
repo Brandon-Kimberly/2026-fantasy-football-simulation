@@ -224,7 +224,18 @@ wrong for the wrong reasons and, by accident, closer to reality.
 
 **Status: open, blocked** on bye/absence modelling (Phase 1 finding 7) and on re-derived
 `EPISTEMIC_ERROR_RATES` (Phase 7). Any replacement must hit ≈0.49 on that backtest. The two
-tests stay red under `expectedFailure` with the dependency in their docstrings. The defensive
+tests stay red under `expectedFailure` with the dependency in their docstrings.
+
+**Re-run in bye-modelling step 5c (2026-08-28), REVERTED again.** With byes modelled and finding 5
+fixed, the conjugate form moved the paired real-2025 bias from +2.7% to **+10.8%** (mean z −0.64,
+cover80 0.65 → 0.56, cp3 +4.3% … cp12 +17.2%). The weight target was revised first to ≈0.68 (the
+0.49 had bye weeks as zeros in both windows) — and then measured on what the engine really
+applies: the conjugate form puts **0.71** on real n≈4 histories (inside 0.68 ± 0.05), the old form
+0.47. Against weeks 6–11 *excluding* injury zeros the empirical weight is 0.80 (conjugate 0.81):
+the posterior is calibrated per game played. The bias is absence the engine does not draw —
+real rostered players missed 12.4% of weeks 6–11; `INJURY_RATES` onsets plus no current-IR
+input (follow-up F4) remove far less. The old form hid that gap by under-weighting. Blocked on
+F4 now, not on the weight. The defensive
 half of the decision (`DEF_RATING_SHRINKAGE_N0` → 12) stands: different construct, derived from
 variance components, invisible to this backtest.
 
@@ -308,7 +319,7 @@ moved no hash (all 16 matrices bit-identical).
 | 1 | Environment normaliser not mean-preserving (+2.8% mean, +17% var) — **fixed** | High | every player, every week, both scenarios | `stage_a`, both |
 | 2 | `shared_z` overrides calibrated correlations for 44% of team-weeks — **fixed** | High | every QB/WR/TE pair on the same NFL team | `stage_a`, both |
 | 3 | Copula targets calibrated on scores, applied on `z` (−12–14%) | Low–Med | all correlated pairs | `stage_a`, both |
-| 4 | Bayesian update not conjugate; over-confident posterior — **conjugate fix applied and reverted (+8.5% real bias); blocked on bye modelling; target weight ≈0.49** | High (mid-season) | every player with completed weeks | week06 `stage_a` |
+| 4 | Bayesian update not conjugate; over-confident posterior — **conjugate fix applied and reverted (+8.5% real bias); blocked on F4 (current injury status): the conjugate form applies w 0.71 on real players, inside the bye-aware target 0.68 ± 0.05, but the backtest bias is +10.8% from undrawn absence** | High (mid-season) | every player with completed weeks | week06 `stage_a` |
 | 5 | Zero-score weeks treated as observed — **fix reverted; blocked on bye modelling (Phase 1 #7)** | Medium | players with a bye/DNP in history | none (reverted) |
 | 6 | PSD repair not renormalised — **fixed** | Low | rosters with dense same-team clusters | none (verified) |
 | 7 | Receiver-rank correlation non-monotone — **fixed** | Low | teams with ≥ 3 same-team pass-catchers | none on fixtures (verified) |

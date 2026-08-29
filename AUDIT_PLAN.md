@@ -143,7 +143,20 @@ than fixed, because neither is a code change:
    6.4% at cp6, 8.9% at cp9, 8.2% at cp12 — the same shape as the gradient. Those zeros were the only current-injury
    signal the engine had: neither sync nor the backtest harness ingests Sleeper's `injury_status`, so with finding 5
    fixed an IR player is projected at full strength for the rest of the season. NEW FOLLOW-UP: current-injury-status
-   ingestion (F4 below). Finding 5's fix stands: it is correct per game played and the residual is a missing input. Sleeper's payload has no `team_bye` key
+   ingestion (F4 below). Finding 5's fix stands: it is correct per game played and the residual is a missing input.
+   STEP 5c RESULT (+ Phase 2 finding 4, conjugate posterior, run as written and REVERTED — 2026-08-28): bias +3.45 →
+   +13.96 pts (+2.7% → +10.8%), mean z −0.64, cover80 0.65 → 0.56, gradient cp3 +4.3% … cp12 +17.2%. Misses the
+   ±1.0-pt bound by 9.5 pts. THE SURPRISE: the weight gate is NOT what it misses. On the real player set the
+   conjugate form actually applies w = 0.71 at n≈4 (QB 0.58, RB 0.76, WR 0.75) — inside 0.68 ± 0.05 — while the
+   old n₀=4 form applies 0.47, not the 0.71 the formula table implied (real sample variances exceed the floor).
+   And re-measuring the empirical target on the engine's own inputs (non-zero pre weeks, as after 5b): vs weeks
+   6–11 *excluding* injury zeros it is 0.80 (conjugate 0.81 — calibrated); vs weeks 6–11 *including* them 0.57
+   (post/pre 0.884 vs 1.012). So the conjugate posterior is right per game played and the +10.8% is entirely the
+   absence the engine does not draw: forward injury onsets under `INJURY_RATES` plus no current-IR input (F4)
+   remove far less than the 12.4% of weeks 6–11 that real rostered players actually missed. Under the old form
+   that gap was hidden by an under-weighted posterior. Finding 4 stays open, its target restated: any posterior
+   change is gated on the backtest, which cannot pass until F4 lands; the weight criterion is already met.
+   Patch retained at scratch `conjugate_5c.patch` (= 948902f's engine/backtest_player hunks). Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
    can never fire. The existing sync test passes only because its fixture invents the field.
    Needs a real bye-week source, which Sleeper does not supply — not a code change.
@@ -199,7 +212,7 @@ Eight findings:
    calibrated target is −0.004. Confirmed through the real engine (+57 variance, SE 6).
 3. LOW–MED. `CORRELATIONS` were measured on scores but are applied on `z`; realised score
    correlations run 12–14% below target even with the gate closed.
-4. HIGH (mid-season), OPEN — conjugate fix applied in Phase 3 and reverted on real-data evidence (+8.5% bias); was blocked on bye modelling. TARGET REVISED 0.49 → ≈0.68 (bye-modelling step 5a, 2026-08-28): the 0.49 was measured on bye-contaminated data — each player's bye week sat as a 0 in both the first-five and the weeks-6–11 windows. With the bye week excluded from both windows, which is what the engine now does on the draw side, the same regression (post − prior = w·(pre − prior), slope through the origin, 74 players with ≥4 weeks each side) gives w = 0.68 (QB 0.91, RB 0.85, WR 0.30); the zero-week share becomes 8.1% → 17.6% instead of 9.7% → 25.6% and the weeks-6–11 drop 9% instead of 17%. The two forms already tested sit on OPPOSITE sides of the new target: old n₀=4 gives 0.71 (over by 0.03), conjugate gives 0.81 (over by 0.13). 5c is therefore a genuine recalibration, not a revert-and-reapply of the conjugate form. WR's residual 0.30 is not absence-driven (QB/RB sit at 0.85–0.91 on the same data); it is the `EPISTEMIC_ERROR_RATES` mis-specification, Phase 7's. `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
+4. HIGH (mid-season), OPEN — conjugate fix applied in Phase 3 and reverted on real-data evidence (+8.5% bias); was blocked on bye modelling. TARGET REVISED 0.49 → ≈0.68 (bye-modelling step 5a, 2026-08-28): the 0.49 was measured on bye-contaminated data — each player's bye week sat as a 0 in both the first-five and the weeks-6–11 windows. With the bye week excluded from both windows, which is what the engine now does on the draw side, the same regression (post − prior = w·(pre − prior), slope through the origin, 74 players with ≥4 weeks each side) gives w = 0.68 (QB 0.91, RB 0.85, WR 0.30); the zero-week share becomes 8.1% → 17.6% instead of 9.7% → 25.6% and the weeks-6–11 drop 9% instead of 17%. The two forms already tested sit on OPPOSITE sides of the new target: old n₀=4 gives 0.71 (over by 0.03), conjugate gives 0.81 (over by 0.13). 5c is therefore a genuine recalibration, not a revert-and-reapply of the conjugate form. [SUPERSEDED the same day by the 5c run: the conjugate form APPLIES 0.71 on real players (the 0.81 was the formula-table value at the prior's stated variances, not what real n≈4 histories produce) and the old form applies 0.47; the miss is +10.8% points bias from unmodelled absence, not weight — see the bye-modelling entry, step 5c, and F4.] WR's residual 0.30 is not absence-driven (QB/RB sit at 0.85–0.91 on the same data); it is the `EPISTEMIC_ERROR_RATES` mis-specification, Phase 7's. `_apply_bayesian_updates` is not conjugate: `n_0 = 4` quadruples prior
    precision and the likelihood variance is a 5-sample variance floored at half the prior, not
    `std_aleatoric²`. Offense under-updated (data weight 0.60 vs 0.80), IDP over-updated, posterior
    sd 0.69× closed-form everywhere — which narrows the per-season epistemic draw downstream.
