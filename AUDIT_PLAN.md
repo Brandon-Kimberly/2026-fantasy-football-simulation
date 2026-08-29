@@ -805,3 +805,40 @@ backtest bias is what it waits on.
 **When:** after F4 merges and BEFORE Phase 7, for the reason F4 carried: Phase 7 fits
 `EPISTEMIC_ERROR_RATES` on this backtest, and an unmodelled ~7-point absence gap would be
 absorbed into it as spurious uncertainty.
+
+### F6 — `INJURY_RATES` is per active player but applied uniformly to every rostered player
+
+**Origin:** F5 step 2 (2026-08-28), the decomposition of the started-zero miss. `INJURY_RATES`
+is derived (config.py) from "% of players missing ≥ 1 game per season" studies of ACTIVE NFL
+players, converted to a weekly onset hazard, and the engine draws that hazard for every
+rostered player every week regardless of role. Real 2025 onsets skew to starters — they take
+the snaps: 61 of 75 fresh onsets (81%) were by players who had started the previous week, ≈ 4.7
+starter-onsets per week, against the engine's ≈ 5.4 onsets/week × ~75% assigned ≈ 4.0. A bench
+player in the engine is as likely to be hurt as a starter, and his onset costs nothing, so the
+league-wide onset count is right while the count that matters (starters) is low. The pooled
+onset hazard itself (0.047 realised vs 0.050 real) is not the issue; its distribution across the
+roster is.
+
+**What is blocked on it:** F5's remaining acceptance — the started-zero rate (0.093 vs 0.236
+per team-week) and the cp3→cp12 bias gradient (9.0 pts vs ≤ 1.5) — and, through it, the re-run
+of Phase 2 finding 4 (conjugate posterior), which waits on the backtest bias. Phase 7 should not
+re-derive `INJURY_RATES` before this is decided, for the same reason F4/F5 preceded it: a
+roster-wide rate fit to starter-driven absence would be biased low for starters and high for
+the bench.
+
+**Scope (sized, not implemented):**
+
+| piece | what | size |
+|---|---|---|
+| exposure model | make the weekly onset hazard proportional to expected usage: simplest honest form, hazard = `INJURY_RATES[pos]` × (player is in the optimal lineup this week ? 1 : `BENCH_EXPOSURE`), with `BENCH_EXPOSURE` measured — real 2025 gives 14 of 75 onsets by non-starters against ≈ 27% of rostered player-weeks on the bench, i.e. bench exposure ≈ 0.55 × starter exposure (one season, n = 14) | ~15 lines in PASS 1; the lineup must be known before the onset draw, which reverses the current order (PASS 1 runs before the assignment) — a decision-logic change, Phase 4 treatment |
+| source check | re-read the cited studies for their denominator (all rostered vs active vs starters) and re-derive the per-position rate on the right base; if they are per active player, the starter hazard is `INJURY_RATES` as is and the bench hazard is the scaled one | comment + numbers in config.py |
+| manager behaviour | the 4 bench-promoted and 3 left-in locked zeros (0.07/team-week) are NOT this item; record them under F2-style manager modelling if ever wanted | none |
+| tests | property: per-position onset counts by starters vs bench match the exposure ratio (brute force on the fixture, as F5 step 2); goldens move (RNG order) | small |
+
+**Acceptance criterion:** on the paired real-2025 backtest at 300 sims, starter-onsets per
+week within ±0.5 of real (4.7), the started-zero rate within ±0.05 of real (0.19–0.24 by
+window) with `LOCKED_ONSET_PROBABILITY` UNCHANGED at 0.21, and the pooled onset hazard still
+within ±0.01 of 0.050 (the exposure split must redistribute onsets, not add them). Then F5's
+gradient criterion is re-read, and Phase 2 finding 4 is re-run.
+
+**When:** before Phase 7 touches `INJURY_RATES`; otherwise any time. Independent of F1–F3.
