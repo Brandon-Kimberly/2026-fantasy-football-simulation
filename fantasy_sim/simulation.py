@@ -889,6 +889,7 @@ class FantasySimulationEngine:
                     # populated) before any score or contingency_pts lookup happens in PASS 2,
                     # regardless of iteration order.
                     newly_injured_this_week = set()
+                    locked_zero_this_week = set()     # F5 step 2: hurt after lineup lock
                     for t_name in self.team_names:
                         for p_name in sim_rosters[t_name]:
                             p_info = self.baselines.get(p_name, {})
@@ -916,6 +917,11 @@ class FantasySimulationEngine:
                                     weeks_missed = int(np.random.exponential(scale=SIM_CONFIG['INJURY_TYPICAL_DURATION_SCALE'])) + 1
                                 injury_clocks[p_name] = min(16, weeks_missed)
                                 newly_injured_this_week.add(p_name)
+                                # F5 step 2: with LOCKED_ONSET_PROBABILITY the manager did not know
+                                # before lock -- the player stays a lineup candidate at his pre-game
+                                # expectation and realises 0 (see SIM_CONFIG for the 2025 derivation).
+                                if np.random.rand() < SIM_CONFIG['LOCKED_ONSET_PROBABILITY']:
+                                    locked_zero_this_week.add(p_name)
                                 self._record_vacated_volume(team_vacated_volume, p_pos, nfl_team, season_mean)
 
                     # Apportion each pool across the real NFL position group, once per week
@@ -952,7 +958,11 @@ class FantasySimulationEngine:
                             # 40% of onsets (n = 1) were never absent at all (measured in-simulation:
                             # out-on-clock / newly-hurt = 2.08 vs the mixture mean 3.11). The 0.35x
                             # had no source. Deliberately removed, not just re-timed; see F5.
-                            if week_num == p_info.get('bye') or injury_clocks.get(p_name, 0) > 0: continue
+                            # F5 step 2: a locked-lineup onset is the one clocked player who is NOT
+                            # excluded here -- he is chosen on expected_pre like anyone else and
+                            # scores 0 below.
+                            locked_zero = p_name in locked_zero_this_week
+                            if week_num == p_info.get('bye') or (injury_clocks.get(p_name, 0) > 0 and not locked_zero): continue
 
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
                             std_aleatoric = p_info.get('std_aleatoric', 3.0)
@@ -1008,6 +1018,8 @@ class FantasySimulationEngine:
                             # real-record justification and empirical verification of why this
                             # was added.
                             final_score = min(final_score, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+                            if locked_zero:
+                                final_score = 0.0
 
                             pos_opts = DUAL_ELIGIBILITY.get(p_name, [p_pos])
                             candidates.append((p_name, pos_opts, expected_pre))

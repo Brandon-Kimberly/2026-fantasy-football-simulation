@@ -392,6 +392,21 @@ SIM_CONFIG = {
     "INITIAL_ABSENCE_STAGE1_STATUSES": ("Out",),
     "ABSENCE_RETURN_HAZARD_FIRST_WEEK": 0.29,
     "ABSENCE_RETURN_HAZARD_STEADY": 0.16,
+    # Locked-lineup onsets (F5 step 2, AUDIT_PLAN.md). Real 2025 lineups (Sleeper matchup
+    # payloads, starters + players_points, 1,768 rostered player-weeks, bye weeks excluded):
+    # of 203 zero weeks, 90% were BENCHED -- the manager knew before lock and the bench filled
+    # the slot, which the lineup assignment already models -- and 10% (21) sat in a LOCKED
+    # lineup and scored 0 (18 fresh onsets: in-game injury or inactive after lock; 3 already-out
+    # players left in). Among FRESH onsets by players who had started the previous week, the
+    # share that landed in a locked lineup was 13 of 61 = 0.21 (Wilson 95%: 0.13-0.33); 17 of
+    # 75 = 0.23 over all fresh onsets. ONE SEASON, SMALL n: this constant is a 2025-only
+    # estimate with a wide interval and should be read that way. Position split observed but
+    # NOT built in: QB 0/8, RB 0/19, WR 11/38 (29%), TE 3/7 (43%) -- recorded as a hypothesis for
+    # next season's data to confirm or reject, not a parameter this year. Mechanism: at onset,
+    # with this probability the player stays in the candidate list at his pre-game expectation
+    # (the lineup is chosen on expected_pre -- the manager did not know) and his realised score
+    # is 0; otherwise he is excluded from candidates and the bench or a streamer fills the slot.
+    "LOCKED_ONSET_PROBABILITY": 0.21,
     # Vacated-volume redistribution: when a player at one of these positions is injured, some
     # of their production flows to a healthy teammate at the SAME position on the SAME real
     # NFL team, modeling real target/touch redistribution rather than assuming vacated

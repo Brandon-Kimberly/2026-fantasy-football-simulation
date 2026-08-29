@@ -21,6 +21,8 @@ from unittest.mock import patch
 
 import numpy as np
 
+from tests.golden_master import STAGE_A_ARG_NAMES
+
 from fantasy_sim.config import SIM_CONFIG, REGULAR_SEASON_WEEKS, NFL_TEAMS
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import (
@@ -203,7 +205,7 @@ class OnsetLeague(object):
     patched to return n - 1 -> int(n - 1) + 1 == n). Records, per simulated week: the
     newly-injured set, the exposed player's clock, and whether he was a lineup candidate."""
 
-    def __init__(self, n, current_week=3, sims=2):
+    def __init__(self, n, current_week=3, sims=2, p_locked=0.0):
         roster, baselines = {}, {}
         for t in TEAMS:
             roster[t] = []
@@ -241,6 +243,10 @@ class OnsetLeague(object):
             if me.weeks and any(nm == OUT_PLAYER for nm, _, _ in c):
                 me.weeks[-1]["candidate"] = True
             return real_solve(c)
+        self.args = {}
+
+        def export(engine, *a):
+            me.args.update(zip(STAGE_A_ARG_NAMES, a))
         rates = {k: 0.0 for k in SIM_CONFIG["INJURY_RATES"]}
         rates["RB"] = 1.0
         profiles = {t: {"faab_agg": 0.5, "trade_will": 0.0} for t in TEAMS}
@@ -250,11 +256,12 @@ class OnsetLeague(object):
         SIM_CONFIG["NUM_BATCHES"], SIM_CONFIG["SIMS_PER_BATCH"] = 1, sims
         try:
             with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]):
-                with patch.dict(SIM_CONFIG["INJURY_RATES"], rates):
+                with patch.dict(SIM_CONFIG, {"LOCKED_ONSET_PROBABILITY": p_locked}):
+                  with patch.dict(SIM_CONFIG["INJURY_RATES"], rates):
                     with patch.dict("fantasy_sim.simulation.MANAGER_PROFILES", profiles, clear=True):
                         with patch.object(FantasySimulationEngine, "_solve_optimal_assignment", staticmethod(solve)):
                             with patch.object(FantasySimulationEngine, "_apportion_vacated_volume", apportion):
-                                with patch.object(FantasySimulationEngine, "export_and_visualize", lambda s, *a: None):
+                                with patch.object(FantasySimulationEngine, "export_and_visualize", export):
                                     with patch("fantasy_sim.simulation.np.random.exponential", lambda scale: float(n - 1)):
                                         FantasySimulationEngine().run_simulation()
         finally:
@@ -280,7 +287,9 @@ class OnsetLeague(object):
 
 
 class TestOnsetWeekSemantics(unittest.TestCase):
-    """F5 candidate (b) / the off-by-one. The calibration behind the duration mixture counts
+    """Regime A (known before lock; p_locked pinned to 0 here -- regime B has its own class).
+
+    F5 candidate (b) / the off-by-one. The calibration behind the duration mixture counts
     games MISSED (64% of injuries <= 2 games missed, mean 3.1), and the real-2025 absence
     spells were measured as runs of exact zeros. The engine sets the clock to n in the onset
     week, lets the player PLAY that week at 0.35x, and decrements the clock at the end of the
@@ -319,3 +328,54 @@ class TestOnsetWeekSemantics(unittest.TestCase):
             for w in league.weeks:
                 if w["newly"]:
                     self.assertGreater(w["pool"], 0.0)
+
+
+class TestLockedZero(unittest.TestCase):
+    """Regime B (F5 step 2): with LOCKED_ONSET_PROBABILITY pinned to 1, every onset is a
+    locked-lineup zero -- the manager did not know before lock. The player stays a lineup
+    candidate at his pre-game expectation (no lookahead: the lineup is chosen on expected_pre)
+    and realises exactly 0; he opens no roster hole; from the next week he is out like any
+    clocked player. With it pinned to 0 (TestOnsetWeekSemantics) he is excluded instead."""
+
+    @classmethod
+    def setUpClass(cls):
+        np.random.seed(9)
+        cls.locked = OnsetLeague(3, p_locked=1.0)
+
+    def _sim0_weeks(self):
+        log = self.locked.args["audit_log"]["weeks"]
+        return [(idx, (log.get(str(3 + idx)) or log.get(3 + idx))) for idx in range(self.locked.span)]
+
+    def test_a_locked_onset_stays_a_candidate_and_realises_zero(self):
+        starts = zeros = 0
+        for idx, wd in self._sim0_weeks():
+            w = self.locked.weeks[idx]
+            if not w["newly"] or not wd:
+                continue
+            self.assertTrue(w["candidate"], "locked onset was not a lineup candidate in week index %d" % idx)
+            for s in wd["teams"]["A"]["starters"]:
+                if s["name"] == OUT_PLAYER:
+                    starts += 1
+                    self.assertGreater(s.get("expected", 0), 0, "locked starter must carry his pre-game expectation")
+                    zeros += float(s.get("actual", s.get("score"))) == 0.0
+        self.assertGreater(starts, 0, "the locked player never started; the check would be vacuous")
+        self.assertEqual(zeros, starts, "a locked starter must realise exactly 0")
+
+    def test_a_locked_onset_is_out_from_the_next_week(self):
+        for idx, wd in self._sim0_weeks():
+            w = self.locked.weeks[idx]
+            if idx + 1 < self.locked.span and w["newly"]:
+                nxt = self.locked.weeks[idx + 1]
+                self.assertFalse(nxt["candidate"] and not nxt["newly"],
+                                 "locked player was a candidate the week after his onset without a new onset")
+                self.assertGreater(nxt["clock"], 0)
+
+    def test_locked_and_excluded_regimes_differ_only_in_candidacy(self):
+        """Same league, same pinned duration: regime B keeps the player in the candidate list
+        in his onset weeks, regime A (p_locked = 0) does not; both give him n missed games."""
+        np.random.seed(9)
+        excluded = OnsetLeague(3, p_locked=0.0)
+        for lg, expect_candidate in ((self.locked, True), (excluded, False)):
+            onset_weeks = [w for w in lg.weeks if w["newly"]]
+            self.assertGreater(len(onset_weeks), 0)
+            self.assertTrue(all(w["candidate"] == expect_candidate for w in onset_weeks))

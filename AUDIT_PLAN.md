@@ -769,6 +769,32 @@ regime A's timing (a known-out player's waiver pickup the same week) — the eng
 onsets, so a bench-uncoverable known absence takes the unbid fallback without FAAB; measured
 small (regime A holes are bench-covered in the assignment) and left as a note.
 
+**Step 2 result (2026-08-28) — built as scoped, brute-force verified, backtest gate PARTIAL.**
+`LOCKED_ONSET_PROBABILITY = 0.21` (pooled; position split recorded as next season's hypothesis).
+Brute force on the week01 fixture, 2,768 onsets: locked share 0.203 (SE 0.008); every locked
+starter in sim 0 realised exactly 0 (14/14) at a positive pre-game expectation (562/562); no
+excluded onset ever started; re-solving without the locked player never reduced unfilled slots
+(0/562 — a locked zero fills, never creates, a hole). Paired 300-sim backtest, same F4 inputs
+and seed: bias **+2.43 → +1.77 pts** (+1.9% → +1.4%), mean z −0.111 → −0.089, cover80 **0.63 →
+0.66**, gradient cp3→cp12 8.8 → 9.0 pts (unchanged within noise). Started-zero starters per
+team-week, measured in simulation EXACTLY as the real figure (assigned rostered players in the
+week's onset set — realised 0 by construction — per team-week; streamers excluded as in
+reality): **0.093** (weeks 6–14, cp6) and **0.096** (weeks 3–14, cp3) against real **0.236**
+(17/72) and **0.198** (19/96) for the same weeks — the ±0.05 criterion is MISSED, at about half
+the real rate. Decomposed, not tuned: (i) the 0.21 was measured among onsets by PREVIOUS-WEEK
+STARTERS, but the engine applies it to every onset and only ≈ 75% of onset players are then
+assigned, so the effective conditional rate is right and the base is what differs — real
+onsets skew to starters (4.7 starter-onsets/week vs the engine's 5.4 × 0.75 ≈ 4.0: starters
+take more snaps and the engine's per-player rate is uniform across the roster); (ii) 4 of the 17
+real locked zeros were bench players promoted into the lineup that week (0.04/team-week);
+(iii) 3 were already-out players a manager left in (0.03/team-week) — engine managers are
+perfect. (i)–(iii) sum to ≈ 0.09, the size of the gap. None is the locked-zero mechanism
+itself; (i) is a snap-exposure question for `INJURY_RATES` (the engine's rate is per rostered
+player, the sources it cites are per active player), (ii) and (iii) are manager behaviour.
+Recorded; the constant is NOT re-tuned to close the gap (it would mean applying a starter-
+conditional probability to a roster-wide denominator). Mechanism stands: every metric moved the
+right way and the brute force shows it does exactly what it says.
+
 **Acceptance criterion:** on the paired real-2025 points backtest at 300 sims, realised
 bye-excluded absence in weeks 6–11 within 2 points of the real rate (14.7%, or the injury-only
 rate once a real 2025 injury list separates scratches from injuries), the cp3→cp12 bias
