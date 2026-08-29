@@ -612,6 +612,45 @@ production runs stay on 3.8 with the standing rule that a run dying with `0xC000
 impossible `TypeError`) is re-run, never trusted; and the projection log (F7) should be
 confirmed to have appended after every sync, since a mid-sync fault would lose that week's rows.
 
+
+**RECLASSIFIED (2026-08-29, migration branch): R1 is a machine-level fault under multi-core
+load, not a software defect. NOT CLOSED.** The probe series asked for before closing:
+
+| arm | what | result |
+|---|---|---|
+| fresh-process full suite ×10, Python 3.10 (other heavy jobs running concurrently) | | 7 OK (232 tests), **3 died 0xC0000005** (runs 2, 3, 8; faulting frames in pure-Python lines of `run_simulation`) |
+| in-process 20× loop, 3.10 | | died in iteration 1 with 0xC0000005 while the other jobs ran |
+| targeted mix, single process: assignment-heavy (`_solve_optimal_assignment` + exhaustive brute force) interleaved with real matplotlib/seaborn rendering and pandas | 3.10, 800 rounds / 320k solves | **clean** (500 s) |
+| same, 3.8 control | | `TypeError: object of type 's' has no len()` on a fresh list at round 30; second run 0xC0000005 at round ~105 — both while other jobs ran |
+| A: 3 concurrent targeted probes, 3.10, default OpenBLAS threads | | 1 of 3 died: `SystemError: unknown opcode` (corrupted bytecode) |
+| B: same with `OPENBLAS_NUM_THREADS=1` | | 1 of 3 died: 0xC0000005 → BLAS threading excluded |
+| C: same with caches cleared and `-B` / `PYTHONDONTWRITEBYTECODE` | | 1 of 3 died: a pandas Cython function object where an indexer attribute should be → `.pyc` race excluded |
+| **D: 6 concurrent PURE-Python probes (stdlib only: sort, dict, sha256 — no numpy/scipy/matplotlib, no project code), 3.10** | | **5 of 6 died**: four `listobject.c: bad argument to internal function` (a list whose type pointer no longer says list), one 0xC0000005 |
+| **D on 3.8** | | **4 of 6 died**: two 0xC0000005, two `"sort order broken"` — `sorted()` returned an unsorted list |
+| Windows Application log | | faults in `python310.dll`, `python38.dll`, numpy `mtrand.pyd` and "unknown", all 0xC0000005, clustered in the concurrent windows; one at 2026-08-28 19:31 = the original R1. No WHEA events (consumer RAM does not log bit flips). |
+
+Every single-process run in this session — 300k direct assignment calls on each stack, the
+800-round mixed probe, dozens of suite runs — was clean; every failure occurred while several
+CPU-heavy processes ran at once (the earlier "3 of ~9" R1 runs coincided with parallel tool
+calls launching two Python processes). The corrupted object differs every time and the workload
+that fails last needs no native extension at all. **This is memory or CPU instability of the
+machine under multi-core load (or something injecting into every process — an AV/EDR hook), not
+CPython, not numpy/scipy/matplotlib, not this codebase.** Recommended for the machine, outside
+this repository's scope: MemTest86 / Windows Memory Diagnostic (several passes), disable any XMP/
+overclock profile and re-run Arm D, check CPU temperatures under load, and run Arm D with real-
+time protection paused to exclude an injected hook.
+
+**What this means for the project.** The Python 3.10 migration stands on its own merits (EOL
+3.8 stack; three goldens byte-identical) but does not cure R1. Operating rules until the machine
+is fixed: run `run_sync` / `run_simulation` and the test suite **one at a time** (a single process
+never failed here); treat any run that dies with 0xC0000005, an impossible `TypeError` /
+`SystemError` / `AttributeError`, or a "sort order broken"-class inconsistency as void and re-run
+it; never count a crashed suite as green; and after any crash re-check that `data/projection_log
+.jsonl` gained its rows (`wc -l`). R1 stays open under the reproducibility watch with these
+probe scripts (`probe_mixed.py`, `probe_pure.py` in the session scratchpad; copied to
+`scripts/probes/` so they survive) as the re-test once the hardware is addressed: Arm D must pass
+6/6 on both interpreters before R1 is closed.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under

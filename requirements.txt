@@ -1,7 +1,17 @@
-requests
-numpy
-pandas
-scipy
-matplotlib
-seaborn
+# Runtime: Python 3.10 (AUDIT_PLAN.md R1, 2026-08-29). The previous runtime, the Windows Store
+# Python 3.8, could get nothing newer than scipy 1.10.1 / numpy 1.24.4 -- both end-of-life -- and
+# produced an intermittent native access violation in the test process (R1). The engine's
+# numerics do not depend on the stack: all three golden-master scenarios pass byte-for-byte on
+# the versions below. Pinned exactly; upgrade deliberately, re-running the golden master.
+numpy==2.2.6
+scipy==1.15.3
+pandas==2.3.3
+matplotlib==3.10.9
+seaborn==0.13.2
+requests>=2.31
 espn_api
+# hypothesis 6.165 fails inside its own engine on Python 3.10.0 ('TreeNode' object has no
+# attribute 'is_exhausted'); verified NOT to be the example database (a fresh .hypothesis
+# reproduces it). 6.119.4 runs the five property tests cleanly. Revisit when the interpreter is
+# a later 3.10.x patch release.
+hypothesis<6.120
