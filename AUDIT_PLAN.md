@@ -403,8 +403,13 @@ where the config lies outside the real 2025 Wilson interval"; RB/TE/K/IDP unchan
 Prediction held (starter-onsets 4.3–4.5 vs ≈ 4.6 predicted / 4.7 real; started-zero 0.136 vs ≈ 0.14;
 absence 14.6% vs 14.7% real); bias +1.51 → +0.72 pts. The started-zero residual (0.06–0.10) is the
 manager behaviour F5 named; the checkpoint gradient (10 pts, early-negative / late-positive) is now
-the prior/posterior question and passes unchanged to (2) `EPISTEMIC_ERROR_RATES`, then (3) the
-Phase 2 finding-4 re-run — in that order; (3) does not jump the queue. F6's 1.05 / 0.84 and 0.21 and
+the prior/posterior question. (2)+(3) `EPISTEMIC_ERROR_RATES` + conjugate form — DONE AS A JOINT CHANGE AND
+REVERTED (2026-08-29): the rates and the form are a matched pair (demonstrated by the 2 × 2 on the instrument);
+the joint pair is neutral on the instrument and worse on the backtest in both configurations (−2.1% with the
+true spread; +5.2% with the prior widened by its centring error). Not "calibration fixed": the rate/form
+mismatch is understood and recorded; within-season drift of the true mean (F8) and the absence of
+projection-error data (F7) are the open items, and Phase 2 finding 4 is now blocked on those, not on absence.
+A wrong direction prediction (rates alone would "collapse" std_z; they raised it to 1.3–1.5) is recorded. F6's 1.05 / 0.84 and 0.21 and
 F4's 0.29 / 0.16 are fixed inputs throughout.
 
 **Invariant:** calibration claims are supported by out-of-sample evidence.
@@ -995,3 +1000,32 @@ built (correct on its own claim: onsets redistributed toward starters at the mea
 pooled hazard held, locked draw on the right denominator); its acceptance criterion moves with
 the cause to Phase 7's `INJURY_RATES` item, where "starter-onsets 4.7/week ± 0.5 and started-zero
 rate ± 0.05 with `LOCKED_ONSET_PROBABILITY` and the exposure factors unchanged" is the test.
+
+### F7 — Store weekly projections at sync so projection error can be measured next season
+
+**Origin:** Phase 7 step 2 (2026-08-29). `EPISTEMIC_ERROR_RATES` is, in production, the error of
+a projection-based prior; Sleeper serves only the current week's projections (2025's return 404),
+so that error has never been measurable and the rates were tuned instead under the retired-then-
+kept n₀ = 4 form with a positional prior. **Scope:** on every sync, append the week's fetched
+Sleeper and ESPN projections for rostered players to `data/projection_log.jsonl` (pid, week,
+source, projected mean); ~15 lines in `sync.py`, no engine change, no golden movement. **Acceptance:**
+after one season of logging, per-position RMS of (projection − realised per-game mean) minus the
+sampling term, over the projected mean, with n written beside it — the first direct derivation
+of `EPISTEMIC_ERROR_RATES`. **When:** before week 1 of 2026, or the season's data is lost.
+
+### F8 — Within-season drift of a player's true mean (the static-mean assumption)
+
+**Origin:** Phase 7 steps 2–3. On the project's own calibration instrument std_z rises from ≈ 1.0
+at cp3 to ≈ 1.2 by cp9–cp12 under BOTH the old (n₀ = 4) and the conjugate posterior forms, and
+the conjugate form over-predicts late checkpoints (+11% at cp12) with any σe wide enough to fix
+cp3. Both forms assume a static true weekly mean; reality drifts (role changes, returns at less
+than full strength, the post/pre per-game ratio 0.884). **Scope (sized, not implemented):** a
+random-walk component on the true mean — prior variance grows with weeks since the last
+observation, i.e. the posterior forgets — one constant (drift variance per week) measured from
+the autocorrelation of per-game means across windows on real 2025; touches
+`_apply_bayesian_updates` and the epistemic draw; Phase 4 treatment plus the backtest gate.
+**Acceptance:** std_z within ±0.1 of 1.0 at every checkpoint on the instrument, and the paired
+backtest not worse than the old pair (+0.6%, cover80 0.63). **Blocks:** Phase 2 finding 4 (the
+conjugate re-run) — its weight criterion is met; the late-checkpoint bias is this item. **When:**
+after F7 has a season of projections, so the prior's own error and its drift are derived from
+the same data; independent of F1–F3.

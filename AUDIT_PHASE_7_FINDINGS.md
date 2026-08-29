@@ -80,3 +80,98 @@ dilutes as onset churn rises (1.19 at the old rates, 1.03 at these); it now meas
 intended-lineup membership — the quantity the engine actually scales on — where the ratio is
 1.14 (fixture cross-check `f6_bruteforce.py`: starters 1.017 × expected, bench 0.889 ×; 0 of 587
 locked zeros outside the intended lineup).
+
+**On the F6 guard change, for the record (asked 2026-08-29).** Order of events: the guard failed
+at 1.03 → proxy dilution was hypothesised → the intended-membership cross-check read 1.14 → the
+guard was switched. The decision was made with the result visible. It holds on grounds that do
+not depend on the outcome: (1) intended-lineup membership was the pre-specified check — F6's
+scoping paragraph (e), written before any F6 code, names "onset count among intended-lineup
+players vs bench" as the characterisation; the proxy was an implementation shortcut for
+comparability with the real data's forced proxy, and the intended-membership cross-check has
+existed since the F6 fix (1.19 then); (2) the proxy's reading moved 1.19 → 1.03 when an
+unrelated constant (`INJURY_RATES` level) changed while the mechanism it pins was untouched —
+a guard that fails on an unrelated change is measuring the wrong thing; (3) the replacement
+measures the engine's actual branch condition with the same bounds, and had it read < 1.05
+the rate change would have been the suspect. Not claimable: that the switch would have been
+made had intended membership also failed.
+
+## 2 + 3. `EPISTEMIC_ERROR_RATES` and the posterior form — a matched pair; joint change built, gated, REVERTED
+
+**Semantics.** `std_epistemic = EPISTEMIC_ERROR_RATES[pos] × mean` is the prior sd on a player's
+true weekly mean; it feeds the once-per-season epistemic draw and `prior_var` in
+`_apply_bayesian_updates`. The values (QB 0.30, RB 0.63, WR 0.55, TE 0.50, K 0.40) were tuned
+with `backtest_player` on 2025 under the n₀ = 4 form. Sleeper no longer serves 2025 weekly
+projections (404 on both URL forms), so production *projection error* cannot be measured.
+
+**Survey measurement 1 — the project's own instrument by checkpoint** (leave-one-out peer prior,
+current pair): std_z 0.94–0.98 at cp3 for QB/RB/WR/TE, drifting to 1.05–1.35 by cp12; mean_z
+≈ 0. Calibrated where it was tuned (week 4), over-confident later.
+
+**Survey measurement 2 — variance components of a positional prior**, real 2025, per game played:
+between-player variance of season means minus the within-player sampling term → sd_true / rostered
+mean: QB 0.07 (n = 20), RB 0.28 (46), WR 0.22 (60), TE 0.20 (19), K 0.25 (12). The config rates
+are ≈ 2× these — not an error in isolation: the n₀ = 4 form quadruples prior precision, so the
+pair is calibrated together.
+
+**The 2 × 2, demonstrated before acting** (asked for explicitly; std_z at cp3 → cp12):
+
+| cell | QB | RB | WR | TE |
+|---|---|---|---|---|
+| old rates, n₀ = 4 (current) | 0.94 → 1.10 | 0.94 → 1.05 | 0.98 → 1.17 | 0.98 → 1.32 |
+| **new rates, n₀ = 4** (requested) | **1.34 → 1.29** | **1.43 → 1.18** | **1.43 → 1.44** | **1.30 → 1.45** |
+| old rates, conjugate (5c's cell) | 0.75 → 0.95 | 0.76 → 1.11 | 0.82 → 1.12 | 0.73 → 1.12 |
+| new rates, conjugate (joint) | 1.10 → 1.06 | 1.00 → 1.08 | 1.09 → 1.24 | 1.07 → 1.22 |
+
+**A wrong prediction, recorded.** The survey said moving the rates alone under the old form would
+"collapse std_z to ≈ 0.5". It went the other way: 1.3–1.5. A narrower prior under a form that
+already quadruples prior precision makes the posterior *more* confident, so real surprises look
+larger. The coupling claim held; the sign attached to it was backwards. Same class as F6's
+wrong-direction miss, and the reason "these must move together" is demonstrated, not derived.
+
+**The joint change** (rates 0.07 / 0.28 / 0.22 / 0.20 / 0.25; conjugate form with
+`std_aleatoric` as the known observation sd; mirrored in `backtest_player.compute_bayesian_posterior`;
+the two Phase 2 finding-4 tests and the new rate test flipped) was built and run through the
+gate. Suite green apart from the week06 goldens (which move: `global_weekly_scores` +1.4%). Then:
+
+| backtest (paired, 300 sims) | cp3 | cp6 | cp9 | cp12 | ALL | cover80 |
+|---|---|---|---|---|---|---|
+| before (c246492, old pair) | −3.0% | −0.1% | +0.6% | +4.7% | **+0.6%** | 0.63 |
+| joint pair on inputs prepped with the old σe (= "old rates, conjugate") | +2.5% | +7.1% | +9.7% | +14.4% | +8.4% | 0.62 |
+| **joint pair, inputs re-prepped with the new σe** | **−7.4%** | **−3.7%** | −0.9% | +3.6% | **−2.1%** | **0.61** |
+| diagnostic: joint pair, harness σe widened by the prior's own centring error (rate@BASE) | −0.9% | +3.6% | +6.6% | +11.3% | +5.2% | 0.61 |
+
+(The first joint row is a lesson in itself: the engine reads σe from the baselines file, which the
+harness writes at prep time, so re-prepping was required — recorded so the next person does not
+re-learn it.)
+
+**Verdict: gate missed; reverted; the old pair stands.** The joint pair is neutral-to-slightly-better
+on the instrument (a leave-one-out prior centred on the real positional mean) and worse on the
+backtest in *both* configurations: with σe as the true spread, the harness's `BASE`-centred prior
+(RB 9.0 vs rostered 12.0) is now believed tightly and the early checkpoints under-predict (−7.4%
+at cp3, −3.7% at cp6 — caveat 2, but larger than "cp3 only"); with σe widened to absorb that
+centring error, the conjugate form trusts the early weeks and the late checkpoints over-predict
+(+11.3% at cp12 — 5c's signature). No single σe makes the conjugate form fit both ends, and the
+old n₀ = 4 form's slow, floored trust happens to track reality better across the season. The
+constants were NOT tuned between those two cells; the pair was reverted.
+
+**Caveat 1 handled — the empirical weight against a correctly centred prior** (leave-one-out
+positional mean, look-ahead-safe; players with ≥ 4 non-zero weeks each side of week 6): RB 1.06
+(n = 22), QB 1.16 (n = 6), **WR 0.00 (n = 25)**, pooled 0.55; against the `BASE`-centred prior the
+same players give 0.99 / 0.90 / 0.42. The earlier 0.68 / 0.80 targets were an artefact of the
+low-centred prior and are withdrawn as targets. With WR at zero and QB/RB at one on n = 6–25,
+no single weight — hence no single (rate, form) pair — is identifiable from one season.
+
+**What is actually open, named (not "calibration fixed"):**
+1. **Within-season drift.** std_z rises to ≈ 1.2 by cp9–cp12 under BOTH pairs. Both forms assume a
+   static true mean; a player's true level moves within a season (role changes, returns at less
+   than full strength, the post/pre 0.884 effect). This is a model-structure limitation neither
+   pair could close and it is the reason the conjugate form over-predicts late. Not fixed here;
+   not fixable by any σe.
+2. **No production projection-error data.** The engine's real prior is a projection; its error is
+   the quantity `EPISTEMIC_ERROR_RATES` should be, and it cannot be measured until projections are
+   stored week by week (follow-up F7). Until then the rates stay as tuned under the old form.
+3. **Phase 2 finding 4 stays open**, now blocked on (1) and (2) rather than on absence: its weight
+   criterion is met but the backtest bias under the conjugate form is the drift in (1).
+
+The characterisation (`tests/test_calibration.py`, red under `expectedFailure`) stays as the
+record of the rate/form mismatch; the two finding-4 tests stay red. Engine unchanged.
