@@ -1017,8 +1017,11 @@ of `EPISTEMIC_ERROR_RATES`. **When:** before week 1 of 2026, or the season's dat
 `generate_player_baselines` collects one row per ROSTERED player (season, week, synced_at UTC, player_id,
 name, pos, team, sleeper_mean, espn_mean or null, fallback_season) and `sync.append_projection_log`
 appends them at the end of baseline generation — append-only, a re-sync within a week appends again, a
-write failure warns and never breaks the sync. `.gitignore` carries `!data/projection_log.jsonl` so the
-one file that cannot be refetched is under version control (verified with `git check-ignore`). The
+write failure warns and never breaks the sync. `.gitignore` carries `data/*` + `!data/projection_log.jsonl` so the
+one file that cannot be refetched is under version control. CORRECTION: the first commit (94fcdc1) used the
+exception under a `data/` directory rule and claimed it verified; git cannot re-include a file beneath an
+excluded directory and `git check-ignore -v` showed it still ignored. Fixed to `data/*` and re-verified
+(`data/player_baselines.json` still ignored; the log is not). The
 analysis is written now so next season is one call: `backtest_player.load_projection_log` (last row per
 season/week/pid wins) and `analyze_projection_error(rows, actual_by_pid_week)` — per position, RMS of
 (realised per-game mean − projection) with the within-player sampling term removed, over the mean
