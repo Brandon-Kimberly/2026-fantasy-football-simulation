@@ -455,3 +455,67 @@ def run_full_player_level_backtest(season_league_id=bt.BACKTEST_SEASON_LEAGUE_ID
 
     return {'aleatoric': aleatoric_summary, 'correlations': corr_summary,
             'epistemic': epistemic_summary, 'epistemic_rate_suggestions': rate_suggestions}
+
+
+# ============================================================================
+# F7: projection error from the sync-time projection log
+# ============================================================================
+
+def load_projection_log(path):
+    """Reads data/projection_log.jsonl; keeps the LAST row per (season, week, player_id) so a
+    re-sync within a week supersedes the earlier row."""
+    import json
+    last = {}
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            last[(str(row["season"]), int(row["week"]), str(row["player_id"]))] = row
+    return list(last.values())
+
+
+def analyze_projection_error(rows, actual_by_pid_week, source="sleeper_mean", min_weeks=4):
+    """
+    The direct derivation of EPISTEMIC_ERROR_RATES that Phase 7 could not do for 2025 (Sleeper
+    no longer served that season's projections). For each rostered player with >= min_weeks
+    logged weeks that he PLAYED (actual > 0; a zero is an absence, not a projection error --
+    Phase 2 finding 5): the projection error is mean(actual) - mean(projection) over those
+    weeks. Per position: RMS of that error across players, minus the within-player sampling
+    term (var(actual - projection) / n, averaged) -- the part of the RMS that is week-to-week
+    noise rather than a wrong projection -- square-rooted, over the mean projection:
+    that ratio is the epistemic rate a projection-based prior needs. Also returns the mean
+    signed error (projection bias) and n. `actual_by_pid_week`: {(season, week, pid): points}.
+    """
+    by_player = {}
+    for row in rows:
+        proj = row.get(source)
+        if proj is None:
+            continue
+        key = (str(row["season"]), int(row["week"]), str(row["player_id"]))
+        actual = actual_by_pid_week.get(key)
+        if actual is None or actual <= 0:
+            continue
+        by_player.setdefault((row["player_id"], row["pos"]), []).append((float(proj), float(actual)))
+    per_pos = {}
+    for (pid, pos), pairs in by_player.items():
+        if len(pairs) < min_weeks:
+            continue
+        p = np.array([a for a, _ in pairs]); a = np.array([b for _, b in pairs])
+        per_pos.setdefault(pos, []).append((float(p.mean()), float(a.mean() - p.mean()),
+                                            float(np.var(a - p, ddof=1) / len(pairs))))
+    out = {}
+    for pos, entries in per_pos.items():
+        proj_mean = float(np.mean([e[0] for e in entries]))
+        errs = np.array([e[1] for e in entries]); sampling = float(np.mean([e[2] for e in entries]))
+        rms2 = float(np.mean(errs ** 2))
+        epistemic_var = max(0.0, rms2 - sampling)
+        out[pos] = {
+            "n_players": len(entries), "mean_projection": round(proj_mean, 2),
+            "mean_signed_error": round(float(errs.mean()), 2), "rms_error": round(math.sqrt(rms2), 2),
+            "sampling_term": round(math.sqrt(sampling), 2),
+            "epistemic_sd": round(math.sqrt(epistemic_var), 2),
+            "epistemic_rate": round(math.sqrt(epistemic_var) / proj_mean, 3) if proj_mean > 0 else None,
+        }
+    return out

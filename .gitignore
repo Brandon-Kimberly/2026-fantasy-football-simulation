@@ -24,3 +24,5 @@ venv/
 
 # Hypothesis property-testing cache (tests/test_invariants.py)
 .hypothesis/
+
+!data/projection_log.jsonl

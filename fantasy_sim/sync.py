@@ -8,6 +8,7 @@ forward" half.
 
 Run via `python -m fantasy_sim.sync` (see scripts/run_sync.py) or import sync_all() directly.
 """
+import json
 import logging
 import math
 import os
@@ -25,7 +26,7 @@ from fantasy_sim.config import (
 from fantasy_sim.storage import (
     PLAYER_CACHE_FILE, VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
-    LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json,
+    LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -448,6 +449,8 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     baselines = {}
     unconstrained_positions = {}
     rostered_names = {p.get("name") for team in (live_rosters or {}).values() for p in team}
+    projection_rows = []          # F7: what this sync projected for each rostered player
+    synced_at = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
     for pid, proj_data in projections.items():
         player = players_db.get(str(pid))
         if not player: continue
@@ -488,6 +491,14 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # hand-picked positional error rate.
         espn_key = _normalize_player_name_for_matching(_player_name(player))  # plain name, never the "(pid)" key
         espn_weekly_mean = espn_projections.get(espn_key)
+        if name in rostered_names:
+            projection_rows.append({
+                "season": str(current_year), "week": int(week), "synced_at": synced_at,
+                "player_id": str(pid), "name": name, "pos": raw_pos, "team": team,
+                "sleeper_mean": sleeper_weekly_mean,
+                "espn_mean": (round(float(espn_weekly_mean), 2) if espn_weekly_mean is not None and espn_weekly_mean > 0 else None),
+                "fallback_season": bool(fallback_season),
+            })
         source_disagreement = None
         if espn_weekly_mean is not None and espn_weekly_mean > 0:
             fresh_mean = round((sleeper_weekly_mean + espn_weekly_mean) / 2.0, 2)
@@ -554,6 +565,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                         "the anonymous defaults (k=1.5, rate=0.18): %s",
                         sum(unconstrained_positions.values()), dict(sorted(unconstrained_positions.items())))
     save_json(BASELINES_FILE, baselines)
+    append_projection_log(projection_rows)
     return baselines
 
 
@@ -752,3 +764,28 @@ def sync_all(sharp_polling=False):
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
+
+
+def append_projection_log(rows, path=PROJECTION_LOG_FILE):
+    """
+    F7 (AUDIT_PLAN.md). Appends one JSON line per rostered player with the projections this
+    sync used (Sleeper weekly mean, ESPN weekly mean if matched, whether Sleeper fell back to a
+    season projection). Sleeper serves only the current week's projections and 2025's are gone,
+    so this file is the only record from which projection error -- the quantity
+    EPISTEMIC_ERROR_RATES actually denotes -- can be measured next season
+    (backtest_player.analyze_projection_error). Append-only; a re-sync within a week appends
+    again and the analysis keeps the last row per (season, week, player_id). A failure here
+    must never break a sync: it logs and returns 0.
+    """
+    if not rows:
+        return 0
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for row in rows:
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+        return len(rows)
+    except Exception as ex:
+        logging.warning("PROJECTION LOG: could not append %d rows to %s (%s). Projection error "
+                        "for this week cannot be measured next season.", len(rows), path, ex)
+        return 0

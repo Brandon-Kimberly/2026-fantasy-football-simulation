@@ -1013,6 +1013,20 @@ after one season of logging, per-position RMS of (projection − realised per-ga
 sampling term, over the projected mean, with n written beside it — the first direct derivation
 of `EPISTEMIC_ERROR_RATES`. **When:** before week 1 of 2026, or the season's data is lost.
 
+**DONE (2026-08-29, branch `audit/f7-projection-log`).** `PROJECTION_LOG_FILE` = `data/projection_log.jsonl`;
+`generate_player_baselines` collects one row per ROSTERED player (season, week, synced_at UTC, player_id,
+name, pos, team, sleeper_mean, espn_mean or null, fallback_season) and `sync.append_projection_log`
+appends them at the end of baseline generation — append-only, a re-sync within a week appends again, a
+write failure warns and never breaks the sync. `.gitignore` carries `!data/projection_log.jsonl` so the
+one file that cannot be refetched is under version control (verified with `git check-ignore`). The
+analysis is written now so next season is one call: `backtest_player.load_projection_log` (last row per
+season/week/pid wins) and `analyze_projection_error(rows, actual_by_pid_week)` — per position, RMS of
+(realised per-game mean − projection) with the within-player sampling term removed, over the mean
+projection = the epistemic rate; zero weeks excluded as absences; tested on synthetic rows where bias
+and noise are separable by hand. No engine change; goldens byte-identical. Realised scores need no
+logging (Sleeper matchups persist). What remains is time: the log starts filling at the first 2026 sync
+and the derivation needs a season of it.
+
 ### F8 — Within-season drift of a player's true mean (the static-mean assumption)
 
 **Origin:** Phase 7 steps 2–3. On the project's own calibration instrument std_z rises from ≈ 1.0

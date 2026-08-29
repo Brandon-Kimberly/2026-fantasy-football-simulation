@@ -48,6 +48,10 @@ LEAGUE_STATE_FILE = _path("league_state.json")
 LIVE_ROSTERS_FILE = _path("live_rosters.json")
 LEAGUE_STANDINGS_FILE = _path("league_standings.json")
 WEEKLY_ACTUALS_FILE = _path("weekly_actuals.json")
+# F7 (AUDIT_PLAN.md): append-only log of the projections each sync used for rostered players,
+# so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
+# Sleeper serves only the current week's projections; this file is the only record of them.
+PROJECTION_LOG_FILE = _path("projection_log.jsonl")
 
 # ==============================================================================
 # Simulation engine outputs (week-parameterized -- one set per week the sim is run for)
