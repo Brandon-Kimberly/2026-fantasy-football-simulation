@@ -195,13 +195,11 @@ class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
         byes = {base[p["name"]].get("bye", 0) for t in rosters.values() for p in t if p["name"] in base}
         return byes - {0}, int(state["current_week"])
 
-    @unittest.expectedFailure
     def test_bids_equal_unfilled_slots_except_next_to_a_bye(self):
-        """CHARACTERISATION -- fails at week 16 of the week01 fixture (2 bids, 1 hole, no bye
-        within a week). Cause: the need scan looks ahead with `min(14, week_num + 1)`, so every
-        week >= 15 re-scans WEEK 14 and counts each rostered bye-14 player as next week's hole.
-        Latent while every bye was 0; live since the fixtures carry byes. Remove the
-        expectedFailure with the fix (bye-modelling step 6b).
+        """GUARD (bye-modelling step 6b). As characterisation this failed at week 16 of the
+        week01 fixture (2 bids, 1 hole, no bye within a week): the need scan looked ahead with
+        `min(14, week_num + 1)`, so every week >= 15 re-scanned WEEK 14 and counted each
+        rostered bye-14 player as next week's hole. Latent while every bye was 0.
 
         On every week with no rostered bye in w-1, w or w+1, bids == unfilled exactly (the
         pre-bye invariant, still holding where the lookahead cannot bind). On every other week

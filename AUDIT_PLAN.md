@@ -160,7 +160,14 @@ than fixed, because neither is a code change:
    so w = 0.47 pulled posteriors down (RB 11.05 vs conjugate 12.09) by about the absence factor reality applies
    (12.09 × 0.884 ≈ 10.7) — two errors of opposite sign, and the conjugate form removed one. Finding 4 stays open, its target restated: any posterior
    change is gated on the backtest, which cannot pass until F4 lands; the weight criterion is already met.
-   Patch retained at scratch `conjugate_5c.patch` (= 948902f's engine/backtest_player hunks). Sleeper's payload has no `team_bye` key
+   Patch retained at scratch `conjugate_5c.patch` (= 948902f's engine/backtest_player hunks).
+   STEP 6 (fixtures carry byes, re-golden, liveness tests inverted): weekly means −1.9% (week01) / −2.3% (week06) at
+   30 seasons, direction consistent with 5a. It exposed a LATENT DEFECT: the streamer-need scan looked ahead with
+   `min(14, week_num + 1)`, so every week ≥ 15 re-scanned week 14 and counted each rostered bye-14 player as next
+   week's hole — phantom bids in weeks 15–17, unreachable while every bye was 0. Characterised (week 16 of week01:
+   2 bids, 1 hole, no bye nearby) then fixed in step 6b (`[week_num, week_num + 1]`); the restated
+   `TestStreamerNeedsMatchRealHoles` is the guard (equality away from byes, divergence only next to a bye, every hole
+   coverable every week). 6b's golden deltas are RNG-reshuffle-sized (the phantom bids consumed uniform draws). Sleeper's payload has no `team_bye` key
    (0 of 12,225 cache entries), so every player has `bye: 0` and the engine's three bye guards
    can never fire. The existing sync test passes only because its fixture invents the field.
    Needs a real bye-week source, which Sleeper does not supply — not a code change.

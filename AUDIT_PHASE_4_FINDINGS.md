@@ -156,6 +156,11 @@ per bye hole, the carried streamer fills the bye week, nothing persists past it)
 byte-identical until the fixtures carried byes — without absences, needs never differ week to week
 and nothing is ever carried.
 
+Step 6 (fixtures with byes) then exposed a second latent defect in the same scan: the lookahead
+week was `min(14, week_num + 1)`, so from week 15 on it re-scanned week 14 and treated every
+rostered bye-14 player as absent next week — phantom bids in weeks 15–17. Fixed in step 6b
+(`[week_num, week_num + 1]`), guarded by the restated `TestStreamerNeedsMatchRealHoles`.
+
 ### 5. Minor — **CLOSED** (stale `sim_meta` entries removed; the rest reported only)
 
 - The desperate side always offers its single highest-mean player, which is nearly always its

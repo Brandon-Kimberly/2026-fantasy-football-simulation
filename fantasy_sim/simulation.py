@@ -777,7 +777,7 @@ class FantasySimulationEngine:
                     streamer_needs = {t: 0 for t in self.team_names}
                     for t_name in self.team_names:
                         max_deficits = 0
-                        for wk_check in [week_num, min(14, week_num + 1)]:
+                        for wk_check in [week_num, week_num + 1]:   # bye-modelling 6b: was min(14, w+1), which re-scanned week 14 from every week >= 15
                             available = []
                             for p_name in sim_rosters[t_name]:
                                 if injury_clocks.get(p_name, 0) > 0: continue
