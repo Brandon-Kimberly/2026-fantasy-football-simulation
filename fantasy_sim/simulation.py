@@ -197,6 +197,30 @@ class FantasySimulationEngine:
             + season_mean * SIM_CONFIG['VACATED_VOLUME_CAPTURE_RATE']
         )
 
+    @staticmethod
+    def _initial_absence_clock(injury_status, on_ir):
+        """Weeks a player who is out NOW stays out, drawn once per simulated season (F4).
+        Returns 0 for a player who starts healthy -- and draws nothing in that case, so a
+        roster with no statuses leaves the RNG stream untouched.
+
+        Two-stage return hazard from real 2025 (see SIM_CONFIG's INITIAL_ABSENCE comment):
+        the first week out is certain; a fresh "Out" then returns with
+        ABSENCE_RETURN_HAZARD_FIRST_WEEK, everyone else (IR, PUP, Sus, DNR, the league IR
+        slot -- already >= 2 weeks in) with ABSENCE_RETURN_HAZARD_STEADY, memoryless
+        thereafter. No vacated-volume pool is opened for an initial absence: the projection
+        sources the baselines come from already price the teammates' extra volume (the
+        blank-slate backtest priors do not -- a known under-count, noted in AUDIT_PLAN F4)."""
+        status = injury_status if injury_status in SIM_CONFIG["INITIAL_ABSENCE_STATUSES"] else None
+        if status is None and not on_ir:
+            return 0
+        stage1 = status in SIM_CONFIG["INITIAL_ABSENCE_STAGE1_STATUSES"] and not on_ir
+        weeks = 1
+        hazard = SIM_CONFIG["ABSENCE_RETURN_HAZARD_FIRST_WEEK"] if stage1 else SIM_CONFIG["ABSENCE_RETURN_HAZARD_STEADY"]
+        while weeks < 16 and np.random.rand() >= hazard:
+            weeks += 1
+            hazard = SIM_CONFIG["ABSENCE_RETURN_HAZARD_STEADY"]
+        return weeks
+
     def _apportion_vacated_volume(self, team_vacated_volume, injury_clocks, newly_injured_this_week):
         """Apportions each (position, real NFL team) pool of injury-vacated volume across the
         HEALTHY members of that real NFL position group, weighted by baseline mean, returning a
@@ -680,6 +704,19 @@ class FantasySimulationEngine:
                 sim_meta = copy.deepcopy(self.meta)
                 faab = copy.deepcopy(self.current_faab)
                 injury_clocks = {p: 0 for t in sim_rosters.values() for p in t}
+                # F4: players who are out now start the season on a clock (see
+                # _initial_absence_clock). Drawn once per simulated season, like injury onsets.
+                for t_name, p_list in sim_rosters.items():
+                    for p_name in p_list:
+                        p_info = self.baselines.get(p_name, {})
+                        if not isinstance(p_info, dict): p_info = {}
+                        p_meta = sim_meta.get(t_name, {}).get(p_name, {})
+                        if not isinstance(p_meta, dict): p_meta = {}
+                        status = p_meta.get("injury_status", p_info.get("injury_status"))
+                        on_ir = bool(p_meta.get("on_ir", p_info.get("on_ir", False)))
+                        clock = self._initial_absence_clock(status, on_ir)
+                        if clock:
+                            injury_clocks[p_name] = clock
                 # Streamers won last week and not yet used: (ladder value, week won). A won
                 # streamer is usable in the week it is won and the following week, then
                 # discarded -- one-week persistence. It matches the ladder's semantics

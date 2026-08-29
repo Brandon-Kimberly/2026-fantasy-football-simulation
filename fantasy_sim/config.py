@@ -374,6 +374,24 @@ SIM_CONFIG = {
     "INJURY_SEVERE_PROBABILITY": 0.125,
     "INJURY_TYPICAL_DURATION_SCALE": 1.66,
     "INJURY_SEVERE_DURATION_SCALE": 12.3,
+    # Initial absence (follow-up F4, AUDIT_PLAN.md). A player who is out at the start of the
+    # simulated season -- Sleeper injury_status in INITIAL_ABSENCE_STATUSES, or on the league's
+    # IR slot (on_ir) regardless of status -- enters with an injury clock instead of healthy.
+    # Two-stage weekly RETURN hazard, measured on the real 2025 season (bt_inputs, 123 rostered
+    # players with recorded weeks, bye weeks excluded, pooled over weeks 2-11):
+    #   P(next week is 0 | 1 trailing zero week)  = 0.71 (n=101)  -> return hazard 0.29
+    #   P(next week is 0 | >=2 trailing zeros)    = 0.84 (n=62), 0.84 (n=43), 0.83 (n=29)
+    #                                             -> flat, return hazard 0.16
+    # so absence is memoryless after the first week out. A fresh "Out" designation enters at
+    # stage 1 (first week out); IR, PUP, Sus, DNR and on_ir are already >= 2 weeks in and enter
+    # at stage 2. Doubtful and Questionable off the IR slot are drawn healthy: no game-time-
+    # probability source, and no live case to gate one against (see AUDIT_PLAN F4). One season
+    # of data, n as above; re-derive when a second season is available. The clock is capped at
+    # 16 like every other injury clock.
+    "INITIAL_ABSENCE_STATUSES": ("IR", "PUP", "Out", "Sus", "DNR"),
+    "INITIAL_ABSENCE_STAGE1_STATUSES": ("Out",),
+    "ABSENCE_RETURN_HAZARD_FIRST_WEEK": 0.29,
+    "ABSENCE_RETURN_HAZARD_STEADY": 0.16,
     # Vacated-volume redistribution: when a player at one of these positions is injured, some
     # of their production flows to a healthy teammate at the SAME position on the SAME real
     # NFL team, modeling real target/touch redistribution rather than assuming vacated
