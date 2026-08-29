@@ -1029,6 +1029,12 @@ projection = the epistemic rate; zero weeks excluded as absences; tested on synt
 and noise are separable by hand. No engine change; goldens byte-identical. Realised scores need no
 logging (Sleeper matchups persist). What remains is time: the log starts filling at the first 2026 sync
 and the derivation needs a season of it.
+SMOKE TEST (2026-08-29, first real `run_sync` on main after the merge): **155 rows** read back from the
+file — 155 distinct pids of 156 rostered, week 1, season 2026, ESPN matched on 116 (the 118 blend-eligible
+offence players less two; K/IDP are never matched by design), `fallback_season` 0. The one rostered
+player NOT logged is Jordyn Tyson: Sleeper carries no projection for him, so there is no projection to
+log — he enters the engine through `KNOWN_MISSING_ASSETS` imputation, whose prior is positional, not a
+projection. Known, expected, and the right behaviour for this file. First rows committed to main.
 
 ### F8 — Within-season drift of a player's true mean (the static-mean assumption)
 
