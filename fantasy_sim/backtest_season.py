@@ -236,6 +236,39 @@ def build_blank_slate_baselines(live_rosters_payload, byes=None):
     return baselines
 
 
+OUT_NOW_TRAILING_ZEROS = 2   # F4 step 3: see mark_out_now
+
+
+def mark_out_now(baselines, weekly_actuals, k=OUT_NOW_TRAILING_ZEROS):
+    """
+    F4 step 3 -- the backtest's stand-in for Sleeper's injury_status, which has no history
+    (Sleeper serves current status only). A rostered player whose last k recorded, non-bye
+    weeks before the checkpoint are all exactly 0.0 is marked `injury_status: "IR"`, so the
+    engine's _initial_absence_clock starts him at stage 2 (return hazard 0.16/week).
+
+    k = 2 rather than 1 because that is where the real 2025 hazard goes flat:
+    P(zero next | 1 trailing zero) = 0.71 but P(zero next | >= 2) = 0.84, 0.84, 0.83 for
+    k = 2, 3, 4 -- one zero is often a healthy scratch or a game-day decision, two is an
+    absence with the memoryless tail the stage-2 clock models. The bye week is skipped, not
+    counted as a zero. Returns the names marked. Mutates `baselines` in place.
+    """
+    weeks = sorted(weekly_actuals, key=lambda key: int(key.split("_")[1]))
+    marked = []
+    for name, b in baselines.items():
+        bye = int(b.get("bye", 0) or 0)
+        seq = []
+        for wk_key in weeks:
+            wk = int(wk_key.split("_")[1])
+            v = weekly_actuals[wk_key].get("player_scores", {}).get(name)
+            if v is None or wk == bye:
+                continue
+            seq.append(v)
+        if len(seq) >= k and all(v == 0 for v in seq[-k:]):
+            b["injury_status"] = "IR"
+            marked.append(name)
+    return marked
+
+
 def build_realized_weekly_actuals(season_matchups, players_db, roster_map, through_week):
     """
     Real historical team_results (h2h_win, median_win, points_scored) + player_scores for
@@ -438,6 +471,9 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
     byes = nfl_schedule.get("_meta", {}).get("byes", {})
     baselines = build_blank_slate_baselines(live_rosters_payload, byes=byes)
     weekly_actuals = build_realized_weekly_actuals(season_matchups, players_db, roster_map, checkpoint_week)
+    out_now = mark_out_now(baselines, weekly_actuals)
+    logging.info("BACKTEST: %d rostered players enter week %d out (last %d non-bye weeks 0.0): %s",
+                 len(out_now), checkpoint_week, OUT_NOW_TRAILING_ZEROS, out_now)
     standings = build_asof_standings(season_matchups, roster_map, checkpoint_week)
     league_schedule = build_full_season_league_schedule(season_matchups, roster_map)
 

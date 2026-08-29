@@ -190,3 +190,28 @@ class _FakeResp:
         return self._payload
 
 
+
+
+class TestOutNowProxy(unittest.TestCase):
+    """F4 step 3: the backtest has no injury-status history, so a player whose last two
+    recorded non-bye weeks before the checkpoint are 0.0 enters the checkpoint out (stage 2).
+    Written before mark_out_now existed; failed with ImportError."""
+
+    def test_two_trailing_non_bye_zeros_mark_a_player_out(self):
+        from fantasy_sim.backtest_season import mark_out_now
+        base = {"Out Guy": {"pos": "RB", "mean": 9.0, "bye": 0, "team": "SEA"},
+                "One Zero": {"pos": "WR", "mean": 9.0, "bye": 0, "team": "DET"},
+                "Bye Then Zero": {"pos": "WR", "mean": 9.0, "bye": 3, "team": "DET"},
+                "Zero Zero Then Bye": {"pos": "TE", "mean": 7.5, "bye": 4, "team": "GB"},
+                "Never Played": {"pos": "K", "mean": 8.0, "bye": 0, "team": "KC"}}
+        wa = {"week_1": {"player_scores": {"Out Guy": 12.0, "One Zero": 10.0, "Bye Then Zero": 8.0, "Zero Zero Then Bye": 0.0}},
+              "week_2": {"player_scores": {"Out Guy": 0.0, "One Zero": 9.0, "Bye Then Zero": 7.0, "Zero Zero Then Bye": 0.0}},
+              "week_3": {"player_scores": {"Out Guy": 0.0, "One Zero": 0.0, "Bye Then Zero": 0.0, "Zero Zero Then Bye": 6.0}},
+              "week_4": {"player_scores": {"Zero Zero Then Bye": 0.0}}}
+        marked = mark_out_now(base, wa)
+        self.assertEqual(sorted(marked), ["Out Guy"])
+        self.assertEqual(base["Out Guy"]["injury_status"], "IR")
+        self.assertNotIn("injury_status", base["One Zero"], "a single trailing zero is not an absence")
+        self.assertNotIn("injury_status", base["Bye Then Zero"], "the bye-week zero must not count")
+        self.assertNotIn("injury_status", base["Zero Zero Then Bye"], "the last non-bye week was a real game")
+        self.assertNotIn("injury_status", base["Never Played"])
