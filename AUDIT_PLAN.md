@@ -747,6 +747,43 @@ them either. They are printed on the retail box label and laser-etched on the he
 (batch on top, partial ATPO on the edge, full ATPO in the 2D matrix — Intel's phone-camera
 decoder reads it). Intel extended the boxed 13th/14th-gen warranty by two years (five years
 from purchase); check at Intel's warranty page with FPO + ATPO. Re-test after the BIOS change:
+
+**Post-mitigation re-test (2026-08-30).** BIOS flashed to E7D91IMS.HI0 (H.I0, 2026-03-16); CPU
+microcode now reads **0x133** (newer than 0x12F); BIOS "CPU Cooler Tuning" set to the board's
+preset labelled **"Intel Default Settings (PL1: 253W)"**; Windows on Balanced. Arm D at 12,
+timed variant, quiet machine (0 python processes before each launch):
+
+| interpreter | failed | failure times (s) | signatures |
+|---|---|---|---|
+| **3.10** | **9 / 12** | 1.2, 37.5, 46.0, 46.8, 47.4, 49.0, 50.2, 50.5, 61.8 | 6 × 0xC0000005, 2 × sort order broken, 1 × `listobject.c` SystemError |
+| **3.8** | **11 / 12** | 6.9, 11.3, 18.4, 26.0, 29.8, 33.2, 42.9, 49.9, 50.4, 79.6, 108.6 | 8 × 0xC0000005, `listobject.c` / `dictobject.c` SystemErrors, `TypeError: cannot unpack non-iterable int object` |
+
+**Verdict: the chip is still exhibiting the instability after full mitigation — microcode 0x133,
+Intel Default Settings, Balanced plan. Per the rule set before the test, this points to RMA, not
+to further BIOS work.** One observation for the RMA case: with the new settings the 3.10 failures
+moved from the first 1–13 s (previous runs) to a cluster at 37–62 s — the window where a
+sustained all-core load settles into its steady voltage/thermal state — which is the behaviour of
+a degraded part under sustained load, not of a launch race. The hold on Phase 8 stays; this
+machine cannot certify byte-identical refactors. Phase 8 execution moves to whichever machine
+next passes Arm D 6/6 (a replacement CPU here, or another machine entirely — the suite is
+verified to run from a clean checkout, and the goldens are platform-stable on the pinned stack).
+
+**PL1 — the real answer.** Intel's published specification for the Core i7-13700K is **Processor
+Base Power 125 W (= PL1) and Maximum Turbo Power 253 W (= PL2)**. Intel's Default Settings
+profiles for K-series parts keep **PL1 = 125 W** in both the "Baseline" (PL2 188 W) and
+"Performance" (PL2 253 W) profiles; the only profile with PL1 = PL2 = 253 W is "Extreme", which
+Intel defined for the Core i9 K parts. MSI's dropdown preset "Intel Default Settings (PL1:
+253W)" therefore applies the i9-Extreme-style sustained limit to an i7 — it is *not* Intel's
+default for a 13700K, and 253 W sustained is precisely the condition that pinned this CPU at
+100 °C under sustained load before. **Reapply the 125 W Long Duration Power Limit (PL1) with
+Short Duration (PL2) 253 W and Tau 56 s** on top of this preset — that is Intel's Performance
+profile for this part. (Caveat on sourcing: Intel's ARK page and the original table article were
+not fetchable from this session; the 125/253 figures are Intel's published spec via WikiChip and
+the retail datasheet, and the i9 Extreme/Performance/Baseline rows via igor'sLAB; the i7-K
+Performance row is by Intel's stated rule that PL1 stays at the part's base power in every
+profile below Extreme.) Whether 125 W changes Arm D's outcome is a separate question and worth
+one more 12-process run for the RMA record — but the verdict above does not depend on it: the
+chip failed at Intel's own limits.
 Arm D at 12 on both interpreters — 0/12 lifts the hold; any residual failure rate is a degraded
 chip and the RMA path.
 
