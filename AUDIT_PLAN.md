@@ -747,6 +747,8 @@ them either. They are printed on the retail box label and laser-etched on the he
 (batch on top, partial ATPO on the edge, full ATPO in the 2D matrix — Intel's phone-camera
 decoder reads it). Intel extended the boxed 13th/14th-gen warranty by two years (five years
 from purchase); check at Intel's warranty page with FPO + ATPO. Re-test after the BIOS change:
+Arm D at 12 on both interpreters — 0/12 lifts the hold; any residual failure rate is a degraded
+chip and the RMA path.
 
 **Post-mitigation re-test (2026-08-30).** BIOS flashed to E7D91IMS.HI0 (H.I0, 2026-03-16); CPU
 microcode now reads **0x133** (newer than 0x12F); BIOS "CPU Cooler Tuning" set to the board's
@@ -784,8 +786,6 @@ Performance row is by Intel's stated rule that PL1 stays at the part's base powe
 profile below Extreme.) Whether 125 W changes Arm D's outcome is a separate question and worth
 one more 12-process run for the RMA record — but the verdict above does not depend on it: the
 chip failed at Intel's own limits.
-Arm D at 12 on both interpreters — 0/12 lifts the hold; any residual failure rate is a degraded
-chip and the RMA path.
 
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
