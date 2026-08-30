@@ -685,6 +685,55 @@ all-core load — core/cache/power delivery (undervolt, PBO/boost curve, VRM, th
 what MemTest86 does not exercise. Next checks unchanged: all-core CPU stress at stock settings;
 Arm D at 3 / 6 / 12 processes for load scaling. Hold stays.
 
+
+**Load scaling and hardware identification (2026-08-30).** Prime95 Small FFTs ran 23 minutes
+clean (all self-tests passed). Then Arm D on 3.10, quiet machine, timed variant (same workload,
+elapsed-seconds per round so each failure carries its time of death), sequential:
+
+| concurrent processes | failed | failure times (s after launch) | signatures |
+|---|---|---|---|
+| 3 | **0 / 3** | — | — |
+| 6 | **1 / 6** | 2.8 | sort order broken |
+| 12 | **9 / 12** | 0.7, 5.7, 7.4, 8.9, 9.2, 13.1, 13.2, **89.9, 141.3** | 2 × 0xC0000005, 3 × `listobject.c` SystemError, 3 × sort order broken, `TypeError: 'Random' object is not iterable` |
+
+The rate scales steeply with the number of busy cores (0% → 17% → 75%), and at 12 processes two
+failures landed at 90 s and 141 s — well past any process-launch window. So it is not
+process-creation-specific: it is the number of cores under sustained load, with most failures
+early because that is when all N are running flat out together. Prime95 passing is not a
+contradiction: Small FFTs is a fixed-pattern stress on every core; the failing workload is
+many independent processes with heavy allocation and branchy integer/pointer work — a
+different voltage/frequency profile per core.
+
+*Reliability Monitor / Application log, last 36 h:* every crash record at Arm D times is a
+python process (`python310.dll`, `python38.dll`, numpy `mtrand.pyd`, "unknown"; `0xC0000005`,
+one `0xC0000409`). The only non-python crashes are `lghub_system_tray.exe` (Logitech G HUB,
+`0xC000027B`, a UWP/XAML fault) at 08-29 19:51 and 08-30 07:10 — neither coincides with a probe
+window. No independent system-wide confirmation, but no contradiction either: nothing else on
+the machine runs 12 processes flat-out.
+
+*Hardware identified:* **Intel Core i7-13700K** (Raptor Lake, 8P+8E, 24 threads), MSI MAG Z790
+TOMAHAWK WIFI, BIOS H.G0 (2025-04-08), **CPU microcode 0x12C**; active power plan "Bitsum
+Highest Performance" (a Process Lasso plan — no Lasso process or service is running now, but
+the plan, which disables core parking and holds maximum performance, is still active).
+Raptor Lake 13th/14th-gen parts at 65 W+ carry Intel's documented **Vmin Shift Instability**
+defect: a clock-tree circuit degrades under elevated voltage/heat, producing crashes under load
+that worsen over time; Intel's mitigations are microcode 0x125/0x129/**0x12B (Sept 2024,
+comprehensive)** and **0x12F (May 2025, supplementary, idle/light-load voltage)** plus "Intel
+Default Settings" power limits in BIOS. This machine's April-2025 BIOS carries 0x12C, i.e.
+post-0x12B but **pre-0x12F**; whether the board ran within Intel's power guidance before
+mitigation is unknown; a chip already degraded is not repaired by microcode — Intel's public
+guidance for symptomatic processors is an RMA under the extended warranty.
+
+**Hypothesis now, in order:** (1) a Vmin-shift-degraded 13700K — fits every observation:
+load-dependent, core-count-dependent, random corruption in pure-Python, unaffected by
+interpreter, BLAS threads, bytecode caching, antivirus, DRAM (MemTest86 clean), and a fixed-
+pattern Prime95 pass; (2) the "Highest Performance" plan / board power limits pushing the chip
+past Intel's defaults, which is the same mechanism from the other side. Next, outside this
+repository: update BIOS to the latest (0x12F microcode), load "Intel Default Settings" in BIOS,
+switch the Windows power plan to Balanced, re-run Arm D at 12 — if the rate falls but stays
+above zero, the chip is degraded and the answer is Intel's RMA process; if it drops to 0/12 on
+both interpreters, the hold lifts. Until then every rule in this section stands.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
