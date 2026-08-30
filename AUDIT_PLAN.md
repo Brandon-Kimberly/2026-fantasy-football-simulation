@@ -734,6 +734,22 @@ switch the Windows power plan to Balanced, re-run Arm D at 12 — if the rate fa
 above zero, the chip is degraded and the answer is Intel's RMA process; if it drops to 0/12 on
 both interpreters, the hold lifts. Until then every rule in this section stands.
 
+
+**Remediation in progress (2026-08-30).** Windows power plan switched from "Bitsum Highest
+Performance" to **Balanced** (`powercfg /setactive 381b4222-…`; verified active). BIOS target:
+MSI 7D91vHI (2026-04-22, "Update Micro Code", the latest for MAG Z790 TOMAHAWK WIFI; 0x12F first
+appeared in vHH1, Intel Default Settings in vHC2 — both after this machine's H.G0 of 2025-04),
+then load **Intel Default Settings** in BIOS — both require a reboot into firmware and are done
+by the operator, not from this session. Warranty: the CPU's serial (ATPO) and batch (FPO) are
+NOT software-readable — Windows exposes only `ProcessorId BFEBFBFF000B0671` (a feature/family
+signature, identical across every 13700K) and "To Be Filled By O.E.M."; HWiNFO cannot read
+them either. They are printed on the retail box label and laser-etched on the heat spreader
+(batch on top, partial ATPO on the edge, full ATPO in the 2D matrix — Intel's phone-camera
+decoder reads it). Intel extended the boxed 13th/14th-gen warranty by two years (five years
+from purchase); check at Intel's warranty page with FPO + ATPO. Re-test after the BIOS change:
+Arm D at 12 on both interpreters — 0/12 lifts the hold; any residual failure rate is a degraded
+chip and the RMA path.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
