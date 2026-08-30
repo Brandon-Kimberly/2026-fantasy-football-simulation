@@ -651,6 +651,27 @@ probe scripts (`probe_mixed.py`, `probe_pure.py` in the session scratchpad; copi
 `scripts/probes/` so they survive) as the re-test once the hardware is addressed: Arm D must pass
 6/6 on both interpreters before R1 is closed.
 
+
+**Arm D re-test after MemTest86 (2026-08-30).** MemTest86: complete 4-pass run overnight, full
+address range each pass, `Test result: PASS (Errors: 0)`, no thermal issues. Then Arm D exactly as
+specified (six concurrent `probe_pure.py 240`, quiet machine, 0 python processes before launch):
+
+| interpreter | passed | failed | failure signatures |
+|---|---|---|---|
+| 3.10 | 2 / 6 | 4 | 0xC0000005; `SystemError: listobject.c:324 bad argument to internal function`; `SystemError: error return without exception set`; `TypeError: cannot unpack non-iterable type object` |
+| 3.8 | 2 / 6 | 4 | two 0xC0000005; `"sort order broken"` (`sorted()` returned an unsorted list); exit **0xC0000409** (STATUS_STACK_BUFFER_OVERRUN / fast-fail) |
+
+**Hold stays.** The memory-hardware side is cleared by MemTest86; the fault is unchanged. What
+that narrows it to: MemTest86 exercises DRAM, not all-core compute — and this fault appears
+only under all-core CPU load and never in a single process. Remaining candidates, outside this
+repository's scope: (a) CPU-side instability under all-core load — a core/cache or power-delivery
+issue (undervolt, PBO/boost curve, VRM/thermal throttling under sustained load); test with an
+all-core CPU stress (Prime95 small FFTs or OCCT) and, if any curve-optimiser/undervolt/XMP profile
+is active, at stock settings; (b) an injected process hook (AV/EDR): run Arm D once with
+real-time protection paused; (c) load dependence: Arm D at 3 concurrent processes vs 6 vs 12 to
+see whether failure rate scales with the number of loaded cores. Windows Reliability Monitor may
+show other applications faulting under load. Re-test remains Arm D 6/6 on both interpreters.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
