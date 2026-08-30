@@ -672,6 +672,19 @@ real-time protection paused; (c) load dependence: Arm D at 3 concurrent processe
 see whether failure rate scales with the number of loaded cores. Windows Reliability Monitor may
 show other applications faulting under load. Re-test remains Arm D 6/6 on both interpreters.
 
+
+**Arm D with antivirus paused (2026-08-30, 3.10).** Defender reported `RealTimeProtectionEnabled
+= False` and `BehaviorMonitorEnabled = False` at launch (AM service itself still running). Result:
+**1 of 6 passed, 5 failed** — four `SystemError: listobject.c:324 bad argument to internal
+function`, one `"sort order broken"`. Caveat recorded: by the end of the 240 s Defender reported
+real-time monitoring `True` again (it re-armed itself mid-run); in every earlier arm the failures
+occurred within the first 10–20 s, so the re-arm does not rescue the hypothesis, but a run with
+tamper protection fully disabled would remove the caveat. **Injected-hook hypothesis: effectively
+excluded.** With DRAM cleared by MemTest86 and AV excluded, what remains is the CPU side under
+all-core load — core/cache/power delivery (undervolt, PBO/boost curve, VRM, thermal) — which is
+what MemTest86 does not exercise. Next checks unchanged: all-core CPU stress at stock settings;
+Arm D at 3 / 6 / 12 processes for load scaling. Hold stays.
+
 **Standing instruction.** Count every full-suite run from here on; if it recurs, capture the
 run with `-X faulthandler -v` to a file and record the test that ran immediately before the
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
