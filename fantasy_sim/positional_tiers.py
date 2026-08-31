@@ -37,14 +37,13 @@ purpose: this is an IDP league and REQUIRED_STARTING_SLOTS has no DEF slot at al
 player export includes all 32 NFL team defenses regardless, but they are not rosterable here.
 """
 import math
-import re
 
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 from html import escape
 
-from fantasy_sim.config import normalize_position, REQUIRED_STARTING_SLOTS
+from fantasy_sim.config import normalize_position, REQUIRED_STARTING_SLOTS, display_player_name
 from fantasy_sim.storage import (
     BASELINES_FILE, ensure_dir_for, load_json, save_json, tier_chart_path,
     positional_tiers_report_path, positional_tiers_table_path,
@@ -67,14 +66,6 @@ TIERED_POSITIONS = set(REQUIRED_STARTING_SLOTS) - {'FLEX'}
 # large tier-1-through-4 group doesn't produce an unreadable chart.
 CHART_MIN_TIERS_SHOWN = 4
 CHART_MAX_ROWS = 60
-
-# resolve_player_keys (sync.py) stores a name-collision as "Name (pid)" -- e.g. "Byron Murphy
-# (4988)" -- so the raw Sleeper pid never silently overwrites another player's baseline. That
-# pid means nothing to a chart reader; DISPLAY ONLY (never the JSON export, the dict key, or
-# the collision guard itself) swaps it for the player's team, which is exactly the piece of
-# information that actually disambiguates two same-named players -- confirmed against the 15
-# real collisions in the current player pool: none of them share both a name AND a team.
-_COLLISION_SUFFIX_RE = re.compile(r'^(.+) \((\d+)\)$')
 
 # Threshold for calling out "most of this position is one tier" even when a couple of lower
 # tiers exist beneath it. Chosen after observing a clean, large gap in the real data between
@@ -137,16 +128,9 @@ def compute_tiers(baselines, z=TIER_Z):
 
 
 def _display_label(player):
-    """Chart-axis label for one player: the plain name, unless sync's collision guard stored
-    it as "Name (pid)", in which case the pid is swapped for the team abbreviation. Purely
-    cosmetic -- player['name'] (the dict key everywhere else) is never modified."""
-    match = _COLLISION_SUFFIX_RE.match(player['name'])
-    if not match:
-        return player['name']
-    team = player.get('team')
-    if not team:
-        return player['name']  # no team on file -- a bare pid beats a bare, ambiguous name
-    return f"{match.group(1)} ({team})"
+    """Thin adapter from this module's player-dict shape to the shared, cross-module
+    config.display_player_name(name, team) -- see that function for what it actually does."""
+    return display_player_name(player['name'], player.get('team'))
 
 
 def _crop_for_bar_chart(players):

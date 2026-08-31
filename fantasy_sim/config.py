@@ -12,6 +12,7 @@ recalibration. Where a value's provenance or reasoning matters, that explanation
 in the surrounding comment exactly as it was.
 """
 import os
+import re
 
 # ==============================================================================
 # LEAGUE IDENTITY
@@ -240,6 +241,29 @@ def normalize_position(raw_pos):
     if pos in ['LB', 'ILB', 'OLB', 'MLB']: return 'LB'
     if pos in ['DB', 'CB', 'FS', 'SS', 'S']: return 'DB'
     return 'FLEX'
+
+
+# sync.resolve_player_keys stores a name-collision as "Name (pid)" -- e.g. "Byron Murphy
+# (4988)" -- so the raw Sleeper pid never silently overwrites another player's baseline entry.
+# Promoted here (originally private to fantasy_sim.positional_tiers) once fantasy_sim.
+# player_variance needed the exact same display-only transform: shared home, not a second copy
+# to drift out of sync with sync.py's own collision-guard format.
+_COLLISION_SUFFIX_RE = re.compile(r'^(.+) \((\d+)\)$')
+
+
+def display_player_name(name, team):
+    """Chart/table display form of a player name key: unchanged, unless it carries the
+    collision-guard "(pid)" suffix, in which case the pid is swapped for `team` -- exactly the
+    piece of information that actually disambiguates two same-named players. Purely cosmetic:
+    the name KEY everywhere else (baselines, rosters, `name` itself) is never modified. A bare
+    pid is kept if no team is on file -- honest, if unhelpful, beats silently reintroducing the
+    exact collision resolve_player_keys exists to avoid."""
+    match = _COLLISION_SUFFIX_RE.match(name)
+    if not match:
+        return name
+    if not team:
+        return name
+    return f"{match.group(1)} ({team})"
 
 
 def derive_bye_weeks(nfl_schedule, failed_weeks=()):
