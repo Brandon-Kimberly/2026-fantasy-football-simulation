@@ -72,6 +72,47 @@ class TestFantasySimulation(unittest.TestCase):
         self.patch_load.stop()
         logging.getLogger().setLevel(self.previous_log_level)
 
+    def test_roster_value_baseline_export_key_states_what_the_number_is(self):
+        """Regression test for AUDIT_PHASE_1_FINDINGS.md finding 8 (open since 2026-08-27,
+        recorded as its own item in AUDIT_PLAN.md): get_optimal_score returns
+        optimal_starting_lineup + bench * 0.1, but the export key was power_rankings_baseline_pts
+        and the chart called it "Optimal Valid Starting Lineup Baseline" -- a real bench-depth
+        uplift presented as if it were a starters-only number (measured on real week01 data:
+        Femboy Cats' true starters-only optimum was 166.8 against a reported 173.1, a 3.6% bench
+        uplift folded into a number labelled as pure starters).
+
+        This does not change get_optimal_score's return value -- the bench term is deliberate,
+        rewarding roster depth, not a bug -- it only renames the export key so it says what the
+        number actually is. Asserts the new key exists with the exact value get_optimal_score
+        returns, and that the old, mislabeled key is gone (a real rename, not an addition)."""
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 20
+        try:
+            saved_files = {}
+
+            def recording_save_json(path, data, indent=2):
+                saved_files[path] = data
+
+            with patch('fantasy_sim.simulation.save_chart'), patch('matplotlib.pyplot.close'), \
+                 patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        matrix_path = [p for p in saved_files if 'syndicate_comprehensive_matrix' in p]
+        self.assertEqual(len(matrix_path), 1, "Expected exactly one comprehensive matrix export.")
+        ai_matrix = saved_files[matrix_path[0]]
+
+        self.assertNotIn('power_rankings_baseline_pts', ai_matrix,
+                          "Old mislabeled key should be renamed, not left behind alongside the new one.")
+        self.assertIn('roster_value_baseline_pts', ai_matrix)
+
+        for team in self.test_teams:
+            expected = sim.get_optimal_score(sim.rosters[team])
+            self.assertAlmostEqual(ai_matrix['roster_value_baseline_pts'][team], expected, places=6)
+
     def test_h2h_win_probability_matrix_export_is_not_transposed(self):
         """Regression test for a real, precisely diagnosed bug: the exported
         h2h_win_probability_matrix JSON was transposed relative to its intended

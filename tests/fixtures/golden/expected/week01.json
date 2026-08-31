@@ -2,9 +2,9 @@
   "_meta": {
     "batches": 2,
     "note": "Regenerate only when a change to the numbers is INTENDED. See tests/golden_master.py.",
-    "numpy": "1.24.4",
+    "numpy": "2.2.6",
     "platform": "Windows-10-10.0.26200-SP0",
-    "python": "3.8.10",
+    "python": "3.10.0",
     "scenario": "week01",
     "sims_per_batch": 15
   },
@@ -227,7 +227,7 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "1644242ce673949d133c0aa2febff0514edde3b2532901f8296593aa731a04a0",
+      "hash": "ede03308641cdd6f4d9e84dfad7a3234040426a5820871de9928b77d1a0fe2e4",
       "summary": {
         "max": 2480.563109,
         "mean": 79.540204,
@@ -284,7 +284,7 @@
       }
     },
     "syndicate_comprehensive_matrix_week_1.json": {
-      "hash": "1644242ce673949d133c0aa2febff0514edde3b2532901f8296593aa731a04a0",
+      "hash": "ede03308641cdd6f4d9e84dfad7a3234040426a5820871de9928b77d1a0fe2e4",
       "summary": {
         "max": 2480.563109,
         "mean": 79.540204,

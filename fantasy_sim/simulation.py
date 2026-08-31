@@ -1394,14 +1394,22 @@ class FantasySimulationEngine:
         if win_std < 0.5:
             raise ValueError(f"CRITICAL FAILSAPE: Win standard deviation across teams is {win_std:.2f}. Simulation flatlined.")
 
+        # AUDIT_PHASE_1_FINDINGS.md finding 8 / AUDIT_PLAN.md F12: get_optimal_score returns
+        # optimal_starting_lineup + bench * 0.1 (a deliberate bench-depth reward, not a bug),
+        # but this was labelled "Optimal Valid Starting Lineup Baseline" and exported as
+        # power_rankings_baseline_pts -- a real bench uplift presented as if it were a
+        # starters-only number. Measured on real week01 data: Femboy Cats' true starters-only
+        # optimum was 166.8 against a reported 173.1, a 3.6% bench uplift folded into a number
+        # labelled as pure starters. Renamed to state what the number actually is; the value
+        # itself is unchanged.
         team_baselines = {t: self.get_optimal_score(self.rosters[t]) for t in self.team_names}
-        b_df = pd.DataFrame(list(team_baselines.items()), columns=['Team', 'Raw_Baseline_Score']).sort_values(by='Raw_Baseline_Score', ascending=True)
+        b_df = pd.DataFrame(list(team_baselines.items()), columns=['Team', 'Roster_Value_Baseline']).sort_values(by='Roster_Value_Baseline', ascending=True)
 
         fig, ax = plt.subplots(figsize=(10, 6))
-        bars = ax.barh(b_df['Team'], b_df['Raw_Baseline_Score'], color=sns.color_palette("mako", len(b_df)), edgecolor='black', linewidth=0.5)
-        ax.set_title(f"Week {self.current_week} True Optimal Lineup Strength (Positional Constraints Applied)", fontsize=13, fontweight='bold', pad=15)
-        ax.set_xlabel("Optimal Valid Starting Lineup Baseline (Projected Points)", fontweight='bold')
-        ax.set_xlim(0, max(b_df['Raw_Baseline_Score']) * 1.18)
+        bars = ax.barh(b_df['Team'], b_df['Roster_Value_Baseline'], color=sns.color_palette("mako", len(b_df)), edgecolor='black', linewidth=0.5)
+        ax.set_title(f"Week {self.current_week} Roster Value Baseline (Optimal Lineup + Bench Depth)", fontsize=13, fontweight='bold', pad=15)
+        ax.set_xlabel("Optimal Starting Lineup + 10% Bench Depth (Projected Points)", fontweight='bold')
+        ax.set_xlim(0, max(b_df['Roster_Value_Baseline']) * 1.18)
 
         for bar in bars:
             w = bar.get_width()
@@ -1630,7 +1638,7 @@ class FantasySimulationEngine:
 
         ai_matrix = {
             "metadata": {"week": self.current_week, "simulations": total_sims, "batches": SIM_CONFIG["NUM_BATCHES"]},
-            "power_rankings_baseline_pts": team_baselines,
+            "roster_value_baseline_pts": team_baselines,
             "season_outcomes": summary_df.to_dict(orient='records'),
             "h2h_win_probability_matrix": win_pct_matrix.to_dict(orient='index'),
             "win_distributions": {},
