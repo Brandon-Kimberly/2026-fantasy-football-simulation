@@ -25,4 +25,10 @@ venv/
 # Hypothesis property-testing cache (tests/test_invariants.py)
 .hypothesis/
 
-!data/projection_log.jsonl
+# Git will not apply a nested !-exception if a parent directory is itself excluded by the
+# blanket "data/*" rule above -- the directory has to be un-excluded first, THEN the file
+# inside it. (Documented here because the flat-layout version of this exception was already
+# gotten wrong once and had to be corrected after verifying against a real commit -- see
+# AUDIT_PLAN.md F7.)
+!data/logs/
+!data/logs/projection_log.jsonl

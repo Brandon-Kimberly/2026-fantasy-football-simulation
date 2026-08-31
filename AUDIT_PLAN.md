@@ -1319,3 +1319,123 @@ backtest not worse than the old pair (+0.6%, cover80 0.63). **Blocks:** Phase 2 
 conjugate re-run) — its weight criterion is met; the late-checkpoint bias is this item. **When:**
 after F7 has a season of projections, so the prior's own error and its drift are derived from
 the same data; independent of F1–F3.
+
+### F9 — `data/` directory structure: season-long retention, DONE (2026-08-30)
+
+**Origin:** the visualization work adding `fantasy_sim.positional_tiers` (tiers/charts/HTML
+table derived from `player_baselines.json`) initially left three of its own path helpers
+unstamped by week, reasoning that a tier report "isn't tied to a specific simulated week" —
+wrong: `BASELINES_FILE` is itself overwritten fresh by every sync with that week's projections,
+so a report derived from it is exactly as week-specific as the engine's own weekly exports, and
+a second weekly run would have silently overwritten the first's tiers/chart/table with no trace
+they'd ever existed. Caught before it shipped as a real bug, not a style preference.
+
+**Fix 1 — week-stamp the three tiers path helpers.** `positional_tiers_report_path(week)`,
+`tier_chart_path(position, week)`, `positional_tiers_table_path(position, week)` now all take
+`week` and route through the new per-week directory (fix 2, below); `build_positional_tier_report`
+now requires `week` explicitly, and `scripts/run_positional_tiers.py` resolves it the same way
+the engine does (`league_state.json`'s `current_week`). Orphaned pre-fix `Tiers_*_FullList.png`
+files (dead since the HTML-table replacement) and the flat, un-week-stamped `positional_tiers.json`/
+`Tiers_{POS}.png`/`Tiers_{POS}_Table.html` were deleted from `data/`. Regression tests:
+`tests/test_positional_tiers.py::TestWeekStampedPaths`.
+
+**Fix 2 — a real directory structure, not just three fixed functions.** The bug in fix 1 was a
+symptom: `data/` was one flat directory of 45 files with no structural distinction between
+"overwritten every sync" and "must persist per week," so any new weekly artifact could make the
+same mistake again. Surveyed all 45 files (see `fantasy_sim/storage.py`'s module docstring for
+the full accounting) and every consumer of `fantasy_sim.storage`'s path helpers (`sync.py`,
+`simulation.py`, `backtest_season.py`, `positional_tiers.py`, `clients/sleeper.py`, and every
+test that imports them) before touching anything — confirmed no module ever hardcodes a `data/…`
+string or bypasses these helpers, so the entire migration is contained inside `storage.py` plus
+two one-line call-site fixes (below). New layout:
+
+- `data/current/` — sync's snapshot of the world as of the last sync; always overwritten, never
+  historical (the 12 sync-input files, plus `simulation_audit_log_sim0.json` and
+  `syndicate_warnings.log`, which despite their "log" names are both opened in overwrite mode —
+  verified by reading the write sites, not assumed from the filename — so they behave like this
+  bucket, not like `logs/`. **Flagged, not fixed:** making those two genuinely per-week would
+  mean threading `week` through their `simulation.py` call sites, the same class of fix as F9
+  itself but on code this session didn't write.)
+- `data/logs/` — genuinely append-only, season-spanning. Today just `projection_log.jsonl`, the
+  one file this project tracks in git (moved with `git mv` to preserve history; `.gitignore`'s
+  `!data/projection_log.jsonl` exception became `!data/logs/` + `!data/logs/projection_log.jsonl`
+  — git will not apply a nested exception if the parent directory is itself excluded by the
+  blanket `data/*` rule, the same class of mistake this exception's very first version made;
+  verified this time with `git check-ignore -v` on both the log file and an ordinary `current/`
+  file before moving on).
+- `data/weeks/week_NN/` — one directory per simulated week, zero-padded (`week_02` before
+  `week_10` in a plain listing, unlike the engine's existing mixed-width `Week_2_`/`Week_10_`
+  filename prefixes). Holds the engine's own weekly exports/charts and everything
+  `positional_tiers.py` produces, including a `tiers/` subdirectory for the per-position pair.
+
+**Basenames:** the four weekly JSON exports (`live_season_forecast_path` et al.) and
+`SIMULATION_AUDIT_LOG_FILE` keep their pre-existing basenames (still embedding `_week_N`, now
+redundant with the directory) — deliberately, because golden master's stage_b hashes key each
+`save_json` call by `os.path.basename(path)` (`tests/golden_master.py`'s `capture_save`), and
+renaming them would change stage_b hashes, which is its own gated, regenerate-with-deltas change
+and out of scope for a pure directory move. Everything else — the seven weekly PNG chart names,
+and every `positional_tiers.py` artifact — was free to drop the now-redundant week prefix, since
+charts are deliberately never hashed and `positional_tiers.py` never touches
+`fantasy_sim.simulation.save_json` (the only name the golden master's sandbox patches).
+
+**A real bug found during verification, not just theorized:** directory creation must happen at
+*write* time, not at path-*construction* time. `fantasy_sim.backtest_season` `chdir`s into
+`BACKTEST_WORKDIR` and reuses these same storage constants (`storage.LEAGUE_STATE_FILE` etc.) to
+write there; those constants are evaluated once, at `fantasy_sim.storage` import time, before
+that `chdir` ever runs. Baking `os.makedirs` into path *construction* for those constants would
+have created the directory next to the wrong (original) cwd. Fix: `_current`/`_log` (which back
+constants) stay pure string-joins; a new `ensure_dir_for(path)` — called from `save_json`,
+matching the pattern `sync.append_projection_log` already used — creates the directory at the
+moment of the actual write. `_week(...)` (only ever called fresh, at runtime, with a real week
+number — never pre-computed into a constant anywhere in this codebase) is the one exception:
+safe to create its directory eagerly, and necessary to, since a bare `plt.savefig(path)` has no
+chance to call `ensure_dir_for` itself and there are nine such call sites across `simulation.py`
+and `positional_tiers.py`. This was caught empirically: a first end-to-end run of
+`scripts.run_positional_tiers` against a cleared `data/weeks/` failed with
+`FileNotFoundError: data\weeks\week_01\tiers\K.png` before this fix, succeeded after.
+
+**Touched outside `storage.py` (minimal, both necessitated by the above, not optional):**
+`simulation.py` (its module-level `ensure_data_dir()` call, which only ever created the flat
+top-level `data/`, replaced with `ensure_dir_for(SYNDICATE_WARNINGS_LOG_FILE)` so its logging
+`FileHandler` — opened at import time — gets the right nested directory) and
+`positional_tiers.py`'s `_render_tier_table` (same fix, for its raw `open()`). `ensure_data_dir`
+itself was deleted as dead code once both call sites were fixed — no other caller remained.
+
+**Verified:** full suite before and after, 266 tests, `OK (skipped=1, expected failures=4)`
+throughout (golden master untouched, as predicted by the basename-stability reasoning above);
+`scripts.run_positional_tiers` and `scripts.run_simulation` both run clean end-to-end against a
+freshly cleared `data/weeks/`, producing the expected nested tree. All 15 real `current/`-bucket
+files and the one prior week's real weekly output were migrated on disk (not just left to be
+regenerated) so the existing local dataset keeps working without a fresh sync.
+
+### F10 — `simulation_audit_log_sim0.json` and `syndicate_warnings.log` have no season-long retention
+
+**Origin:** F9's `data/` directory migration (2026-08-30) categorized these two files as
+`current/` (always-overwritten) rather than `weeks/week_NN/` (retained per week), because
+neither is currently week-stamped — confirmed by reading their write sites, not assumed from
+the "log" in their names: `SIMULATION_AUDIT_LOG_FILE` is written via a plain `save_json` call
+inside `export_and_visualize` (overwritten every run, same as any other current-state file) and
+`SYNDICATE_WARNINGS_LOG_FILE`'s `logging.FileHandler` is opened with `mode='w'` at import time.
+Putting them in `current/` was an honest description of their EXISTING behavior, not a fix for
+it — and it directly conflicts with the season-long retention goal F9 exists for: a manager
+auditing week 3's simulation from week 10 has nothing to look at. Named here so it isn't lost
+once this session's momentum moves elsewhere.
+
+**Scope (sized, not implemented):** thread `week` through both write sites in `simulation.py`.
+`SIMULATION_AUDIT_LOG_FILE` becomes a function `simulation_audit_log_path(week)` (parallel to
+`live_season_forecast_path` et al.), written under `weeks/week_NN/` — mechanically the same
+change F9 already made for four other JSON exports. `SYNDICATE_WARNINGS_LOG_FILE` is harder:
+its `FileHandler` is opened once, at MODULE import time, before `current_week` is known at all
+(that value only exists once `FantasySimulationEngine.__init__` runs). Fixing it needs either
+(a) moving handler creation into `__init__` — a real behavior change, since any warning logged
+between import and engine construction, if one exists, would then go uncaptured — or (b) a
+second, week-independent handler kept just for that narrow window. Don't pick between these by
+feel; whichever is chosen needs its own short design note first, not just threading `week`
+through by analogy with the JSON case.
+
+**Acceptance criterion:** both files retained per week under `weeks/week_NN/`; a past week's
+copy is untouched by a later week's run; a test asserts week 3's and week 5's audit logs coexist
+and differ.
+
+**When:** whenever engine-level retention work is picked up. Independent of F1–F8 and of the
+positional-tiers work F9 grew out of.

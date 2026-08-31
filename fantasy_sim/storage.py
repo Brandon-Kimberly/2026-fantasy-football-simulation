@@ -14,8 +14,54 @@ those duplicated literals would fail silently at runtime with no import-time sig
 filename this project touches -- inputs from the sync pipeline, outputs from the simulation
 engine, backtesting artifacts -- is named exactly once here.
 
-All paths resolve under DATA_DIR, keeping the repository root clean of runtime output (JSON
-results, PNG charts, logs) -- that directory is gitignored.
+All paths resolve under DATA_DIR.
+
+DIRECTORY LAYOUT (season-long retention -- AUDIT_PLAN.md, "data/ directory structure"):
+    data/current/   -- sync's snapshot of the world as of the LAST sync. Always overwritten in
+                        place; never historical. (Two exceptions live here despite their
+                        "log"-sounding names: SIMULATION_AUDIT_LOG_FILE and
+                        SYNDICATE_WARNINGS_LOG_FILE are both opened in overwrite mode --
+                        verified by reading their write sites, not assumed from the filename --
+                        so they behave exactly like the rest of this bucket, not like logs/.
+                        Flagged as a pre-existing retention gap, not fixed here: making them
+                        genuinely per-week would mean threading `week` through simulation.py's
+                        own call sites, the same category of change as the positional-tiers fix
+                        below, but on code this session didn't write.)
+    data/logs/      -- genuinely append-only, season-spanning. Currently just
+                        PROJECTION_LOG_FILE, the one file this project tracks in git.
+    data/weeks/week_NN/ -- one directory per simulated week (zero-padded so `week_02` sorts
+                        before `week_10` in a plain file listing), holding every artifact a
+                        weekly run produces: the engine's exports, its charts, and
+                        fantasy_sim.positional_tiers's report/charts/table.
+
+Every filename this project touches -- inputs from the sync pipeline, outputs from the
+simulation engine, backtesting artifacts -- is named exactly once here, instead of ad-hoc
+open()/json.load()/json.dump() calls or bare string literals scattered through the codebase.
+
+BASENAME STABILITY: the four weekly JSON exports (live_season_forecast_path,
+model_learning_report_path, syndicate_insights_path, syndicate_comprehensive_matrix_path) and
+SIMULATION_AUDIT_LOG_FILE keep their pre-existing basenames (e.g. still
+"live_season_forecast_week_3.json", now living under weeks/week_03/ instead of flat) even
+though the week number is now redundant with the directory name. This is deliberate: golden
+master's stage_b hash keys each save_json call by os.path.basename(path)
+(tests/golden_master.py's capture_save), so renaming these five basenames would change stage_b
+hashes and require its own regenerate-with-deltas cycle -- out of scope for a pure directory
+migration. Everything else this module renames as part of the same move (PNG chart names, the
+positional-tiers artifacts) is invisible to the golden master: charts are deliberately never
+hashed, and positional_tiers.py's own save_json calls go through fantasy_sim.positional_tiers's
+own imported name, never fantasy_sim.simulation.save_json, which is the only name the golden
+master's sandbox patches -- so those basenames were free to simplify.
+
+DIRECTORY CREATION: path CONSTRUCTION (_path/_current/_log/_week below) never touches the
+filesystem -- it is pure string joining. Directories are created at WRITE time (ensure_dir_for,
+called from save_json and every raw file writer), matching the pattern sync.py's
+append_projection_log already used. This split matters because several module-level constants
+here (PLAYER_CACHE_FILE etc.) are evaluated once, at import time, at whatever cwd is active
+then -- but fantasy_sim.backtest_season chdirs into BACKTEST_WORKDIR and reuses these same
+constants afterward to write there. Eagerly creating directories at import time would create
+them next to the ORIGINAL cwd, not BACKTEST_WORKDIR, and the later real write would then fail.
+Resolving the directory lazily, from the path string, at the moment of the actual write, is
+correct regardless of any chdir in between.
 """
 import json
 import os
@@ -23,87 +69,141 @@ import os
 DATA_DIR = "data"
 
 
-def _path(filename):
-    return os.path.join(DATA_DIR, filename)
+def _path(*parts):
+    return os.path.join(DATA_DIR, *parts)
 
 
-def ensure_data_dir():
-    """Creates DATA_DIR if it doesn't already exist. Called once at the start of any
-    entrypoint that writes output, so callers never need their own os.makedirs() calls."""
-    os.makedirs(DATA_DIR, exist_ok=True)
+def _current(filename):
+    """A sync-input/current-state file: always overwritten, no season-long retention."""
+    return _path("current", filename)
+
+
+def _log(filename):
+    """A genuinely append-only, season-spanning file."""
+    return _path("logs", filename)
+
+
+def _week_dir_name(week):
+    return f"week_{int(week):02d}"
+
+
+def _week(week, *parts):
+    """A per-week artifact -- one directory per simulated week, so re-running in a later week
+    never overwrites an earlier week's output (see module docstring).
+
+    Unlike _current/_log (which back module-level CONSTANTS evaluated once at import time, at
+    whatever cwd is active then -- see the chdir warning in the module docstring), _week is
+    only ever called fresh, at runtime, with an actual week number (never pre-computed into a
+    constant anywhere in this codebase). That makes it safe to create the directory here,
+    directly, rather than deferring to ensure_dir_for at write time: a plain plt.savefig(path)
+    has no chance to create a missing directory itself (unlike save_json, which calls
+    ensure_dir_for), and there are nine such call sites across simulation.py and
+    positional_tiers.py -- creating the directory once, centrally, here, is what actually
+    covers all of them instead of requiring every current and future caller to remember to."""
+    path = _path("weeks", _week_dir_name(week), *parts)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    return path
+
+
+def ensure_dir_for(path):
+    """Creates every directory in path's parent chain if it doesn't already exist. Called at
+    WRITE time (not path-construction time -- see module docstring) by save_json and by every
+    raw file writer that bypasses it (a logging.FileHandler, a raw open() for an HTML table)."""
+    os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
 
 
 # ==============================================================================
 # Sync pipeline inputs/outputs (written by fantasy_sim.sync, read by fantasy_sim.simulation)
 # ==============================================================================
-PLAYER_CACHE_FILE = _path("sleeper_players_cache.json")
-VEGAS_FILE = _path("vegas_totals.json")
-BASELINES_FILE = _path("player_baselines.json")
-TEAM_RATINGS_FILE = _path("nfl_team_power_ratings.json")
-LEAGUE_SCHEDULE_FILE = _path("league_schedule.json")
-NFL_SCHEDULE_FILE = _path("nfl_schedule.json")
-DEFENSIVE_RATINGS_FILE = _path("nfl_defensive_ratings.json")
-DEFENSIVE_TIERS_FILE = _path("nfl_defensive_tiers.json")
-LEAGUE_STATE_FILE = _path("league_state.json")
-LIVE_ROSTERS_FILE = _path("live_rosters.json")
-LEAGUE_STANDINGS_FILE = _path("league_standings.json")
-WEEKLY_ACTUALS_FILE = _path("weekly_actuals.json")
+PLAYER_CACHE_FILE = _current("sleeper_players_cache.json")
+VEGAS_FILE = _current("vegas_totals.json")
+BASELINES_FILE = _current("player_baselines.json")
+TEAM_RATINGS_FILE = _current("nfl_team_power_ratings.json")
+LEAGUE_SCHEDULE_FILE = _current("league_schedule.json")
+NFL_SCHEDULE_FILE = _current("nfl_schedule.json")
+DEFENSIVE_RATINGS_FILE = _current("nfl_defensive_ratings.json")
+DEFENSIVE_TIERS_FILE = _current("nfl_defensive_tiers.json")
+LEAGUE_STATE_FILE = _current("league_state.json")
+LIVE_ROSTERS_FILE = _current("live_rosters.json")
+LEAGUE_STANDINGS_FILE = _current("league_standings.json")
+WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
 # F7 (AUDIT_PLAN.md): append-only log of the projections each sync used for rostered players,
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.
-PROJECTION_LOG_FILE = _path("projection_log.jsonl")
+PROJECTION_LOG_FILE = _log("projection_log.jsonl")
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
-PLAYOFF_BRACKET_FILE = _path("playoff_bracket.json")
+PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 
 # ==============================================================================
 # Simulation engine outputs (week-parameterized -- one set per week the sim is run for)
 # ==============================================================================
 def live_season_forecast_path(week):
-    return _path(f"live_season_forecast_week_{week}.json")
+    return _week(week, f"live_season_forecast_week_{week}.json")
 
 
 def model_learning_report_path(week):
-    return _path(f"model_learning_report_week_{week}.json")
+    return _week(week, f"model_learning_report_week_{week}.json")
 
 
 def syndicate_insights_path(week):
-    return _path(f"syndicate_insights_week_{week}.json")
+    return _week(week, f"syndicate_insights_week_{week}.json")
 
 
 def syndicate_comprehensive_matrix_path(week):
-    return _path(f"syndicate_comprehensive_matrix_week_{week}.json")
+    return _week(week, f"syndicate_comprehensive_matrix_week_{week}.json")
 
 
-SIMULATION_AUDIT_LOG_FILE = _path("simulation_audit_log_sim0.json")
-SYNDICATE_WARNINGS_LOG_FILE = _path("syndicate_warnings.log")
+# Ephemeral despite the name -- see module docstring. Lives in current/, not weeks/, because it
+# carries no week-retention today; that would be a separate fix (thread `week` through
+# simulation.py's own write site), not a rename.
+SIMULATION_AUDIT_LOG_FILE = _current("simulation_audit_log_sim0.json")
+SYNDICATE_WARNINGS_LOG_FILE = _current("syndicate_warnings.log")
 
 
 def power_rankings_chart_path(week):
-    return _path(f"Week_{week}_Power_Rankings.png")
+    return _week(week, "Power_Rankings.png")
 
 
 def season_outcomes_chart_path(week):
-    return _path(f"Week_{week}_Season_Outcomes.png")
+    return _week(week, "Season_Outcomes.png")
 
 
 def all_teams_trajectories_chart_path(week):
-    return _path(f"Week_{week}_All_Teams_Trajectories.png")
+    return _week(week, "All_Teams_Trajectories.png")
 
 
 def expected_wins_chart_path(week):
-    return _path(f"Week_{week}_Expected_Wins.png")
+    return _week(week, "Expected_Wins.png")
 
 
 def h2h_heatmap_chart_path(week):
-    return _path(f"Week_{week}_H2H_Heatmap.png")
+    return _week(week, "H2H_Heatmap.png")
 
 
 def seeding_distribution_path(week):
-    return _path(f"Week_{week}_Seeding_Distribution.png")
+    return _week(week, "Seeding_Distribution.png")
 
 
 def weekly_scoring_density_path(week):
-    return _path(f"Week_{week}_Weekly_Scoring_Density.png")
+    return _week(week, "Weekly_Scoring_Density.png")
+
+
+# ==============================================================================
+# Positional-tier report (fantasy_sim.positional_tiers) -- week-parameterized like the exports
+# above and for the same reason: BASELINES_FILE is overwritten fresh by every sync with that
+# week's projections, so a tier report derived from it is exactly as week-specific as
+# live_season_forecast_path et al.
+# ==============================================================================
+def positional_tiers_report_path(week):
+    return _week(week, "positional_tiers.json")
+
+
+def tier_chart_path(position, week):
+    return _week(week, "tiers", f"{position}.png")
+
+
+def positional_tiers_table_path(position, week):
+    return _week(week, "tiers", f"{position}_Table.html")
 
 
 # ==============================================================================
@@ -120,7 +220,7 @@ def load_json(path):
 
 
 def save_json(path, data, indent=2):
-    """Writes data as JSON to path, creating DATA_DIR first if needed."""
-    ensure_data_dir()
+    """Writes data as JSON to path, creating its directory first if needed."""
+    ensure_dir_for(path)
     with open(path, 'w') as f:
         json.dump(data, f, indent=indent)

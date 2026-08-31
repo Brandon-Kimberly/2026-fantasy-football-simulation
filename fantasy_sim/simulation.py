@@ -31,7 +31,7 @@ from fantasy_sim.config import (
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
 )
 from fantasy_sim.storage import (
-    load_json, save_json, ensure_data_dir, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
+    load_json, save_json, ensure_dir_for, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
@@ -42,9 +42,10 @@ from fantasy_sim.storage import (
 )
 
 # The logging handler below opens SYNDICATE_WARNINGS_LOG_FILE immediately, at import time --
-# DATA_DIR must exist before that happens, since nothing else is guaranteed to have created it
-# yet (e.g. `python -m fantasy_sim.simulation` run before any sync has ever populated data/).
-ensure_data_dir()
+# its directory (data/current/) must exist before that happens, since nothing else is
+# guaranteed to have created it yet (e.g. `python -m fantasy_sim.simulation` run before any
+# sync has ever populated data/).
+ensure_dir_for(SYNDICATE_WARNINGS_LOG_FILE)
 
 logging.basicConfig(
     level=logging.WARNING,
