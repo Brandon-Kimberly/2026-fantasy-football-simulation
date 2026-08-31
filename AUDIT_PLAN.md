@@ -1520,3 +1520,46 @@ depended on these specific files' contents surviving between runs, so there is n
 believe any conclusion in this document is compromised by it -- but that is an inference from
 what the files are used for, not a verification that it never mattered, and is recorded here
 exactly that plainly rather than rounded up to "no impact."
+
+### F12 — `SystemError: error return without exception set` inside `_solve_optimal_assignment`, seen once during Pass-2 fix verification (OPEN, not diagnosed)
+
+**What happened.** While regenerating `Expected_Wins.png` to visually confirm the violin
+`density_norm`/`cut` fix (`d7335d1`), a `py -3.10 -m scripts.run_simulation` run's combined
+stdout/stderr log contained an uncaught Python traceback:
+
+```
+Traceback (most recent call last):
+  ...
+  File ".../fantasy_sim/simulation.py", line 1013, in run_simulation
+    intended_assigned, _ = self._solve_optimal_assignment(intended_cands)
+  File ".../fantasy_sim/simulation.py", line 449, in _solve_optimal_assignment
+    cost = np.full((n_players, n_slots), LARGE)
+SystemError: error return without exception set
+```
+
+`SystemError: error return without exception set` is a CPython-internal-invariant complaint --
+some C-level code returned a NULL/error status without setting a matching Python exception --
+not an application-level bug in this project's own logic. It is exactly the class of failure
+this project's runtime notes already warn about (`CLAUDE.md`'s "do not use plain `python`"
+guidance, and the R1 chain of commits investigating "an intermittent native access violation in
+the test process" on the retired Python 3.8 interpreter), even though this run used the pinned
+`py -3.10` launcher, not `python`.
+
+**What is NOT yet known.** Whether this is reproducible, transient, or environmental
+(hardware/driver-level, per the R1 investigation's direction -- power plan, BIOS microcode, CPU
+load scaling are all still open per that chain's most recent commits) is not established from a
+single occurrence. The process's overall exit code was 0, and the log's later lines (`[PRE-FLIGHT
+SUCCESS] 929 Projections Validated`, `[>>>] EXECUTING 10 INDEPENDENT BATCHES...`) show the run
+continuing and ultimately producing correct output -- confirmed separately by checking
+`data/weeks/week_01/*.png` timestamps, which matched this run and rendered correctly. Whether
+the traceback text's position in the combined log genuinely reflects a mid-run recovery, or is a
+stdout/stderr interleaving artifact of piping a buffered stream, was not determined. This finding
+records the observation only; it does not attempt a root-cause diagnosis, was not reproduced a
+second time, and should not be treated as characterised, isolated, or closed.
+
+**Why this is being recorded now instead of chased down.** It surfaced incidentally while
+verifying an unrelated, already-scoped chart-rendering fix (Pass 2, item 4). Per this project's
+own phase discipline (work one phase per session; do not fold an unrelated finding into an
+in-flight commit), it is logged here rather than investigated mid-pass. It should be picked up
+as its own piece of work -- starting with an attempt to reproduce it across several consecutive
+`run_simulation` invocations -- before being marked anything other than OPEN.
