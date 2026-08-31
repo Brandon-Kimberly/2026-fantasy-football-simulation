@@ -1521,7 +1521,7 @@ believe any conclusion in this document is compromised by it -- but that is an i
 what the files are used for, not a verification that it never mattered, and is recorded here
 exactly that plainly rather than rounded up to "no impact."
 
-### F12 — `SystemError: error return without exception set` inside `_solve_optimal_assignment`, seen once during Pass-2 fix verification (OPEN, not diagnosed)
+### F12 — `SystemError: error return without exception set` inside `_solve_optimal_assignment`, seen once during Pass-2 fix verification (OPEN, does not reproduce under single-process conditions)
 
 **What happened.** While regenerating `Expected_Wins.png` to visually confirm the violin
 `density_norm`/`cut` fix (`d7335d1`), a `py -3.10 -m scripts.run_simulation` run's combined
@@ -1563,3 +1563,39 @@ own phase discipline (work one phase per session; do not fold an unrelated findi
 in-flight commit), it is logged here rather than investigated mid-pass. It should be picked up
 as its own piece of work -- starting with an attempt to reproduce it across several consecutive
 `run_simulation` invocations -- before being marked anything other than OPEN.
+
+**Reproduction attempt (2026-08-31, same session).** Ran `py -3.10 -m scripts.run_simulation` 10
+times, sequentially (one at a time, each waited on to completion before starting the next -- no
+concurrent processes, no piping), each run's stdout+stderr redirected directly to its own file
+(`run_1.log` .. `run_10.log`, never combined or interleaved with any other stream). Every run used
+the unmodified production `SIM_CONFIG` (the same 10 batches / 10,000-sim configuration that was
+running when the original traceback was seen). Result:
+
+- **0 of 10 runs reproduced the traceback.** `grep`-ing all 10 logs for `Traceback`, `SystemError`,
+  or the literal string `Error` found nothing in any of them.
+- All 10 exited with code 0.
+- All 10 logs are complete and well-formed (each ends with a real `[EXPORT COMPLETE]` line, not a
+  truncated one; all 10 logs are byte-identical in size, 7521 bytes, consistent with this
+  project's deterministic non-stochastic log lines -- roster-hole warnings, projection counts --
+  being unaffected by which random draws a given run happens to make).
+- Total wall time for the 10 runs: ~99 minutes (~9-10 minutes per run; substantially longer than
+  the ~150-250s this same command took the first two times it was run mid-session, in immediate
+  succession with other `py -3.10` invocations still warm -- itself a data point, though not
+  chased further here, since a first-process-of-a-cold-run slowdown is a mundane and far more
+  likely explanation than anything related to F12).
+
+**What this does and does not establish.** This rules out "reproduces reliably, even in isolation,
+every time or most times" -- it clearly does not, at least not under these specific sequential,
+single-process conditions. It does NOT establish that the original occurrence didn't happen, that
+its cause is understood, or that it cannot recur under some other condition not tested here
+(genuine multi-process concurrency, a specific machine/thermal/power state, a specific data
+shape encountered only on some runs). The honest characterisation remains: one observed
+occurrence, cause unknown, and now ten clean attempts at reproducing it under one specific
+(single-process, sequential) condition. Per this project's own rule against re-tuning or
+re-characterising a finding to make it appear more or less serious than the evidence supports,
+this is recorded exactly that plainly. Given the R1 chain's own conclusion that hardware/firmware
+factors were the leading candidate and remain only partially remediated (`932995c` -- power plan,
+BIOS, and microcode queued, not yet confirmed to have resolved R1 itself), F12 is left OPEN and
+unclosed rather than downgraded, but does not currently meet the bar the user set in advance
+("recurs even once more under single-process conditions") for treating it as the project's top
+priority.
