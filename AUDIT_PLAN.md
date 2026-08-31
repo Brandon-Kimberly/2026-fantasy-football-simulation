@@ -1439,3 +1439,80 @@ and differ.
 
 **When:** whenever engine-level retention work is picked up. Independent of F1–F8 and of the
 positional-tiers work F9 grew out of.
+
+### F11 — `test_simulation.py` silently truncated real production data on every full-suite run, since the initial commit
+
+**What happened.** Three tests in `tests/test_simulation.py` mocked `json.dump` directly instead
+of mocking `fantasy_sim.simulation.save_json` (the function that actually opens the file).
+`save_json` is `ensure_dir_for(path); open(path, 'w')... json.dump(...)` — opening a file in
+`'w'` mode truncates it immediately, before a single byte is written back, regardless of whether
+the subsequent `json.dump` call is mocked. With `json.dump` mocked and `save_json` not, every
+`FantasySimulationEngine.run_simulation()` call inside those three tests opened-and-truncated
+whatever REAL file already sat at the path its (also-mocked, for input) `current_week` pointed
+to. The tests' shared fixture hardcodes `LEAGUE_STATE_FILE: {"current_week": 1}` — and this
+project's real `data/current/league_state.json` has read `current_week: 1` for the entire
+duration of this audit (the season this project simulates has never progressed past week 1 in
+real time; confirmed separately while scoping the win-trajectory chart, which found only one
+week of real `live_season_forecast` history on disk). So the mocked and the real week always
+matched: every run of `unittest discover tests` reliably truncated five real files to 0 bytes --
+`data/current/simulation_audit_log_sim0.json` and, under F9's directory layout,
+`data/weeks/week_01/{live_season_forecast,model_learning_report,syndicate_comprehensive_matrix,
+syndicate_insights}_week_1.json` (the same four files, at their pre-F9 flat paths, before that
+migration).
+
+**How long this existed.** Since the initial commit. `git blame` on the pre-fix lines (all three
+occurrences, both the two `with patch(...)` blocks and the `@patch('json.dump')` decorator)
+attributes them to `c14b333`, "Initial commit", 2026-08-27 -- before Phase 0, before F1, before
+this audit began. Every full-suite run across the entire audit's history (every phase, every
+finding F1 through F10, the R1 Python-runtime migration) triggered this. It was never noticed
+because a full-suite run was, in practice, always followed by a real `run_sync`/`run_simulation`
+invocation that regenerated the truncated files before anyone inspected them at the exact wrong
+moment -- the silent-corruption window closed itself before it was ever visibly open, which is
+exactly why it took an accident (see below) rather than a targeted check to surface it.
+
+**How it was found.** Not by design -- by accident, while building `fantasy_sim.win_trajectory`
+(2026-08-31): that work needed to read a real `syndicate_comprehensive_matrix_week_1.json` and
+found it 0 bytes. Traced to `test_simulation.py`, confirmed via file modification timestamps
+(not inferred from reading the test code alone) that running the full suite reliably reproduces
+the truncation every time, then confirmed via `git blame` that the pattern is as old as the
+repository. This is the same class of finding this entire audit exists to hunt for -- a silent,
+systematic corruption of real data by code that looks correct on casual reading -- just found by
+stumbling into its effect rather than by asking a property question about it, which is worth
+being honest about rather than folding quietly into a feature commit's message.
+
+**Scope check: is this pattern anywhere else?** Grepped the entire project, not just the one
+file already implicated, for every `json.dump` mock (`patch('json.dump')`,
+`patch.object(json, 'dump', ...)`, and any module that imports `dump` directly and could patch
+it by another name -- none of the latter two forms exist anywhere in this codebase). Two files
+use the pattern: `tests/test_sync.py` (12 occurrences, every single one read individually, not
+sampled -- each is paired with `patch('builtins.open', mock_open())` in the same `with` block,
+so `open()` itself never touches a real file; no corruption risk) and `tests/test_simulation.py`
+(the three now fixed). Also checked whether any other serialization method (`pickle`, `csv`)
+appears anywhere in production code that could carry an analogous mock-vs-real-write mismatch:
+none does -- `json` via `fantasy_sim.storage` is the only serialization path in this project,
+aside from the `plt.savefig`/`save_chart` case F-numbered-fixed alongside this one.
+
+**Fix.** The two tests that inspect `json.dump`'s captured call arguments now patch
+`fantasy_sim.simulation.save_json` with a recording `side_effect` instead -- the exact pattern
+already used correctly elsewhere in the same file (the h2h-matrix/championship-value tests'
+sibling test, which predates these two and never had the bug). The third, a pure smoke test,
+never inspected its `json.dump` mock's call arguments at all, so swapping its patch target to
+`fantasy_sim.simulation.save_json` is a behavior-neutral rename.
+
+**Verified, not assumed.** Ran `tests.test_simulation` specifically after the fix and confirmed
+via file size and modification timestamp -- not just green tests -- that all five previously-
+truncated files were untouched. Then ran the full suite (289 tests, `OK`) and confirmed the same
+files still untouched afterward. Golden master: 12/12, byte-identical (this fix changes what a
+few tests mock, not any production code path the golden master exercises).
+
+**Cost.** No real damage: every truncated file is fully regenerable (`data/*` is entirely
+untracked output except the one append-only log F9 already separates out), and every truncation
+this session actually caused was caught and repaired before being relied on. The real cost is
+what it implies about the preceding four days of audit work: an unknown, unknowable number of
+full-suite runs across Phases 0–7 likely truncated these same files just as reliably, silently,
+every time, with no record of how many times or whether any of that work happened to inspect a
+truncated file at the wrong moment without noticing. Nothing in the audit's own findings (F1–F10)
+depended on these specific files' contents surviving between runs, so there is no reason to
+believe any conclusion in this document is compromised by it -- but that is an inference from
+what the files are used for, not a verification that it never mattered, and is recorded here
+exactly that plainly rather than rounded up to "no impact."

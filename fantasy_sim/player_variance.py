@@ -16,7 +16,7 @@ finding 4 already caught for the team-level equivalent (global_weekly_scores).
 Because this module needs the accumulator, not just data/ files, it is invoked from
 scripts/run_simulation.py right after engine.run_simulation() returns, reading the engine
 instance directly -- never re-simulating, and never touching export_and_visualize (so it cannot
-affect the golden master; verified empirically, see AUDIT_PLAN.md's F11 entry).
+affect the golden master; verified empirically -- see the commit that added this module).
 
 Only the 156 currently-rostered players get a report -- the engine never simulates anyone else,
 so this has no waiver-wire equivalent of positional_tiers' full 928-player pool.
@@ -61,7 +61,7 @@ from fantasy_sim.storage import (
 # other rostered player sits at 10.8+ with nothing in between. A threshold of 6 flagged ZERO
 # players (verified, not assumed -- the first real run exposed this before it shipped); 9 sits
 # in the middle of the real gap and correctly flags exactly the four players the model's own
-# injury simulation is actually treating as significantly less available. See AUDIT_PLAN.md F11.
+# injury simulation is actually treating as significantly less available.
 MIN_WEEKS_THRESHOLD = 9
 
 _HISTOGRAM_BINS = 15

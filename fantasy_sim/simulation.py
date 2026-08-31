@@ -778,7 +778,7 @@ class FantasySimulationEngine:
         # observed zero -- the exact bug class AUDIT_PHASE_1_FINDINGS.md finding 4 already
         # caught for global_weekly_scores above. Retained on self (not just a local var, unlike
         # every other accumulator here) so a caller can read it after run_simulation() returns
-        # without needing a new export_and_visualize argument -- see F11/player_variance.py.
+        # without needing a new export_and_visualize argument -- see fantasy_sim/player_variance.py.
         all_rostered_players = sorted({p for roster in self.rosters.values() for p in roster})
         self.player_weekly_scores = {
             p: np.full((total_sims, REGULAR_SEASON_WEEKS), np.nan) for p in all_rostered_players
