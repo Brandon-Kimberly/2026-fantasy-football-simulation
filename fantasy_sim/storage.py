@@ -261,6 +261,17 @@ def floor_ceiling_chart_path(fantasy_team, week):
 
 
 # ==============================================================================
+# Win-trajectory chart (fantasy_sim.win_trajectory) -- re-visualizes
+# expected_cumulative_wins_by_week, already exported inside syndicate_comprehensive_matrix_path
+# for this same week, as one overlay chart across all teams instead of the engine's own
+# per-team-faceted percentile-band chart. No new computation; week-parameterized only because
+# its source file is.
+# ==============================================================================
+def win_trajectory_chart_path(week):
+    return _week(week, "Win_Trajectory.png")
+
+
+# ==============================================================================
 # JSON I/O helpers
 # ==============================================================================
 def load_json(path):
