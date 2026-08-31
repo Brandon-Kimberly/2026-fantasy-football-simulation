@@ -207,6 +207,28 @@ def positional_tiers_table_path(position, week):
 
 
 # ==============================================================================
+# Strength-of-schedule report (fantasy_sim.strength_of_schedule) -- week-parameterized for the
+# same reason as the positional-tier report: the underlying power/defensive ratings and
+# nfl_schedule.json move week to week (real games played, updated empirical defense), so a
+# report derived from them is exactly as week-specific as everything else under weeks/.
+# ==============================================================================
+def sos_report_path(week):
+    return _week(week, "strength_of_schedule.json")
+
+
+def sos_team_grid_chart_path(week):
+    return _week(week, "Strength_of_Schedule_By_Team.png")
+
+
+def sos_team_summary_chart_path(week):
+    return _week(week, "Strength_of_Schedule_Team_Ranking.png")
+
+
+def sos_roster_chart_path(week):
+    return _week(week, "Strength_of_Schedule_By_Roster.png")
+
+
+# ==============================================================================
 # Player-variance report (fantasy_sim.player_variance -- boom/bust, floor/ceiling). Reads
 # FantasySimulationEngine.player_weekly_scores, populated only during a real run_simulation()
 # call, so this is generated alongside the engine's own weekly exports, not standalone like
