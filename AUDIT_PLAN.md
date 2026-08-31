@@ -178,9 +178,13 @@ than fixed, because neither is a code change:
    Note `_apportion_vacated_volume` has no bye awareness even in principle (it is never told the
    week), so whatever makes byes live must fix that in the same change or a bye-week player will
    be counted in the apportionment denominator and his share destroyed.
-8. OPEN, Phase 6. `power_rankings_baseline_pts` is labelled "Optimal Valid Starting Lineup
-   Baseline" but `get_optimal_score` returns lineup + 10% of bench (166.8 true vs 173.1
-   reported). Deliberate depth reward, undisclosed label. Reported, not fixed.
+8. FIXED (2026-08-31, commit 9ccb9e9). `power_rankings_baseline_pts` was labelled "Optimal
+   Valid Starting Lineup Baseline" but `get_optimal_score` returns lineup + 10% of bench (166.8
+   true vs 173.1 reported). Deliberate depth reward, undisclosed label. Renamed the export key
+   to `roster_value_baseline_pts` and reworded the chart title/x-axis to say "+ Bench Depth";
+   `get_optimal_score`'s return value is unchanged. Confirmed via golden-master diff that only
+   stage_b/stage_c (the export layer) moved -- stage_a (the simulation itself) is
+   byte-identical.
 
 Findings 1–4 were invisible at week 1 and would have activated from week 2 — production is at
 week 1 now, so they were caught latent.
