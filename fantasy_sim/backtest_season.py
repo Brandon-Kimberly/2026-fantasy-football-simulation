@@ -506,7 +506,7 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
         simmod.SIM_CONFIG['SIMS_PER_BATCH'] = sims_per_batch
         simmod.SIM_CONFIG['MEDIAN_SCORING_ENABLED'] = median_scoring_enabled
         try:
-            with patch('matplotlib.pyplot.savefig'):
+            with patch('fantasy_sim.simulation.save_chart'):
                 sim = simmod.FantasySimulationEngine()
                 captured = {}
                 original_export = sim.export_and_visualize
