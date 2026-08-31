@@ -796,12 +796,17 @@ class TestFantasySimulation(unittest.TestCase):
         try:
             SIM_CONFIG['NUM_BATCHES'] = 1
             SIM_CONFIG['SIMS_PER_BATCH'] = 200
-            with patch('fantasy_sim.simulation.save_chart'), patch('json.dump') as mock_dump:
+            saved_files = {}
+
+            def recording_save_json(path, data, indent=2):
+                saved_files[path] = data
+
+            with patch('fantasy_sim.simulation.save_chart'), \
+                 patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
                 sim.run_simulation()
 
             win_pct_matrix = None
-            for call in mock_dump.call_args_list:
-                data = call.args[0]
+            for data in saved_files.values():
                 if isinstance(data, dict) and 'h2h_win_probability_matrix' in data:
                     win_pct_matrix = data['h2h_win_probability_matrix']
                     break
@@ -824,12 +829,17 @@ class TestFantasySimulation(unittest.TestCase):
         try:
             SIM_CONFIG['NUM_BATCHES'] = 1
             SIM_CONFIG['SIMS_PER_BATCH'] = 200
-            with patch('fantasy_sim.simulation.save_chart'), patch('json.dump') as mock_dump:
+            saved_files = {}
+
+            def recording_save_json(path, data, indent=2):
+                saved_files[path] = data
+
+            with patch('fantasy_sim.simulation.save_chart'), \
+                 patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
                 sim.run_simulation()
 
             insights = None
-            for call in mock_dump.call_args_list:
-                data = call.args[0]
+            for data in saved_files.values():
                 if isinstance(data, dict) and 'most_valuable_players_championship_shares' in data:
                     insights = data['most_valuable_players_championship_shares']
                     break
@@ -1035,8 +1045,8 @@ class TestFantasySimulation(unittest.TestCase):
                 SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
 
     @patch('fantasy_sim.simulation.save_chart')
-    @patch('json.dump')
-    def test_e2e_smoke_and_invariants(self, mock_json_dump, mock_savefig):
+    @patch('fantasy_sim.simulation.save_json')
+    def test_e2e_smoke_and_invariants(self, mock_save_json, mock_savefig):
         """End-to-end simulation test verifying no crashes and basic sum invariants."""
         sim = FantasySimulationEngine()
         
