@@ -113,6 +113,42 @@ class TestFantasySimulation(unittest.TestCase):
             expected = sim.get_optimal_score(sim.rosters[team])
             self.assertAlmostEqual(ai_matrix['roster_value_baseline_pts'][team], expected, places=6)
 
+    def test_expected_wins_violin_uses_area_normalization_with_no_kde_overrun(self):
+        """Regression test for the Pass-2 visualization audit's Expected_Wins finding: the
+        violin plot was called with density_norm='width' (default cut=2), which forces every
+        team's violin to the SAME peak width regardless of actual density mass -- defeating the
+        one thing a violin plot is for here (comparing relative spread across teams) -- and lets
+        the KDE extend past each team's own observed min/max. Real week-1 percentile data
+        (win_distributions in syndicate_comprehensive_matrix_week_1.json) confirmed p01/p99
+        genuinely approach the axis bounds for every team regardless of mean, so cut=0 doesn't
+        change what's real; it stops the KDE from ALSO smearing an artificial tail past that.
+
+        This doesn't re-verify seaborn's own density_norm/cut semantics (that's seaborn's job) --
+        it only guards against a future revert to the old kwargs by asserting the exact call this
+        codebase makes to sns.violinplot for the Expected Wins chart."""
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 20
+        try:
+            with patch('fantasy_sim.simulation.sns.violinplot') as mock_violinplot, \
+                 patch('fantasy_sim.simulation.save_chart'), patch('matplotlib.pyplot.close'), \
+                 patch('fantasy_sim.simulation.save_json'):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        mock_violinplot.assert_called_once()
+        _, kwargs = mock_violinplot.call_args
+        self.assertEqual(kwargs.get('density_norm'), 'area',
+                          "density_norm must be 'area' (equal area per violin, fair since every "
+                          "team has the same sample count) not 'width' (forces equal peak width, "
+                          "erasing real spread differences).")
+        self.assertEqual(kwargs.get('cut'), 0,
+                          "cut=0 must stop the KDE from extending past each team's own observed "
+                          "min/max; the default (cut=2) smears an artificial tail onto every team "
+                          "regardless of its real spread.")
+
     def test_h2h_win_probability_matrix_export_is_not_transposed(self):
         """Regression test for a real, precisely diagnosed bug: the exported
         h2h_win_probability_matrix JSON was transposed relative to its intended

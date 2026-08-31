@@ -1503,7 +1503,20 @@ class FantasySimulationEngine:
         df_violin = pd.DataFrame(violin_rows)
 
         fig, ax = plt.subplots(figsize=(14, 8))
-        sns.violinplot(x='Total Wins', y='Team', data=df_violin, hue='Team', palette='magma', inner='quartile', density_norm='width', linewidth=1.5, legend=False, ax=ax)
+        # density_norm='width' (the previous setting) forces every violin to the SAME peak
+        # width regardless of how concentrated or diffuse that team's actual win distribution
+        # is -- which defeats the one thing a violin plot is for here (comparing relative
+        # spread across teams). Every team has the same sample count (total_sims), so
+        # density_norm='area' (equal area per violin) is the fair comparison: width now
+        # reflects each team's own density scale, not a forced-equal peak. cut=0 (default is 2)
+        # stops seaborn's KDE from extending past each team's own observed min/max, so a tight
+        # distribution now visibly tapers well inside the axis instead of every team's tail
+        # looking identical near the frame edges regardless of real spread -- verified against
+        # real week-1 data before landing on this: p01/p99 percentiles genuinely do reach close
+        # to the axis bounds for every team (extreme single-season luck can happen to anyone),
+        # but the OLD rendering additionally forced identical peak widths on top of that, which
+        # is the part that was actually hiding real per-team differences.
+        sns.violinplot(x='Total Wins', y='Team', data=df_violin, hue='Team', palette='magma', inner='quartile', density_norm='area', cut=0, linewidth=1.5, legend=False, ax=ax)
         ax.axvline(14, color='black', linestyle='--', linewidth=2, alpha=0.9, label='.500 Break-Even (14 Wins)')
 
         for idx, row in summary_df.iterrows():
