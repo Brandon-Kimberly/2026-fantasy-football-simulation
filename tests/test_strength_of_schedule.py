@@ -85,11 +85,13 @@ class TestLoadEnvironmentEngine(unittest.TestCase):
 
 class TestRenderSmoke(unittest.TestCase):
     """Matches this codebase's existing convention (see test_simulation.py,
-    test_positional_tiers.py) of patching matplotlib.pyplot.savefig rather than inspecting
-    rendered PNG output."""
+    test_positional_tiers.py) of patching the save_chart wrapper rather than inspecting
+    rendered PNG output -- save_chart, not matplotlib.pyplot.savefig, because save_chart
+    bundles the directory-creation call with the render (see fantasy_sim.storage.save_chart's
+    docstring), so mocking it skips both instead of leaving an empty directory behind."""
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.strength_of_schedule.save_chart')
     def test_team_grid_chart_smoke(self, mock_savefig, mock_close):
         team_grid = {
             'SEA': {1: {'total': 25.0, 'opponent': 'NE', 'is_bye': False},
@@ -101,7 +103,7 @@ class TestRenderSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.strength_of_schedule.save_chart')
     def test_team_summary_chart_smoke(self, mock_savefig, mock_close):
         team_grid = {
             'SEA': {1: {'total': 25.0, 'opponent': 'NE', 'is_bye': False}},
@@ -111,7 +113,7 @@ class TestRenderSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.strength_of_schedule.save_chart')
     def test_roster_grid_chart_smoke(self, mock_savefig, mock_close):
         roster_grid = {'Team A': {1: 23.3, 2: None}, 'Team B': {1: 19.1, 2: 20.0}}
         render_roster_grid_chart(roster_grid, [1, 2], week=1)

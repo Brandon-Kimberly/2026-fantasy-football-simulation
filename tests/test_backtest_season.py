@@ -165,7 +165,7 @@ class TestBacktestHarness(unittest.TestCase):
         with patch.object(sync, 'update_player_cache', return_value=fake_players_db), \
              patch.object(sync, 'TEAM_NAME_MAP', fake_team_name_map), \
              patch('requests.get', side_effect=fake_get), \
-             patch('matplotlib.pyplot.savefig'), \
+             patch('fantasy_sim.simulation.save_chart'), \
              self.assertLogs(level="WARNING") as logs:   # the fake HTTP layer 404s ESPN: byes must degrade loudly
             simmod.SIM_CONFIG['NUM_BATCHES'] = 1
             simmod.SIM_CONFIG['SIMS_PER_BATCH'] = 20

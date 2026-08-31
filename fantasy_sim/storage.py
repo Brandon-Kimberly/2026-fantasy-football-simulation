@@ -66,6 +66,8 @@ correct regardless of any chdir in between.
 import json
 import os
 
+import matplotlib.pyplot as plt
+
 DATA_DIR = "data"
 
 
@@ -89,20 +91,28 @@ def _week_dir_name(week):
 
 def _week(week, *parts):
     """A per-week artifact -- one directory per simulated week, so re-running in a later week
-    never overwrites an earlier week's output (see module docstring).
+    never overwrites an earlier week's output (see module docstring). Pure string joining, like
+    _path/_current/_log -- directory creation happens at WRITE time (ensure_dir_for), not here.
 
-    Unlike _current/_log (which back module-level CONSTANTS evaluated once at import time, at
-    whatever cwd is active then -- see the chdir warning in the module docstring), _week is
-    only ever called fresh, at runtime, with an actual week number (never pre-computed into a
-    constant anywhere in this codebase). That makes it safe to create the directory here,
-    directly, rather than deferring to ensure_dir_for at write time: a plain plt.savefig(path)
-    has no chance to create a missing directory itself (unlike save_json, which calls
-    ensure_dir_for), and there are nine such call sites across simulation.py and
-    positional_tiers.py -- creating the directory once, centrally, here, is what actually
-    covers all of them instead of requiring every current and future caller to remember to."""
-    path = _path("weeks", _week_dir_name(week), *parts)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    return path
+    An earlier version of this function created the directory eagerly, right here, reasoning
+    that a plain plt.savefig(path) has no chance to create a missing directory itself the way
+    save_json does. That reasoning was correct about the risk but wrong about the fix: it meant
+    every PATH CONSTRUCTION touched the filesystem, including ones that never led to a write at
+    all -- a golden-master or unit test that mocks matplotlib.pyplot.savefig still calls this
+    function to build the path first, so running the suite alone left behind empty
+    data/weeks/week_02, week_06, week_15 directories with nothing in them.
+
+    The first fix attempt was ALSO wrong, caught before landing rather than assumed correct: it
+    added an ensure_dir_for(path) call immediately before each plt.savefig(path, ...), mirroring
+    save_json's internal call. That still touched disk under a mock, because
+    @patch('matplotlib.pyplot.savefig') only replaces plt.savefig itself -- the ensure_dir_for
+    call sitting one line above it in application code is untouched by that patch and still
+    runs for real. save_json has no such gap because ensure_dir_for is called FROM INSIDE
+    save_json, so patching save_json (as golden_master.py and every render test do) removes the
+    directory-creation call too. The actual fix: save_chart (below) bundles ensure_dir_for with
+    the real plt.savefig call the same way save_json bundles it with the real write, and every
+    chart-producing call site + test mock was moved to use it instead of a bare plt.savefig."""
+    return _path("weeks", _week_dir_name(week), *parts)
 
 
 def ensure_dir_for(path):
@@ -268,3 +278,17 @@ def save_json(path, data, indent=2):
     ensure_dir_for(path)
     with open(path, 'w') as f:
         json.dump(data, f, indent=indent)
+
+
+def save_chart(path, **savefig_kwargs):
+    """Saves the CURRENT matplotlib figure to path, creating its directory first -- the chart
+    equivalent of save_json, and for the same reason: bundling ensure_dir_for with the real
+    write means mocking this ONE function (by its module-qualified name, e.g.
+    "fantasy_sim.simulation.save_chart", exactly how save_json is already mocked in
+    golden_master.py) skips both the directory creation and the render together. Calling
+    ensure_dir_for and matplotlib.pyplot.savefig as two separate statements at each chart's
+    call site does NOT achieve this -- see _week()'s docstring for why that was tried first and
+    didn't work. Chart-producing code should call this, never matplotlib.pyplot.savefig
+    directly."""
+    ensure_dir_for(path)
+    plt.savefig(path, **savefig_kwargs)

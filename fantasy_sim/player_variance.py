@@ -49,7 +49,8 @@ import seaborn as sns
 
 from fantasy_sim.config import normalize_position
 from fantasy_sim.storage import (
-    boom_bust_chart_path, floor_ceiling_chart_path, player_variance_report_path, save_json,
+    boom_bust_chart_path, floor_ceiling_chart_path, player_variance_report_path, save_chart,
+    save_json,
 )
 
 # Originally chosen as 6 ("less than half the season") before looking at real data, then
@@ -134,7 +135,8 @@ def render_floor_ceiling_chart(fantasy_team, entries, week):
                   ha='center', fontsize=8, style='italic', color='#444444')
     sns.despine(top=True, right=True)
     plt.tight_layout()
-    plt.savefig(floor_ceiling_chart_path(fantasy_team, week), dpi=300)
+    out_path = floor_ceiling_chart_path(fantasy_team, week)
+    save_chart(out_path, dpi=300)
     plt.close()
     return fig
 
@@ -191,7 +193,8 @@ def render_boom_bust_chart(fantasy_team, entries, raw_scores, week):
     ax.set_ylabel("Simulated Weekly Score", fontweight='bold')
     sns.despine(top=True, right=True)
     plt.tight_layout()
-    plt.savefig(boom_bust_chart_path(fantasy_team, week), dpi=300)
+    out_path = boom_bust_chart_path(fantasy_team, week)
+    save_chart(out_path, dpi=300)
     plt.close()
     return fig
 

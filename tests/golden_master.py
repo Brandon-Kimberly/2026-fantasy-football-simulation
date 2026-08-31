@@ -245,7 +245,7 @@ def _sandbox(scenario, batches, sims_per_batch):
     try:
         with patch("fantasy_sim.simulation.load_json", side_effect=fixture_load), \
              patch("fantasy_sim.simulation.save_json", side_effect=capture_save), \
-             patch("matplotlib.pyplot.savefig"):
+             patch("fantasy_sim.simulation.save_chart"):
             yield saved
     finally:
         SIM_CONFIG["NUM_BATCHES"] = orig_batches

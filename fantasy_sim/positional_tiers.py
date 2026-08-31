@@ -45,7 +45,7 @@ from html import escape
 
 from fantasy_sim.config import normalize_position, REQUIRED_STARTING_SLOTS, display_player_name
 from fantasy_sim.storage import (
-    BASELINES_FILE, ensure_dir_for, load_json, save_json, tier_chart_path,
+    BASELINES_FILE, ensure_dir_for, load_json, save_chart, save_json, tier_chart_path,
     positional_tiers_report_path, positional_tiers_table_path,
 )
 
@@ -232,7 +232,8 @@ def render_tier_player_bars(pos, players, shown, week):
     ax.set_xlim(0, max(p['mean'] + p['std_epistemic'] for p in shown) * 1.15)
     sns.despine(top=True, right=True)
     plt.tight_layout()
-    plt.savefig(tier_chart_path(pos, week), dpi=300)
+    out_path = tier_chart_path(pos, week)
+    save_chart(out_path, dpi=300)
     plt.close()
 
 
@@ -267,7 +268,8 @@ def render_tier_summary_chart(pos, players, caption, week):
     ax.set_xlabel("Projected Mean Range Within Tier", fontweight='bold')
     sns.despine(top=True, right=True)
     plt.tight_layout()
-    plt.savefig(tier_chart_path(pos, week), dpi=300, bbox_inches='tight')
+    out_path = tier_chart_path(pos, week)
+    save_chart(out_path, dpi=300, bbox_inches='tight')
     plt.close()
 
 

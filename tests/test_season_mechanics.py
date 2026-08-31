@@ -244,7 +244,7 @@ class TestForecastRecordConsistency(unittest.TestCase):
         try:
             with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: copy.deepcopy(files[os.path.basename(p)])), \
                  patch("fantasy_sim.simulation.save_json", side_effect=lambda p, data, indent=2: saved.__setitem__(os.path.basename(p), data)), \
-                 patch("matplotlib.pyplot.savefig"):
+                 patch("fantasy_sim.simulation.save_chart"):
                 engine = FantasySimulationEngine()
                 engine.run_simulation()
         finally:

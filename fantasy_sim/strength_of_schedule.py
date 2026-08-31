@@ -32,7 +32,7 @@ import seaborn as sns
 
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import (
-    save_json, sos_report_path, sos_roster_chart_path, sos_team_grid_chart_path,
+    save_chart, save_json, sos_report_path, sos_roster_chart_path, sos_team_grid_chart_path,
     sos_team_summary_chart_path,
 )
 
@@ -134,7 +134,8 @@ def render_team_grid_chart(team_grid, weeks, week):
     ax.set_xlabel("Week", fontweight='bold')
     ax.set_ylabel("")
     plt.tight_layout()
-    plt.savefig(sos_team_grid_chart_path(week), dpi=300)
+    out_path = sos_team_grid_chart_path(week)
+    save_chart(out_path, dpi=300)
     plt.close()
 
 
@@ -162,7 +163,8 @@ def render_team_summary_chart(team_grid, weeks, week):
     ax.set_xlabel("Average Implied Team Total", fontweight='bold')
     sns.despine(top=True, right=True)
     plt.tight_layout()
-    plt.savefig(sos_team_summary_chart_path(week), dpi=300)
+    out_path = sos_team_summary_chart_path(week)
+    save_chart(out_path, dpi=300)
     plt.close()
 
 
@@ -206,7 +208,8 @@ def render_roster_grid_chart(roster_grid, weeks, week):
     ax.set_ylabel("")
     plt.tight_layout()
     plt.subplots_adjust(top=0.85)
-    plt.savefig(sos_roster_chart_path(week), dpi=300)
+    out_path = sos_roster_chart_path(week)
+    save_chart(out_path, dpi=300)
     plt.close()
 
 

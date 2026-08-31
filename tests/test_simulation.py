@@ -137,7 +137,7 @@ class TestFantasySimulation(unittest.TestCase):
             def recording_save_json(path, data, indent=2):
                 saved_files[path] = data
 
-            with patch('matplotlib.pyplot.savefig'), patch('matplotlib.pyplot.close'), \
+            with patch('fantasy_sim.simulation.save_chart'), patch('matplotlib.pyplot.close'), \
                  patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
                 sim.run_simulation()
         finally:
@@ -796,7 +796,7 @@ class TestFantasySimulation(unittest.TestCase):
         try:
             SIM_CONFIG['NUM_BATCHES'] = 1
             SIM_CONFIG['SIMS_PER_BATCH'] = 200
-            with patch('matplotlib.pyplot.savefig'), patch('json.dump') as mock_dump:
+            with patch('fantasy_sim.simulation.save_chart'), patch('json.dump') as mock_dump:
                 sim.run_simulation()
 
             win_pct_matrix = None
@@ -824,7 +824,7 @@ class TestFantasySimulation(unittest.TestCase):
         try:
             SIM_CONFIG['NUM_BATCHES'] = 1
             SIM_CONFIG['SIMS_PER_BATCH'] = 200
-            with patch('matplotlib.pyplot.savefig'), patch('json.dump') as mock_dump:
+            with patch('fantasy_sim.simulation.save_chart'), patch('json.dump') as mock_dump:
                 sim.run_simulation()
 
             insights = None
@@ -1034,7 +1034,7 @@ class TestFantasySimulation(unittest.TestCase):
                 
                 SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
 
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.simulation.save_chart')
     @patch('json.dump')
     def test_e2e_smoke_and_invariants(self, mock_json_dump, mock_savefig):
         """End-to-end simulation test verifying no crashes and basic sum invariants."""

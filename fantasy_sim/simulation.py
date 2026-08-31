@@ -31,7 +31,7 @@ from fantasy_sim.config import (
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
 )
 from fantasy_sim.storage import (
-    load_json, save_json, ensure_dir_for, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
+    load_json, save_json, save_chart, ensure_dir_for, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
@@ -1409,7 +1409,8 @@ class FantasySimulationEngine:
 
         sns.despine(top=True, right=True)
         plt.tight_layout()
-        plt.savefig(power_rankings_chart_path(self.current_week), dpi=300)
+        out_path = power_rankings_chart_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         fig, axes = plt.subplots(1, 3, figsize=(18, 6), sharey=True)
@@ -1434,7 +1435,8 @@ class FantasySimulationEngine:
 
         plt.suptitle(f"Week {self.current_week} Syndicate Forecast: Season Likelihoods ({total_sims:,} Simulations)", fontsize=14, fontweight='bold', y=1.02)
         plt.tight_layout()
-        plt.savefig(season_outcomes_chart_path(self.current_week), dpi=300, bbox_inches='tight')
+        out_path = season_outcomes_chart_path(self.current_week)
+        save_chart(out_path, dpi=300, bbox_inches='tight')
         plt.close()
 
         fig, axes = plt.subplots(2, 4, figsize=(20, 10), sharex=True, sharey=True)
@@ -1482,7 +1484,8 @@ class FantasySimulationEngine:
         fig.suptitle(f'Week {self.current_week} Syndicate Forecast: Season Trajectory (14-Week Regular Season)', fontsize=15, fontweight='bold', y=1.02)
         plt.tight_layout()
         plt.subplots_adjust(top=0.88, bottom=0.08, left=0.05, right=0.98)
-        plt.savefig(all_teams_trajectories_chart_path(self.current_week), dpi=300)
+        out_path = all_teams_trajectories_chart_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         violin_rows = []
@@ -1510,7 +1513,8 @@ class FantasySimulationEngine:
         ax.legend(loc='upper right', frameon=True, facecolor='white')
         sns.despine(top=True, right=True)
         plt.tight_layout()
-        plt.savefig(expected_wins_chart_path(self.current_week), dpi=300)
+        out_path = expected_wins_chart_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         win_pct_matrix = pd.DataFrame.from_dict(h2h, orient='index') / (total_sims * weeks_divisor) * 100
@@ -1525,7 +1529,8 @@ class FantasySimulationEngine:
         sns.heatmap(win_pct_matrix, annot=True, fmt=".1f", cmap="RdYlGn", cbar_kws={'label': 'Win Probability (%)'}, linewidths=.5)
         plt.title(f"Week {self.current_week} 'Any Given Sunday' H2H Win Probability Matrix", fontsize=13, fontweight='bold', pad=15)
         plt.tight_layout()
-        plt.savefig(h2h_heatmap_chart_path(self.current_week), dpi=300)
+        out_path = h2h_heatmap_chart_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         # NOTE: this is deliberately NOT ranked by raw appearance-in-championship-lineup count.
@@ -1660,7 +1665,8 @@ class FantasySimulationEngine:
         sns.heatmap(seed_df, annot=True, fmt=".1f", cmap="Purples", cbar_kws={'label': 'Probability (%)'}, linewidths=.5)
         plt.title(f"Week {self.current_week} Regular Season Finishing Seed Probabilities", fontsize=13, fontweight='bold', pad=15)
         plt.tight_layout()
-        plt.savefig(seeding_distribution_path(self.current_week), dpi=300)
+        out_path = seeding_distribution_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         # -------------------------------------------------------------
@@ -1702,7 +1708,8 @@ class FantasySimulationEngine:
         plt.legend(loc='upper right', frameon=True, facecolor='white', fontsize=9)
         sns.despine()
         plt.tight_layout()
-        plt.savefig(weekly_scoring_density_path(self.current_week), dpi=300)
+        out_path = weekly_scoring_density_path(self.current_week)
+        save_chart(out_path, dpi=300)
         plt.close()
 
         # -------------------------------------------------------------

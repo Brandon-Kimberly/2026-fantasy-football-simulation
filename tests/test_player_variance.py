@@ -2,7 +2,9 @@
 Characterisation tests for fantasy_sim.player_variance, written before the module exists
 (CLAUDE.md rule 1). _player_summary is a pure function over a synthetic (sims, weeks) array
 with NaN for structural absences (bye/injury-clocked weeks), so it's tested directly -- no real
-engine or data/ files needed. Render functions are tested with matplotlib.pyplot.savefig/close
+engine or data/ files needed. Render functions are tested with the save_chart wrapper (not
+matplotlib.pyplot.savefig directly -- save_chart bundles directory creation with the render, so
+mocking it skips both instead of leaving an empty directory behind) and matplotlib.pyplot.close
 mocked (this codebase's established convention), but return their Figure so the low-n
 hatching/annotation can be asserted directly on the created Axes rather than by inspecting a
 saved PNG's pixels.
@@ -85,7 +87,7 @@ class FakeEngine:
 
 class TestBuildPlayerVarianceReport(unittest.TestCase):
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     @patch('fantasy_sim.player_variance.save_json')
     def test_builds_one_report_entry_per_rostered_player_with_correct_flags(
         self, mock_save_json, mock_savefig, mock_close
@@ -99,11 +101,11 @@ class TestBuildPlayerVarianceReport(unittest.TestCase):
 
 
 class TestRenderSmoke(unittest.TestCase):
-    """See module docstring: matplotlib.pyplot.savefig/close are mocked, but the render
+    """See module docstring: save_chart/matplotlib.pyplot.close are mocked, but the render
     functions return their Figure so hatching/annotations can be asserted on the real Axes."""
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     def test_floor_ceiling_hatches_low_n_bars(self, mock_savefig, mock_close):
         entries = [
             {'name': 'Healthy', 'pos': 'WR', 'p10': 8.0, 'p50': 11.0, 'p90': 14.0,
@@ -122,7 +124,7 @@ class TestRenderSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     def test_floor_ceiling_excludes_zero_observation_players_without_crashing(self, mock_savefig, mock_close):
         entries = [
             {'name': 'Healthy', 'pos': 'WR', 'p10': 8.0, 'p50': 11.0, 'p90': 14.0,
@@ -135,7 +137,7 @@ class TestRenderSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     def test_boom_bust_caps_yaxis_near_pooled_99th_percentile_not_the_rare_max(
         self, mock_savefig, mock_close
     ):
@@ -157,7 +159,7 @@ class TestRenderSmoke(unittest.TestCase):
         self.assertLess(ax.get_ylim()[1], 50.0)
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     def test_boom_bust_annotates_low_n_players_with_week_count(self, mock_savefig, mock_close):
         entries = [
             {'name': 'Healthy', 'pos': 'WR', 'p50': 11.0, 'low_n': False, 'avg_weeks_observed': 13.0},
@@ -175,7 +177,7 @@ class TestRenderSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.player_variance.save_chart')
     def test_boom_bust_excludes_players_with_no_observations(self, mock_savefig, mock_close):
         entries = [
             {'name': 'Healthy', 'pos': 'WR', 'p50': 11.0, 'low_n': False, 'avg_weeks_observed': 13.0},

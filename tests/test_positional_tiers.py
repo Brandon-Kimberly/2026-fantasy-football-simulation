@@ -195,21 +195,25 @@ class TestTriggerAndCaption(unittest.TestCase):
 
 
 class TestSummaryChartAndTableSmoke(unittest.TestCase):
-    """Matches this codebase's existing convention (see test_simulation.py) of patching
-    matplotlib.pyplot.savefig rather than inspecting rendered PNG output -- the golden master
-    deliberately does not hash charts either. These just confirm the render functions don't
-    raise across the shapes that matter: one dominant tier, several tiers, and a group large
-    enough to force the ranked table into multiple columns."""
+    """Matches this codebase's existing convention (see test_simulation.py) of patching the
+    save_chart wrapper (fantasy_sim.storage.save_chart, imported into this module) rather than
+    inspecting rendered PNG output -- the golden master deliberately does not hash charts
+    either. Patching save_chart specifically, not matplotlib.pyplot.savefig, matters here: it
+    bundles ensure_dir_for with the real render (see save_chart's own docstring), so mocking it
+    skips BOTH -- patching the raw matplotlib function would still create the directory for
+    real even though the render itself is mocked. These tests just confirm the render functions
+    don't raise across the shapes that matter: one dominant tier, several tiers, and a group
+    large enough to force the ranked table into multiple columns."""
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.positional_tiers.save_chart')
     def test_summary_chart_single_tier(self, mock_savefig, mock_close):
         players = _tiered_players(*[(f"P{i}", 20.0 - i, 1) for i in range(32)])
         render_tier_summary_chart('QB', players, _dominance_caption(players), 1)
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.positional_tiers.save_chart')
     def test_summary_chart_multiple_tiers(self, mock_savefig, mock_close):
         players = _tiered_players(
             *[(f"A{i}", 20.0 - i, 1) for i in range(6)],
@@ -219,7 +223,7 @@ class TestSummaryChartAndTableSmoke(unittest.TestCase):
         mock_savefig.assert_called_once()
 
     @patch('matplotlib.pyplot.close')
-    @patch('matplotlib.pyplot.savefig')
+    @patch('fantasy_sim.positional_tiers.save_chart')
     def test_player_bar_chart_smoke(self, mock_savefig, mock_close):
         players = _tiered_players(
             *[(f"A{i}", 20.0 - i, 1) for i in range(3)],
