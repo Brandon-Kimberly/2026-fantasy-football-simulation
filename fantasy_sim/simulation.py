@@ -772,6 +772,17 @@ class FantasySimulationEngine:
         global_season_points = {t: np.zeros(total_sims) for t in self.team_names}
         global_trajectories = {t: np.zeros((total_sims, 14)) for t in self.team_names}
         global_weekly_scores = {t: np.zeros((total_sims, 14)) for t in self.team_names}
+        # Per-player weekly-score accumulator for fantasy_sim.player_variance (boom/bust,
+        # floor/ceiling). NaN-filled, not zero-filled: a bye week, an injury-clocked week, or
+        # (for a mid-season run) any week before current_week is a structural absence, not an
+        # observed zero -- the exact bug class AUDIT_PHASE_1_FINDINGS.md finding 4 already
+        # caught for global_weekly_scores above. Retained on self (not just a local var, unlike
+        # every other accumulator here) so a caller can read it after run_simulation() returns
+        # without needing a new export_and_visualize argument -- see F11/player_variance.py.
+        all_rostered_players = sorted({p for roster in self.rosters.values() for p in roster})
+        self.player_weekly_scores = {
+            p: np.full((total_sims, REGULAR_SEASON_WEEKS), np.nan) for p in all_rostered_players
+        }
         seed_matrix = {t: np.zeros(len(self.team_names)) for t in self.team_names}
         h2h_matrix = {t: {opp: 0 for opp in self.team_names} for t in self.team_names}
         points_against = {t: 0.0 for t in self.team_names}
@@ -1136,6 +1147,8 @@ class FantasySimulationEngine:
                             pos_opts = DUAL_ELIGIBILITY.get(p_name, [p_pos])
                             candidates.append((p_name, pos_opts, expected_pre))
                             final_score_by_name[p_name] = final_score
+                            if week_idx < 14:
+                                self.player_weekly_scores[p_name][sim_counter, week_idx] = final_score
 
                         # True optimal bipartite assignment (Hungarian algorithm) between
                         # eligible players and this week's 13 starting slots, based on
