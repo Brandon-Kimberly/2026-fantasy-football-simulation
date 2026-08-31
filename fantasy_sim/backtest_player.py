@@ -31,9 +31,6 @@ used in backtest_harness.py) -- not every NFL player, but a real, substantial sa
 positions that actually matter for a fantasy roster.
 """
 import math
-import sys
-import unittest
-from unittest.mock import patch, mock_open, MagicMock
 
 import numpy as np
 

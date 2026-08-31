@@ -65,9 +65,7 @@ import json
 import math
 import os
 import shutil
-import sys
-import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 import requests
