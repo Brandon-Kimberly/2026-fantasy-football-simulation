@@ -207,6 +207,28 @@ def positional_tiers_table_path(position, week):
 
 
 # ==============================================================================
+# Player-variance report (fantasy_sim.player_variance -- boom/bust, floor/ceiling). Reads
+# FantasySimulationEngine.player_weekly_scores, populated only during a real run_simulation()
+# call, so this is generated alongside the engine's own weekly exports, not standalone like
+# positional_tiers/strength_of_schedule (see that module's docstring).
+# ==============================================================================
+def player_variance_report_path(week):
+    return _week(week, "player_variance.json")
+
+
+def _safe_team_filename(fantasy_team):
+    return fantasy_team.replace(' ', '_')
+
+
+def boom_bust_chart_path(fantasy_team, week):
+    return _week(week, "boom_bust", f"{_safe_team_filename(fantasy_team)}.png")
+
+
+def floor_ceiling_chart_path(fantasy_team, week):
+    return _week(week, "floor_ceiling", f"{_safe_team_filename(fantasy_team)}.png")
+
+
+# ==============================================================================
 # JSON I/O helpers
 # ==============================================================================
 def load_json(path):
