@@ -217,6 +217,12 @@ epistemic drawn once per season and held (within-season week correlation 0.247 v
 predicted; 0 with epistemic off), covariance PSD over 3000 fuzzed rosters, and the cap's tail
 behaviour (max exceedance 4.3e-3, mean loss ≤ 0.06 pts/week — no change needed).
 
+**Revisited 2026-08-31**, after an external audit (Gemini) called `MAX_REALISTIC_WEEKLY_SCORE =
+80` "arbitrary": it is grounded in real NFL single-game scoring records, and the measurement two
+lines up is exactly the cost of that cap on this engine's own output, not a guess. Conclusion
+unchanged, no action taken — see F13 below for the full record of this audit's findings so this
+does not get re-litigated blind next time.
+
 Variance budget: `env_var` is **not** a material double-count (~1%). The realised per-player
 weekly variance is +17% over `std_aleatoric²` (sd +8.3%, mean +2.8%), and the dominant cause is
 the hardcoded `v_tot / 22.0` normaliser against a schedule mean of 22.6 (finding 1).
@@ -860,6 +866,16 @@ Roughly one file, ~40–60 lines, plus a golden regeneration in any scenario whe
 completes (both, once it works). The design question that is *not* engineering — what offers
 real managers make — is Phase 7-adjacent; the sizing above assumes the simplest symmetric
 lineup-improving search, not a calibrated behavioural model.
+
+**Refinement noted 2026-08-31 (external audit, Gemini):** the audit's "Marginal Championship
+Equity" framing — evaluate an offer by each side's change in overall championship odds, not (or
+not only) by each side's optimal lineup score — is a more fleshed-out version of what this
+entry's acceptance criterion already gestures at with the "both optimal scores improve" proxy.
+Not a new item; a candidate refinement to the acceptance metric above, to weigh against
+`get_optimal_score` when this is actually implemented (`Champ_Pct` is already computed elsewhere
+in `run_simulation`, so the data to do this exists — the open question is whether re-running
+enough of the season simulation per candidate offer to get a stable `Champ_Pct` delta is cheap
+enough to do per evaluation, which `get_optimal_score` trivially is and a re-simulation is not).
 
 **When:** any time after Phase 4 closes; independent of F1.
 
@@ -1599,3 +1615,79 @@ BIOS, and microcode queued, not yet confirmed to have resolved R1 itself), F12 i
 unclosed rather than downgraded, but does not currently meet the bar the user set in advance
 ("recurs even once more under single-process conditions") for treating it as the project's top
 priority.
+
+### F13 — Investigate game-script-dependent and tail-asymmetric player correlation before considering a copula upgrade
+
+**Origin:** An external audit (Gemini, 2026-08-31) reviewed this project's correlation model and
+flagged that the Gaussian copula enforces zero tail dependence (an extreme outcome for one player
+does not make an extreme, same-direction outcome for a correlated player any more likely than the
+bulk of the distribution implies) and that per-pair correlations are static regardless of game
+script, when real football correlation is plausibly asymmetric (a QB's boom weeks may correlate
+with his WR1's boom weeks more strongly than their bust weeks correlate with each other) and
+game-script-dependent (a trailing team passes more, which should raise its pass-catchers' shared
+upside with the QB specifically in games the team is behind in).
+
+**Correction to the record.** The audit did not know, and could not be expected to know, that
+this project already had a game-script-dependent correlation mechanism once: the `shared_z` gate,
+added early and removed in Phase 2 (`AUDIT_PHASE_2_FINDINGS.md` finding 2; recapped above in this
+document's Phase 2 status write-up, finding 2). It fired whenever `(opponent implied total +
+spread) > 23` -- open in 44% of team-weeks -- and on every fire it blended 0.6 of one shared
+per-game z-score into every same-team QB/WR/TE draw, which silently overrode every calibrated
+pairwise correlation for the pairs it touched, most damagingly forcing WR-WR correlation from a
+calibrated -0.004 to +0.32. It was not removed because game-script-dependent correlation is
+inherently a bad idea; it was removed because *this implementation* of it clobbered calibration
+instead of composing with it. That is the specific failure mode any future mechanism in this
+space must be designed around, not a generic "be careful" caveat: **a game-script-dependent or
+tail-asymmetric adjustment must compose with the existing calibrated per-pair correlation (e.g.
+apply multiplicatively, as a conditional adjustment on top of the calibrated value), never
+silently replace or override it.**
+
+**Scope:** measure first, build only if warranted. Pull real 2025 play-by-play or box-score data
+and directly test, before scoping any mechanism:
+
+1. Is QB-WR correlation actually asymmetric between boom weeks and bust weeks (e.g. split weeks
+   by whether the QB's realised score was above or below his own median, and compare the WR's
+   realised correlation with the QB conditional on each half)? By how much, and is it real at the
+   sample size real 2025 data actually gives -- not just a directionally-plausible story?
+2. Does game script (Vegas spread magnitude, or realised score differential) measurably shift
+   pairwise correlations in a way current calibration misses -- e.g. does QB/WR1 correlation
+   measurably rise in games the team trailed in, versus games it led or played close?
+
+Only if both effects are real (not noise at the available sample size) and non-trivial in size
+does this become an implementation item. If it does, scope a specific mechanism at that point --
+e.g. a game-script-conditional multiplicative adjustment layered on the existing calibrated
+correlation, not a replacement of it -- sized the way every other item in this document is sized:
+measured effect first, specific lines and tests second.
+
+**Acceptance criterion:** cannot be set yet -- there is no measurement to hold it to. To be set
+once the measurement above exists, under this project's standing rule for every constant and
+every model-complexity decision: no adoption of a more complex correlation model (a t-copula for
+tail dependence, an Archimedean copula for asymmetric dependence, or anything else) without a
+measured effect size that justifies the added complexity over the current Gaussian copula.
+Because this touches correlation structure directly, the real-data backtest gate applies to any
+implementation that follows the measurement, exactly as it did for F2, F4, and every other
+correlation- or scoring-adjacent change in this document.
+
+**Also from this audit, already tracked -- not new items.**
+
+- Handcuff / vacated-volume mean-weighting being backwards in the true-backup case (a real backup
+  carries a low projection precisely because he sits behind the starter) is the same limitation
+  this project has documented since before Phase 0 (`CLAUDE.md`'s "Deliberate decisions"
+  section). The fix is ingesting Sleeper's `depth_chart_order`, not adjusting the weights by
+  feel. Nothing filed here.
+- Trade/waiver economics is F2, already scoped above. The audit's "Marginal Championship Equity"
+  framing has been folded into F2 as a candidate refinement to its acceptance metric, not filed
+  as a separate item -- see F2's "Refinement noted 2026-08-31" paragraph.
+
+**Reconsidered and declined: the 80-point score cap.** The audit called
+`MAX_REALISTIC_WEEKLY_SCORE = 80` "arbitrary." It is not: it is grounded in real NFL single-game
+scoring records, and Phase 2 already measured its actual cost directly on this engine's own
+output -- max exceedance 4.3e-3, mean loss <= 0.06 pts/week (Phase 2 status write-up above;
+`AUDIT_PHASE_2_FINDINGS.md`). Revisited specifically because of this external critique, against
+that existing measurement: the conclusion is unchanged, and no action was taken. Recorded here,
+and cross-referenced from the Phase 2 write-up itself, so this does not get re-litigated blind
+the next time an external critique raises it without engaging with the number already measured.
+
+**When:** unscheduled. Pure investigation with no dependency on any other open item (F1-F12) or
+on Phase 8 -- can start whenever real 2025 play-by-play or box-score data is pulled for the
+measurement.
