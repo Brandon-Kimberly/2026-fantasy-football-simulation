@@ -23,6 +23,7 @@ from fantasy_sim.storage import (
 )
 from fantasy_sim.decisions import (
     prob_a_beats_b, sample_week_scores, summarise_scores, compare_players, run_reduced_simulation,
+    roster_gaps, free_agents, rank_waiver_targets, suggest_bid, INDEPENDENCE_CAVEAT,
 )
 
 
@@ -51,6 +52,8 @@ def _fixture_engine():
             "FA_WR_bye": {"mean": 12.0, "std_aleatoric": 4.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 1},
             "FA_RB_ir": {"mean": 10.0, "std_aleatoric": 4.0, "std_epistemic": 0.0, "pos": "RB", "team": "DET", "bye": 9,
                          "injury_status": "IR", "on_ir": True},
+            "FA_WR_weak": {"mean": 5.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9},
+            "FA_DEF_unit": {"mean": 8.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "DEF", "team": "DET", "bye": 9},
         },
         TEAM_RATINGS_FILE: {"DET": {"off_rating": 25}, "CHI": {"off_rating": 20}},
         DEFENSIVE_RATINGS_FILE: {"DET": {"points_allowed_estimate": 21.5, "games_sampled": 0},
@@ -176,6 +179,85 @@ class TestComparePlayers(_EngineCase):
         col = scores["QB_1"][:, 0]
         self.assertEqual(col.shape, (10,))
         self.assertTrue(np.all(np.isfinite(col)), "week-1 column is populated for a healthy starter")
+
+
+class TestWaiverTargets(_EngineCase):
+    """Tool 3. The fixture's Legion of Coom rosters one QB, so every other starting slot is a
+    hard hole; the free-agent pool holds a healthy WR (12), a WR on bye in week 1 (12), a weak
+    WR (5, which sets the WR replacement level in this tiny pool), an IR'd RB and a team-DEF
+    unit this league has no slot for."""
+
+    def test_roster_gaps_lists_unfilled_slots_and_respects_bye_and_absence(self):
+        gaps = roster_gaps(self.engine, "Legion of Coom", weeks=(1, 2))
+        self.assertEqual(set(gaps), {1, 2})
+        self.assertNotIn("QB", gaps[1]["unfilled"])
+        for slot in ("K", "DB", "DL", "LB", "RB", "WR", "TE", "FLEX"):
+            self.assertIn(slot, gaps[1]["unfilled"])
+        self.assertEqual(gaps[1]["unfilled"].count("RB"), 2)
+        self.assertEqual(gaps[1]["unfilled"].count("FLEX"), 3)
+        # starters carry their expected value so an upgrade threshold exists per slot
+        self.assertAlmostEqual(gaps[1]["starters"]["QB"][0][1], 20.0)
+        # a QB on bye in week 2 is a week-2 hole only
+        self.engine.baselines["QB_1"]["bye"] = 2
+        gaps = roster_gaps(self.engine, "Legion of Coom", weeks=(1, 2))
+        self.assertNotIn("QB", gaps[1]["unfilled"]); self.assertIn("QB", gaps[2]["unfilled"])
+        # an IR'd player is unavailable this week
+        self.engine.baselines["QB_1"].update({"bye": 0, "injury_status": "IR", "on_ir": True})
+        self.assertIn("QB", roster_gaps(self.engine, "Legion of Coom", weeks=(1,))[1]["unfilled"])
+
+    def test_free_agents_excludes_rostered_players_and_positions_without_a_slot(self):
+        fa = free_agents(self.engine)
+        self.assertNotIn("QB_1", fa); self.assertNotIn("QB_4", fa)
+        self.assertIn("FA_WR_healthy", fa); self.assertIn("FA_RB_ir", fa)
+        self.assertNotIn("FA_DEF_unit", fa, "team defense has no slot in this league")
+
+    def test_ranking_is_by_vorp_at_needed_positions_and_skips_players_unavailable_that_week(self):
+        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=200, seed=1)
+        names = [x["name"] for x in r["targets"]]
+        self.assertEqual(names[0], "FA_WR_healthy")
+        self.assertNotIn("FA_WR_bye", names, "on bye in the target week: cannot fill a week-1 hole")
+        self.assertNotIn("FA_RB_ir", names, "absent with certainty in the first week (F4)")
+        top = r["targets"][0]
+        self.assertAlmostEqual(top["vorp"], 12.0 - self.engine.replacement_levels["WR"])
+        self.assertEqual(top["fills"], "hole")
+        self.assertIn("p50", top["week"]); self.assertIn("bid", top)
+        self.assertGreaterEqual(top["bid"]["suggested"], 1)
+        self.assertEqual(r["caveat"], INDEPENDENCE_CAVEAT)
+        # secondary joint-style display is present only when there is an incumbent to beat
+        self.assertIsNone(top.get("p_beats_incumbent"))
+
+    def test_upgrade_targets_compare_against_the_incumbent_with_the_caveat(self):
+        # give the team a weak WR starter so the healthy FA is an upgrade, not a hole-filler
+        self.engine.rosters["Legion of Coom"].append("WR_weak_starter")
+        self.engine.meta["Legion of Coom"]["WR_weak_starter"] = {"pos": "WR", "team": "CHI"}
+        self.engine.baselines["WR_weak_starter"] = {"mean": 6.0, "std_aleatoric": 3.0, "std_epistemic": 0.0,
+                                                    "pos": "WR", "team": "CHI", "bye": 9}
+        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
+        top = next(x for x in r["targets"] if x["name"] == "FA_WR_healthy")
+        self.assertIn(top["fills"], ("hole", "upgrade"))
+        # there are still open WR/FLEX holes, so the FA fills a hole; force the upgrade path by
+        # filling every WR/FLEX-eligible slot with weak starters
+        for i in range(5):
+            n = f"weak_{i}"
+            self.engine.rosters["Legion of Coom"].append(n)
+            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.baselines[n] = {"mean": 6.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
+        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
+        top = next(x for x in r["targets"] if x["name"] == "FA_WR_healthy")
+        self.assertEqual(top["fills"], "upgrade")
+        self.assertIsNotNone(top["p_beats_incumbent"])
+        self.assertGreater(top["p_beats_incumbent"]["p"], 0.5)
+        self.assertEqual(top["p_beats_incumbent"]["caveat"], INDEPENDENCE_CAVEAT)
+
+    def test_suggest_bid_is_bounded_and_monotone_in_value(self):
+        lo = suggest_bid(vorp=1.0, fills="upgrade", remaining_faab=100.0, league_avg_faab=100.0)
+        hi = suggest_bid(vorp=8.0, fills="hole", remaining_faab=100.0, league_avg_faab=100.0)
+        self.assertGreaterEqual(lo, 1); self.assertGreater(hi, lo); self.assertLessEqual(hi, 100)
+        # share is capped at 40% for a hole, so 7 remaining -> round(7 * 0.4) = 3, never above 7
+        tight = suggest_bid(vorp=50.0, fills="hole", remaining_faab=7.0, league_avg_faab=100.0)
+        self.assertEqual(tight, 3); self.assertLessEqual(tight, 7)
+        self.assertEqual(suggest_bid(vorp=50.0, fills="hole", remaining_faab=2.0, league_avg_faab=100.0), 1)
+        self.assertEqual(suggest_bid(vorp=-3.0, fills="upgrade", remaining_faab=100.0, league_avg_faab=100.0), 1)
 
 
 if __name__ == "__main__":

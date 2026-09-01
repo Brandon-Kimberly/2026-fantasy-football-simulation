@@ -162,3 +162,168 @@ def compare_players(engine, a, b, week, sims=2000, seed=None, light=False):
               "mean_diff": float(np.nan_to_num(sa, nan=0.0).mean() - np.nan_to_num(sb, nan=0.0).mean()),
               "se_p": float(np.sqrt(max(r["p_a"] * (1 - r["p_a"]), 1e-12) / r["n"]))})
     return r
+
+
+# ==================================================================== TOOL 3: waiver targets
+#
+# Roster gaps are found the way the engine's own streamer-needs scan finds them (a starting
+# slot no healthy, non-bye rostered player can fill), solved with the engine's optimal
+# assignment on the REAL roster and baselines. Free agents are every baseline-pool player on
+# no roster at a position this league starts. Ranking is by VORP = mean - replacement level at
+# the player's position (engine.replacement_levels: depth-based, FLEX = min(RB, WR)) -- a
+# MARGINAL quantity, the expectation of one player's own distribution, so the light sampler's
+# independence (no copula) cannot affect it; the copula shapes only the joint law of two
+# players' draws and leaves every marginal unchanged. The one place independence matters is
+# the secondary "P(this player outscores the incumbent starter)" display, which is joint and
+# carries INDEPENDENCE_CAVEAT exactly as tool 1's light path does.
+#
+# The suggested bid is a transparent VALUE-based heuristic (suggest_bid) and is UNVERIFIED:
+# there are no real waiver outcomes to calibrate against until the season produces them. The
+# engine's _compute_faab_bid is shown alongside as what the MODEL expects a typical manager to
+# pay -- it is a behavioural model of other managers, not an optimiser, and is not the advice.
+INDEPENDENCE_CAVEAT = ("sampled independently from baseline parameters: no copula (same-NFL-team "
+                       "correlation with the incumbent is lost), no contingency points.")
+_SLOT_POSITIONS = {"FLEX": ("RB", "WR", "TE")}
+_STARTABLE = {"QB", "RB", "WR", "TE", "K", "DL", "LB", "DB"}
+
+
+def _entry(engine, name):
+    d = engine.baselines.get(name, {})
+    return d if isinstance(d, dict) else {}
+
+
+def _opts(engine, name):
+    from fantasy_sim.config import DUAL_ELIGIBILITY
+    return DUAL_ELIGIBILITY.get(name, [normalize_position(_entry(engine, name).get('pos', 'FLEX'))])
+
+
+def _unavailable_now(entry):
+    """Out with certainty this week: F4's initial-absence statuses or the league IR slot (the
+    first week of an initial absence is certain -- see _initial_absence_clock)."""
+    return entry.get('injury_status') in SIM_CONFIG["INITIAL_ABSENCE_STATUSES"] or bool(entry.get('on_ir', False))
+
+
+def roster_gaps(engine, team, weeks):
+    """{week: {'unfilled': [slot, ...], 'starters': {slot: [(name, expected), ...]}}} for the
+    team's REAL roster: the engine's optimal assignment over players who are neither on bye
+    that week nor out now, at their baseline mean."""
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    out = {}
+    for week in weeks:
+        cands = []
+        for name in engine.rosters[team]:
+            e = _entry(engine, name)
+            if e.get('bye') == week or _unavailable_now(e):
+                continue
+            cands.append((name, _opts(engine, name), float(e.get('mean', 4.0))))
+        assigned, unfilled = engine._solve_optimal_assignment(cands)
+        starters = {}
+        for name, value, slot in assigned:
+            starters.setdefault(slot, []).append((name, float(value)))
+        for slot in starters:
+            starters[slot].sort(key=lambda x: x[1])
+        out[week] = {"unfilled": sorted(unfilled), "starters": starters}
+    return out
+
+
+def free_agents(engine):
+    """Baseline-pool players on no roster, at a position this league starts."""
+    rostered = {n for r in engine.rosters.values() for n in r}
+    return sorted(n for n, e in engine.baselines.items()
+                  if isinstance(e, dict) and n not in rostered
+                  and normalize_position(e.get('pos', 'FLEX')) in _STARTABLE)
+
+
+def suggest_bid(vorp, fills, remaining_faab, league_avg_faab, min_bid=1):
+    """UNVERIFIED value heuristic (no real waiver outcomes exist yet to calibrate it): a share
+    of the remaining budget proportional to value over replacement -- 4% of budget per point
+    of VORP, capped at 40% for a hole and 25% for an upgrade -- scaled by league-wide budget
+    deflation (remaining league average / 100) so bids fall as budgets do, floored at the
+    league minimum and capped at what the team has. Deliberately simple and stated in full so
+    it can be replaced by a measured rule once the season yields data."""
+    share = max(0.0, 0.04 * vorp)
+    share = min(share, 0.40 if fills == "hole" else 0.25)
+    deflation = max(0.2, min(1.0, league_avg_faab / 100.0))
+    bid = int(round(remaining_faab * share * deflation))
+    return int(max(min_bid, min(bid, int(remaining_faab))))
+
+
+def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, positions=None):
+    """Rank free agents for `team` in `week`: hole-fillers first (a slot no rostered player can
+    fill), then upgrades over the weakest incumbent at a slot; within each, by VORP. Each
+    target carries tier (positional_tiers), a light-sampled week distribution, the suggested
+    bid (unverified heuristic) and the engine's behavioural bid, and -- for upgrades -- the
+    secondary P(beats incumbent) with INDEPENDENCE_CAVEAT."""
+    from fantasy_sim.positional_tiers import compute_tiers
+    from fantasy_sim.config import MANAGER_PROFILES
+    gaps = roster_gaps(engine, team, weeks=(week, week + 1) if week < 14 else (week,))
+    holes = gaps[week]["unfilled"]
+    next_holes = gaps.get(week + 1, {}).get("unfilled", [])
+    starters = gaps[week]["starters"]
+    tier_of = {p['name']: p['tier'] for plist in compute_tiers(engine.baselines).values() for p in plist}
+    remaining = float(engine.current_faab.get(team, 100.0))
+    league_avg = float(np.mean(list(engine.current_faab.values()))) if engine.current_faab else 100.0
+    agg = MANAGER_PROFILES.get(team, {}).get('faab_agg', 0.5)
+
+    def slots_for(opts):
+        s = [p for p in opts]
+        if any(p in _SLOT_POSITIONS["FLEX"] for p in opts):
+            s.append("FLEX")
+        return s
+
+    targets = []
+    for name in free_agents(engine):
+        e = _entry(engine, name)
+        pos = normalize_position(e.get('pos', 'FLEX'))
+        if positions and pos not in positions:
+            continue
+        if e.get('bye') == week or _unavailable_now(e):
+            continue
+        mean = float(e.get('mean', 0.0))
+        opts = _opts(engine, name)
+        my_slots = slots_for(opts)
+        fills, incumbent = None, None
+        if any(s in holes for s in my_slots):
+            fills = "hole"
+        else:
+            weakest = [(starters[s][0][1], starters[s][0][0], s) for s in my_slots if s in starters and starters[s]]
+            if weakest:
+                val, inc_name, slot = min(weakest)
+                if mean > val:
+                    fills, incumbent = "upgrade", inc_name
+        if fills is None:
+            continue
+        rep = engine.replacement_levels.get(pos, 4.0)
+        vorp = mean - rep
+        targets.append({"name": name, "pos": pos, "team": e.get('team', 'FA'), "mean": mean,
+                        "replacement_level": float(rep), "vorp": float(vorp), "tier": tier_of.get(name),
+                        "bye": e.get('bye'), "injury_status": e.get('injury_status'),
+                        "fills": fills, "incumbent": incumbent,
+                        "need_next_week": any(s in next_holes for s in my_slots)})
+    targets.sort(key=lambda t: (0 if t["fills"] == "hole" else 1, -t["vorp"]))
+    targets = targets[:top_n]
+
+    for i, t in enumerate(targets):
+        s = sample_week_scores(engine, t["name"], week, sims, seed=None if seed is None else seed + i)
+        t["week"] = summarise_scores(s)
+        weeks_of_need = 1 + (1 if t["need_next_week"] else 0)
+        deflation = league_avg / 100.0 if league_avg > 0 else 0.0
+        t["bid"] = {
+            "suggested": suggest_bid(t["vorp"], t["fills"], remaining, league_avg),
+            "typical_manager_model": round(float(engine._compute_faab_bid(
+                remaining, 14.0, agg, weeks_of_need, deflation, league_avg)), 1),
+            "remaining_faab": remaining,
+            "basis": "UNVERIFIED value heuristic (see suggest_bid); the model bid is what a typical "
+                     "manager is simulated to pay, not advice.",
+        }
+        if t["incumbent"] is not None:
+            inc = sample_week_scores(engine, t["incumbent"], week, sims, seed=None if seed is None else seed + 1000 + i)
+            pr = prob_a_beats_b(s, inc)
+            t["p_beats_incumbent"] = {"p": pr["p_a"], "p_tie": pr["p_tie"], "n": pr["n"],
+                                      "incumbent": t["incumbent"], "caveat": INDEPENDENCE_CAVEAT}
+        else:
+            t["p_beats_incumbent"] = None
+    return {"team": team, "week": week, "holes": holes, "holes_next_week": next_holes,
+            "remaining_faab": remaining, "league_avg_faab": league_avg,
+            "targets": targets, "caveat": INDEPENDENCE_CAVEAT}
