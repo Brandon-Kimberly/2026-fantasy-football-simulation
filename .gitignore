@@ -32,3 +32,7 @@ venv/
 # AUDIT_PLAN.md F7.)
 !data/logs/
 !data/logs/projection_log.jsonl
+# F2 criterion (c): the points-level backtest's append-only result log, one JSON line per run
+# stamped with commit + interpreter (scripts/run_points_backtest.py). Tracked so a
+# before/after comparison is a diff of two committed lines.
+!data/logs/points_backtest.jsonl

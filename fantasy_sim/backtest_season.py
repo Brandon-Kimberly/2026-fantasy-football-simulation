@@ -414,9 +414,17 @@ def build_flat_nfl_environment_files(power_rating_value=21.5, pairings=None, fai
 
 def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LEAGUE_ID,
                              num_batches=1, sims_per_batch=2000, keep_workdir=False,
-                             median_scoring_enabled=False, season_year="2025"):
+                             median_scoring_enabled=False, season_year="2025", return_raw=False):
     """
-    Runs one backtest checkpoint end-to-end:
+    Runs one backtest checkpoint end-to-end. With return_raw=True (F2 commit 2, AUDIT_PLAN.md
+    criterion c) returns (results, raw) where raw carries what the points-level backtest
+    (scripts.run_points_backtest) scores: the engine's simulated weekly team scores
+    (`weekly_scores`, {team: (total_sims, 14) array, columns = regular-season weeks, filled
+    only from the checkpoint on) and the REAL weekly team points for the checkpoint week
+    through week 14 (`real_weekly_points`, {team: {week: points}}). The default return is
+    unchanged.
+
+    Steps:
       1. Fetch real historical data for the season (matchups, rosters, final standings).
       2. Reconstruct "as-of-checkpoint_week" inputs using ONLY data from weeks before it.
       3. Write those inputs to an ISOLATED working directory (never touches real production
@@ -512,6 +520,7 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
                 def capturing_export(*args, **kwargs):
                     captured['wins'] = args[0]
                     captured['b_playoffs'] = args[2]
+                    captured['global_weekly_scores'] = args[15]   # positional order per tests.golden_master.STAGE_A_ARG_NAMES
                     return original_export(*args, **kwargs)
 
                 sim.export_and_visualize = capturing_export
@@ -528,7 +537,21 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
         print("[SKIP] Simulation did not produce output for this checkpoint.")
         return None
 
-    return score_checkpoint_result(captured, final_standings_payload, roster_map, real_playoff_roster_ids)
+    results = score_checkpoint_result(captured, final_standings_payload, roster_map, real_playoff_roster_ids)
+    if not return_raw:
+        return results
+    real_weekly_points = {}
+    for wk in range(checkpoint_week, REGULAR_SEASON_WEEKS + 1):
+        for entry in season_matchups.get(wk, []):
+            t = roster_map.get(entry["roster_id"])
+            if t:
+                real_weekly_points.setdefault(t, {})[wk] = float(entry.get("points", 0.0))
+    raw = {
+        "checkpoint_week": checkpoint_week,
+        "weekly_scores": captured['global_weekly_scores'],
+        "real_weekly_points": real_weekly_points,
+    }
+    return results, raw
 
 
 def score_checkpoint_result(captured, final_standings_payload, roster_map, real_playoff_roster_ids):

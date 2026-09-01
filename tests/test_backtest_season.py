@@ -7,6 +7,8 @@ unittest.TestCase embedded directly in backtest_harness.py.
 import math
 import os
 import unittest
+
+import numpy as np
 from unittest.mock import patch, MagicMock
 
 from fantasy_sim import sync
@@ -169,7 +171,11 @@ class TestBacktestHarness(unittest.TestCase):
              self.assertLogs(level="WARNING") as logs:   # the fake HTTP layer 404s ESPN: byes must degrade loudly
             simmod.SIM_CONFIG['NUM_BATCHES'] = 1
             simmod.SIM_CONFIG['SIMS_PER_BATCH'] = 20
-            result = run_backtest_checkpoint(checkpoint_week=3, num_batches=1, sims_per_batch=20)
+            # F2 commit 2 (criterion c): return_raw=True also hands back the simulated weekly
+            # team scores and the real post-checkpoint weekly points, which the points-level
+            # backtest (scripts.run_points_backtest) scores. The default return is unchanged.
+            result, raw = run_backtest_checkpoint(checkpoint_week=3, num_batches=1, sims_per_batch=20,
+                                                  return_raw=True)
 
         self.assertIsNotNone(result, "run_backtest_checkpoint returned None -- check wiring.")
         self.assertEqual(len(result), 4)
@@ -179,6 +185,51 @@ class TestBacktestHarness(unittest.TestCase):
             self.assertGreaterEqual(r["crps"], 0.0)
         # Confirm the workdir was actually cleaned up (default keep_workdir=False).
         self.assertFalse(os.path.exists(BACKTEST_WORKDIR))
+
+        self.assertEqual(raw["checkpoint_week"], 3)
+        self.assertEqual(set(raw["weekly_scores"]), set(result))
+        for team, arr in raw["weekly_scores"].items():
+            self.assertEqual(arr.shape, (20, 14), "one row per simulated season, one column per regular-season week")
+        # Real points exist for every week from the checkpoint through week 14 (the fake API
+        # serves weeks 1-14), and only those -- weeks before the checkpoint are inputs, not targets.
+        for team, by_week in raw["real_weekly_points"].items():
+            self.assertEqual(sorted(by_week), list(range(3, 15)))
+            self.assertTrue(all(v > 0 for v in by_week.values()))
+
+
+class TestPointsBacktestScoring(unittest.TestCase):
+    """scripts.run_points_backtest's scoring is pure; pinned against hand-computed values.
+    Written alongside the script, not before it -- a specification of the definition in
+    AUDIT_PLAN.md (bias = sim mean - real; z = (real - sim mean)/sim sd; cover80 = share of
+    real inside the simulated 10-90% band), not a failing-first regression test."""
+
+    def test_bias_z_and_coverage_match_hand_computation(self):
+        from scripts.run_points_backtest import score_checkpoint, summarise
+        sims = np.zeros((5, 14))
+        sims[:, 2] = [100.0, 110.0, 120.0, 130.0, 140.0]     # week 3: mean 120, sd 15.811
+        sims[:, 3] = [200.0, 200.0, 200.0, 200.0, 200.0]     # week 4: degenerate, sd 0
+        raw = {"checkpoint_week": 3,
+               "weekly_scores": {"A": sims},
+               "real_weekly_points": {"A": {3: 105.0, 4: 200.0}}}
+        rows = score_checkpoint(raw)
+        self.assertEqual([(r["week"], r["real"]) for r in rows], [(3, 105.0), (4, 200.0)])
+        wk3 = rows[0]
+        self.assertAlmostEqual(wk3["bias"], 15.0)
+        self.assertAlmostEqual(wk3["z"], (105.0 - 120.0) / np.std(sims[:, 2], ddof=1), places=9)
+        self.assertTrue(wk3["in80"])       # 10th pct = 104, 90th = 136
+        self.assertFalse(wk3["in50"])      # 25th = 110, 75th = 130
+        self.assertTrue(np.isnan(rows[1]["z"]), "sd 0 must give nan z, not a division error")
+        s = summarise(rows)
+        self.assertEqual(s["n"], 2)
+        self.assertAlmostEqual(s["bias"], 7.5)
+        self.assertAlmostEqual(s["cover80"], 1.0)
+        self.assertAlmostEqual(s["cover50"], 0.5)
+
+    def test_weeks_before_the_checkpoint_are_never_scored(self):
+        from scripts.run_points_backtest import score_checkpoint
+        raw = {"checkpoint_week": 6, "weekly_scores": {"A": np.ones((3, 14))},
+               "real_weekly_points": {"A": {6: 1.0, 7: 1.0}}}
+        self.assertEqual(sorted(r["week"] for r in score_checkpoint(raw)), [6, 7])
 
 
 class _FakeResp:
