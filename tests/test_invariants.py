@@ -430,6 +430,28 @@ class TestProbabilityNormalisation(ScenarioTestCase):
                     msg="%s: %s summed to %.9f, expected %.1f"
                         % (scenario, key, total, expected))
 
+    def test_playoff_se_is_the_closed_form_binomial_standard_error(self):
+        """Phase 0 (AUDIT_PHASE_0_FINDINGS.md section 2, proposal 1; AUDIT_SUMMARY.md "reported,
+        unimplemented"): each simulated season is an i.i.d. Bernoulli draw for "made the
+        playoffs", so the Monte Carlo standard error of Playoff_Pct has the exact closed form
+        sqrt(p(1-p)/N) with N = total simulated seasons. The engine instead estimated it from the
+        standard deviation of the per-batch rates (batch-means, 9 df in production), an
+        estimator built for correlated MCMC paths -- on i.i.d. draws it adds +-45% (95%) of pure
+        estimator noise to every reported SE for nothing. Asserts the exported SE equals the
+        closed form to float tolerance, with p taken from the exported Playoff_Pct itself."""
+        for scenario, run in self.each_scenario():
+            outcomes = run.payload("comprehensive_matrix")["season_outcomes"]
+            self.assertEqual(len(outcomes), len(run.teams))
+            for row in outcomes:
+                p = row["Playoff_Pct"] / 100.0
+                closed_form = np.sqrt(p * (1.0 - p) / run.total_sims) * 100.0
+                self.assertAlmostEqual(
+                    row["Playoff_SE"], closed_form, places=9,
+                    msg="%s: %s Playoff_SE %.6f != closed-form sqrt(p(1-p)/N) %.6f "
+                        "(p=%.4f, N=%d) -- batch-means estimator still in use"
+                        % (scenario, row["Team"], row["Playoff_SE"], closed_form, p,
+                           run.total_sims))
+
 
 # --------------------------------------------------------------------------- consistency
 #

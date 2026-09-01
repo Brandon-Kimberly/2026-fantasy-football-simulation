@@ -49,7 +49,8 @@ export files, champion-ranking re-run), proved load-bearing by mutation. A momen
 for reading deltas — with the documented lesson that 30-season summaries detect ulp-vs-real
 changes but do not size effects; effects are sized at ≥400 seasons or on the backtest.
 **Left open (deliberately).** The closed-form `Playoff_SE` — reported, not implemented, per the
-report-before-fixing rule; still open. 72 → 84 tests.
+report-before-fixing rule. **Implemented 2026-08-31** (failing test first, then the one-line swap;
+stage_a byte-identical, stage_b/c moved only in the three SE-carrying payloads). 72 → 84 tests.
 
 ## Phase 1 — Conservation and invariants
 
@@ -213,7 +214,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | F8 | within-season drift of the true mean (random-walk prior) | after F7 has a season; blocks Phase 2 finding 4 |
 | Phase 2 finding 3 | copula targets on z | after finding 2 validated out of sample |
 | Phase 2 finding 4 | conjugate posterior | F7 + F8 |
-| Phase 0 | closed-form `Playoff_SE` | reported, unimplemented |
+| Phase 0 | closed-form `Playoff_SE` | implemented 2026-08-31 |
 | Phase 7 rate/form record | `test_calibration.py`, red by design | resolves with F7/F8 |
 | R1 | **machine-level fault under multi-core load, not software**: concurrent pure-Python (stdlib-only) processes crash or return unsorted `sorted()` output on both Python 3.8 and 3.10; single processes never failed. Migration to Python 3.10 done on its own merits (EOL 3.8 stack; goldens byte-identical) but does not cure it. Rules: run jobs one at a time; a crashed or "impossible-error" run is void. Re-test = `scripts/probes` Arm D 6/6 on both interpreters after the hardware is addressed (memtest / XMP / thermals / AV hook). | re-run, never count as green; compare faulthandler frames |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |

@@ -1369,13 +1369,17 @@ class FantasySimulationEngine:
         rows = []
         for t in self.team_names:
             p_mean = np.mean(b_playoffs[t]) * 100
-            
-            # Handle standard error safely for single-batch smoke tests
-            if SIM_CONFIG["NUM_BATCHES"] > 1:
-                p_se = (np.std(b_playoffs[t], ddof=1) / np.sqrt(SIM_CONFIG["NUM_BATCHES"])) * 100
-            else:
-                p_se = 0.0
-                
+
+            # Phase 0 proposal 1 (AUDIT_PHASE_0_FINDINGS.md section 2), implemented 2026-08-31.
+            # Each simulated season is an i.i.d. Bernoulli draw for "made the playoffs", so the
+            # Monte Carlo SE of the proportion is the exact closed form sqrt(p(1-p)/N). The
+            # previous batch-means estimator (std of the per-batch rates / sqrt(batches), 9 df
+            # in production) is the tool for correlated MCMC paths where no closed form exists;
+            # on i.i.d. draws it carried +-45% (95%) of pure estimator noise for nothing. b_playoffs
+            # holds equal-sized batch rates, so their mean is exactly the pooled p-hat.
+            p_hat = float(np.mean(b_playoffs[t]))
+            p_se = float(np.sqrt(p_hat * (1.0 - p_hat) / total_sims)) * 100
+
             c_mean = np.mean(b_champs[t]) * 100
             t_mean = np.mean(b_toilets[t]) * 100
             rows.append({
