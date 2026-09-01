@@ -1616,7 +1616,7 @@ unclosed rather than downgraded, but does not currently meet the bar the user se
 ("recurs even once more under single-process conditions") for treating it as the project's top
 priority.
 
-### F13 — Investigate game-script-dependent and tail-asymmetric player correlation before considering a copula upgrade
+### F13 — Game-script-dependent and tail-asymmetric player correlation: measured, not adopted -- CLOSED (2026-08-31)
 
 **Origin:** An external audit (Gemini, 2026-08-31) reviewed this project's correlation model and
 flagged that the Gaussian copula enforces zero tail dependence (an extreme outcome for one player
@@ -1735,8 +1735,19 @@ noise already present. Under this document's own rule -- no added model complexi
 measured effect size that justifies it -- the measurement does not justify touching the copula,
 and the measured bounds say the cost of *not* touching it is small. The result is recorded here
 so the question can be re-asked only with more seasons of data (the bounds shrink ~1/sqrt(k)
-with k seasons), not re-argued from priors. **Decision on closing this item is deferred to the
-user per instruction ("report ... before we decide anything about touching the copula").**
+with k seasons), not re-argued from priors.
+
+**CLOSED 2026-08-31 -- decision.** Measured, not assumed. Boom/bust asymmetry and Vegas-spread
+dependence of QB-WR correlation are **not adopted**: neither is measurable at the sample size a
+real season provides, and both are bounded well inside the copula's own calibration noise. **The
+Gaussian copula with the current calibrated `CORRELATIONS` stands.** This is a resolved
+disagreement with the external audit, not an open question that stopped being worked on: the
+audit's critique was theoretically sound (a Gaussian copula does enforce zero tail dependence;
+correlations are static in game script), and it was answered empirically rather than argued --
+the effects it describes, if present in this scoring system, are too small to detect in
+714 pooled pair-weeks across all 32 teams and too small to justify the added complexity of a
+t- or Archimedean copula or a spread-conditional adjustment. The one thing that would reopen it
+is more seasons of data narrowing the bounds to exclude zero; nothing else should.
 
 **Acceptance criterion:** cannot be set yet -- there is no measurement to hold it to. To be set
 once the measurement above exists, under this project's standing rule for every constant and
