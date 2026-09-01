@@ -520,6 +520,73 @@ def grade_roster(engine, team, week=None):
                      "includes the engine's deliberate 0.1 x bench term.")}
 
 
+# ================================================================== TOOL 4: lineup optimizer
+#
+# This-week expectation is the engine's own pre-game form (expected_pre without contingency):
+# baseline mean x environment ratio x game-script multiplier, and 0 when the player is on bye
+# or out now (F4 statuses / IR). The lineup is the engine's optimal assignment on those
+# expectations -- the same rule the simulation uses to set every lineup -- so this tool shows
+# the engine's lineup for the real roster, with each starter's sampled p10/p50/p90 and the
+# margin over the best bench alternative eligible for his slot. No draw enters the choice
+# (the lookahead rule: lineups are chosen on expectation, never on realised scores).
+def _env_norm(engine):
+    cached = getattr(engine, "_decisions_env_norm", None)
+    if cached is None:
+        cached = engine._compute_environment_normaliser()
+        engine._decisions_env_norm = cached
+    return cached
+
+
+def week_expectation(engine, name, week):
+    e = _entry(engine, name)
+    if e.get('bye') == week or _unavailable_now(e):
+        return 0.0
+    pos = normalize_position(e.get('pos', 'FLEX'))
+    veg = engine._compute_week_environment(week, e.get('team', 'FA'))
+    ratio = veg['total'] / _env_norm(engine)
+    return float(e.get('mean', 0.0)) * ratio * engine._script_multiplier(pos, veg)
+
+
+def _slot_positions(slot):
+    return _SLOT_POSITIONS.get(slot, (slot,))
+
+
+def optimize_lineup(engine, team, week, sims=1000, seed=None):
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    names = list(engine.rosters[team])
+    exp = {n: week_expectation(engine, n, week) for n in names}
+    available = {n: not (_entry(engine, n).get('bye') == week or _unavailable_now(_entry(engine, n))) for n in names}
+    cands = [(n, _opts(engine, n), exp[n]) for n in names if available[n]]
+    assigned, unfilled = engine._solve_optimal_assignment(cands)
+    started = {n for n, _, _ in assigned}
+
+    lineup = []
+    for i, (n, value, slot) in enumerate(sorted(assigned, key=lambda a: (a[2], -a[1]))):
+        eligible = [m for m in names if m not in started and available[m]
+                    and any(p in _slot_positions(slot) for p in _opts(engine, m))]
+        alt = max(eligible, key=lambda m: exp[m]) if eligible else None
+        s = summarise_scores(sample_week_scores(engine, n, week, sims, seed=None if seed is None else seed + i))
+        lineup.append({"slot": slot, "name": n, "pos": normalize_position(_entry(engine, n).get('pos', 'FLEX')),
+                       "expected": float(value), "p10": s["p10"], "p50": s["p50"], "p90": s["p90"],
+                       "p_zero": s["p_zero"], "alternative": alt,
+                       "margin": float(value - (exp[alt] if alt else 0.0))})
+    bench = []
+    for n in names:
+        if n in started:
+            continue
+        e = _entry(engine, n)
+        reason = "bye" if e.get('bye') == week else ("out" if _unavailable_now(e) else "")
+        bench.append({"name": n, "pos": normalize_position(e.get('pos', 'FLEX')), "expected": exp[n],
+                      "available": available[n], "reason": reason})
+    bench.sort(key=lambda b: -b["expected"])
+    return {"team": team, "week": week, "lineup": lineup, "unfilled": sorted(unfilled), "bench": bench,
+            "expected_total": float(sum(r["expected"] for r in lineup)),
+            "note": ("lineup = the engine's optimal assignment on this week's pre-game expectations (mean x "
+                     "environment x script; bye/out = 0); p10/p50/p90 from independent per-player draws; "
+                     "margin = expectation over the best bench alternative eligible for the slot.")}
+
+
 def roster_grades(engine, week=None):
     """League table: every team's grade summary ranked by lineup_vorp (1 = best)."""
     week = week or engine.current_week

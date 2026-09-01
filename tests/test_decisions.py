@@ -25,7 +25,7 @@ from fantasy_sim.decisions import (
     prob_a_beats_b, sample_week_scores, summarise_scores, compare_players, run_reduced_simulation,
     roster_gaps, free_agents, rank_waiver_targets, suggest_bid, INDEPENDENCE_CAVEAT,
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
-    grade_roster, roster_grades,
+    grade_roster, roster_grades, week_expectation, optimize_lineup,
 )
 
 
@@ -378,6 +378,61 @@ class TestRosterGrades(_EngineCase):
         for t in table["teams"][1:]:
             self.assertAlmostEqual(t["lineup_vorp"], 0.0)
         self.assertEqual(table["teams"][0]["rank"], 1)
+
+
+class TestLineupOptimizer(_EngineCase):
+    """Tool 4. This-week expectations are deterministic (the engine's own expected_pre form:
+    baseline mean x environment ratio x game-script multiplier, 0 when on bye or out now) and
+    the lineup is the engine's optimal assignment on them; the light sampler adds each
+    starter's p10/p90. Margin = starter's expectation minus the best available bench
+    alternative eligible for that slot."""
+
+    def setUp(self):
+        super().setUp()
+        for n, pos, team, mean, extra in (("QB_bench", "QB", "DET", 17.0, {}),
+                                          ("WR_a", "WR", "DET", 12.0, {}),
+                                          ("WR_b", "WR", "CHI", 9.0, {}),
+                                          ("WR_bye", "WR", "CHI", 14.0, {"bye": 1}),
+                                          ("RB_ir", "RB", "DET", 15.0, {"injury_status": "IR", "on_ir": True})):
+            self.engine.rosters["Legion of Coom"].append(n)
+            self.engine.meta["Legion of Coom"][n] = {"pos": pos, "team": team}
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 0.0,
+                                        "pos": pos, "team": team, "bye": 9, **extra}
+
+    def _exp(self, name):
+        e = self.engine.baselines[name]
+        veg = self.engine._compute_week_environment(1, e["team"])
+        ratio = veg["total"] / self.engine._compute_environment_normaliser()
+        return e["mean"] * ratio * self.engine._script_multiplier(e["pos"], veg)
+
+    def test_week_expectation_is_the_engines_pre_game_form_and_zero_when_unavailable(self):
+        self.assertAlmostEqual(week_expectation(self.engine, "QB_1", 1), self._exp("QB_1"), places=9)
+        self.assertEqual(week_expectation(self.engine, "WR_bye", 1), 0.0)
+        self.assertEqual(week_expectation(self.engine, "RB_ir", 1), 0.0)
+
+    def test_lineup_starts_the_best_available_and_never_a_bye_or_ir_player(self):
+        r = optimize_lineup(self.engine, "Legion of Coom", week=1, sims=200, seed=1)
+        by_slot = {(row["slot"], row["name"]) for row in r["lineup"]}
+        self.assertIn(("QB", "QB_1"), by_slot)
+        started = {row["name"] for row in r["lineup"]}
+        self.assertIn("WR_a", started); self.assertIn("WR_b", started)
+        self.assertNotIn("WR_bye", started); self.assertNotIn("RB_ir", started); self.assertNotIn("QB_bench", started)
+        self.assertEqual(sorted(r["unfilled"]).count("RB"), 2)
+        for row in r["lineup"]:
+            for k in ("expected", "p10", "p50", "p90", "p_zero", "margin"):
+                self.assertIn(k, row)
+        self.assertAlmostEqual(r["expected_total"], sum(row["expected"] for row in r["lineup"]), places=9)
+
+    def test_margin_is_starter_minus_best_eligible_bench_alternative(self):
+        r = optimize_lineup(self.engine, "Legion of Coom", week=1, sims=100, seed=1)
+        qb = next(row for row in r["lineup"] if row["slot"] == "QB")
+        self.assertAlmostEqual(qb["margin"], self._exp("QB_1") - self._exp("QB_bench"), places=9)
+        self.assertEqual(qb["alternative"], "QB_bench")
+        # both WRs start (two WR slots) and no other WR is available: the alternative is none
+        wr = next(row for row in r["lineup"] if row["name"] == "WR_b")
+        self.assertIsNone(wr["alternative"])
+        bench = {b["name"] for b in r["bench"]}
+        self.assertEqual(bench, {"QB_bench", "WR_bye", "RB_ir"})
 
 
 if __name__ == "__main__":
