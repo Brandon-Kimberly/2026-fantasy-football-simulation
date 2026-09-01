@@ -229,6 +229,29 @@ class TestFantasySimulation(unittest.TestCase):
         for w in payload['warnings']:
             self.assertIn(w['level'], ('WARNING', 'ERROR', 'CRITICAL'))
 
+    def test_weekly_score_from_z_pins_the_extracted_transform(self):
+        """Specification of FantasySimulationEngine._weekly_score_from_z, the per-player weekly
+        transform extracted verbatim from run_simulation's loop (2026-09-01) so the on-demand
+        sampler in fantasy_sim.decisions draws through the same formula. Written alongside the
+        extraction, not before it -- the golden master is what proves the extraction preserved
+        the engine byte-for-byte; this pins the formula's shape by hand: z = 0 gives the
+        lognormal median exp(mu_a) (below the mean, since sigma_a > 0), expected_pre carries no
+        draw, the cap binds after environmental scaling, and mean <= 0.01 yields no base score."""
+        mean_val, std_val = 12.0, 6.0
+        sigma_a = np.sqrt(np.log(1 + (std_val / mean_val) ** 2))
+        mu_a = np.log(mean_val) - sigma_a ** 2 / 2
+        exp_pre, final = FantasySimulationEngine._weekly_score_from_z(
+            mean_val, std_val, z=0.0, env_ratio=1.1, env_var=0.9, script_mult=1.06, contingency_pts=0.5)
+        self.assertAlmostEqual(exp_pre, 12.0 * 1.1 * 1.06 + 0.5, places=12)
+        self.assertAlmostEqual(final, (np.exp(mu_a) + 0.5) * 0.9 * 1.06, places=12)
+        self.assertLess(np.exp(mu_a), mean_val)
+        # z = +3 on a wide distribution blows past the cap after scaling; the cap binds.
+        _, capped = FantasySimulationEngine._weekly_score_from_z(30.0, 25.0, 3.0, 1.2, 1.3, 1.1, 0.0)
+        self.assertEqual(capped, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+        # a zero-mean player scores only his contingency, scaled.
+        exp0, fin0 = FantasySimulationEngine._weekly_score_from_z(0.0, 3.0, 1.0, 1.0, 1.0, 1.0, 2.0)
+        self.assertAlmostEqual(exp0, 2.0); self.assertAlmostEqual(fin0, 2.0)
+
     def test_weekly_scoring_density_renders_one_row_per_team_with_shared_yaxis(self):
         """Regression test for the Pass-2 visualization audit's Weekly Scoring Density finding:
         8 overlapping KDE lines drawn into one shared axes were visually indistinguishable by

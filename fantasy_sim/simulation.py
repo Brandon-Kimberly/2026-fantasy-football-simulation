@@ -270,6 +270,33 @@ class FantasySimulationEngine:
             hazard = SIM_CONFIG["ABSENCE_RETURN_HAZARD_STEADY"]
         return weeks
 
+    @staticmethod
+    def _weekly_score_from_z(mean_val, std_val, z, env_ratio, env_var, script_mult, contingency_pts):
+        """One player's weekly score from his standard-normal draw -- the per-player transform
+        of run_simulation's weekly loop, extracted verbatim (decision-support tools, 2026-09-01)
+        so the on-demand single-player sampler in fantasy_sim.decisions draws through the SAME
+        formula rather than a copy that can drift. Pure: every random quantity (z, env_var) is
+        drawn by the caller, so the loop's RNG order is untouched; the golden master pins the
+        extraction byte-for-byte.
+
+        Returns (expected_pre, final_score): the pre-game expectation lineups are chosen on
+        (no draw enters it -- lookahead rule), and the realised score: lognormal with
+        E = mean_val and sd = std_val on z, plus contingency, times the environment draw and the
+        game-script multiplier, capped at MAX_REALISTIC_WEEKLY_SCORE (applied AFTER
+        environmental scaling so it only clips draws already beyond any real performance --
+        see SIM_CONFIG). The bye / injury-clock / locked-lineup zeroing stays with the caller:
+        it is roster state, not part of the draw."""
+        if mean_val <= 0.01:
+            base_score = 0.0
+        else:
+            sigma_a = np.sqrt(np.log(1 + (std_val / mean_val) ** 2))
+            mu_a = np.log(mean_val) - (sigma_a ** 2 / 2)
+            base_score = float(np.exp(mu_a + sigma_a * z))
+        expected_pre = mean_val * env_ratio * script_mult + contingency_pts
+        final_score = (base_score + contingency_pts) * env_var * script_mult
+        final_score = min(final_score, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+        return expected_pre, final_score
+
     def _script_multiplier(self, p_pos, veg):
         """Pre-game game-script multiplier for one player: defensive-tier and spread effects.
         Extracted (F6) so the intended lineup -- solved before this week's onsets are drawn --
@@ -1271,32 +1298,18 @@ class FantasySimulationEngine:
                             v_tot, v_spr, v_opp = veg['total'], veg['spread'], veg['opponent']
 
                             eff_z = z_corr[idx]
-
-                            if mean_val <= 0.01:
-                                base_score = 0.0
-                            else:
-                                sigma_a = np.sqrt(np.log(1 + (std_val / mean_val) ** 2))
-                                mu_a = np.log(mean_val) - (sigma_a ** 2 / 2)
-                                base_score = float(np.exp(mu_a + sigma_a * eff_z))
-
                             script_mult = self._script_multiplier(p_pos, veg)
-
                             contingency_pts = contingency_by_player.get(p_name, 0.0)
                             # env_norm is the mean implied total over the simulated schedule
                             # (see _compute_environment_normaliser), so this multiplier
                             # averages exactly 1 across the season and the calibrated means
                             # survive the environment model intact.
                             env_var = float(np.random.normal(v_tot / env_norm, 0.10))
-
-                            expected_pre = mean_val * (v_tot / env_norm) * script_mult + contingency_pts
-                            final_score = (base_score + contingency_pts) * env_var * script_mult
-                            # Applied AFTER environmental scaling, not to base_score before it,
-                            # so this never interferes with the model's designed v_tot/script
-                            # adjustments -- it only ever clips draws already far beyond any
-                            # real NFL fantasy performance. See SIM_CONFIG's comment for the
-                            # real-record justification and empirical verification of why this
-                            # was added.
-                            final_score = min(final_score, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+                            # The transform itself lives in _weekly_score_from_z (extracted so
+                            # fantasy_sim.decisions samples through the same formula); the cap
+                            # is applied inside it, AFTER environmental scaling -- see there.
+                            expected_pre, final_score = self._weekly_score_from_z(
+                                mean_val, std_val, eff_z, v_tot / env_norm, env_var, script_mult, contingency_pts)
                             if locked_zero:
                                 final_score = 0.0
 
