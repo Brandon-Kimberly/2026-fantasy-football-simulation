@@ -2098,3 +2098,38 @@ leak into outcomes in a way that would make their provenance dangerous. Not touc
 from calibration.
 
 **When:** done (FAAB 2026-09-01, trade 2026-09-01).
+
+### F15 — Draft-pick retrospective: ingest Sleeper's real draft history (scoped, not built)
+
+**Origin:** Decision-support work (2026-09-01). A pick-by-pick retrospective -- what each
+manager actually drafted against who was realistically available at that pick -- needs the
+league's real draft history. **Confirmed not ingested anywhere in this project:** a grep of
+every `.py` and `.md` for "draft" finds only a DraftKings odds URL in `sync.py` and prose.
+Sleeper has it: `/league/{id}/drafts` returns one completed snake draft per season
+(2026: `draft_id` 1310010483046109184, 19 rounds x 8 teams, position limits enforced; 2025:
+1253869356119506944), and `/draft/{draft_id}/picks` returns every pick with `round`, `pick_no`,
+`draft_slot`, `roster_id`, `picked_by`, `player_id`, `is_keeper` and a `metadata` block
+(name, position, NFL team at pick time). Probed 2026-09-01: **152 picks (2026), 128 (2025)**.
+
+**Scope (sized, not implemented):**
+
+| piece | what | size |
+|---|---|---|
+| ingestion | `sync.fetch_draft_picks(league_id)` -> `/drafts` then `/picks`; resolve `roster_id` to team name with the roster map sync already builds; write `data/logs/draft_{season}.json` (historical, immutable once complete, season-spanning -- the `logs/` bucket by F9's definition; under the `data/*` rule it needs its own `!` exception like the other two logged files, and the nested-exception lesson recorded under F7 applies) | ~40 lines in `sync.py`, one storage path, one test with a fake HTTP layer (pattern: `test_sync.py`) |
+| analysis, at-draft value | for each pick: the drafted player's baseline mean / VORP / tier versus the best available at that pick (players not yet taken, at positions the roster could still fill under the position limits), from the preseason baselines. Honest caveat: today's `player_baselines.json` is the closest thing to draft-time value on disk (the draft ran 2026-08-19; F7's projection log starts 2026-08-29), so it is a proxy for what was knowable at the draft, not the exact board | ~150 lines in a new `fantasy_sim/draft_review.py` + tests on a crafted 2-round draft |
+| analysis, realised value | the same comparison against realised season points -- needs the season; buildable at any checkpoint from `weekly_actuals` (F7's derivation machinery already reads it) | ~60 lines, after the season has weeks in it |
+| report | per-manager and per-round tables (reach / value / steal by VORP gap), one chart | ~80 lines, reuses `positional_tiers` rendering conventions |
+
+Roughly 330 lines and three commits. No engine change, no golden movement, no backtest gate
+(nothing touches baseline computation or the loop).
+
+**Acceptance criterion:** every pick in both seasons resolved to a team and a baseline-pool
+player (or listed by name as unresolvable -- the F1 name-key limitation applies: pid is the
+right key and the picks carry it); the at-draft comparison reproduces the draft order as a
+sanity check (pick 1's drafted player should be at or near the top of the available board);
+the realised-value comparison waits for the season.
+
+**When:** not now -- the season starts in days and the roster-grade report plus the three
+decision tools are the better use of remaining pre-season time. Ingestion alone (the first
+row) is worth doing early in the season so both drafts are on disk under version control;
+the analysis can follow at any checkpoint.
