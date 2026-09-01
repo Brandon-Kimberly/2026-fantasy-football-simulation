@@ -950,6 +950,17 @@ checkpoint at week 12 never sees one -- which is the pairing check: everything t
 is the trade block. The redesign did not leak into scoring. (Absolute levels are not
 comparable to the absence-modelling arc's numbers above: those were earlier code states.)
 
+**CLOSED (2026-09-01).** All four criteria met or correctly restated: (a) 1.17 trades/season
+on the mid-season fixture, inside [1.0, 4.0], with the preseason 0.55 recorded as the rule's
+correct output; (b) rosters conserved on every completion; (c) points backtest moved 0.06 pts
+bias / 0.011 z, inside the bounds; (d) sized at 3,000 paired seasons under F14 -- the whole
+mechanism is worth ~+-3 points of championship/playoff probability to the teams it touches
+most. **Commit 3 (the Marginal-Championship-Equity acceptance proxy): considered and
+declined**, per the reasoning above -- it can only tighten the desperate side's acceptance,
+so it cannot address the one gap that exists, and no tightening is needed with volume inside
+the band. It would become relevant only if a future offer variant (option B) pushed the
+mid-season rate past the 4.0 ceiling.
+
 ### F3 — Simulate from inside the playoffs (bracket seeded from banked standings)
 
 **Origin:** Phase 5 finding 1. `run_simulation` seeds the playoff bracket (`top4`) only by
