@@ -587,6 +587,182 @@ def optimize_lineup(engine, team, week, sims=1000, seed=None):
                      "margin = expectation over the best bench alternative eligible for the slot.")}
 
 
+# ======================================================= TOOL 5: opponent-aware lineups
+#
+# You play one specific opponent each week (league_schedule), and the right construction is
+# asymmetric: a favourite wants to minimise variance, an underdog wants to maximise it. This
+# tool samples BOTH rosters (and the other six, for the median-beat decision) jointly, through
+# the engine's own copula -- build_covariance_matrix over the union of the rosters, so
+# same-NFL-team pairs are correlated ACROSS the two rosters as well as within (the correlation
+# the engine itself omits, AUDIT_PLAN.md F16; cross=False reproduces the engine's per-roster
+# behaviour) -- then evaluates lineups on that one joint sample: any lineup's weekly total is a
+# column sum, P(beat opponent) is a mean over sims. Constructions:
+#   max_mean  the engine's own rule (optimal assignment on expectation),
+#   safe      assignment on expectation - k * sd,
+#   stack     assignment on expectation + k * sd, plus a bonus for pass-catchers on the NFL
+#             team of the chosen QB (a correlated stack),
+#   p_max     bounded local search from max_mean over single bench-for-starter swaps,
+#             accepting only swaps that raise P(beat opponent) on the same sample.
+# The favourite/underdog asymmetry is meant to EMERGE from the numbers, not be imposed.
+# Opponent lineup: his max-expectation lineup (the engine's convention) unless supplied.
+def weekly_scores_vectorised(season_means, std_val, z, env_ratio, env_var, script_mult, contingency_pts):
+    """Elementwise mirror of FantasySimulationEngine._weekly_score_from_z (pinned equal by
+    test): lognormal on z with E = season mean and sd = std_val, plus contingency, times the
+    environment draw and script multiplier, capped."""
+    m = np.asarray(season_means, dtype=float); z = np.asarray(z, dtype=float); env_var = np.asarray(env_var, dtype=float)
+    base = np.zeros_like(m)
+    ok = m > 0.01
+    sigma_a = np.sqrt(np.log(1 + (std_val / m[ok]) ** 2))
+    mu_a = np.log(m[ok]) - (sigma_a ** 2 / 2)
+    base[ok] = np.exp(mu_a + sigma_a * z[ok])
+    final = (base + contingency_pts) * env_var * script_mult
+    return np.minimum(final, SIM_CONFIG['MAX_REALISTIC_WEEKLY_SCORE'])
+
+
+def sample_week_matrix(engine, groups, week, n, seed=None, cross=True, starter_exposure=True):
+    """(n, players) matrix of joint single-week scores for the players in `groups` (a list of
+    name lists, one per fantasy roster). cross=True: one Cholesky factor over every name;
+    cross=False: one per group with independent draws between groups (the engine's current
+    behaviour). Mirrors the engine's per-player draw as sample_week_scores does; RNG order is
+    its own (documented), seeded here when `seed` is given."""
+    names = [nm for g in groups for nm in g]
+    if len(set(names)) != len(names):
+        raise ValueError("a player appears in more than one group")
+    meta = {nm: {'pos': _entry(engine, nm).get('pos', 'FLEX'), 'team': _entry(engine, nm).get('team', 'FA')} for nm in names}
+    if seed is not None:
+        np.random.seed(seed)
+    z = {}
+    factors = [(names, engine.build_covariance_matrix(names, meta))] if cross else \
+              [(g, engine.build_covariance_matrix(g, meta)) for g in groups]
+    for g, L in factors:
+        zc = np.random.normal(size=(n, len(g))) @ L.T
+        for j, nm in enumerate(g):
+            z[nm] = zc[:, j]
+    exposure = SIM_CONFIG['ONSET_EXPOSURE_STARTER'] if starter_exposure else SIM_CONFIG['ONSET_EXPOSURE_BENCH']
+    weeks_ahead = week - engine.current_week + 1
+    M = np.zeros((n, len(names)))
+    for j, nm in enumerate(names):
+        e = _entry(engine, nm)
+        if e.get('bye') == week:
+            continue
+        pos = normalize_position(e.get('pos', 'FLEX')); team = e.get('team', 'FA')
+        status, on_ir = e.get('injury_status'), bool(e.get('on_ir', False))
+        absent = np.zeros(n, dtype=bool)
+        if status in SIM_CONFIG["INITIAL_ABSENCE_STATUSES"] or on_ir:
+            clocks = np.array([engine._initial_absence_clock(status, on_ir) for _ in range(n)])
+            absent = clocks >= weeks_ahead
+        onset = np.random.rand(n) < SIM_CONFIG['INJURY_RATES'].get(pos, 0.025) * exposure
+        mu_0 = float(e.get('mean', 8.0)); sig_e = float(e.get('std_epistemic', mu_0 * 0.18)); std_a = float(e.get('std_aleatoric', 3.0))
+        if mu_0 <= 0.01:
+            season = np.zeros(n)
+        else:
+            sigma_e = np.sqrt(np.log(1 + (sig_e / mu_0) ** 2)); mu_e = np.log(mu_0) - (sigma_e ** 2 / 2)
+            season = np.exp(np.random.normal(mu_e, sigma_e, size=n))
+        veg = engine._compute_week_environment(week, team)
+        ratio = veg['total'] / _env_norm(engine)
+        env_var = np.random.normal(ratio, 0.10, size=n)
+        col = weekly_scores_vectorised(season, std_a, z[nm], ratio, env_var, engine._script_multiplier(pos, veg), 0.0)
+        col[absent | onset] = 0.0
+        M[:, j] = col
+    return M, names
+
+
+def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cross=True, k=0.5,
+                    stack_bonus=2.0, opponent_lineup=None, max_iter=30):
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    if opponent is None:
+        pairs = engine.league_schedule[week - 1] if week - 1 < len(engine.league_schedule) else []
+        for a, b in pairs:
+            if team in (a, b):
+                opponent = b if a == team else a
+        if opponent is None:
+            raise ValueError(f"{team} has no scheduled opponent in week {week}")
+    if opponent not in engine.rosters or opponent == team:
+        raise ValueError(f"invalid opponent {opponent!r}")
+    others = [t for t in engine.team_names if t not in (team, opponent)]
+    groups = [list(engine.rosters[team]), list(engine.rosters[opponent])] + [list(engine.rosters[t]) for t in others]
+    M, names = sample_week_matrix(engine, groups, week, sims, seed=seed, cross=cross)
+    idx = {nm: i for i, nm in enumerate(names)}
+    exp = {nm: week_expectation(engine, nm, week) for nm in names}
+    sd = {nm: float(M[:, idx[nm]].std()) for nm in names}
+    avail = {nm: not (_entry(engine, nm).get('bye') == week or _unavailable_now(_entry(engine, nm))) for nm in names}
+
+    def assign(roster, score):
+        cands = [(nm, _opts(engine, nm), score(nm)) for nm in roster if avail[nm]]
+        assigned, _ = engine._solve_optimal_assignment(cands)
+        return [(nm, slot) for nm, _v, slot in assigned]
+
+    def total(lineup):
+        return M[:, [idx[nm] for nm, _ in lineup]].sum(axis=1) if lineup else np.zeros(sims)
+
+    if opponent_lineup:
+        bad = [nm for nm in opponent_lineup if nm not in engine.rosters[opponent]]
+        if bad:
+            raise ValueError(f"{bad} not on {opponent}'s roster")
+        opp_lineup = assign(opponent_lineup, lambda nm: exp[nm])
+    else:
+        opp_lineup = assign(engine.rosters[opponent], lambda nm: exp[nm])
+    opp_total = total(opp_lineup)
+    other_totals = [total(assign(engine.rosters[t], lambda nm: exp[nm])) for t in others]
+
+    def evaluate(lineup):
+        my = total(lineup)
+        med = np.median(np.column_stack([my, opp_total] + other_totals), axis=1)
+        p = float(np.mean(my > opp_total))
+        return {"lineup": [{"slot": s, "name": nm, "expected": exp[nm], "sd": sd[nm],
+                            "nfl_team": _entry(engine, nm).get('team', 'FA')} for nm, s in sorted(lineup, key=lambda x: x[1])],
+                "mean": float(my.mean()), "sd": float(my.std()),
+                "p_beat_opponent": p, "se": float(np.sqrt(max(p * (1 - p), 1e-12) / sims)),
+                "p_beat_median": float(np.mean(my >= med)),
+                "margin_mean": float((my - opp_total).mean()), "margin_sd": float((my - opp_total).std())}
+
+    roster = engine.rosters[team]
+    max_mean = assign(roster, lambda nm: exp[nm])
+    safe = assign(roster, lambda nm: exp[nm] - k * sd[nm])
+    boom = assign(roster, lambda nm: exp[nm] + k * sd[nm])
+    qb_team = next((_entry(engine, nm).get('team') for nm, s in boom if s == 'QB'), None)
+
+    def stack_score(nm):
+        e = _entry(engine, nm)
+        bonus = stack_bonus if (qb_team and e.get('team') == qb_team
+                                and normalize_position(e.get('pos', 'FLEX')) in ('WR', 'TE')) else 0.0
+        return exp[nm] + k * sd[nm] + bonus
+    stack = assign(roster, stack_score)
+
+    # p_max: local search over single swaps, same joint sample, accept only improvements
+    cur, cur_p = list(max_mean), evaluate(max_mean)["p_beat_opponent"]
+    started = {nm for nm, _ in cur}
+    for _ in range(max_iter):
+        best, best_p = None, cur_p
+        for i, (nm, slot) in enumerate(cur):
+            for b in roster:
+                if b in started or not avail[b] or not any(p in _slot_positions(slot) for p in _opts(engine, b)):
+                    continue
+                cand = list(cur); cand[i] = (b, slot)
+                p = float(np.mean(total(cand) > opp_total))
+                if p > best_p + 1e-12:
+                    best, best_p = cand, p
+        if best is None:
+            break
+        cur, cur_p = best, best_p
+        started = {nm for nm, _ in cur}
+
+    constructions = {"max_mean": evaluate(max_mean), "safe": evaluate(safe), "stack": evaluate(stack), "p_max": evaluate(cur)}
+    favoured = constructions["max_mean"]["p_beat_opponent"] > 0.5
+    ranking = sorted(constructions, key=lambda c: -constructions[c]["p_beat_opponent"])
+    return {"team": team, "opponent": opponent, "week": week, "n": sims, "cross": cross, "k": k,
+            "favoured_by_max_mean": favoured, "ranking_by_p_beat_opponent": ranking,
+            "opponent_lineup": [{"slot": s, "name": nm, "expected": exp[nm]} for nm, s in sorted(opp_lineup, key=lambda x: x[1])],
+            "opponent_lineup_assumed": opponent_lineup is None,
+            "constructions": constructions,
+            "note": (("joint sample through the engine's copula over ALL rosters (same-NFL-team correlation "
+                      "across rosters included -- the engine itself omits it, F16)" if cross else
+                      "per-roster copula only, as the engine does (no cross-roster correlation)")
+                     + "; opponent's lineup = his max-expectation lineup unless supplied; P(beat median) = "
+                       "share of sims at or above the median of all eight totals.")}
+
+
 def roster_grades(engine, week=None):
     """League table: every team's grade summary ranked by lineup_vorp (1 = best)."""
     week = week or engine.current_week

@@ -26,6 +26,7 @@ from fantasy_sim.decisions import (
     roster_gaps, free_agents, rank_waiver_targets, suggest_bid, INDEPENDENCE_CAVEAT,
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
     grade_roster, roster_grades, week_expectation, optimize_lineup,
+    sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
 )
 
 
@@ -433,6 +434,96 @@ class TestLineupOptimizer(_EngineCase):
         self.assertIsNone(wr["alternative"])
         bench = {b["name"] for b in r["bench"]}
         self.assertEqual(bench, {"QB_bench", "WR_bye", "RB_ir"})
+
+
+class TestJointSampler(_EngineCase):
+    """Tool 5's joint sampler: one Cholesky factor from the engine's own
+    build_covariance_matrix over a whole player list (cross=True, spanning both rosters -- the
+    correlation the engine itself omits, AUDIT_PLAN.md F16) or one per group (cross=False,
+    the engine's current behaviour)."""
+
+    def test_vectorised_transform_equals_the_engines_static_method_elementwise(self):
+        rng = np.random.default_rng(1)
+        n = 500
+        mean, std = 12.0, 5.0
+        z = rng.normal(size=n); env_var = rng.normal(1.05, 0.1, size=n)
+        out = weekly_scores_vectorised(np.full(n, mean), std, z, 1.05, env_var, 1.06, 0.0)
+        for i in range(0, n, 37):
+            _, ref = FantasySimulationEngine._weekly_score_from_z(mean, std, z[i], 1.05, env_var[i], 1.06, 0.0)
+            self.assertAlmostEqual(out[i], ref, places=12)
+
+    def test_cross_roster_correlation_is_present_with_cross_and_absent_without(self):
+        # QB_1 (DET) and FA_WR_healthy (DET, the only DET WR -> WR1: target 0.40), both with
+        # std_epistemic 0. log(score) = mu_a + sigma_a*z + log(env_var) + const, so the
+        # log-score correlation is corr(z) = 0.40 attenuated by each player's share of
+        # log-variance that comes from z rather than the independent environment draw:
+        # QB_1 (mean 20, aleatoric sd 2) has sigma_a ~ 0.10 against env noise ~ 0.09, a share
+        # of only ~0.55; the WR (12, sd 4) ~ 0.93. Expected ~ 0.40 * sqrt(0.55 * 0.93) ~ 0.29.
+        self.engine.baselines["QB_1"]["std_epistemic"] = 0.0
+        veg = self.engine._compute_week_environment(1, "DET")
+        ratio = veg['total'] / self.engine._compute_environment_normaliser()
+        se2 = (0.10 / ratio) ** 2
+        def share(mean, sd):
+            sa2 = np.log(1 + (sd / mean) ** 2)
+            return sa2 / (sa2 + se2)
+        expected = SIM_CONFIG['CORRELATIONS']['QB_WR1'] * np.sqrt(share(20.0, 2.0) * share(12.0, 4.0))
+        groups = [["QB_1"], ["FA_WR_healthy"]]
+        m, names = sample_week_matrix(self.engine, groups, week=1, n=30000, seed=3, cross=True)
+        self.assertEqual(names, ["QB_1", "FA_WR_healthy"]); self.assertEqual(m.shape, (30000, 2))
+        ok = (m[:, 0] > 0) & (m[:, 1] > 0)
+        r_cross = float(np.corrcoef(np.log(m[ok, 0]), np.log(m[ok, 1]))[0, 1])
+        m2, _ = sample_week_matrix(self.engine, groups, week=1, n=30000, seed=3, cross=False)
+        ok2 = (m2[:, 0] > 0) & (m2[:, 1] > 0)
+        r_none = float(np.corrcoef(np.log(m2[ok2, 0]), np.log(m2[ok2, 1]))[0, 1])
+        self.assertGreater(expected, 0.2)
+        self.assertAlmostEqual(r_cross, float(expected), delta=0.03)
+        self.assertLess(abs(r_none), 0.04)
+
+    def test_bye_and_ir_columns_are_zero_and_seed_is_reproducible(self):
+        m, names = sample_week_matrix(self.engine, [["FA_WR_bye", "FA_RB_ir", "FA_WR_healthy"]], week=1, n=200, seed=5)
+        self.assertTrue(np.all(m[:, 0] == 0)); self.assertTrue(np.all(m[:, 1] == 0)); self.assertGreater(m[:, 2].mean(), 0)
+        m2, _ = sample_week_matrix(self.engine, [["FA_WR_bye", "FA_RB_ir", "FA_WR_healthy"]], week=1, n=200, seed=5)
+        np.testing.assert_array_equal(m, m2)
+
+
+class TestMatchupLineups(_EngineCase):
+    """Tool 5. Legion of Coom (QB 20 + six WRs of equal-ish means, three safe / three boom)
+    plays Femboy Cats (QB 15) in week 1 of the fixture schedule."""
+
+    def setUp(self):
+        super().setUp()
+        for i, (mean, sd) in enumerate([(12.0, 2.0), (12.0, 8.0), (11.9, 2.0), (11.9, 8.0), (11.8, 2.0), (11.8, 8.0)]):
+            n = f"WR_{i}"
+            self.engine.rosters["Legion of Coom"].append(n)
+            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": sd, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
+
+    def test_opponent_comes_from_the_schedule_and_can_be_overridden(self):
+        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
+        self.assertEqual(r["opponent"], "Femboy Cats")
+        r2 = matchup_lineups(self.engine, "Legion of Coom", week=1, opponent="Drunk Cats", sims=300, seed=1)
+        self.assertEqual(r2["opponent"], "Drunk Cats")
+
+    def test_constructions_are_ordered_by_sd_and_local_search_never_lowers_p_win(self):
+        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=3000, seed=2)
+        c = r["constructions"]
+        for key in ("max_mean", "safe", "stack", "p_max"):
+            self.assertIn(key, c)
+            self.assertEqual(len(c[key]["lineup"]), 6, "QB + two WR slots + three FLEX")
+            self.assertTrue(0.0 <= c[key]["p_beat_opponent"] <= 1.0)
+            self.assertIn("p_beat_median", c[key]); self.assertIn("se", c[key])
+        self.assertLessEqual(c["safe"]["sd"], c["stack"]["sd"])
+        self.assertGreaterEqual(c["p_max"]["p_beat_opponent"], c["max_mean"]["p_beat_opponent"] - 1e-12)
+        self.assertGreater(c["max_mean"]["p_beat_opponent"], 0.7, "a 20-point QB plus five WRs beats a lone 15-point QB")
+        self.assertEqual(r["n"], 3000); self.assertTrue(r["cross"])
+        safe_names = {row["name"] for row in c["safe"]["lineup"]}
+        self.assertTrue({"WR_0", "WR_2", "WR_4"} <= safe_names, "safe prefers the low-sd receivers")
+        stack_names = {row["name"] for row in c["stack"]["lineup"]}
+        self.assertTrue({"WR_1", "WR_3", "WR_5"} <= stack_names, "stack prefers the high-sd receivers")
+
+    def test_no_cross_switch_is_honoured_and_reported(self):
+        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=200, seed=1, cross=False)
+        self.assertFalse(r["cross"]); self.assertIn("engine", r["note"].lower())
 
 
 if __name__ == "__main__":
