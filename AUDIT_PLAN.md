@@ -2188,3 +2188,19 @@ the acceptance is the backtest gate (bias/mean z within F2 criterion (c)'s bound
 
 **When:** unscheduled, no dependency on any open item. Measurement (1) becomes a one-line
 script once the opponent-aware tool lands; worth running in the first weeks of the season.
+
+**MEASURED (1), week 1 only (2026-09-01, `decisions.matchup_lineups`, max-expectation lineups
+both sides, n = 20,000 per arm, same seed).** P(win) with vs without cross-roster correlation:
+Femboy-Drunk Cats 50.4 vs 51.0; Year of Jarvis-Clankers 45.0 vs 45.8; Glutton-Wine Drinkers
+48.3 vs 48.8; Legion-Canton 58.8 vs 58.9. Margin sd moved at most 0.8 points (50.1 vs 50.9).
+Two honesty notes: (a) the two arms consume the random stream in different shapes, so they are
+not truly paired -- the difference carries ~0.5 points of noise at this n, and the -0.6 on a
+matchup with zero correlated *starting* pairs is that noise; (b) the correlated pairs that
+matter are between the two STARTING lineups, not the rosters: week 1 has 0, 2, 0 and 1 such
+QB-pass-catcher pairs across the four matchups (the roster-level count of ~3 in the Origin
+included bench players and zero-correlation QB-RB / WR-WR pairs). Reading: at week 1 the
+effect on P(win) is bounded below ~1 point and not resolvable from noise -- consistent with
+one or two 0.3-0.4 correlations among 26 starters. **Not closed:** this is one week's lineups,
+and (2) -- the realised 2025 totals correlation -- has not been run. The ~0.5-point bar in the
+scope needs a paired implementation (shared z-draw shape) and more weeks; both are cheap now
+that the tool exists.
