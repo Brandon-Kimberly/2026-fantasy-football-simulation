@@ -47,6 +47,7 @@ def main(argv=None):
     ap.add_argument("--team", default=MY_TEAM)
     ap.add_argument("--add", default="", help="comma-separated free agents to add")
     ap.add_argument("--drop", default="", help="comma-separated rostered players to drop")
+    ap.add_argument("--bid", type=int, default=None, help="FAAB bid: adds the separated budget-cost block")
     ap.add_argument("--batches", type=int, default=10)
     ap.add_argument("--sims", type=int, default=300)
     args = ap.parse_args(argv)
@@ -78,7 +79,11 @@ def main(argv=None):
 
     print(f"\nMOVE: {args.team} adds {adds or 'nothing'}, drops {drops or 'nothing'}   "
           f"{args.batches} x {args.sims} = {args.batches * args.sims} paired seasons per arm ...")
-    r = evaluate_add_drop(engine, args.team, adds, drops, batches=args.batches, sims=args.sims)
+    r = evaluate_add_drop(engine, args.team, adds, drops, batches=args.batches, sims=args.sims,
+                          faab_bid=args.bid)
+    if args.bid is not None:
+        from fantasy_sim.decisions import faab_context
+        r["faab"] = faab_context(engine, args.bid, args.team)
     print(f"\n  {'team':18s} {'side':9s} | {'Champ%':>7s} {'delta':>7s} {'+-SE':>5s} | "
           f"{'Playoff%':>8s} {'delta':>7s} {'+-SE':>5s} | {'ExpW':>5s} {'delta':>6s} {'+-SE':>5s}")
     order = sorted(r["teams"], key=lambda t: r["teams"][t]["side"] != "team")
@@ -87,6 +92,21 @@ def main(argv=None):
         print(f"  {t:18s} {d['side']:9s} | {c['without']:7.2f} {c['delta']:+7.2f} {c['se']:5.2f} | "
               f"{pp['without']:8.2f} {pp['delta']:+7.2f} {pp['se']:5.2f} | {w['without']:5.2f} {w['delta']:+6.3f} {w['se']:5.3f}")
     print(f"  {r['note']}")
+    if r.get("faab"):
+        fb = r["faab"]
+        print(f"\n  BUDGET COST (separate from the roster-change value above):")
+        print(f"  bid {fb['bid']}  |  {args.team} remaining FAAB {fb['remaining_faab']:.0f} "
+              f"(league avg {fb['league_avg_faab']:.0f})")
+        for c in fb["comparables"]:
+            retro = " (retro snapshot)" if c.get("snapshot_is_retroactive") else ""
+            print(f"    comparable: bid {c['bid']:>3} -- {c['player']} ({c['pos']}, proj {c['proj_mean']:.1f}, "
+                  f"VORP {c['vorp']:+.1f}) by {c['team']}, week {c['week']}{retro}")
+        if fb["market"]:
+            m = fb["market"]
+            per = f", median bid/VORP {m['median_bid_per_vorp']:.2f}" if "median_bid_per_vorp" in m else ""
+            print(f"  market: median bid {m['median_bid']}{per} (n={m['n']})")
+        else:
+            print(f"  market: {fb['market_note']}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     record = {"timestamp_utc": stamp, "tool": "evaluate_move", "git_commit": _git("rev-parse", "HEAD"),

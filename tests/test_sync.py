@@ -630,7 +630,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
                 "settings": {"waiver_bid": bid} if tx_type == "waiver" else None,
                 "consenter_ids": list(roster_ids)}
 
-    def _run(self, txs_by_week, path, now_ms=1_756_900_000_000, current_week=1):
+    def _run(self, txs_by_week, path, now_ms=1_756_900_000_000, current_week=1, standings=None):
         import fantasy_sim.sync as syncmod
 
         def fake_get(url, timeout=None):
@@ -642,7 +642,8 @@ class TestDecisionLogIngestion(unittest.TestCase):
         with patch("requests.get", side_effect=fake_get), \
              patch.object(syncmod, "_now_ms", return_value=now_ms):
             return syncmod.ingest_transactions(self.ROSTER_MAP, current_week, self.BASELINES,
-                                               self.PLAYERS_DB, my_team="Legion of Coom", path=path)
+                                               self.PLAYERS_DB, my_team="Legion of Coom", path=path,
+                                               standings=standings)
 
     def test_appends_one_record_per_completed_transaction_with_terms_and_snapshot(self):
         import json as _json, tempfile, os as _os
@@ -668,6 +669,19 @@ class TestDecisionLogIngestion(unittest.TestCase):
         self.assertFalse(r2["is_mine"])
         self.assertTrue(r2["snapshot_is_retroactive"], "a 5-day-old move's snapshot is backfilled")
         self.assertGreater(r2["snapshot_lag_days"], 4.9)
+
+    def test_waiver_records_carry_the_bidders_remaining_faab_when_standings_are_supplied(self):
+        import json as _json, tempfile, os as _os
+        with tempfile.TemporaryDirectory() as d:
+            path = _os.path.join(d, "decision_log.jsonl")
+            txs = {1: [self._tx("w1", 1_756_899_000_000, tx_type="waiver", bid=6),
+                       self._tx("f1", 1_756_899_000_000, tx_type="free_agent", bid=None)]}
+            standings = {"Legion of Coom": {"remaining_faab": 87.0}}
+            self._run(txs, path, standings=standings)
+            with open(path, encoding="utf-8") as fh:
+                rows = {r["transaction_id"]: r for r in map(_json.loads, fh)}
+        self.assertEqual(rows["w1"]["bidder_remaining_faab"], 87.0)
+        self.assertIsNone(rows["f1"].get("bidder_remaining_faab"))
 
     def test_dedupes_on_transaction_id_across_repeated_syncs(self):
         import tempfile, os as _os

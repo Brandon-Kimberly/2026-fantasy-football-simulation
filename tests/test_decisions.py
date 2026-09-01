@@ -29,6 +29,7 @@ from fantasy_sim.decisions import (
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
     find_trade_targets, league_week_outlook, evaluate_logged_trade, unevaluated_my_trades,
     apply_add_drop, evaluate_add_drop, evaluate_logged_transaction,
+    faab_context, MARKET_MIN_COMPARABLES,
 )
 
 
@@ -875,6 +876,93 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             self.assertEqual(r["move"]["faab_bid"], 7)
             rows = [json.loads(l) for l in open(path, encoding="utf-8")]
         self.assertEqual(rows[1]["transaction_id"], "wv1")
+
+
+class TestFaabContext(_EngineCase):
+    """FAAB is a finite season-long resource, so a bid's budget cost is reported SEPARATELY
+    from the roster-change value and never merged with it. The market comparison uses the
+    decision log's league-wide waiver claims (bid + frozen projection); below
+    MARKET_MIN_COMPARABLES comparable claims it says "too few" and refuses to manufacture a
+    rate. Written before faab_context existed."""
+
+    def _log(self, d, n_claims, bid=4, mean=10.0):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        with open(path, "w", encoding="utf-8") as f:
+            for k in range(n_claims):
+                f.write(json.dumps({
+                    "transaction_id": f"w{k}", "type": "waiver", "week": 1, "is_mine": False,
+                    "teams": ["Femboy Cats"], "faab_bid": bid + k,
+                    "snapshot_is_retroactive": bool(k % 2),
+                    "adds": [{"player_id": str(k), "name": f"P{k}",
+                              "projection": {"mean": mean, "pos": "RB"}, "to_team": "Femboy Cats"}],
+                    "drops": []}) + chr(10))
+            f.write(json.dumps({"transaction_id": "fa", "type": "free_agent", "week": 1, "is_mine": False,
+                                "teams": ["Clankers"], "faab_bid": None, "adds": [], "drops": []}) + chr(10))
+        return path
+
+    def test_below_the_threshold_it_lists_comparables_and_says_too_few(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, n_claims=3)
+            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path)
+        self.assertEqual(ctx["bid"], 7)
+        self.assertEqual(ctx["n_comparables"], 3)
+        self.assertEqual(len(ctx["comparables"]), 3)
+        self.assertIsNone(ctx["market"])
+        self.assertIn("too few", ctx["market_note"].lower())
+        self.assertIn("n=3", ctx["market_note"])
+        c = ctx["comparables"][0]
+        for k in ("bid", "player", "pos", "proj_mean", "vorp", "team", "week", "snapshot_is_retroactive"):
+            self.assertIn(k, c)
+        self.assertIn("remaining_faab", ctx)
+
+    def test_at_the_threshold_a_market_rate_is_computed_by_hand(self):
+        import tempfile
+        n = MARKET_MIN_COMPARABLES
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, n_claims=n, bid=4, mean=10.0)   # bids 4..4+n-1, all RB mean 10
+            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path)
+        self.assertEqual(ctx["n_comparables"], n)
+        self.assertIsNotNone(ctx["market"])
+        import statistics
+        bids = [4 + k for k in range(n)]
+        self.assertAlmostEqual(ctx["market"]["median_bid"], statistics.median(bids))
+        rep = self.engine.replacement_levels["RB"]
+        vorp = 10.0 - rep
+        self.assertAlmostEqual(ctx["comparables"][0]["vorp"], vorp, places=6)
+        if vorp > 0:
+            self.assertAlmostEqual(ctx["market"]["median_bid_per_vorp"],
+                                   statistics.median([b / vorp for b in bids]), places=6)
+
+    def test_the_evaluated_transaction_itself_is_excluded_from_its_own_market(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, n_claims=3)
+            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path, exclude_tx="w0")
+        self.assertEqual(ctx["n_comparables"], 2)
+
+    def test_logged_waiver_evaluation_carries_the_separated_faab_block(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, n_claims=2)
+            import os
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({
+                    "transaction_id": "wv9", "type": "waiver", "week": 1, "is_mine": True,
+                    "teams": ["Legion of Coom"], "faab_bid": 9,
+                    "snapshot_is_retroactive": False,
+                    "adds": [{"player_id": "z", "name": "FA_WR_healthy",
+                              "projection": {"mean": 12.0, "pos": "WR"}, "to_team": "Legion of Coom"}],
+                    "drops": [{"player_id": "q", "name": "QB_1",
+                               "projection": {"mean": 20.0, "pos": "QB"}, "to_team": "Legion of Coom"}]}) + chr(10))
+            with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_transaction(self.engine, "wv9", batches=2, sims=10, log_path=path)
+        self.assertIn("faab", r)
+        self.assertEqual(r["faab"]["bid"], 9)
+        self.assertEqual(r["faab"]["n_comparables"], 2, "its own claim is excluded from its market")
+        self.assertIsNone(r["faab"]["market"])
+        self.assertIn("teams", r, "the roster-change value block is untouched beside the budget block")
 
 
 if __name__ == "__main__":

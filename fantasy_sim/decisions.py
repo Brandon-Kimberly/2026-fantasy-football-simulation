@@ -968,6 +968,64 @@ def unevaluated_my_trades(path=None):
             and r.get("transaction_id") not in evaluated]
 
 
+# FAAB budget context. A bid spends a finite season-long resource, so "was this bid too
+# high" is a different question from "did this player help": the budget block below is
+# reported SEPARATELY from the roster-change deltas and never merged with them. The market
+# comparison uses the decision log's league-wide waiver claims (bid + frozen projection
+# snapshot); below MARKET_MIN_COMPARABLES comparable claims it says "too few" and refuses to
+# manufacture a rate. The threshold is a judgment call, not a derived constant: fewer than ~8
+# claims cannot distinguish a bidding style from noise, and the honest output is the raw list.
+MARKET_MIN_COMPARABLES = 8
+
+
+def faab_context(engine, bid, team, log_path=None, exclude_tx=None):
+    """The budget-cost block for one bid: what was bid, what the bidder has left (as of now),
+    and what the league has paid for comparable claims -- comparables always listed raw, a
+    market rate only at n >= MARKET_MIN_COMPARABLES. VORP uses each claim's FROZEN snapshot
+    mean against CURRENT replacement levels (which drift; stated in the note)."""
+    if log_path is None:
+        from fantasy_sim.storage import DECISION_LOG_FILE as log_path  # noqa: F811
+    comps = []
+    for r in _read_decision_log(log_path):
+        if r.get("record_type") is not None or r.get("type") != "waiver":
+            continue
+        if exclude_tx is not None and r.get("transaction_id") == exclude_tx:
+            continue
+        b = r.get("faab_bid")
+        adds = r.get("adds") or []
+        proj = adds[0].get("projection") if adds else None
+        if b is None or not proj or proj.get("mean") is None:
+            continue
+        pos = normalize_position(proj.get("pos", "FLEX"))
+        vorp = float(proj["mean"]) - engine.replacement_levels.get(pos, 4.0)
+        comps.append({"bid": b, "player": adds[0].get("name"), "pos": pos,
+                      "proj_mean": float(proj["mean"]), "vorp": round(vorp, 2),
+                      "team": (r.get("teams") or [None])[0], "week": r.get("week"),
+                      "snapshot_is_retroactive": r.get("snapshot_is_retroactive")})
+    n = len(comps)
+    market = None
+    if n >= MARKET_MIN_COMPARABLES:
+        import statistics
+        bids = [c["bid"] for c in comps]
+        market = {"n": n, "median_bid": statistics.median(bids)}
+        per = [c["bid"] / c["vorp"] for c in comps if c["vorp"] > 0]
+        if per:
+            market["median_bid_per_vorp"] = statistics.median(per)
+        market_note = f"market rate from n={n} league claims"
+    else:
+        market_note = (f"too few comparable claims (n={n}) to estimate a market rate -- "
+                       "listing them raw instead; no verdict")
+    faab = getattr(engine, "current_faab", {}) or {}
+    return {"bid": bid, "team": team,
+            "remaining_faab": float(faab.get(team, 100.0)),
+            "league_avg_faab": float(np.mean(list(faab.values()))) if faab else 100.0,
+            "n_comparables": n, "comparables": comps, "market": market, "market_note": market_note,
+            "note": ("budget cost, reported separately from roster-change value and never merged with it. "
+                     "remaining_faab is as of now, not as of the bid; VORP uses frozen snapshot means "
+                     f"against current replacement levels. MARKET_MIN_COMPARABLES={MARKET_MIN_COMPARABLES} "
+                     "is a judgment call.")}
+
+
 def evaluate_logged_transaction(engine, transaction_id, batches=10, sims=300, log_path=None):
     """--log-tx, dispatched on the logged transaction's type: trades through evaluate_trade's
     two-roster path, free-agent moves and waiver claims through evaluate_add_drop's
@@ -1053,11 +1111,16 @@ def _evaluate_logged_move(engine, tx, batches, sims, log_path):
         raise ValueError(f"roster drift since the logged move {tx['transaction_id']!r}: the involved players "
                          "are neither in their pre-move nor their post-move places -- the paired evaluation "
                          "is only meaningful near the time of the move.")
+    if tx.get("type") == "waiver":
+        r["faab"] = faab_context(engine, bid, team, log_path=log_path, exclude_tx=tx["transaction_id"])
     record = {"record_type": "evaluation", "transaction_id": tx["transaction_id"],
               "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
               "n_sims": r["n_sims"], "batches": batches, "post_execution_reversed": reversed_eval,
               "teams": {t: {"champ_pct": d["champ_pct"], "playoff_pct": d["playoff_pct"]}
                         for t, d in r["teams"].items()}}
+    if "faab" in r:
+        record["faab"] = {"bid": r["faab"]["bid"], "n_comparables": r["faab"]["n_comparables"],
+                          "market": r["faab"]["market"], "market_note": r["faab"]["market_note"]}
     with open(log_path, "a", encoding="utf-8") as handle:
         handle.write(_json.dumps(record, sort_keys=True) + chr(10))
     return r

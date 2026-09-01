@@ -885,7 +885,7 @@ def _sync_body(sharp_polling=False):
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
-    n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db)
+    n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db, standings=standings_payload)
     if n_tx:
         print(f"[DECISION LOG] {n_tx} new transaction(s) ingested.")
     return current_nfl_week, str(state.get("season", "2026"))
@@ -895,7 +895,7 @@ def _now_ms():
     return int(datetime.now().timestamp() * 1000)
 
 
-def ingest_transactions(roster_map, current_week, baselines, players_db, my_team=None, path=DECISION_LOG_FILE):
+def ingest_transactions(roster_map, current_week, baselines, players_db, my_team=None, path=DECISION_LOG_FILE, standings=None):
     """The decision log (see storage.DECISION_LOG_FILE): fetches every week's transactions
     from Sleeper, appends the COMPLETED ones not yet in the log (dedupe on transaction_id),
     one JSON line each: date and week, exact terms (players by name and pid, destination
@@ -966,6 +966,10 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                 "snapshot_is_retroactive": lag_days > 1.0,
                 "teams": teams, "is_mine": my_team in teams,
                 "faab_bid": (tx.get("settings") or {}).get("waiver_bid"),
+                # As of the INGESTING sync, post-bid (Sleeper's waiver_budget_used already
+                # includes it); null on non-waiver records and when standings were not passed.
+                "bidder_remaining_faab": ((standings or {}).get(teams[0], {}).get("remaining_faab")
+                                          if tx.get("type") == "waiver" and teams else None),
                 "adds": [player_entry(pid, rid) for pid, rid in (tx.get("adds") or {}).items()],
                 "drops": [player_entry(pid, rid) for pid, rid in (tx.get("drops") or {}).items()],
             })
