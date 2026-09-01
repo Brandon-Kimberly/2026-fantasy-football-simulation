@@ -1636,28 +1636,45 @@ per-game z-score into every same-team QB/WR/TE draw, which silently overrode eve
 pairwise correlation for the pairs it touched, most damagingly forcing WR-WR correlation from a
 calibrated -0.004 to +0.32. It was not removed because game-script-dependent correlation is
 inherently a bad idea; it was removed because *this implementation* of it clobbered calibration
-instead of composing with it. That is the specific failure mode any future mechanism in this
-space must be designed around, not a generic "be careful" caveat: **a game-script-dependent or
-tail-asymmetric adjustment must compose with the existing calibrated per-pair correlation (e.g.
-apply multiplicatively, as a conditional adjustment on top of the calibrated value), never
-silently replace or override it.**
+instead of composing with it, AND because it was a binary threshold gate (`(opponent implied
+total + spread) > 23`) that either fully applied its fixed +0.6 blend or did nothing -- a step
+function standing in for what is, if it's real at all, a continuous relationship between game
+script and correlation strength. Any future mechanism in this space must be designed around
+*both* specific failure modes, not a generic "be careful" caveat: **(a) it must compose with the
+existing calibrated per-pair correlation (e.g. apply multiplicatively, as a conditional
+adjustment on top of the calibrated value), never silently replace or override it; and (b) if it
+is game-script-dependent, it must be parameterised as a continuous function of Vegas spread --
+e.g. some f(Σ(v_spr)) -- not a binary/threshold gate, so it cannot repeat `shared_z`'s all-or-
+nothing discontinuity at an arbitrary cutoff.**
 
 **Scope:** measure first, build only if warranted. Pull real 2025 play-by-play or box-score data
-and directly test, before scoping any mechanism:
+and directly test, before scoping any mechanism. The qualitative claim (boom-week correlation
+exceeds bust-week correlation for a QB and his pass-catchers) is not what's in question here --
+it's a well-established real-football pattern and does not need re-proving from first principles
+on this project's own data. What's open is the **magnitude in this specific scoring system**
+(this league's IDP-inclusive format, roster construction, and the players it actually rosters),
+which nothing currently measures:
 
-1. Is QB-WR correlation actually asymmetric between boom weeks and bust weeks (e.g. split weeks
-   by whether the QB's realised score was above or below his own median, and compare the WR's
-   realised correlation with the QB conditional on each half)? By how much, and is it real at the
-   sample size real 2025 data actually gives -- not just a directionally-plausible story?
+1. Size the boom/bust correlation asymmetry, **pooled across the full league and a full real
+   season** -- every QB/WR1 and QB/WR2 pair league-wide, not team by team. A single team-season
+   does not carry enough weeks to size a correlation difference at any usable precision; pooling
+   across every pair and the whole season is what makes the magnitude measurable at all. Split
+   each QB's weeks by whether his own realised score was above or below his own median, and
+   compare his pass-catchers' realised correlation with him conditional on each half, pooled over
+   every such pair league-wide.
 2. Does game script (Vegas spread magnitude, or realised score differential) measurably shift
-   pairwise correlations in a way current calibration misses -- e.g. does QB/WR1 correlation
-   measurably rise in games the team trailed in, versus games it led or played close?
+   pairwise correlations in a way current calibration misses -- e.g. does QB/WR1 correlation rise
+   as spread magnitude grows in games the team trailed in, versus games it led or played close?
+   Measure this as a relationship over the spread's range, not a before/after split at one
+   threshold -- consistent with (b) above, since a threshold-shaped measurement would only ever
+   be able to recommend a threshold-shaped mechanism.
 
-Only if both effects are real (not noise at the available sample size) and non-trivial in size
-does this become an implementation item. If it does, scope a specific mechanism at that point --
-e.g. a game-script-conditional multiplicative adjustment layered on the existing calibrated
-correlation, not a replacement of it -- sized the way every other item in this document is sized:
-measured effect first, specific lines and tests second.
+Only if both effects are real (not noise at the available sample size) and non-trivial in
+magnitude for this scoring system does this become an implementation item. If it does, scope a
+specific mechanism at that point -- e.g. a continuous, game-script-conditional multiplicative
+adjustment layered on the existing calibrated correlation, not a replacement of it and not a
+threshold gate -- sized the way every other item in this document is sized: measured effect
+first, specific lines and tests second.
 
 **Acceptance criterion:** cannot be set yet -- there is no measurement to hold it to. To be set
 once the measurement above exists, under this project's standing rule for every constant and
@@ -1687,6 +1704,36 @@ output -- max exceedance 4.3e-3, mean loss <= 0.06 pts/week (Phase 2 status writ
 that existing measurement: the conclusion is unchanged, and no action was taken. Recorded here,
 and cross-referenced from the Phase 2 write-up itself, so this does not get re-litigated blind
 the next time an external critique raises it without engaging with the number already measured.
+
+Phase 2's measurement is in average points, which is not the metric that actually matters for
+playoff equity -- a cap could plausibly cost nothing on average yet still occasionally clip the
+one outlier score that would have flipped who wins a semifinal. Checked directly (2026-08-31): a
+paired comparison of `Champ_Pct` and `Playoff_Pct` at cap=80 (current), cap=60 (a deliberately
+more aggressive intermediate level), and effectively uncapped (1e6, i.e. the `min()` never
+binds), isolated to weeks 15-16 via the existing `tests.golden_master` week15 fixture (week06
+rosters, deterministic fabricated weeks 6-14 actuals, a bracket file -- weeks 1-14 are fully
+banked and identical across all three runs; only weeks 15-16 are actually simulated).
+`run_simulation` reseeds `np.random.seed(1000 + batch)` at the top of every batch and draws
+nothing from the global stream before that, so all three cap settings ran the *same* underlying
+z-draws batch-for-batch (`tests.golden_master`'s own documented determinism property) -- any
+delta is attributable only to the cap actually clipping a score and that clip changing a game's
+winner, not to independent sampling noise. 40 batches x 100 sims = 4,000 sims per cap setting.
+
+Result: **cap=80 vs. uncapped moved `Champ_Pct` and `Playoff_Pct` by exactly 0.0000 percentage
+points for every one of the 8 teams** (4 decimal places; below the ~0.025-point granularity of a
+single simulation flipping outcome across 4,000 sims -- i.e. not one simulated season's
+champion or playoff berth changed). `Playoff_Pct` itself carries no variance in this fixture
+regardless of cap (seeding is fixed from banked standings before week 15 per F3, so the four
+playoff seeds are already determined; the measurement is really testing whether the cap can
+flip who wins among them). The measurement is not simply insensitive: the deliberately more
+aggressive cap=60 *did* move `Champ_Pct` slightly (e.g. Drunk Cats 39.075 -> 39.025, Femboy Cats
+17.325 -> 17.400), a small but nonzero effect consistent with roughly one simulated season's
+outcome flipping at that tighter threshold -- confirming the pipeline can detect a real effect
+when the cap is tight enough to produce one. At the actual production value, 80, it does not.
+
+**Conclusion: the "no change needed" call from Phase 2 holds, now on direct playoff-equity
+evidence rather than only an average-points measurement.** No code changed as a result of this
+check -- it is additional evidence for an existing conclusion, not a new finding.
 
 **When:** unscheduled. Pure investigation with no dependency on any other open item (F1-F12) or
 on Phase 8 -- can start whenever real 2025 play-by-play or box-score data is pulled for the
