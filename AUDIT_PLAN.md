@@ -2176,8 +2176,20 @@ error is recoverable; called from `_sync_body`, warn-never-raise. Real run: **15
 (2026) / 128 (2025)**, both draft_ids matching the probe above, all picks resolved to
 the 8 team names, zero unresolved. `!data/logs/draft_*.json` verified by a real pushed
 commit (`git ls-tree origin/main`), per the F7 nested-exception lesson. Tests: 3, fake
-HTTP layer. The at-draft and realised-value analysis rows remain unbuilt, buildable at
-any checkpoint.
+HTTP layer.
+
+**At-draft analysis and report rows BUILT (2026-09-01).** `fantasy_sim.draft_review`
+(review_draft / derive_position_caps) + `scripts/draft_review.py`. Verdict labels reuse the
+TIER_Z combined-SE tier convention (no new threshold constant); position caps are the
+tightest limits consistent with the observed draft, documented as a lower bound (the picks
+API does not return Sleeper's configured limits); the proxy caveat lives in the RESULT
+(`proxy_note`) and prints first in the report. Acceptance: 2026 pick 1 (Jahmyr Gibbs) is
+**#1 of 889** on today's board by VORP; 2025 pick 1 (Bijan Robinson) #2, with 8 unresolved
+players listed by name. Tests: 7 on a crafted 2-round draft, one pick per verdict label.
+Note for the eventual realised-value row: today's board rates undrafted breakouts (e.g.
+Tuipulotu) highly, so late-round "reach" verdicts are the picks most polluted by the proxy
+-- the realised-value comparison is the honest arbiter there. That row remains unbuilt; it
+genuinely needs the season.
 
 ### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
 
