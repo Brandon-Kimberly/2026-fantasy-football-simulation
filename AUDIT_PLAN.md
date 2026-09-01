@@ -1848,3 +1848,74 @@ check -- it is additional evidence for an existing conclusion, not a new finding
 **When:** unscheduled. Pure investigation with no dependency on any other open item (F1-F12) or
 on Phase 8 -- can start whenever real 2025 play-by-play or box-score data is pulled for the
 measurement.
+
+### F14 — `MANAGER_PROFILES` sensitivity: do the hand-set manager values move anything?
+
+**Origin:** `MANAGER_PROFILES` (`config.py`) was self-derived from prior-season observation plus
+an external tool, with unknown validation quality, and is deliberately excluded from data-driven
+calibration (`CLAUDE.md`: per-manager sample size is far too small, and an optimiser would use
+these values to compensate for errors elsewhere). Two of its fields were already found to have
+minimal measured effect in Phase 4 -- but `trade_will` was measured against the old, dead trade
+mechanism (0 of 548 offers accepted on week01), which answers nothing about whether it matters
+under a mechanism managers might actually engage with. No comprehensive check had covered every
+field, and the derivation quality was never going to be established directly -- so the question
+is reframed as sensitivity: if the values move nothing, their provenance is low-risk; if they
+move outcomes materially, they need real validation or a neutral default.
+
+**Usage sites (grepped, not assumed).** Exactly four reads in production code, all in
+`simulation.py`: `trade_will` twice (both gates of the week-6-10 trade block, lines 923/925)
+and `faab_agg` twice (`_compute_faab_bid`'s `aggression` argument at line 1014, and the bid
+sort's tie-break at 1019). The third field, `style`, is a label read by nothing. No other
+module reads the dict; four test files patch it to neutral values. So the entire surface is:
+bid size, bid-tie ordering, and the two trade-willingness coin flips.
+
+**What `faab_agg` can reach.** Bids are sorted and *every* bidder receives a streamer in bid
+order, valued `max(4, 12 - 0.5 * rank)`; nobody loses a bid. Aggression therefore buys (a) FAAB
+spend and (b) streamer quality *rank* at 0.5 points per place among that week's bidders --
+nothing else. Simulated spend is not exported (`remaining_faab` in the export is the sync-time
+starting value), so the outcome channel is only (b).
+
+**Scope:** paired sensitivity -- current values vs a neutralised baseline (every manager
+identical) -- across enough seasons to detect a real effect, measuring every output the values
+could plausibly touch. Neither field changes the number or order of RNG draws (the uniform bid
+draw and the trade `rand()` gates fire unconditionally), so both arms consume the identical
+random stream batch for batch. Sequencing: the FAAB portion now; the trade portion held until
+F2 commit 1 (offer construction) lands, then `trade_will` measured under the corrected
+mechanism specifically.
+
+**MEASURED, FAAB portion (2026-09-01; throwaway scripts in scratch).** Arms: config values vs
+`faab_agg = 0.5` for all (the code's own default for an unknown team); `trade_will` untouched
+(inert on these fixtures under the old mechanism). Behaviour moved as designed: mean bid ranges
+0.90 (agg 0.10) to 7.81 (agg 0.85) under current values vs 4.49 flat under neutral; league FAAB
+spent per season 252 vs 282 (week01), 174 vs 194 (week06); bids per season identical (62.8 vs
+62.7) since need, not aggression, creates bids. Outcomes:
+
+- *First pass, 1,000 seasons per arm, week01 and week06:* per-team deltas up to +-2.8 `Champ_Pct`
+  / +-3.7 `Playoff_Pct` -- but with signs that did not track aggression (the low-aggression
+  Clankers gained +2.8 under the current values; the high-aggression Year of Jarvis lost -2.3 in
+  both scenarios). Suspicious rather than conclusive: once a changed bid alters a streamer
+  assignment, that season diverges and behaves as an independent draw, so "paired" does not
+  mean noise-free.
+- *Proper paired statistic, 3,000 seasons per arm, week01, per-batch differences over the 30
+  shared-seed batches:* every team's |t| < 2. `Champ_Pct` deltas (current minus neutral, +-SE):
+  Femboy +0.43+-0.72, Year of Jarvis -1.00+-0.86, Drunk Cats +1.60+-0.93, Glutton -0.30+-0.86,
+  Canton -0.17+-0.54, Legion -0.13+-0.67, Clankers +0.10+-0.76, Wine Drinkers -0.53+-0.59.
+  `Playoff_Pct` deltas all within +-1.5+-1.4. Expected wins all within +-0.28+-0.18. The
+  1,000-season outliers collapsed (Clankers +2.8 -> +0.1; Year of Jarvis -2.3 -> -1.0+-0.9).
+  76% of team-seasons differ between arms in win total, confirming the pairing buys little
+  variance reduction and these SEs are the honest ones.
+
+**Acceptance, FAAB portion -- recorded plainly: SMALL.** `faab_agg` is behaviourally live and
+outcome-inert: no team's championship or playoff probability moves detectably (bounded within
+roughly +-2 `Champ_Pct` at 95%), and what movement exists has no coherent direction in
+aggression. The mechanism explains why: every bidder is served, so aggression only reorders
+streamers spaced 0.5 points apart. The current `faab_agg` values are low-risk to leave as-is
+regardless of derivation quality. Not touched.
+
+**Held: the trade portion.** `trade_will` is measured only after F2 commit 1 lands, under the
+corrected offer construction -- the real open question. Same design: current values vs uniform
+`trade_will`, paired batches, >= 3,000 seasons, outputs: completed trades per season and their
+terms, plus `Champ_Pct` / `Playoff_Pct` / expected wins.
+
+**When:** FAAB portion done. Trade portion: immediately after F2 commit 1, before F2's
+commit 3 (the MCE-proxy decision), since whether `trade_will` matters bears on that decision.
