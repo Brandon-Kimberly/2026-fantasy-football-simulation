@@ -1398,6 +1398,14 @@ projection = the epistemic rate; zero weeks excluded as absences; tested on synt
 and noise are separable by hand. No engine change; goldens byte-identical. Realised scores need no
 logging (Sleeper matchups persist). What remains is time: the log starts filling at the first 2026 sync
 and the derivation needs a season of it.
+VERIFIED TRACKED (2026-09-01): `git ls-files` lists `data/logs/projection_log.jsonl`, it is on
+`origin/main`, and `git check-ignore -v` returns nothing for it while `data/*` still ignores
+`data/current/player_baselines.json` -- the exception works. But the check also showed the
+tracked copy **612 rows behind the disk** (HEAD 465, disk 1,077): four syncs' rows existed on
+this machine only. Tracking protects what is committed, nothing more; committed the rows the
+same day. The log had just proved its value as the fallback source for two absent players'
+carried means (`da9f798`), so a stale tracked copy is a real loss. The weekly orchestrator
+should surface uncommitted log rows in its digest (proposed, not built).
 SMOKE TEST (2026-08-29, first real `run_sync` on main after the merge): **155 rows** read back from the
 file — 155 distinct pids of 156 rostered, week 1, season 2026, ESPN matched on 116 (the 118 blend-eligible
 offence players less two; K/IDP are never matched by design), `fallback_season` 0. The one rostered
@@ -2204,3 +2212,30 @@ one or two 0.3-0.4 correlations among 26 starters. **Not closed:** this is one w
 and (2) -- the realised 2025 totals correlation -- has not been run. The ~0.5-point bar in the
 scope needs a paired implementation (shared z-draw shape) and more weeks; both are cheap now
 that the tool exists.
+
+### F17 — Commissioner-Exempt (`NA`) return timing: capture the live data point
+
+**Origin:** 2026-09-01. Josh Jacobs (The Glutton) entered week 1 rostered with no Sleeper
+projection and `injury_status: "NA"` -- Sleeper's reserve / non-football code, here the
+Commissioner Exempt list, a roster-eligibility absence with no injury. Rather than a hand-typed
+healthy baseline, the sync now carries his prior mean (12.98, the projection log's last Sleeper/
+ESPN blend) and `NA` joined `INITIAL_ABSENCE_STATUSES` at stage 2, so he enters every simulated
+season on F4's clock and returns at `ABSENCE_RETURN_HAZARD_STEADY` = 0.16 per week (`da9f798`).
+That hazard was measured on 2025 IR/PUP/Sus/DNR returns; **it is carried over, unverified, for
+`NA`** -- the 2025 measurement never isolated a Commissioner-Exempt stint, whose length is set
+by a league ruling, not by healing.
+
+**Scope:** when Jacobs's status changes (reinstated -> projection returns and `NA` clears, or
+released), record in this entry the week it happened and the number of weeks absent from the
+week-1 sync -- one real data point on `NA` return timing. Any later `NA` case in this league is
+a second. With even one point, compare against the geometric expectation the steady hazard
+implies (1/0.16 = 6.25 weeks, memoryless): a stint that was known at entry to be a fixed length
+(a suspension-like ruling) is the case where a per-status hazard -- or a fixed clock read from
+the ruling -- would beat the carry-over. No engine change now; the sync's carried-mean warning
+and the freshness digest show his status every week, so the change will not be missed.
+
+**Acceptance criterion:** the data point is recorded when it happens; a per-status hazard is
+adopted only if a second season of `NA` cases gives it a basis (n >= a handful), else the
+carry-over stays, labelled as such.
+
+**When:** event-driven -- the week his status changes.
