@@ -603,6 +603,101 @@ class TestMissingProjectionIsAnAbsence(unittest.TestCase):
         self.assertIn("NOT in baselines", log)
 
 
+class TestDraftIngestion(unittest.TestCase):
+    """F15 ingestion row: every completed draft in the league renewal chain, pulled at sync,
+    one document per season at data/logs/draft_{season}.json, IMMUTABLE once written (a file
+    that exists is never rewritten). roster_id resolves via the CURRENT roster map; the raw
+    roster_id and picked_by user id survive on every pick so a cross-season mapping error is
+    recoverable. Written before sync.ingest_drafts existed."""
+
+    ROSTER_MAP = {1: "Legion of Coom", 2: "Femboy Cats"}
+
+    def _pick(self, no, rnd, slot, rid, pid, first, last, pos, team, keeper=False):
+        return {"pick_no": no, "round": rnd, "draft_slot": slot, "roster_id": rid,
+                "picked_by": f"user_{rid}", "player_id": pid, "is_keeper": keeper,
+                "metadata": {"first_name": first, "last_name": last, "position": pos, "team": team}}
+
+    def _fake_get(self):
+        leagues = {"L1": {"league_id": "L1", "season": "2026", "previous_league_id": "L0"},
+                   "L0": {"league_id": "L0", "season": "2025", "previous_league_id": None}}
+        drafts = {"L1": [{"draft_id": "D26", "status": "complete", "season": "2026",
+                          "start_time": 1_755_850_000_000, "settings": {"rounds": 2, "teams": 2}}],
+                  "L0": [{"draft_id": "D25", "status": "complete", "season": "2025",
+                          "start_time": 1_724_300_000_000, "settings": {"rounds": 1, "teams": 2}},
+                         {"draft_id": "DX", "status": "drafting", "season": "2025"}]}
+        picks = {"D26": [self._pick(1, 1, 1, 1, "111", "Player", "A", "RB", "SEA"),
+                         self._pick(2, 1, 2, 2, "222", "Player", "B", "WR", "DET", keeper=True)],
+                 "D25": [self._pick(1, 1, 1, 2, "333", "Player", "C", "QB", "KC")]}
+
+        def fake(url, timeout=None):
+            m = MagicMock(); m.status_code = 200
+            parts = url.rstrip("/").split("/")
+            if parts[-1] == "drafts":
+                m.json.return_value = drafts.get(parts[-2], [])
+            elif parts[-1] == "picks":
+                m.json.return_value = picks.get(parts[-2], [])
+            elif parts[-2] == "league":
+                m.json.return_value = leagues.get(parts[-1], {})
+            else:
+                m.status_code = 404; m.json.return_value = None
+            return m
+        return fake
+
+    def _run(self, d, fake=None):
+        import fantasy_sim.sync as syncmod, os as _os
+        path_fn = lambda season: _os.path.join(d, f"draft_{season}.json")
+        with patch("requests.get", side_effect=fake or self._fake_get()):
+            return syncmod.ingest_drafts(self.ROSTER_MAP, league_id="L1", path_fn=path_fn)
+
+    def test_both_seasons_written_with_resolved_teams_and_raw_ids(self):
+        import json as _json, os as _os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(self._run(d), 2)
+            with open(_os.path.join(d, "draft_2026.json"), encoding="utf-8") as f:
+                d26 = _json.load(f)
+            with open(_os.path.join(d, "draft_2025.json"), encoding="utf-8") as f:
+                d25 = _json.load(f)
+        self.assertEqual(d26["draft_id"], "D26"); self.assertEqual(d26["season"], "2026")
+        self.assertEqual(len(d26["picks"]), 2)
+        p1 = d26["picks"][0]
+        self.assertEqual(p1["team"], "Legion of Coom", "roster_id resolved via the roster map")
+        self.assertEqual(p1["roster_id"], 1, "the raw id survives beside the resolved name")
+        self.assertEqual(p1["picked_by"], "user_1")
+        self.assertEqual(p1["name"], "Player A"); self.assertEqual(p1["pos"], "RB")
+        self.assertEqual(p1["pick_no"], 1); self.assertEqual(p1["round"], 1)
+        self.assertTrue(d26["picks"][1]["is_keeper"])
+        self.assertEqual(d25["league_id"], "L0")
+        self.assertEqual(d25["picks"][0]["team"], "Femboy Cats")
+
+    def test_an_existing_draft_file_is_never_rewritten(self):
+        import json as _json, os as _os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            sentinel = {"sentinel": True}
+            with open(_os.path.join(d, "draft_2026.json"), "w", encoding="utf-8") as f:
+                _json.dump(sentinel, f)
+            self.assertEqual(self._run(d), 1, "only 2025 is new")
+            with open(_os.path.join(d, "draft_2026.json"), encoding="utf-8") as f:
+                kept = _json.load(f)
+        self.assertEqual(kept, sentinel, "immutable once written")
+
+    def test_incomplete_drafts_are_skipped_and_a_failed_picks_fetch_never_raises(self):
+        import os as _os, tempfile
+        base = self._fake_get()
+
+        def flaky(url, timeout=None):
+            if url.rstrip("/").endswith("picks") and "D26" in url:
+                raise OSError("boom")
+            return base(url, timeout=timeout)
+
+        with tempfile.TemporaryDirectory() as d:
+            n = self._run(d, fake=flaky)
+            self.assertEqual(n, 1, "2026 picks failed, 2025 still lands; nothing raises")
+            self.assertFalse(_os.path.exists(_os.path.join(d, "draft_2026.json")))
+            self.assertTrue(_os.path.exists(_os.path.join(d, "draft_2025.json")))
+            listing = sorted(_os.listdir(d))
+        self.assertEqual(listing, ["draft_2025.json"], "the DX drafting-status draft wrote nothing")
+
+
 class TestDecisionLogIngestion(unittest.TestCase):
     """The decision log (data/logs/decision_log.jsonl): every completed league transaction,
     auto-ingested at sync, append-only, deduped by transaction_id, with each involved player's

@@ -156,6 +156,14 @@ PROJECTION_LOG_FILE = _log("projection_log.jsonl")
 # git for the same reason the projection log is: the projection snapshots cannot be
 # reconstructed after the fact.
 DECISION_LOG_FILE = _log("decision_log.jsonl")
+# F15 ingestion row: one immutable document per season -- the league's real completed draft,
+# picks resolved to team names at ingestion (sync.ingest_drafts; a file that exists is never
+# rewritten). Tracked in git like the other logs: Sleeper ages drafts out, so the on-disk
+# record is the historical source once that happens.
+def draft_log_file(season):
+    return _log(f"draft_{season}.json")
+
+
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 

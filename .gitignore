@@ -39,3 +39,8 @@ venv/
 # The decision log: every real roster move with its projection snapshot at ingestion --
 # cannot be reconstructed after the fact (same reason as the projection log above).
 !data/logs/decision_log.jsonl
+# F15: the league's real draft history, one immutable document per season
+# (sync.ingest_drafts). Historical record -- Sleeper ages drafts out, so once written the
+# on-disk file is the source. The nested-exception rule above applies: data/logs/ is already
+# un-excluded, so this pattern works; verified against a real commit like the others.
+!data/logs/draft_*.json

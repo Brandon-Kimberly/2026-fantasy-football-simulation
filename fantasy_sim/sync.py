@@ -28,6 +28,7 @@ from fantasy_sim.storage import (
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
+    draft_log_file,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -888,6 +889,9 @@ def _sync_body(sharp_polling=False):
     n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db, standings=standings_payload)
     if n_tx:
         print(f"[DECISION LOG] {n_tx} new transaction(s) ingested.")
+    n_draft = ingest_drafts(roster_map)
+    if n_draft:
+        print(f"[DRAFT LOG] {n_draft} draft(s) ingested.")
     return current_nfl_week, str(state.get("season", "2026"))
 
 
@@ -986,6 +990,75 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                         "re-ingested by the next successful sync.", len(records), path, ex)
         return 0
     return appended
+
+
+def ingest_drafts(roster_map, league_id=None, path_fn=None):
+    """F15 ingestion row (AUDIT_PLAN.md): every COMPLETED draft in the league's renewal chain
+    (current league, then previous_league_id links), one document per season at
+    data/logs/draft_{season}.json -- the immutable historical record of who drafted whom. A
+    draft file that already exists is NEVER rewritten. Picks carry the team name resolved via
+    the CURRENT league's roster map; Sleeper keeps roster_id stable across a renewed league,
+    but for past seasons that is an assumption, so the raw roster_id and picked_by user id
+    are stored on every pick to make any mis-resolution recoverable. A failure here must
+    never break a sync: it warns (into the manifest) and moves on. Returns files written."""
+    if league_id is None:
+        league_id = LEAGUE_ID
+    if path_fn is None:
+        path_fn = draft_log_file
+
+    def pick_row(p):
+        md = p.get("metadata") or {}
+        rid = p.get("roster_id")
+        return {"pick_no": p.get("pick_no"), "round": p.get("round"),
+                "draft_slot": p.get("draft_slot"), "roster_id": rid,
+                "team": roster_map.get(rid, f"roster_{rid}"),
+                "picked_by": p.get("picked_by"), "player_id": str(p.get("player_id")),
+                "is_keeper": bool(p.get("is_keeper")),
+                "name": f"{md.get('first_name', '')} {md.get('last_name', '')}".strip(),
+                "pos": md.get("position"), "nfl_team": md.get("team")}
+
+    written = 0
+    lid, seen = league_id, set()
+    while lid and lid not in seen:
+        seen.add(lid)
+        try:
+            info = requests.get(f"{BASE_URL}/league/{lid}", timeout=10).json() or {}
+            resp = requests.get(f"{BASE_URL}/league/{lid}/drafts", timeout=10)
+            drafts = resp.json() if resp.status_code == 200 else []
+        except Exception as ex:
+            logging.warning("DRAFT LOG: league %s could not be fetched (%s); its draft(s) "
+                            "will be picked up by a later sync.", lid, ex)
+            break
+        for d in drafts or []:
+            season = str(d.get("season") or info.get("season") or "")
+            if d.get("status") != "complete" or not season:
+                continue
+            path = path_fn(season)
+            if os.path.exists(path):
+                continue  # immutable once written
+            try:
+                p_resp = requests.get(f"{BASE_URL}/draft/{d.get('draft_id')}/picks", timeout=10)
+                picks = p_resp.json() if p_resp.status_code == 200 else None
+            except Exception as ex:
+                logging.warning("DRAFT LOG: picks for draft %s (season %s) could not be "
+                                "fetched (%s); a later sync will retry.", d.get("draft_id"), season, ex)
+                continue
+            if not picks:
+                logging.warning("DRAFT LOG: draft %s (season %s) returned no picks; a later "
+                                "sync will retry.", d.get("draft_id"), season)
+                continue
+            payload = {"draft_id": d.get("draft_id"), "season": season, "league_id": lid,
+                       "status": d.get("status"), "start_time": d.get("start_time"),
+                       "settings": d.get("settings"),
+                       "ingested_at": datetime.utcfromtimestamp(_now_ms() / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                       "picks": [pick_row(p) for p in picks]}
+            try:
+                save_json(path, payload)
+                written += 1
+            except Exception as ex:
+                logging.warning("DRAFT LOG: could not write %s (%s); a later sync will retry.", path, ex)
+        lid = info.get("previous_league_id")
+    return written
 
 
 def append_projection_log(rows, path=PROJECTION_LOG_FILE):
