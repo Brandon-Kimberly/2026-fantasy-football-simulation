@@ -87,6 +87,13 @@ def _log(filename):
     return _path("logs", filename)
 
 
+def decisions_path(filename):
+    """A decision-support output (fantasy_sim.decisions): one file per tool invocation under
+    data/decisions/, timestamped by the caller. Never read by the engine or the season
+    exports; ignored by git like the rest of data/."""
+    return _path("decisions", filename)
+
+
 def _week_dir_name(week):
     return f"week_{int(week):02d}"
 
