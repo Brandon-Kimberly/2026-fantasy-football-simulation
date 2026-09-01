@@ -42,16 +42,17 @@ def main(argv=None):
 
     print(f"\n{args.team} -- week {week}   FAAB remaining {r['remaining_faab']:.0f} (league avg {r['league_avg_faab']:.0f})")
     print(f"  holes this week: {r['holes'] or 'none'}   next week: {r['holes_next_week'] or 'none'}")
-    print(f"  {'#':>2s} {'player':26s} {'pos':4s} {'tier':>4s} {'mean':>5s} {'VORP':>5s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
+    print(f"  {'#':>2s} {'player':26s} {'pos':4s} {'tier':>4s} {'season':>6s} {'VORP':>5s} {'wk mean':>7s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
           f"{'zero':>5s} {'fills':8s} {'bid':>4s} {'model':>5s}  incumbent / P(beats)")
     for i, t in enumerate(r["targets"], 1):
         w = t["week"]
         inc = ""
         if t["p_beats_incumbent"]:
             inc = f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%*"
-        print(f"  {i:2d} {t['name'][:26]:26s} {t['pos']:4s} {str(t['tier'] or '-'):>4s} {t['mean']:5.1f} {t['vorp']:+5.1f} "
+        print(f"  {i:2d} {t['name'][:26]:26s} {t['pos']:4s} {str(t['tier'] or '-'):>4s} {t['mean']:6.1f} {t['vorp']:+5.1f} {w['mean']:7.1f} "
               f"{w['p10']:5.1f} {w['p50']:5.1f} {w['p90']:5.1f} {100 * w['p_zero']:4.0f}% {t['fills']:8s} "
               f"{t['bid']['suggested']:4d} {t['bid']['typical_manager_model']:5.1f}  {inc}")
+    print("  season = baseline (season-level) mean, the basis of VORP; wk mean/p10/p50/p90 = this week's environment-adjusted draws.")
     print("  bid = UNVERIFIED value heuristic (suggest_bid); model = what the engine simulates a typical manager paying.")
     print(f"  * P(beats incumbent): {r['caveat']}")
 
