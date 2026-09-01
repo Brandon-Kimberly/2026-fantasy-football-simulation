@@ -27,7 +27,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
-    SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE,
+    SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -858,7 +858,7 @@ def _sync_body(sharp_polling=False):
     # carries the same value the engine will read.
     byes = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("byes", {})
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
-    generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
+    baselines = generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
                               rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids)
     fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling)
 
@@ -885,7 +885,103 @@ def _sync_body(sharp_polling=False):
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
+    n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db)
+    if n_tx:
+        print(f"[DECISION LOG] {n_tx} new transaction(s) ingested.")
     return current_nfl_week, str(state.get("season", "2026"))
+
+
+def _now_ms():
+    return int(datetime.now().timestamp() * 1000)
+
+
+def ingest_transactions(roster_map, current_week, baselines, players_db, my_team=None, path=DECISION_LOG_FILE):
+    """The decision log (see storage.DECISION_LOG_FILE): fetches every week's transactions
+    from Sleeper, appends the COMPLETED ones not yet in the log (dedupe on transaction_id),
+    one JSON line each: date and week, exact terms (players by name and pid, destination
+    team, FAAB bid, both sides of a trade), is_mine, and each involved player's model
+    projection AT INGESTION TIME -- the baseline record (season-level weekly mean,
+    std_epistemic, injury status, projection_source). That snapshot is as of THIS sync, not
+    the moment of the click: `snapshot_lag_days` records the gap and
+    `snapshot_is_retroactive` is set when it exceeds one day, so a later retrospective never
+    treats a backfilled projection as contemporaneous (the first ingestion backfills every
+    existing transaction this way). A failure here must never break a sync: it warns (into
+    the manifest) and returns 0.
+
+    my_team defaults to config.MY_TEAM. Returns the number of records appended."""
+    if my_team is None:
+        from fantasy_sim.config import MY_TEAM as my_team  # noqa: F811
+    seen = set()
+    try:
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                for line in handle:
+                    line = line.strip()
+                    if line:
+                        seen.add(json.loads(line).get("transaction_id"))
+    except Exception as ex:
+        logging.warning("DECISION LOG: could not read %s (%s); skipping ingestion this sync "
+                        "rather than risking duplicates.", path, ex)
+        return 0
+
+    by_pid = {str(e.get("player_id")): e for e in baselines.values()
+              if isinstance(e, dict) and e.get("player_id") is not None}
+
+    def player_entry(pid, roster_id):
+        pdb = players_db.get(str(pid), {})
+        name = f"{pdb.get('first_name', '')} {pdb.get('last_name', '')}".strip() or str(pid)
+        b = by_pid.get(str(pid))
+        projection = None
+        if b is not None:
+            projection = {"mean": b.get("mean"), "std_epistemic": b.get("std_epistemic"),
+                          "pos": b.get("pos"), "injury_status": b.get("injury_status"),
+                          "on_ir": b.get("on_ir"), "projection_source": b.get("projection_source")}
+        return {"player_id": str(pid), "name": name,
+                "to_team": roster_map.get(roster_id, f"roster_{roster_id}"), "projection": projection}
+
+    now = _now_ms()
+    appended = 0
+    records = []
+    for wk in range(1, max(1, int(current_week)) + 1):
+        try:
+            resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/transactions/{wk}", timeout=10)
+            txs = resp.json() if resp.status_code == 200 else []
+        except Exception as ex:
+            logging.warning("DECISION LOG: transactions for week %d could not be fetched (%s); "
+                            "they will be picked up by a later sync.", wk, ex)
+            continue
+        for tx in txs or []:
+            txid = tx.get("transaction_id")
+            if not txid or txid in seen or tx.get("status") != "complete":
+                continue
+            seen.add(txid)
+            created = int(tx.get("created") or now)
+            lag_days = max(0.0, (now - created) / 86_400_000.0)
+            teams = [roster_map.get(rid, f"roster_{rid}") for rid in (tx.get("roster_ids") or [])]
+            records.append({
+                "transaction_id": txid, "type": tx.get("type"), "week": tx.get("leg", wk),
+                "created": datetime.utcfromtimestamp(created / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "snapshot_at": datetime.utcfromtimestamp(now / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "snapshot_lag_days": round(lag_days, 3),
+                "snapshot_is_retroactive": lag_days > 1.0,
+                "teams": teams, "is_mine": my_team in teams,
+                "faab_bid": (tx.get("settings") or {}).get("waiver_bid"),
+                "adds": [player_entry(pid, rid) for pid, rid in (tx.get("adds") or {}).items()],
+                "drops": [player_entry(pid, rid) for pid, rid in (tx.get("drops") or {}).items()],
+            })
+    if not records:
+        return 0
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for r in records:
+                handle.write(json.dumps(r, sort_keys=True) + "\n")
+                appended += 1
+    except Exception as ex:
+        logging.warning("DECISION LOG: could not append %d records to %s (%s). They will be "
+                        "re-ingested by the next successful sync.", len(records), path, ex)
+        return 0
+    return appended
 
 
 def append_projection_log(rows, path=PROJECTION_LOG_FILE):

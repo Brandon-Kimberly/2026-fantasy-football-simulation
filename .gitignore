@@ -36,3 +36,6 @@ venv/
 # stamped with commit + interpreter (scripts/run_points_backtest.py). Tracked so a
 # before/after comparison is a diff of two committed lines.
 !data/logs/points_backtest.jsonl
+# The decision log: every real roster move with its projection snapshot at ingestion --
+# cannot be reconstructed after the fact (same reason as the projection log above).
+!data/logs/decision_log.jsonl

@@ -603,5 +603,103 @@ class TestMissingProjectionIsAnAbsence(unittest.TestCase):
         self.assertIn("NOT in baselines", log)
 
 
+class TestDecisionLogIngestion(unittest.TestCase):
+    """The decision log (data/logs/decision_log.jsonl): every completed league transaction,
+    auto-ingested at sync, append-only, deduped by transaction_id, with each involved player's
+    model projection AT INGESTION TIME (the baseline record) and an explicit
+    snapshot_is_retroactive flag when the snapshot postdates the move by more than a day -- so
+    a later retrospective never treats a backfilled projection as if it were recorded at the
+    moment of the click. Written before sync.ingest_transactions existed."""
+
+    ROSTER_MAP = {1: "Legion of Coom", 2: "Femboy Cats"}
+    BASELINES = {
+        "Player A": {"mean": 10.0, "std_epistemic": 2.0, "pos": "RB", "team": "SEA", "player_id": "111",
+                     "injury_status": None},
+        "Player B": {"mean": 7.0, "std_epistemic": 1.0, "pos": "WR", "team": "DET", "player_id": "222",
+                     "injury_status": "Questionable"},
+    }
+    PLAYERS_DB = {"111": {"first_name": "Player", "last_name": "A"},
+                  "222": {"first_name": "Player", "last_name": "B"},
+                  "333": {"first_name": "Player", "last_name": "C"}}
+
+    def _tx(self, txid, created_ms, tx_type="waiver", adds=None, drops=None, status="complete",
+            roster_ids=(1,), bid=3):
+        return {"transaction_id": txid, "type": tx_type, "status": status, "leg": 1,
+                "created": created_ms, "roster_ids": list(roster_ids),
+                "adds": adds or {"111": 1}, "drops": drops or {"222": 1},
+                "settings": {"waiver_bid": bid} if tx_type == "waiver" else None,
+                "consenter_ids": list(roster_ids)}
+
+    def _run(self, txs_by_week, path, now_ms=1_756_900_000_000, current_week=1):
+        import fantasy_sim.sync as syncmod
+
+        def fake_get(url, timeout=None):
+            m = MagicMock(); m.status_code = 200
+            wk = int(url.rsplit("/", 1)[-1])
+            m.json.return_value = txs_by_week.get(wk, [])
+            return m
+
+        with patch("requests.get", side_effect=fake_get), \
+             patch.object(syncmod, "_now_ms", return_value=now_ms):
+            return syncmod.ingest_transactions(self.ROSTER_MAP, current_week, self.BASELINES,
+                                               self.PLAYERS_DB, my_team="Legion of Coom", path=path)
+
+    def test_appends_one_record_per_completed_transaction_with_terms_and_snapshot(self):
+        import json as _json, tempfile, os as _os
+        fresh = 1_756_900_000_000 - 3_600_000            # one hour before the snapshot
+        stale = 1_756_900_000_000 - 5 * 86_400_000       # five days before
+        with tempfile.TemporaryDirectory() as d:
+            path = _os.path.join(d, "decision_log.jsonl")
+            n = self._run({1: [self._tx("t1", fresh), self._tx("t2", stale, roster_ids=(2,),
+                                                               adds={"111": 2}, drops={"222": 2}),
+                               self._tx("t3", fresh, status="failed")]}, path)
+            self.assertEqual(n, 2, "two completed transactions; the failed one is skipped")
+            rows = [_json.loads(l) for l in open(path, encoding="utf-8")]
+        r1 = next(r for r in rows if r["transaction_id"] == "t1")
+        self.assertEqual(r1["type"], "waiver"); self.assertEqual(r1["week"], 1)
+        self.assertTrue(r1["is_mine"]); self.assertEqual(r1["faab_bid"], 3)
+        self.assertEqual(r1["adds"][0]["name"], "Player A")
+        self.assertEqual(r1["adds"][0]["to_team"], "Legion of Coom")
+        self.assertAlmostEqual(r1["adds"][0]["projection"]["mean"], 10.0)
+        self.assertEqual(r1["drops"][0]["projection"]["injury_status"], "Questionable")
+        self.assertFalse(r1["snapshot_is_retroactive"])
+        self.assertLess(r1["snapshot_lag_days"], 0.1)
+        r2 = next(r for r in rows if r["transaction_id"] == "t2")
+        self.assertFalse(r2["is_mine"])
+        self.assertTrue(r2["snapshot_is_retroactive"], "a 5-day-old move's snapshot is backfilled")
+        self.assertGreater(r2["snapshot_lag_days"], 4.9)
+
+    def test_dedupes_on_transaction_id_across_repeated_syncs(self):
+        import tempfile, os as _os
+        with tempfile.TemporaryDirectory() as d:
+            path = _os.path.join(d, "decision_log.jsonl")
+            txs = {1: [self._tx("t1", 1_756_899_000_000)]}
+            self.assertEqual(self._run(txs, path), 1)
+            self.assertEqual(self._run(txs, path), 0, "already-ingested transaction must not append again")
+            self.assertEqual(sum(1 for _ in open(path, encoding="utf-8")), 1)
+
+    def test_trade_records_both_sides_and_a_player_missing_from_baselines_is_noted(self):
+        import json as _json, tempfile, os as _os
+        tx = self._tx("tr1", 1_756_899_000_000, tx_type="trade", roster_ids=(1, 2),
+                      adds={"111": 2, "333": 1}, drops={"111": 1, "333": 2}, bid=None)
+        with tempfile.TemporaryDirectory() as d:
+            path = _os.path.join(d, "decision_log.jsonl")
+            self._run({1: [tx]}, path)
+            r = _json.loads(open(path, encoding="utf-8").read())
+        self.assertEqual(r["type"], "trade"); self.assertTrue(r["is_mine"])
+        self.assertEqual({(a["name"], a["to_team"]) for a in r["adds"]},
+                         {("Player A", "Femboy Cats"), ("Player C", "Legion of Coom")})
+        pc = next(a for a in r["adds"] if a["name"] == "Player C")
+        self.assertIsNone(pc["projection"], "no baseline for the player: projection is None, not invented")
+
+    def test_a_write_failure_warns_and_never_raises(self):
+        import fantasy_sim.sync as syncmod
+        with patch("builtins.open", side_effect=OSError("disk full")), \
+             self.assertLogs(level="WARNING") as logs:
+            n = self._run({1: [self._tx("t1", 1_756_899_000_000)]}, path="unwritable/decision_log.jsonl")
+        self.assertEqual(n, 0)
+        self.assertTrue(any("DECISION LOG" in m for m in logs.output))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -150,6 +150,12 @@ WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.
 PROJECTION_LOG_FILE = _log("projection_log.jsonl")
+# The decision log (2026-09-01): every completed league transaction (add/drop/waiver/trade),
+# auto-ingested at sync from Sleeper's /transactions endpoint, append-only, deduped by
+# transaction_id, with each involved player's model projection at ingestion time. Tracked in
+# git for the same reason the projection log is: the projection snapshots cannot be
+# reconstructed after the fact.
+DECISION_LOG_FILE = _log("decision_log.jsonl")
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 
