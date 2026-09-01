@@ -327,3 +327,124 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
     return {"team": team, "week": week, "holes": holes, "holes_next_week": next_holes,
             "remaining_faab": remaining, "league_avg_faab": league_avg,
             "targets": targets, "caveat": INDEPENDENCE_CAVEAT}
+
+
+# ================================================================== TOOL 2: trade evaluator
+#
+# A user-proposed trade, evaluated by two PAIRED full simulations: the league as it is, and the
+# league with the trade applied. run_simulation reseeds np.random.seed(1000 + batch) at the
+# top of every batch and draws nothing before it, so both arms consume the identical random
+# stream batch for batch; each team's delta in Champ_Pct / Playoff_Pct / expected wins carries
+# a paired-batch SE (the per-batch differences over the batches). This IS the real
+# marginal-championship-equity number the engine's automatic trade block could not afford
+# (AUDIT_PLAN.md F2, commit 3): the block evaluates ~20 candidate offers per simulated season
+# across 10,000 seasons -- ~200,000 evaluations per run, each of which would need a nested
+# simulation of hundreds of seasons -- whereas here it is one trade, once, on demand: two runs.
+# Bystanders are reported too: a trade moves third parties, and every championship goes to
+# exactly one team, so the Champ_Pct deltas sum to zero across the league by construction.
+#
+# The engine's own automatic trade block stays active in both arms (paired, so it cancels in
+# expectation). Writers are patched out: a decision run never overwrites the season exports.
+import copy as _copy
+
+ACTIVE_ROSTER_LIMIT = 19   # Sleeper roster_positions for this league: 13 starters + 6 bench (IR slots separate)
+
+
+def _active_count(engine, team):
+    return sum(1 for n in engine.rosters[team] if not bool(_entry(engine, n).get('on_ir', False)))
+
+
+def apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=None):
+    """A deep copy of `engine` with the trade applied to rosters and meta; the original is
+    untouched. `drops` = {team: [names]} released to free agency after the trade. Raises
+    ValueError if a player is not on the stated roster, a drop is not on that roster after the
+    trade, or a side would exceed ACTIVE_ROSTER_LIMIT active players without a drop."""
+    for t in (team_a, team_b):
+        if t not in engine.rosters:
+            raise KeyError(f"unknown team {t!r}")
+    if team_a == team_b:
+        raise ValueError("a trade needs two different teams")
+    for t, names in ((team_a, a_gives), (team_b, b_gives)):
+        missing = [n for n in names if n not in engine.rosters[t]]
+        if missing:
+            raise ValueError(f"{missing} not on {t}'s roster")
+    if not a_gives and not b_gives:
+        raise ValueError("nothing is being traded")
+    e2 = _copy.deepcopy(engine)
+    for src, dst, names in ((team_a, team_b, a_gives), (team_b, team_a, b_gives)):
+        for n in names:
+            e2.rosters[src].remove(n)
+            e2.rosters[dst].append(n)
+            e2.meta[dst][n] = e2.meta[src].pop(n, {'pos': _entry(engine, n).get('pos', 'FLEX'),
+                                                   'team': _entry(engine, n).get('team', 'FA')})
+    for t, names in (drops or {}).items():
+        if t not in e2.rosters:
+            raise KeyError(f"unknown team {t!r} in drops")
+        for n in names:
+            if n not in e2.rosters[t]:
+                raise ValueError(f"cannot drop {n!r}: not on {t}'s post-trade roster")
+            e2.rosters[t].remove(n)
+            e2.meta[t].pop(n, None)
+    for t in (team_a, team_b):
+        if _active_count(e2, t) > ACTIVE_ROSTER_LIMIT:
+            raise ValueError(f"{t} would carry {_active_count(e2, t)} active players (limit "
+                             f"{ACTIVE_ROSTER_LIMIT}); specify drops for that side")
+    return e2
+
+
+def run_paired_capture(engine, batches, sims):
+    """Run `engine` at batches x sims with the writers patched out and return the stage-A
+    quantities the evaluator needs: {'wins': {team: (total_sims,)}, 'b_playoffs' /
+    'b_champs': {team: [per-batch rate, ...]}}. Positional indices follow run_simulation's
+    export_and_visualize call (tests.golden_master.STAGE_A_ARG_NAMES): wins=0, b_playoffs=2,
+    b_champs=3. Batch settings restored afterwards."""
+    captured = {}
+
+    def capture(self_, *args, **kwargs):
+        captured['wins'] = args[0]; captured['b_playoffs'] = args[2]; captured['b_champs'] = args[3]
+        return None
+
+    original = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+    SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = batches, sims
+    try:
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'), \
+             patch.object(FantasySimulationEngine, 'export_and_visualize', capture):
+            engine.run_simulation()
+    finally:
+        SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original
+    return captured
+
+
+def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300):
+    """Paired evaluation of one proposed trade. Returns per-team deltas (with minus without)
+    for champ_pct, playoff_pct and expected_wins, each with the paired-batch SE, plus the
+    trade's terms, the sample size and a note on what the number is."""
+    with_engine = apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=drops)
+    base = run_paired_capture(_copy.deepcopy(engine), batches, sims)
+    alt = run_paired_capture(with_engine, batches, sims)
+    n = batches * sims
+
+    def paired(rates_with, rates_without, scale):
+        d = (np.asarray(rates_with, float) - np.asarray(rates_without, float)) * scale
+        se = float(d.std(ddof=1) / np.sqrt(len(d))) if len(d) > 1 else float('nan')
+        return {"with": float(np.mean(rates_with) * scale), "without": float(np.mean(rates_without) * scale),
+                "delta": float(d.mean()), "se": se}
+
+    teams = {}
+    for t in engine.team_names:
+        w_with = np.asarray(alt['wins'][t], float).reshape(batches, sims).mean(axis=1)
+        w_without = np.asarray(base['wins'][t], float).reshape(batches, sims).mean(axis=1)
+        teams[t] = {
+            "champ_pct": paired(alt['b_champs'][t], base['b_champs'][t], 100.0),
+            "playoff_pct": paired(alt['b_playoffs'][t], base['b_playoffs'][t], 100.0),
+            "expected_wins": paired(w_with, w_without, 1.0),
+            "side": "A" if t == team_a else ("B" if t == team_b else "bystander"),
+        }
+    return {
+        "trade": {"team_a": team_a, "a_gives": list(a_gives), "team_b": team_b, "b_gives": list(b_gives),
+                  "drops": {k: list(v) for k, v in (drops or {}).items()}},
+        "n_sims": n, "batches": batches, "sims_per_batch": sims, "teams": teams,
+        "note": ("paired full simulations on identical seeds; delta = with trade minus without; SE is "
+                 "the paired-batch standard error. Real Champ_Pct/Playoff_Pct movement, not a proxy. "
+                 "The engine's automatic trades stay active in both arms."),
+    }

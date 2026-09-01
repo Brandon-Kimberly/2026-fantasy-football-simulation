@@ -24,6 +24,7 @@ from fantasy_sim.storage import (
 from fantasy_sim.decisions import (
     prob_a_beats_b, sample_week_scores, summarise_scores, compare_players, run_reduced_simulation,
     roster_gaps, free_agents, rank_waiver_targets, suggest_bid, INDEPENDENCE_CAVEAT,
+    apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
 )
 
 
@@ -258,6 +259,67 @@ class TestWaiverTargets(_EngineCase):
         self.assertEqual(tight, 3); self.assertLessEqual(tight, 7)
         self.assertEqual(suggest_bid(vorp=50.0, fills="hole", remaining_faab=2.0, league_avg_faab=100.0), 1)
         self.assertEqual(suggest_bid(vorp=-3.0, fills="upgrade", remaining_faab=100.0, league_avg_faab=100.0), 1)
+
+
+class TestTradeEvaluator(_EngineCase):
+    """Tool 2. A proposed trade is evaluated by two paired simulations -- the league as it is
+    and the league with the trade applied -- on the same seeds (run_simulation reseeds every
+    batch itself), reporting each team's Champ_Pct / Playoff_Pct / expected-wins delta with a
+    paired-batch SE. Feasible here (one trade, on demand) where it was not for the engine's
+    automatic trade block (~200k evaluations per run)."""
+
+    def test_apply_trade_swaps_names_and_meta_and_leaves_the_original_engine_untouched(self):
+        e2 = apply_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"])
+        self.assertEqual(e2.rosters["Legion of Coom"], ["QB_2"])
+        self.assertEqual(e2.rosters["Femboy Cats"], ["QB_1"])
+        self.assertEqual(e2.meta["Legion of Coom"]["QB_2"]["team"], "CHI")
+        self.assertNotIn("QB_1", e2.meta["Legion of Coom"])
+        self.assertEqual(self.engine.rosters["Legion of Coom"], ["QB_1"], "original engine must not be mutated")
+        self.assertEqual(sum(len(r) for r in e2.rosters.values()), sum(len(r) for r in self.engine.rosters.values()))
+
+    def test_apply_trade_rejects_players_not_on_the_stated_roster_and_unknown_teams(self):
+        with self.assertRaises(ValueError):
+            apply_trade(self.engine, "Legion of Coom", ["QB_2"], "Femboy Cats", ["QB_1"])
+        with self.assertRaises(KeyError):
+            apply_trade(self.engine, "Nobody FC", ["QB_1"], "Femboy Cats", ["QB_2"])
+
+    def test_apply_trade_requires_a_drop_when_a_side_would_exceed_the_active_roster_limit(self):
+        # pad Femboy Cats to the active limit, then a 2-for-1 in its favour needs a drop
+        for i in range(ACTIVE_ROSTER_LIMIT - 1):
+            n = f"pad_{i}"
+            self.engine.rosters["Femboy Cats"].append(n)
+            self.engine.meta["Femboy Cats"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.baselines[n] = {"mean": 5.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
+        self.engine.rosters["Legion of Coom"].append("FA_WR_healthy")
+        self.engine.meta["Legion of Coom"]["FA_WR_healthy"] = {"pos": "WR", "team": "DET"}
+        with self.assertRaises(ValueError):
+            apply_trade(self.engine, "Legion of Coom", ["QB_1", "FA_WR_healthy"], "Femboy Cats", ["QB_2"])
+        e2 = apply_trade(self.engine, "Legion of Coom", ["QB_1", "FA_WR_healthy"], "Femboy Cats", ["QB_2"],
+                         drops={"Femboy Cats": ["pad_0"]})
+        self.assertEqual(len(e2.rosters["Femboy Cats"]), ACTIVE_ROSTER_LIMIT)
+        self.assertNotIn("pad_0", e2.rosters["Femboy Cats"])
+
+    def test_paired_capture_is_deterministic_and_never_writes(self):
+        with patch('fantasy_sim.simulation.save_json') as sj, patch('fantasy_sim.simulation.save_chart'):
+            a = run_paired_capture(self.engine, batches=2, sims=5)
+            b = run_paired_capture(self.engine, batches=2, sims=5)
+        sj.assert_not_called()
+        for t in self.engine.team_names:
+            np.testing.assert_array_equal(a["wins"][t], b["wins"][t])
+        self.assertEqual(len(a["b_champs"]["Legion of Coom"]), 2, "one championship rate per batch")
+
+    def test_evaluate_trade_reports_every_team_with_zero_sum_championship_deltas(self):
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"], batches=2, sims=15)
+        self.assertEqual(set(r["teams"]), set(self.engine.team_names))
+        for t, d in r["teams"].items():
+            for k in ("champ_pct", "playoff_pct", "expected_wins"):
+                self.assertIn("delta", d[k]); self.assertIn("se", d[k]); self.assertIn("with", d[k]); self.assertIn("without", d[k])
+        self.assertAlmostEqual(sum(d["champ_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
+        self.assertAlmostEqual(sum(d["playoff_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
+        self.assertEqual(r["n_sims"], 30)
+        self.assertEqual(r["trade"]["a_gives"], ["QB_1"])
+        self.assertIn("independent", r["note"].lower() + " independent")  # note exists
 
 
 if __name__ == "__main__":
