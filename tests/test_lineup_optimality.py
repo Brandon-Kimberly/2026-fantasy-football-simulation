@@ -271,21 +271,40 @@ class TestTradeLogic(unittest.TestCase):
     @staticmethod
     def _reconstruct(calls):
         """Evaluations are 3 or 4 get_optimal_score calls (the acceptance test short-circuits
-        after the desperate side fails). Returns [(accepted, len_d, len_r, len_tent_r)]."""
-        out, i = [], 0
-        while i + 2 < len(calls):
-            (d, vd), (r, vr), (td, vtd) = calls[i:i + 3]
-            p1, sd, sr, std_ = d[0], set(d), set(r), set(td)
-            if not (p1 not in std_ and std_ - sd <= sr and len(std_) == len(sd)):
-                i += 1
-                continue
-            if vtd > vd and i + 3 < len(calls):
-                tr, vtr = calls[i + 3]
-                out.append((vtr > vr, len(d), len(r), len(tr)))
-                i += 4
-            else:
-                out.append((False, len(d), len(r), None))
-                i += 3
+        after the desperate side fails). Returns [(accepted, len_d, len_r, len_tent_r)].
+
+        An evaluation is recognised by its shape: tent_d is d minus the players the desperate
+        side gives (the offered player plus, usually, the dropped throw-in: 1 or 2 names) plus
+        players drawn from r, at the same size. Under the old fixed offer the given player was
+        always d[0] (the desperate side's best); F2 commit 1 offers the cheapest player that
+        helps, so the check keys on the set difference, not on d[0].
+
+        Since commit 1, one (d, r) pair may be followed by SEVERAL candidate evaluations
+        (up to TRADE_OFFER_SLOTS x TRADE_OFFER_GIVERS), each a tent_d call and, if the
+        desperate side gains, a tent_r call; the block stops at the first acceptance."""
+        out, i, n = [], 0, len(calls)
+        while i + 2 < n:
+            (d, vd), (r, vr) = calls[i], calls[i + 1]
+            sd, sr = set(d), set(r)
+            j, matched = i + 2, False
+            while j < n:
+                td, vtd = calls[j]
+                std_ = set(td)
+                gave, got = sd - std_, std_ - sd
+                if not (1 <= len(gave) <= 2 and got and got <= sr and len(std_) == len(sd)):
+                    break
+                matched = True
+                if vtd > vd and j + 1 < n:
+                    tr, vtr = calls[j + 1]
+                    accepted = vtr > vr
+                    out.append((accepted, len(d), len(r), len(tr)))
+                    j += 2
+                    if accepted:
+                        break
+                else:
+                    out.append((False, len(d), len(r), None))
+                    j += 1
+            i = j if matched else i + 1
         return out
 
     def _run_fixture(self, scenario, batches, sims):
@@ -302,17 +321,16 @@ class TestTradeLogic(unittest.TestCase):
                 FantasySimulationEngine().run_simulation()
         return self._reconstruct(calls)
 
-    @unittest.expectedFailure
     def test_trades_are_live_on_the_preseason_fixture(self):
-        """CHARACTERISATION, deliberately still failing -- Phase 4 finding 1, tracked as
-        AUDIT_PLAN.md F2 (sized, not implemented). Over 40 simulated seasons of the week01
-        fixture, 0 of ~220 evaluated trades are accepted (0 of 548 over 100 seasons in the
-        probe). The rich team gives its 6th- and 7th-best players -- both STARTERS in a 13-slot
-        lineup (medians 12.7 and 12.2) -- for the desperate team's best, a QB 99% of the time;
-        its optimal score falls every time (max gain -3.17). MANAGER_PROFILES['trade_will']
-        therefore has no observable effect. F2's acceptance criterion is >= 1.0 completed
-        trades per season on this fixture; remove the expectedFailure when it lands and this
-        test becomes the guard."""
+        """Guard (was a red characterisation until F2 commit 1). Phase 4 finding 1: under the
+        old fixed offer -- the rich team's 6th- and 7th-best players, both STARTERS in a 13-slot
+        lineup, for the desperate team's best, a QB 99% of the time -- the rich side's optimal
+        score fell every time (0 of 548 accepted over 100 week01 seasons, max gain -3.17), so
+        MANAGER_PROFILES['trade_will'] had no observable effect. With position-aware offer
+        construction (_construct_trade_offers) trades complete: 55 in 100 week01 seasons at the
+        default candidate bound. This asserts the mechanism is live (some evaluated trade is
+        accepted over 40 seasons); F2's per-season rate criterion is measured separately in
+        AUDIT_PLAN.md, not asserted here at this sample size."""
         evals = self._run_fixture("week01", 2, 20)
         self.assertGreater(len(evals), 50, "trade block did not run")
         self.assertGreater(sum(1 for e in evals if e[0]), 0,
@@ -338,12 +356,16 @@ class TestTradeLogic(unittest.TestCase):
             return names
 
         specs = {}
-        # rich: five elite starters, a weak QB (5.9 -- strictly below the 6.0 starters, so it
-        # is NOT among the 6th/7th best that get offered), seven weak starters, junk bench.
-        # Its 6th/7th best are then two 6.0 starters, and a 25-point QB for them is a
-        # genuine upgrade (+19 at QB, -8 from replacing two 6s with 2s).
+        # rich: a weak QB starter (5.9), five elite starters, seven 6.0 starters, and two bench
+        # WRs (8.0, 7.5) that would start over Poor8's 4.0s. Under F2 commit 1's offer
+        # construction, Poor8's weakest fillable slot is a WR/FLEX one, the rich side gives
+        # those two bench WRs, and Poor8's cheapest player that upgrades a rich starter is its
+        # 24-point bench QB (vs the 5.9 starter): both optimal scores rise, so the trade
+        # completes and the roster-size assertion below is exercised for real. (Before commit 1
+        # the fixture was shaped for the old fixed offer -- rich's 6th/7th-best starters for
+        # Poor8's best -- which the new construction never proposes.)
         for t in ("Rich1", "Rich2"):
-            specs[t] = roster(t, [5.9] + [30.0] * 5 + [6.0] * 7, [2.0] * 6)
+            specs[t] = roster(t, [5.9] + [30.0] * 5 + [6.0] * 7, [8.0, 7.5, 2.0, 2.0, 2.0, 2.0])
         for t in ("M3", "M4", "M5", "M6", "M7"):
             specs[t] = roster(t, [10.0] * 13, [3.0] * 6)
         # poor: one star QB, a second good QB on the bench, everything else weak -> giving the
@@ -392,6 +414,81 @@ class TestTradeLogic(unittest.TestCase):
         for _ok, len_d, len_r, len_tr in accepted:
             self.assertEqual(len_tr, len_r,
                              "rich roster %d -> %d on a completed trade (desperate stays %d)" % (len_r, len_tr, len_d))
+
+
+class TestTradeOfferConstruction(unittest.TestCase):
+    """F2 commit 1: the offer, not the acceptance rule, was what killed trades. The old offer
+    was fixed -- the desperate side's best player (a QB 99% of the time) for the rich side's
+    6th- and 7th-best (both starters in a 13-slot lineup) -- so the rich side's optimal score
+    fell on essentially every evaluation (max gain -3.2 on week01). The new construction is
+    position-aware: the desperate side asks for the rich side's BENCH players who would start
+    at the desperate side's weakest slot, and offers the cheapest player of its own that would
+    still upgrade one of the rich side's starters. The acceptance rule (both optimal scores
+    improve) is unchanged."""
+
+    SLOTS = ["QB", "K", "DB", "DL", "LB", "RB", "RB", "RB", "WR", "WR", "WR", "TE", "TE"]
+
+    def _engine(self, specs):
+        rosters = {t: [{"name": n, "pos": p, "team": "FA"} for n, p, _ in ps] for t, ps in specs.items()}
+        baselines = {n: {"mean": m, "std_aleatoric": 2.0, "std_epistemic": 0.0, "pos": p, "team": "FA"}
+                     for ps in specs.values() for n, p, m in ps}
+        teams = list(specs)
+        fs = {
+            LEAGUE_STATE_FILE: {"current_week": 1},
+            LEAGUE_STANDINGS_FILE: {t: {"remaining_faab": 100} for t in teams},
+            VEGAS_FILE: {"_meta": {"week": 1, "source": "odds_api", "fetched_at": "x"}},
+            LIVE_ROSTERS_FILE: rosters, BASELINES_FILE: baselines,
+            TEAM_RATINGS_FILE: {}, DEFENSIVE_RATINGS_FILE: {},
+            DEFENSIVE_TIERS_FILE: {"TOP_DEFENSE": [], "BOTTOM_DEFENSE": []},
+            LEAGUE_SCHEDULE_FILE: [[[teams[0], teams[1]]]] * 14,
+            NFL_SCHEDULE_FILE: {}, WEEKLY_ACTUALS_FILE: {},
+        }
+        prev = logging.getLogger().getEffectiveLevel()
+        logging.getLogger().setLevel(logging.ERROR)
+        try:
+            with patch("fantasy_sim.simulation.load_json", side_effect=lambda p: fs[p]):
+                return FantasySimulationEngine()
+        finally:
+            logging.getLogger().setLevel(prev)
+
+    def _roster(self, prefix, starter_means, bench):
+        names = [("%s_%s%d" % (prefix, pos, i), pos, m) for i, (pos, m) in enumerate(zip(self.SLOTS, starter_means))]
+        names += [("%s_B_%s%d" % (prefix, pos, i), pos, m) for i, (pos, m) in enumerate(bench)]
+        return names
+
+    def test_offer_targets_rich_bench_at_the_desperate_sides_weakest_slot(self):
+        # Desperate: solid everywhere (10s) except WR, where its starters are 4.0 -- its
+        # weakest slot. A star QB starter (25) and a nearly-as-good QB on the bench (24), so
+        # giving up a QB costs its own lineup almost nothing.
+        poor = self._roster("Poor", [25.0] + [10.0] * 7 + [4.0, 4.0, 4.0] + [10.0, 10.0],
+                            [("QB", 24.0), ("RB", 3.0), ("WR", 3.0), ("TE", 3.0), ("DB", 1.0), ("DL", 1.0)])
+        # Rich: strong starters everywhere, QB at 20 (below both of Poor's QBs), and two bench
+        # WRs (9.0, 8.5) that would start over Poor's 4.0 WRs but not over Rich's own 15s.
+        rich = self._roster("Rich", [20.0] + [15.0] * 12,
+                            [("WR", 9.0), ("WR", 8.5), ("RB", 6.0), ("TE", 5.0), ("DB", 2.0), ("DL", 2.0)])
+        engine = self._engine({"Poor": poor, "Rich": rich})
+        offer = engine._construct_trade_offer([n for n, _, _ in poor], [n for n, _, _ in rich])
+        self.assertIsNotNone(offer, "a mutually improvable offer exists and none was constructed")
+        p1, p2, p3 = offer
+        self.assertEqual({p2, p3}, {"Rich_B_WR0", "Rich_B_WR1"},
+                         "rich side must give its bench WRs -- the players that start at Poor's weakest slot")
+        self.assertEqual(p1, "Poor_B_QB0",
+                         "desperate side must offer its CHEAPEST player that still upgrades a rich starter "
+                         "(the 24-point bench QB beats Rich's 20-point starter; the 25-point starter is dearer)")
+        # And the unchanged acceptance rule now passes on this offer -- both optimal scores rise.
+        d_list = [n for n, _, _ in poor]; r_list = [n for n, _, _ in rich]
+        tent_d = sorted([p for p in d_list if p != p1] + [p2, p3],
+                        key=lambda p: engine.baselines[p]["mean"], reverse=True)
+        dropped = tent_d.pop()
+        tent_r = [p for p in r_list if p not in (p2, p3)] + [p1, dropped]
+        self.assertGreater(engine.get_optimal_score(tent_d), engine.get_optimal_score(d_list))
+        self.assertGreater(engine.get_optimal_score(tent_r), engine.get_optimal_score(r_list))
+
+    def test_no_offer_when_rich_bench_cannot_start_for_the_desperate_side(self):
+        poor = self._roster("Poor", [25.0] + [10.0] * 12, [("QB", 24.0), ("WR", 3.0), ("RB", 3.0)])
+        rich = self._roster("Rich", [20.0] + [15.0] * 12, [("WR", 6.0), ("RB", 5.0), ("TE", 5.0)])  # all below Poor's 10s
+        engine = self._engine({"Poor": poor, "Rich": rich})
+        self.assertIsNone(engine._construct_trade_offer([n for n, _, _ in poor], [n for n, _, _ in rich]))
 
 
 if __name__ == "__main__":

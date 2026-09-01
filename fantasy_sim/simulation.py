@@ -530,6 +530,112 @@ class FantasySimulationEngine:
         bench = sum(player_values[p] for p in roster_list if p not in used)
         return opt_score + (bench * 0.1)
 
+    def _construct_trade_offer(self, d_list, r_list):
+        """F2 commit 1 (AUDIT_PLAN.md): position-aware offer construction. Returns (p1, p2, p3)
+        -- the desperate side gives p1, the rich side gives p2 and p3 -- or None when no
+        plausible offer exists. Draws no random numbers; the acceptance rule in the trade
+        block (both optimal scores must improve) is unchanged and still decides.
+
+        The old offer was fixed: the desperate side's best player (a QB 99% of the time, since
+        QBs carry the highest means) for the rich side's 6th- and 7th-best -- both STARTERS in a
+        13-slot lineup -- so the rich side's optimal score fell on essentially every evaluation
+        (0 of 548 accepted on week01, max rich-side gain -3.2; AUDIT_PHASE_4_FINDINGS.md
+        finding 1). Nobody offers two starters for a bench player. This constructs the offer a
+        manager would actually make:
+
+          1. Solve both sides' optimal lineups (no bench term -- pure starters).
+          2. Walk the desperate side's starters from weakest upward and take the first slot for
+             which the rich side has BENCH players that would start there (mean above the
+             desperate starter, eligible for that slot's positions; FLEX = RB/WR/TE). Those two
+             best bench upgrades are p2, p3 (if only one exists, p3 is the rich side's cheapest
+             other bench player -- the throw-in that keeps the trade 2-for-2, finding 2).
+          3. The desperate side offers its CHEAPEST player (lowest mean) that would still upgrade
+             one of the rich side's starters at its own position, never a player at the position
+             the desperate side is trying to fill. Cheapest-that-helps, not best: the desperate
+             side is filling a hole, not selling its franchise player.
+
+        Bench-for-starter on the rich side and starter-upgrade on the rich side is the shape a
+        trade needs for both optimal scores to rise, which is what the unchanged acceptance rule
+        then checks. Measured, not asserted: F2's criterion (a) is >= 1.0 and <= 4.0 completed
+        trades per simulated season on the week01 fixture."""
+        def _entry(p):
+            d = self.baselines.get(p, {})
+            return d if isinstance(d, dict) else {}
+
+        def mean(p):
+            return _entry(p).get('mean', 4.0)
+
+        def opts(p):
+            return DUAL_ELIGIBILITY.get(p, [normalize_position(_entry(p).get('pos', 'FLEX'))])
+
+        def slot_positions(slot):
+            return ('RB', 'WR', 'TE') if slot == 'FLEX' else (slot,)
+
+        offers = self._construct_trade_offers(d_list, r_list)
+        return offers[0] if offers else None
+
+    TRADE_OFFER_SLOTS = 3    # weakest fillable desperate slots considered, ascending by value
+    TRADE_OFFER_GIVERS = 2   # cheapest qualifying desperate players offered per slot
+
+    def _construct_trade_offers(self, d_list, r_list):
+        """Ranked candidate offers, best-first, for one desperate/rich pairing -- at most
+        TRADE_OFFER_SLOTS x TRADE_OFFER_GIVERS of them (6). The trade block evaluates them in
+        order and stops at the first the unchanged acceptance rule accepts. See
+        _construct_trade_offer for the shape of one offer. Measured before this bound was set:
+        a single best-first offer completed 0.18 trades/season on week01 (7.8% of 2.3
+        evaluations), under F2 criterion (a)'s 1.0 floor -- the offer shape was right and the
+        candidate count was the limiter. Draws no random numbers."""
+        def _entry(p):
+            d = self.baselines.get(p, {})
+            return d if isinstance(d, dict) else {}
+
+        def mean(p):
+            return _entry(p).get('mean', 4.0)
+
+        def opts(p):
+            return DUAL_ELIGIBILITY.get(p, [normalize_position(_entry(p).get('pos', 'FLEX'))])
+
+        def slot_positions(slot):
+            return ('RB', 'WR', 'TE') if slot == 'FLEX' else (slot,)
+
+        d_assigned, _ = self._solve_optimal_assignment([(p, opts(p), mean(p)) for p in d_list])
+        r_assigned, _ = self._solve_optimal_assignment([(p, opts(p), mean(p)) for p in r_list])
+        if not d_assigned or not r_assigned:
+            return []
+
+        r_used = {n for n, _, _ in r_assigned}
+        r_bench = [p for p in r_list if p not in r_used]
+        if len(r_bench) < 2:
+            return []
+
+        r_weakest = {}
+        for _, v, slot in r_assigned:
+            for po in slot_positions(slot):
+                r_weakest[po] = min(v, r_weakest.get(po, float('inf')))
+
+        offers, slots_used = [], 0
+        for _, weak_val, weak_slot in sorted(d_assigned, key=lambda a: a[1]):
+            if slots_used >= self.TRADE_OFFER_SLOTS:
+                break
+            need_pos = slot_positions(weak_slot)
+            upgrades = sorted((p for p in r_bench
+                               if mean(p) > weak_val and any(po in need_pos for po in opts(p))),
+                              key=mean, reverse=True)
+            if not upgrades:
+                continue
+            slots_used += 1
+            p2 = upgrades[0]
+            p3 = upgrades[1] if len(upgrades) > 1 else min((p for p in r_bench if p != p2), key=mean)
+
+            def upgrades_a_rich_starter(p, need_pos=need_pos):
+                return any(po in r_weakest and po not in need_pos and mean(p) > r_weakest[po]
+                           for po in opts(p))
+
+            givers = sorted((p for p in d_list if upgrades_a_rich_starter(p)), key=mean)
+            for p1 in givers[:self.TRADE_OFFER_GIVERS]:
+                offers.append((p1, p2, p3))
+        return offers
+
     @staticmethod
     def _compute_faab_bid(remaining_faab, raw_uniform_draw, aggression, needs, deflation, avg_league_faab):
         """
@@ -926,12 +1032,17 @@ class FantasySimulationEngine:
                                         d_list = sorted(sim_rosters[d_team], key=lambda p: self.baselines.get(p, {}).get('mean', 0.0), reverse=True)
                                         r_list = sorted(sim_rosters[r_team], key=lambda p: self.baselines.get(p, {}).get('mean', 0.0), reverse=True)
                                         
-                                        if len(d_list) > 0 and len(r_list) > 6:
-                                            p1 = d_list[0]
-                                            p2, p3 = r_list[5], r_list[6]
+                                        # F2 commit 1: position-aware offer (see
+                                        # _construct_trade_offer) replaces the fixed
+                                        # "best-for-6th-and-7th" offer that no rich side could
+                                        # ever accept. Draws no RNG; the acceptance rule below
+                                        # is unchanged.
+                                        offers = self._construct_trade_offers(d_list, r_list)
+                                        completed = False
+                                        if offers:
                                             curr_d = self.get_optimal_score(d_list)
                                             curr_r = self.get_optimal_score(r_list)
-
+                                        for p1, p2, p3 in offers:
                                             tent_d = [p for p in d_list if p != p1] + [p2, p3]
                                             tent_d.sort(key=lambda p: self.baselines.get(p, {}).get('mean', 0.0), reverse=True)
                                             dropped = tent_d.pop()
@@ -961,7 +1072,10 @@ class FantasySimulationEngine:
                                                     sim_meta[d_team].pop(gone, None)
                                                 for gone in (p2, p3):
                                                     sim_meta[r_team].pop(gone, None)
+                                                completed = True
                                                 break
+                                        if completed:
+                                            break
 
                     streamer_needs = {t: 0 for t in self.team_names}
                     for t_name in self.team_names:

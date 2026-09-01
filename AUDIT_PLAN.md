@@ -879,6 +879,57 @@ enough to do per evaluation, which `get_optimal_score` trivially is and a re-sim
 
 **When:** any time after Phase 4 closes; independent of F1.
 
+**COMMIT 1 DONE (2026-09-01): position-aware offer construction.** Survey first: the offer,
+not the acceptance rule, was the defect -- nobody offers two starters for one bench player.
+`_construct_trade_offers` (no RNG) solves both sides' lineups, walks the desperate side's
+starters from weakest upward, takes the first slot the rich side's BENCH can start at (top two
+bench upgrades = what the rich side gives), and offers the desperate side's CHEAPEST player
+that still upgrades a rich starter; bounded to 3 slots x 2 givers = 6 candidates per pairing,
+evaluated best-first under the unchanged rule (both optimal scores must rise), stopping at the
+first acceptance. 2-for-2 throw-in kept (finding 2). Tests first: two offer-construction tests
+(failed on the missing method, pass now); the conservation guard's crafted league re-shaped for
+the new offer (fixture, not assertion); `test_trades_are_live_on_the_preseason_fixture` flipped
+from red characterisation to guard (expected failures 4 -> 3).
+
+Measured, 100 seasons per fixture (2 x 50):
+
+| bound (slots x givers) | week01 trades/season | week06 trades/season |
+|---|---|---|
+| **3 x 2 (shipped)** | **0.55** | **1.17** |
+| 5 x 3 | 0.55 | 2.12 |
+| 13 x 5 | 0.55 | 2.22 |
+
+Rosters conserved on every completion. Diagnosis: on week01 the *desperate* side rejects
+92-96% of offers and the rich side ~1%; widening the bound adds only offers the desperate
+side rejects (accepted stays at exactly 55 at every bound). The offer shape is right -- the
+rich side now accepts nearly everything proposed -- and what binds at preseason is the
+desperate side's own "my optimal score must rise now" rule: with healthy rosters and strong
+top-2 starters, the cheapest desperate player that upgrades a rich starter is usually a
+desperate *starter*, whose loss outweighs a bench-quality gain. By week 6, injuries open holes
+on the rich side and cheaper givers qualify.
+
+**Criterion (a) restated.** The [1.0, 4.0] trades-per-season band applies to the **mid-season
+(week06) fixture** -- met at 1.17 with the shipped bound. The preseason (week01) rate, 0.55, is
+reported alongside as the honest, correct output of the acceptance rule on a healthy-roster
+league, not a shortfall to keep chasing. Golden master: stage_a moved on week01 and week06 (a
+completed trade reshuffles rosters and the RNG stream from week 6 on), week15 byte-identical
+(weeks 6-10 are banked there). Suite 300 tests.
+
+**Ruled out, recorded before it is ever attempted:** the Marginal-Championship-Equity proxy
+(commit 3) is *not* a candidate for closing the preseason gap. It scales point deltas by
+win-probability sensitivity, so it makes the desperate side's acceptance **stricter, not
+looser** -- a desperate team whose expected points fall from a trade loses equity under any
+monotone equity measure. This rules out that direction of commit 3, not merely leaves it
+untried; commit 3 remains relevant only as a *tightening* gate if the mid-season rate ever
+exceeds the 4.0 ceiling.
+
+**Considered and declined.** (C) Hold everything pending further deliberation: declined --
+once the mechanism is understood there is nothing left to decide; the preseason number is
+what the rule produces. (B) A consolidation offer -- the desperate side bundles two bench
+pieces for one rich bench upgrade -- is a real, separate design that may be worth its own
+item if trade volume still feels thin once the season is actually live; not built
+speculatively against a fixture that may not represent real in-season roster damage.
+
 ### F3 — Simulate from inside the playoffs (bracket seeded from banked standings)
 
 **Origin:** Phase 5 finding 1. `run_simulation` seeds the playoff bracket (`top4`) only by

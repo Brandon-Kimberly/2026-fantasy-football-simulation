@@ -17,16 +17,17 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 232 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 300 tests, must all pass
 py -3.10 -m scripts.run_sync             # pull live data into data/
 py -3.10 -m scripts.run_simulation       # run the engine
 py -3.10 -m scripts.run_season_backtest  # backtest vs the real 2025 season
 py -3.10 -m scripts.run_player_backtest  # calibrate constants vs real player data
 ```
 
-Expected verdict: `OK (skipped=1, expected failures=4)`. The skip is the live-ingestion test
-(`RUN_LIVE_INGESTION_TESTS=1` runs it); the four expected failures are deliberate red
-characterisations of tracked open items (`AUDIT_SUMMARY.md`). `espn_api` is in
+Expected verdict: `OK (skipped=1, expected failures=3)`. The skip is the live-ingestion test
+(`RUN_LIVE_INGESTION_TESTS=1` runs it); the three expected failures are deliberate red
+characterisations of tracked open items (`AUDIT_SUMMARY.md`; a fourth, the dead trade
+mechanism, flipped to a guard when `AUDIT_PLAN.md` F2 commit 1 landed on 2026-09-01). `espn_api` is in
 `requirements.txt`; without it 3 more tests skip cleanly (`skipped=4`) -- expected, not a failure.
 `hypothesis` is pinned `<6.120` because 6.165 fails inside its own engine on Python 3.10.0
 (verified not to be the example database); revisit on a later 3.10.x.
