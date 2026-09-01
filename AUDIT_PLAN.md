@@ -1900,7 +1900,7 @@ check -- it is additional evidence for an existing conclusion, not a new finding
 on Phase 8 -- can start whenever real 2025 play-by-play or box-score data is pulled for the
 measurement.
 
-### F14 — `MANAGER_PROFILES` sensitivity: do the hand-set manager values move anything?
+### F14 — `MANAGER_PROFILES` sensitivity: measured, small -- values left as-is, CLOSED (2026-09-01)
 
 **Origin:** `MANAGER_PROFILES` (`config.py`) was self-derived from prior-season observation plus
 an external tool, with unknown validation quality, and is deliberately excluded from data-driven
@@ -1963,10 +1963,46 @@ aggression. The mechanism explains why: every bidder is served, so aggression on
 streamers spaced 0.5 points apart. The current `faab_agg` values are low-risk to leave as-is
 regardless of derivation quality. Not touched.
 
-**Held: the trade portion.** `trade_will` is measured only after F2 commit 1 lands, under the
-corrected offer construction -- the real open question. Same design: current values vs uniform
-`trade_will`, paired batches, >= 3,000 seasons, outputs: completed trades per season and their
-terms, plus `Champ_Pct` / `Playoff_Pct` / expected wins.
+**MEASURED, trade portion (2026-09-01, after F2 commit 1 `2756858`).** Three arms, 30 paired
+batches x 100 seasons each, both fixtures: CURRENT (config values, league mean 0.39), UNIFORM
+0.39 (every manager at the current mean -- isolates the *dispersion* across managers), OFF 0.0
+(mechanism disabled, for scale). Completed trades per season:
 
-**When:** FAAB portion done. Trade portion: immediately after F2 commit 1, before F2's
-commit 3 (the MCE-proxy decision), since whether `trade_will` matters bears on that decision.
+| arm | week06 | week01 |
+|---|---|---|
+| CURRENT | **1.09** | 0.46 |
+| UNIFORM 0.39 | **0.69** | 0.48 |
+| OFF 0.0 | 0.00 | 0.00 |
+
+*Behaviour:* `trade_will` is now live, unlike under the old mechanism -- and its dispersion
+matters for volume mid-season: the current values complete 58% more trades than a uniform
+league at the same mean (1.09 vs 0.69), because both gates must pass and a high-willingness
+desperate side meeting a high-willingness rich side is what the spread creates. At preseason
+the offer-side constraint binds (F2 commit 1) and dispersion makes no difference (0.46 vs 0.48).
+
+*Outcomes, dispersion effect (CURRENT minus UNIFORM), paired-batch SEs:* week06 every team's
+|t| < 2 on `Champ_Pct` (largest Drunk Cats -2.17+-1.45, Femboy +1.77+-0.96) and on expected
+wins; one `Playoff_Pct` contrast at t = -2.2 (Wine Drinkers -2.47+-1.11). week01: Year of Jarvis
+`Champ_Pct` +3.17+-1.01 (t 3.1), Glutton `Playoff_Pct` -3.17+-1.17 (t -2.7), everything else
+|t| < 2. Across the 48 contrasts per comparison, two or three at |t| > 2 is what the null
+produces; the signs do not line up with willingness (the two highest-willingness managers
+move +0.43 and +3.17 on week01, +1.77 and -0.77 on week06). 91-96% of team-seasons diverge
+between arms, so these are honest unpaired-scale SEs.
+
+*Mechanism on vs off (CURRENT minus OFF), for scale:* week06 Femboy Cats +2.20+-0.97
+`Champ_Pct` / +2.87+-1.05 `Playoff_Pct`, Year of Jarvis +2.93+-1.26 `Playoff_Pct`, Drunk Cats
+-2.90+-1.32 `Champ_Pct` -- the two most willing managers gain and the strongest team gives a
+little up, a coherent direction at ~2 sigma; the whole mechanism is worth about +-3 points of
+championship or playoff probability to the teams it touches most, and less to the rest.
+
+**Acceptance, trade portion -- recorded plainly: SMALL-to-MODEST.** The dispersion in
+`trade_will` changes *how often* trades happen mid-season (materially: +58%) but moves no
+team's championship or playoff probability beyond ~+-3 points, with no coherent direction in
+the values themselves; the entire mechanism is a ~+-3-point effect for the most-affected
+teams. The current values are low-risk to leave as-is regardless of derivation quality --
+what they encode (who is willing to trade) shows up where it should (volume) and does not
+leak into outcomes in a way that would make their provenance dangerous. Not touched.
+**F14 closed.** Both portions measured; `MANAGER_PROFILES` stays as it is and stays excluded
+from calibration.
+
+**When:** done (FAAB 2026-09-01, trade 2026-09-01).
