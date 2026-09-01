@@ -22,7 +22,7 @@ from fantasy_sim.decisions import find_trade_targets
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_path, save_json, load_json, syndicate_comprehensive_matrix_path
 
-DEFAULT_TEAM = "Legion of Coom"
+from fantasy_sim.config import MY_TEAM as DEFAULT_TEAM
 
 
 def _outcomes(week):

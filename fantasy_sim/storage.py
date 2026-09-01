@@ -153,6 +153,21 @@ PROJECTION_LOG_FILE = _log("projection_log.jsonl")
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 
+# Written LAST by sync.sync_all (weekly orchestrator, 2026-09-01): started_at / finished_at,
+# season, current_week, every WARNING/ERROR logged during the run (`degraded`), and the mtimes
+# of the sync outputs at finish. A manifest whose started_at matches a run exists iff that run
+# completed -- the one-glance answer to "has sync run this week, and did it succeed"
+# (scripts.check_freshness) and the orchestrator's gate before anything runs downstream.
+SYNC_MANIFEST_FILE = _current("sync_manifest.json")
+# PLAYER_CACHE_FILE is deliberately NOT here: clients.sleeper.update_player_cache refreshes it
+# on a one-day TTL, so on most syncs it is legitimately older than the sync (its age is
+# recorded in the manifest separately).
+SYNC_OUTPUT_FILES = (
+    VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
+    NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
+    LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
+)
+
 # ==============================================================================
 # Simulation engine outputs (week-parameterized -- one set per week the sim is run for)
 # ==============================================================================

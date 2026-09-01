@@ -27,6 +27,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
+    SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -695,7 +696,60 @@ def _build_roster_player_entry(pid, players_db, reserve_pids=()):
         "on_ir": str(pid) in reserve_pids,
     }
 
+class _WarningCollector(logging.Handler):
+    """Collects every WARNING/ERROR logged during one sync -- the tolerated failures (ESPN,
+    odds, weather, a schedule week, ...) that sync_all degrades through rather than raising
+    on -- so the manifest can say a sync was degraded without anyone reading the log."""
+
+    def __init__(self):
+        super().__init__(level=logging.WARNING)
+        self.messages = []
+
+    def emit(self, record):
+        self.messages.append(f"{record.levelname} | {record.getMessage()}")
+
+
+def _is_routine_notice(message):
+    """A warning that is the pipeline working as designed, not a degradation: the F1
+    collision guard announcing same-named UNROSTERED players (130 of them on a real sync --
+    listing those as 'tolerated failures' buried the two real ones)."""
+    return "NAME COLLISION" in message and "None are rostered" in message
+
+
+def write_sync_manifest(started_at, current_week, season, warnings, sharp_polling, path=SYNC_MANIFEST_FILE):
+    """See storage.SYNC_MANIFEST_FILE. Written LAST, after every other sync output.
+    `degraded` = every WARNING/ERROR that is not a routine notice; `notices` = the routine ones
+    (counted, first few kept)."""
+    files = {os.path.basename(p): (os.path.getmtime(p) if os.path.exists(p) else None) for p in SYNC_OUTPUT_FILES}
+    degraded = [w for w in warnings if not _is_routine_notice(w)]
+    notices = [w for w in warnings if _is_routine_notice(w)]
+    cache_age_days = ((datetime.now().timestamp() - os.path.getmtime(PLAYER_CACHE_FILE)) / 86400.0
+                      if os.path.exists(PLAYER_CACHE_FILE) else None)
+    save_json(path, {
+        "started_at": started_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "finished_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "season": season, "current_week": int(current_week), "sharp_polling": bool(sharp_polling),
+        "degraded": degraded, "notices_count": len(notices), "notices_sample": notices[:5],
+        "player_cache_age_days": cache_age_days, "files": files, "ok": True,
+    })
+
+
 def sync_all(sharp_polling=False):
+    """Runs the full sync (_sync_body) and, only if it completes, writes the manifest last. An
+    exception anywhere propagates and leaves no fresh manifest -- the orchestrator and
+    check_freshness read that absence as "sync did not complete", never as stale-but-usable."""
+    started_at = datetime.utcnow()
+    collector = _WarningCollector()
+    root = logging.getLogger()
+    root.addHandler(collector)
+    try:
+        current_week, season = _sync_body(sharp_polling)
+    finally:
+        root.removeHandler(collector)
+    write_sync_manifest(started_at, current_week, season, collector.messages, sharp_polling)
+
+
+def _sync_body(sharp_polling=False):
     players_db = update_player_cache()
     league_info = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}").json()
     scoring_settings = league_info.get("scoring_settings", {})
@@ -765,6 +819,7 @@ def sync_all(sharp_polling=False):
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
+    return current_nfl_week, str(state.get("season", "2026"))
 
 
 def append_projection_log(rows, path=PROJECTION_LOG_FILE):

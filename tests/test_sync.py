@@ -486,3 +486,53 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         self.assertEqual(_normalize_player_name_for_matching(""), "")
         self.assertEqual(_normalize_player_name_for_matching(None), "")
 
+
+class TestSyncManifest(unittest.TestCase):
+    """The sync manifest (weekly orchestrator, 2026-09-01): sync_all writes
+    data/current/sync_manifest.json LAST, so a manifest whose started_at matches the run exists
+    iff the sync ran to completion. Every WARNING/ERROR logged during the run is captured into
+    `degraded`, so a sync that tolerated failures (ESPN, odds, weather, ...) is distinguishable
+    from a clean one without reading the log. Written before the wrapper existed."""
+
+    def test_manifest_is_written_last_with_fields_and_captured_warnings(self):
+        import logging
+        from fantasy_sim import sync as syncmod
+        from fantasy_sim.storage import SYNC_MANIFEST_FILE
+        saved = []
+
+        def body(sharp_polling):
+            logging.warning("ODDS: no ODDS_API_KEY; using ratings model")
+            logging.warning("NAME COLLISION: 'Kyle Murphy' is pid 3356 (OT, NO), pid 7377 (OL, NYG). None are rostered; "
+                            "all are stored as 'Name (pid)' until one is rostered.")
+            saved.append(("some_file", None))
+            return 7, "2026"
+
+        with patch.object(syncmod, "_sync_body", side_effect=body),              patch.object(syncmod, "save_json", side_effect=lambda p, d, indent=2: saved.append((p, d))):
+            syncmod.sync_all(sharp_polling=True)
+        self.assertEqual(saved[-1][0], SYNC_MANIFEST_FILE, "manifest must be the last write")
+        m = saved[-1][1]
+        for k in ("started_at", "finished_at", "season", "current_week", "sharp_polling", "degraded", "files", "ok"):
+            self.assertIn(k, m)
+        self.assertEqual((m["current_week"], m["season"], m["sharp_polling"], m["ok"]), (7, "2026", True, True))
+        self.assertTrue(any("ODDS_API_KEY" in d for d in m["degraded"]))
+        # a routine unrostered-collision notice is counted, not listed as a degradation
+        self.assertFalse(any("NAME COLLISION" in d for d in m["degraded"]))
+        self.assertEqual(m["notices_count"], 1)
+        self.assertIn("player_cache_age_days", m)
+        self.assertIn("league_state.json", m["files"])
+        self.assertLessEqual(m["started_at"], m["finished_at"])
+        self.assertNotIn(None, [h for h in logging.getLogger().handlers if type(h).__name__ == "_WarningCollector"],
+                         "collector handler must be detached after the run")
+
+    def test_manifest_is_not_written_when_the_body_raises(self):
+        from fantasy_sim import sync as syncmod
+        from fantasy_sim.storage import SYNC_MANIFEST_FILE
+        saved = []
+        with patch.object(syncmod, "_sync_body", side_effect=RuntimeError("Sleeper 503")),              patch.object(syncmod, "save_json", side_effect=lambda p, d, indent=2: saved.append(p)):
+            with self.assertRaises(RuntimeError):
+                syncmod.sync_all()
+        self.assertNotIn(SYNC_MANIFEST_FILE, saved)
+
+
+if __name__ == "__main__":
+    unittest.main()

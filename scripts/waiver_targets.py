@@ -21,7 +21,7 @@ from fantasy_sim.decisions import rank_waiver_targets
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_path, save_json
 
-DEFAULT_TEAM = "Legion of Coom"
+from fantasy_sim.config import MY_TEAM as DEFAULT_TEAM
 
 
 def main(argv=None):

@@ -311,6 +311,10 @@ DUAL_ELIGIBILITY = {
 # the optimizer using unrealistic manager-behavior values to compensate for errors elsewhere
 # in the model, plus insufficient per-manager sample size to calibrate reliably from data).
 # ==============================================================================
+# The team the decision-support tools (fantasy_sim.decisions, scripts/weekly_report.py) act
+# for by default. One source of truth: the scripts read this rather than each carrying its own.
+MY_TEAM = "Legion of Coom"
+
 MANAGER_PROFILES = {
     'Legion of Coom': {'faab_agg': 0.15, 'trade_will': 0.05, 'style': 'The Fortress'},
     'Femboy Cats': {'faab_agg': 0.85, 'trade_will': 0.85, 'style': 'High-risk trader'},
