@@ -6,7 +6,7 @@ label appears once: value (pick 1, near-tie), steal (pick 2, clearly best on the
 reach (pick 3, clearly better left available), unresolved (pick 4, not in the pool)."""
 import unittest
 
-from fantasy_sim.draft_review import derive_position_caps, review_draft
+from fantasy_sim.draft_review import derive_position_caps, render_draft_html, review_draft
 
 
 def _pick(no, rnd, team, pid, name, pos):
@@ -99,6 +99,59 @@ class TestReviewDraft(unittest.TestCase):
         self.assertIn("2026-08-22", note, "the draft's real date is named")
         self.assertIn("days", note.lower(), "the lag to today's baselines is stated")
         self.assertEqual(self.r["unresolved"], ["Mystery Man"])
+
+
+class TestMedianRelativeGaps(unittest.TestCase):
+    """The chart's reference problem: vorp_gap is bounded above by 0 by construction (nobody
+    can beat the best available), so absolute bars all read negative. The fix is a league
+    reference in the RESULT: league_median_gap (median per-pick gap across the draft) and a
+    per-manager rel_gap = mean_gap - league_median_gap, so better-than-median is genuinely
+    positive. Written before the fields existed."""
+
+    def test_league_median_and_manager_relative_gaps(self):
+        r = review_draft(DRAFT, BASELINES, REPLACEMENTS)
+        # scored gaps in the crafted draft: +1.0, +7.0, -5.0 -> median +1.0
+        self.assertAlmostEqual(r["league_median_gap"], 1.0)
+        managers = {m["team"]: m for m in r["managers"]}
+        self.assertAlmostEqual(managers["Alpha"]["rel_gap"], 0.0)   # mean +1.0 - median +1.0
+        self.assertAlmostEqual(managers["Beta"]["rel_gap"], 0.0)    # mean (+7-5)/2 - median
+
+
+class TestRenderDraftHtml(unittest.TestCase):
+    """The HTML report, weekly-report pattern: sortable tables via the existing renderer,
+    proxy banner FIRST, roll-ups, steals/reaches call-outs, the full pick table. Written
+    before render_draft_html existed."""
+
+    def setUp(self):
+        self.r = review_draft(DRAFT, BASELINES, REPLACEMENTS)
+        self.html = render_draft_html(self.r)
+
+    def test_proxy_banner_is_prominent_before_any_table(self):
+        self.assertIn('class="banner"', self.html)
+        self.assertLess(self.html.index("AT-DRAFT VALUE IS A PROXY"),
+                        self.html.index("<table"),
+                        "the caveat comes before the first table, not below it")
+
+    def test_tables_are_sortable_via_the_existing_renderer(self):
+        self.assertIn('data-key=', self.html)
+        self.assertIn('data-sort=', self.html)
+        self.assertIn("<script>", self.html, "the shared sorting JS is on the page")
+
+    def test_every_pick_is_on_the_page_with_its_verdict_and_best_alternative(self):
+        for name in ("QB_top", "RB_top", "RB_low", "Mystery Man"):
+            self.assertIn(name, self.html)
+        self.assertIn("steal", self.html)
+        self.assertIn("reach", self.html)
+        self.assertIn("unresolved", self.html)
+
+    def test_rollups_callouts_and_the_median_reference_are_present(self):
+        self.assertIn("Per manager", self.html)
+        self.assertIn("Per round", self.html)
+        self.assertIn("Biggest steals", self.html)
+        self.assertIn("Biggest reaches", self.html)
+        self.assertIn("median", self.html.lower(),
+                      "the league-median reference is explained on the page")
+        self.assertIn("0.0", self.html, "the unachievable absolute ceiling is stated")
 
 
 if __name__ == "__main__":

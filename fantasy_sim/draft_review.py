@@ -120,6 +120,19 @@ def review_draft(draft, baselines, replacement_levels, z=TIER_Z):
              "total_vorp": round(sum(p["vorp"] for p in rows if p["vorp"] is not None), 1)}
         managers.append(m)
     managers.sort(key=lambda m: -(m["mean_gap"] if m["mean_gap"] is not None else -1e9))
+    # The chart/report reference point: vorp_gap is bounded above by 0 BY CONSTRUCTION (a
+    # pick cannot beat the best available), so absolute gaps all read negative. The league
+    # median per-pick gap is the "typical pick" reference; rel_gap re-centres each manager
+    # on it so better-than-median drafting is genuinely positive.
+    all_gaps = sorted(p["vorp_gap"] for p in picks if p["vorp_gap"] is not None)
+    league_median_gap = None
+    if all_gaps:
+        mid = len(all_gaps) // 2
+        league_median_gap = round(all_gaps[mid] if len(all_gaps) % 2
+                                  else (all_gaps[mid - 1] + all_gaps[mid]) / 2.0, 2)
+    for m in managers:
+        m["rel_gap"] = (round(m["mean_gap"] - league_median_gap, 2)
+                        if m["mean_gap"] is not None and league_median_gap is not None else None)
     rounds = [{"round": rnd, **rollup([p for p in picks if p["round"] == rnd])}
               for rnd in dict.fromkeys(p["round"] for p in picks)]
 
@@ -144,4 +157,73 @@ def review_draft(draft, baselines, replacement_levels, z=TIER_Z):
             "caps_note": ("caps are the tightest limits consistent with the observed draft -- a "
                           "lower bound on Sleeper's enforced caps, which the picks API does not return"),
             "picks": picks, "unresolved": unresolved, "sanity": sanity,
+            "league_median_gap": league_median_gap,
             "managers": managers, "rounds": rounds}
+
+
+def render_draft_html(review, chart_html=""):
+    """The HTML report, weekly-report pattern: the shared sortable-table renderer and CSS,
+    the proxy caveat as the FIRST element on the page (the .banner block, before any table),
+    per-manager and per-round roll-ups, steals/reaches call-outs, and the full pick table.
+    chart_html, if given, is a prebuilt <figure> block from the caller (the script embeds
+    its chart there)."""
+    from html import escape
+    from fantasy_sim.positional_tiers import _TABLE_JS
+    from fantasy_sim.weekly_report import _REPORT_CSS, html_table
+
+    r = review
+    med = r.get("league_median_gap")
+    med_txt = f"{med:+.2f}" if med is not None else "n/a"
+    fmt = lambda v, spec="+.2f": (format(v, spec) if v is not None else "-")
+    out = [f'<!doctype html><html><head><meta charset="utf-8">'
+           f'<title>Draft review -- season {escape(str(r["season"]))}</title>'
+           f'<style>{_REPORT_CSS}</style></head><body>',
+           f'<div class="banner"><b>{escape(r["proxy_note"])}</b>'
+           f'<p class="note">{escape(r["caps_note"])}. Verdict scale: a VORP gap of 0.0 is the '
+           f'UNACHIEVABLE ceiling (taking the best available player at every single pick); the '
+           f'league median pick sits at {med_txt}, and the manager chart and relGap column are '
+           f'relative to that median, so positive means better-than-typical drafting.</p></div>',
+           f'<h1>Draft review -- season {escape(str(r["season"]))}, draft {escape(str(r["draft_id"]))}</h1>']
+    s_ = r.get("sanity") or {}
+    out.append(f'<p class="note">Sanity ({escape(s_.get("note", ""))}): pick 1 '
+               f'({escape(str(s_.get("pick1")))}) is #{s_.get("pick1_board_rank_by_vorp")} of '
+               f'{s_.get("board_size")} on today\'s board by VORP.</p>')
+    if r.get("unresolved"):
+        out.append(f'<p class="note">Unresolved (no baseline today, listed per F15\'s acceptance '
+                   f'criterion): {escape(", ".join(r["unresolved"]))}</p>')
+
+    out.append(chart_html)
+    out.append("<h2>Per manager</h2>")
+    out.append(html_table(
+        ["team", "picks", "steal", "value", "reach", "unresolved", "meanGap", "relGap", "totVORP"],
+        [[m["team"], m["picks"], m["steals"], m["values"], m["reaches"], m["unresolved"],
+          fmt(m["mean_gap"]), fmt(m["rel_gap"]), m["total_vorp"]] for m in r["managers"]]))
+    out.append("<h2>Per round</h2>")
+    out.append(html_table(
+        ["round", "picks", "steal", "value", "reach", "meanGap"],
+        [[d["round"], d["picks"], d["steals"], d["values"], d["reaches"], fmt(d["mean_gap"])]
+         for d in r["rounds"]]))
+
+    scored = [p_ for p_ in r["picks"] if p_["vorp_gap"] is not None]
+    for title, rows in (("Biggest steals", sorted(scored, key=lambda p_: -p_["vorp_gap"])[:5]),
+                        ("Biggest reaches", sorted(scored, key=lambda p_: p_["vorp_gap"])[:5])):
+        out.append(f"<h2>{title}</h2>"
+                   f'<p class="note">Late-round verdicts are the most proxy-polluted: today\'s '
+                   f'board rates post-draft breakouts highly, so the "best alternative" there is '
+                   f'largely hindsight.</p>')
+        out.append(html_table(
+            ["pick", "round", "team", "player", "pos", "gap", "best alternative"],
+            [[p_["pick_no"], p_["round"], p_["team"], p_["name"], p_["pos"], fmt(p_["vorp_gap"]),
+              p_["best_alt"]["name"] if p_["best_alt"] else "-"] for p_ in rows]))
+
+    out.append("<h2>All picks</h2>")
+    out.append(html_table(
+        ["pick", "round", "team", "player", "pos", "mean", "VORP", "tier", "verdict", "gap",
+         "best alternative", "alt VORP"],
+        [[p_["pick_no"], p_["round"], p_["team"], p_["name"], p_["pos"],
+          fmt(p_["mean"], ".1f"), fmt(p_["vorp"]), p_["tier"] if p_["tier"] is not None else "-",
+          p_["label"], fmt(p_["vorp_gap"]),
+          p_["best_alt"]["name"] if p_["best_alt"] else "-",
+          fmt(p_["best_alt"]["vorp"]) if p_["best_alt"] else "-"] for p_ in r["picks"]]))
+    out.append(f"<script>{_TABLE_JS}</script></body></html>")
+    return "".join(out)

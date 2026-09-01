@@ -20,7 +20,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
-from fantasy_sim.draft_review import review_draft
+from fantasy_sim.draft_review import render_draft_html, review_draft
 from fantasy_sim.positional_tiers import TIER_Z
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_path, draft_log_file, save_chart, save_json
@@ -79,22 +79,40 @@ def main(argv=None):
                   f"{p['pos']:3s} vorp {v} tier {p['tier'] or '-'} {p['label']:10s} gap {g} best-alt {alt}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    fig, ax = plt.subplots(figsize=(9, 0.5 * len(r["managers"]) + 1.5))
+    # Median-relative bars: an absolute VORP gap is bounded above by 0 by construction (you
+    # cannot beat the best available player), so absolute bars all read negative and look
+    # like uniform failure. 0 here = the league median pick; positive = better than typical.
+    med = r["league_median_gap"] or 0.0
+    fig, ax = plt.subplots(figsize=(9, 0.5 * len(r["managers"]) + 1.8))
     teams = [m["team"] for m in r["managers"]][::-1]
-    gaps = [m["mean_gap"] or 0.0 for m in r["managers"]][::-1]
-    ax.barh(teams, gaps, color=["#2e7d32" if g >= 0 else "#c62828" for g in gaps])
-    ax.axvline(0, color="black", linewidth=0.8)
-    ax.set_xlabel("mean VORP gap to best available (per pick)")
-    ax.set_title(f"Draft {r['season']} -- mean VORP gap by manager (PROXY: today's board, "
-                 f"not draft-day's; {TIER_Z:.1f} combined-SE verdicts)", fontsize=9)
+    rel = [(m["rel_gap"] if m["rel_gap"] is not None else 0.0) for m in r["managers"]][::-1]
+    ax.barh(teams, rel, color=["#2e7d32" if g >= 0 else "#c62828" for g in rel])
+    ax.axvline(0, color="black", linewidth=1.0)
+    ax.axvline(-med, color="#555", linewidth=0.8, linestyle="--")
+    ax.text(-med, len(teams) - 0.3, "0.0 absolute = unachievable ceiling \n(best available every pick) ",
+            fontsize=7, color="#555", va="top", ha="right")
+    ax.set_xlabel(f"mean VORP gap per pick, relative to the league median pick ({med:+.2f} absolute)")
+    ax.set_title(f"Draft {r['season']} -- pick quality by manager vs the league median "
+                 f"(PROXY: today's board, not draft-day's; {TIER_Z:.1f} combined-SE verdicts)", fontsize=9)
     fig.tight_layout()
     chart_path = decisions_path(f"draft_review_{args.season}_{stamp}.png")
     save_chart(chart_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
+    import base64
+    with open(chart_path, "rb") as fh:
+        b64 = base64.b64encode(fh.read()).decode("ascii")
+    chart_html = (f'<figure><img src="data:image/png;base64,{b64}" alt="pick quality by manager">'
+                  f'<figcaption>0 = league median pick quality ({med:+.2f} absolute gap); the dashed '
+                  f'line is the unachievable 0.0-absolute ceiling. Positive bars drafted better than '
+                  f'the typical pick.</figcaption></figure>')
+    html_path = decisions_path(f"draft_review_{args.season}_{stamp}.html")
+    with open(html_path, "w", encoding="utf-8") as fh:
+        fh.write(render_draft_html(r, chart_html=chart_html))
+
     out = decisions_path(f"draft_review_{args.season}_{stamp}.json")
     save_json(out, {"timestamp_utc": stamp, "tool": "draft_review", "review": r})
-    print(f"\n  chart -> {chart_path}\n  logged -> {out}")
+    print(f"\n  chart -> {chart_path}\n  report -> {html_path}\n  logged -> {out}")
     return r
 
 
