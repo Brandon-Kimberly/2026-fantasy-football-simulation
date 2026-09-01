@@ -17,12 +17,21 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 300 tests, must all pass
-py -3.10 -m scripts.run_sync             # pull live data into data/
+py -3.10 -m unittest discover tests      # full suite — 377 tests, must all pass
+py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
+py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
+py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
+py -3.10 -m scripts.run_sync             # pull live data into data/current/ (writes the sync manifest last)
 py -3.10 -m scripts.run_simulation       # run the engine
 py -3.10 -m scripts.run_season_backtest  # backtest vs the real 2025 season
+py -3.10 -m scripts.run_points_backtest  # points-level backtest gate (bias / mean z / coverage), logged per commit
 py -3.10 -m scripts.run_player_backtest  # calibrate constants vs real player data
 ```
+
+The seven decision tools (`scripts/compare_players`, `optimize_lineup`, `matchup_lineup`,
+`waiver_targets`, `evaluate_trade`, `find_trades`, `roster_grades`) and their one-line
+questions are listed in `README.md`; they read `data/current/` only and never touch the engine
+or the season exports.
 
 Expected verdict: `OK (skipped=1, expected failures=3)`. The skip is the live-ingestion test
 (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three expected failures are deliberate red
