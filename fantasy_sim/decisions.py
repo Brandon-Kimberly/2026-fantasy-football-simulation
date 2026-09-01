@@ -763,6 +763,103 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
                        "share of sims at or above the median of all eight totals.")}
 
 
+# ================================================================== TRADE-TARGET FINDER
+#
+# "Give me ideas", built from F2's offer constructor: _construct_trade_offers(desperate, rich)
+# returns the rich side's BENCH players who would start at the desperate side's weakest
+# fillable slot, paired with the cheapest desperate-side player that still upgrades a rich
+# starter. With MY roster as the desperate side against each other roster that is exactly
+# "buried behind a stud on their team, starts for me" (buy); the other way round it is what
+# each opponent would want from my bench (sell: surplus with an identified buyer). Gains are
+# the engine's own acceptance rule (get_optimal_score both sides, 2-for-2 with the throw-in).
+# Seller signal = the latest season export's Playoff_Pct (never MANAGER_PROFILES, whose
+# trade_will is shown as "modelled willingness" but is of unverified provenance). Limitation,
+# by construction: the search is need-driven (my weakest slots), not best-player-available --
+# F2 option (B) territory, out of scope.
+def _package(engine, d_team, r_team, p1, p2, p3):
+    """The engine's 2-for-2: the desperate side's lowest-mean player AFTER the two received
+    pieces are added goes back as the throw-in. When that lowest piece is one of the two
+    received players, he is handed straight back -- a 1-for-1 in substance -- and the terms
+    say so (found on real data: 'Tyrone Tracy not on Legion of Coom's roster' when the throw-in
+    was listed as something I give). Returns (d_list, r_list, tent_d, tent_r, d_gives, r_gives)
+    with d_gives/r_gives the real terms, valid for evaluate_trade."""
+    mean = lambda p: _entry(engine, p).get('mean', 0.0)
+    d_list, r_list = list(engine.rosters[d_team]), list(engine.rosters[r_team])
+    tent_d = sorted([p for p in d_list if p != p1] + [p2, p3], key=mean, reverse=True)
+    dropped = tent_d.pop()
+    tent_r = [p for p in r_list if p not in (p2, p3)] + [p1, dropped]
+    if dropped in (p2, p3):
+        d_gives, r_gives = [p1], [p3 if dropped == p2 else p2]
+    else:
+        d_gives, r_gives = [p1, dropped], [p2, p3]
+    return d_list, r_list, tent_d, tent_r, d_gives, r_gives
+
+
+def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=35.0, top_n=10,
+                       evaluate_top=0, batches=3, sims=1000):
+    from fantasy_sim.config import MANAGER_PROFILES
+    week = week or engine.current_week
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    gos = engine.get_optimal_score
+    my_starters = roster_gaps(engine, team, (week,))[week]["starters"]
+    contention_note = (f"seller = their Playoff_Pct below {seller_threshold:.0f}% in the season export supplied"
+                       if outcomes else
+                       "no season export supplied: seller flag unavailable (run scripts.run_simulation first)")
+    buy, sell = [], []
+    for other in engine.team_names:
+        if other == team:
+            continue
+        their_starters = roster_gaps(engine, other, (week,))[week]["starters"]
+        pp = (outcomes or {}).get(other)
+        seen = set()
+        for p1, p2, p3 in engine._construct_trade_offers(engine.rosters[team], engine.rosters[other]):
+            if (p1, p2, p3) in seen:
+                continue
+            seen.add((p1, p2, p3))
+            d_list, r_list, tent_d, tent_r, i_give, i_get = _package(engine, team, other, p1, p2, p3)
+            my_gain, their_gain = gos(tent_d) - gos(d_list), gos(tent_r) - gos(r_list)
+            opts2 = _opts(engine, p2)
+            elig = [(lst[0][1], slot) for slot, lst in my_starters.items() if lst and any(p in _slot_positions(slot) for p in opts2)]
+            behind = [(lst[-1][1], lst[-1][0]) for slot, lst in their_starters.items() if lst and any(p in _slot_positions(slot) for p in opts2)]
+            buy.append({
+                "with": other, "target": p2, "target_mean": float(_entry(engine, p2).get('mean', 0.0)),
+                "buried_behind": max(behind)[1] if behind else None,
+                "fills_my_slot": min(elig)[1] if elig else None,
+                "i_give": i_give, "i_get": i_get,
+                "my_gain": float(my_gain), "their_gain": float(their_gain),
+                "acceptable": bool(my_gain > 0 and their_gain > 0),
+                "their_playoff_pct": float(pp["Playoff_Pct"]) if pp else None,
+                "their_expected_wins": float(pp["Expected_Wins"]) if pp else None,
+                "seller": (float(pp["Playoff_Pct"]) < seller_threshold) if pp else None,
+                "willingness": MANAGER_PROFILES.get(other, {}).get('trade_will'),
+            })
+        seen = set()
+        for p1, p2, p3 in engine._construct_trade_offers(engine.rosters[other], engine.rosters[team]):
+            if (p1, p2, p3) in seen:
+                continue
+            seen.add((p1, p2, p3))
+            d_list, r_list, tent_d, tent_r, they_give, they_want = _package(engine, other, team, p1, p2, p3)
+            their_gain, my_gain = gos(tent_d) - gos(d_list), gos(tent_r) - gos(r_list)
+            sell.append({"buyer": other, "they_want": they_want, "they_give": they_give,
+                         "my_gain": float(my_gain), "their_gain": float(their_gain),
+                         "acceptable": bool(my_gain > 0 and their_gain > 0),
+                         "their_playoff_pct": float(pp["Playoff_Pct"]) if pp else None,
+                         "willingness": MANAGER_PROFILES.get(other, {}).get('trade_will')})
+    buy.sort(key=lambda b: (0 if b["acceptable"] else 1, -b["my_gain"]))
+    sell.sort(key=lambda s_: (0 if s_["acceptable"] else 1, -s_["my_gain"]))
+    buy, sell = buy[:top_n], sell[:top_n]
+    for b in buy[:evaluate_top]:
+        b["evaluation"] = evaluate_trade(engine, team, b["i_give"], b["with"], b["i_get"], batches=batches, sims=sims)
+    return {"team": team, "week": week, "buy": buy, "sell": sell, "contention_note": contention_note,
+            "note": ("buy = F2's offer constructor with my roster as the desperate side (their buried bench "
+                     "player who starts at my weakest fillable slot, for my cheapest player that upgrades one "
+                     "of their starters, 2-for-2 with the throw-in); sell = the mirror. Gains = the engine's "
+                     "acceptance rule (optimal score incl. 0.1 x bench). Need-driven, not best-available. "
+                     "willingness = MANAGER_PROFILES trade_will, modelled and of unverified provenance, never "
+                     "a filter.")}
+
+
 def roster_grades(engine, week=None):
     """League table: every team's grade summary ranked by lineup_vorp (1 = best)."""
     week = week or engine.current_week

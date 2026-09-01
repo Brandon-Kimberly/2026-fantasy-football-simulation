@@ -27,6 +27,7 @@ from fantasy_sim.decisions import (
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
     grade_roster, roster_grades, week_expectation, optimize_lineup,
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
+    find_trade_targets,
 )
 
 
@@ -524,6 +525,102 @@ class TestMatchupLineups(_EngineCase):
     def test_no_cross_switch_is_honoured_and_reported(self):
         r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=200, seed=1, cross=False)
         self.assertFalse(r["cross"]); self.assertIn("engine", r["note"].lower())
+
+
+class TestTradeTargetFinder(_EngineCase):
+    """Trade-target finder: F2's offer constructor run with my roster as the desperate side
+    against each other roster (buy: their BURIED bench player who starts for me, with the
+    cheapest give-back that upgrades one of their starters) and the other way round (sell: my
+    surplus that would start for them). Gains are the engine's own acceptance rule
+    (get_optimal_score both sides). Hand numbers: Legion QB_1 20, QB_backup 18, LC_QB3 7,
+    LC_K 6; Femboy QB_2 15, FC_K_star 12, FC_K_bench 9, FC_QB_bench 8. Buy package: give
+    QB_backup (+ LC_K as the 2-for-2 throw-in), get FC_K_bench + FC_QB_bench: my optimal
+    score 27.8 -> 29.8 (+2.0), theirs 28.7 -> 32.1 (+3.4)."""
+
+    def _add(self, team, name, pos, mean):
+        self.engine.rosters[team].append(name)
+        self.engine.meta[team][name] = {"pos": pos, "team": "FA"}
+        self.engine.baselines[name] = {"mean": mean, "std_aleatoric": 2.0, "std_epistemic": 0.0, "pos": pos, "team": "FA", "bye": 9}
+
+    def setUp(self):
+        super().setUp()
+        for n, pos, m in (("QB_backup", "QB", 18.0), ("LC_QB3", "QB", 7.0), ("LC_K", "K", 6.0)):
+            self._add("Legion of Coom", n, pos, m)
+        for n, pos, m in (("FC_K_star", "K", 12.0), ("FC_K_bench", "K", 9.0), ("FC_QB_bench", "QB", 8.0)):
+            self._add("Femboy Cats", n, pos, m)
+        self.outcomes = {t: {"Playoff_Pct": 55.0, "Champ_Pct": 12.0, "Expected_Wins": 14.0} for t in self.engine.team_names}
+        self.outcomes["Femboy Cats"] = {"Playoff_Pct": 20.0, "Champ_Pct": 2.0, "Expected_Wins": 10.0}
+
+    def test_buy_side_finds_the_buried_player_with_the_correct_give_back_and_gains(self):
+        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
+        buys = [b for b in r["buy"] if b["with"] == "Femboy Cats"]
+        self.assertGreaterEqual(len(buys), 2)
+        top = buys[0]
+        self.assertEqual(top["i_give"], ["QB_backup", "LC_K"])
+        self.assertEqual(sorted(top["i_get"]), ["FC_K_bench", "FC_QB_bench"])
+        self.assertEqual(top["target"], "FC_K_bench")
+        self.assertEqual(top["buried_behind"], "FC_K_star")
+        self.assertEqual(top["fills_my_slot"], "K")
+        self.assertAlmostEqual(top["my_gain"], 2.0, places=6)
+        self.assertAlmostEqual(top["their_gain"], 3.4, places=6)
+        self.assertTrue(top["acceptable"])
+        self.assertTrue(top["seller"]); self.assertAlmostEqual(top["their_playoff_pct"], 20.0)
+        self.assertIn("willingness", top)
+
+    def test_ranking_puts_acceptable_packages_first_then_my_gain(self):
+        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
+        buys = [b for b in r["buy"] if b["with"] == "Femboy Cats"]
+        # giving QB_1 (20) instead of QB_backup leaves my optimal score unchanged (27.8 -> 27.8):
+        # not acceptable, so it ranks below the acceptable package despite the same target
+        worse = next(b for b in buys if b["i_give"][0] == "QB_1")
+        self.assertFalse(worse["acceptable"]); self.assertAlmostEqual(worse["my_gain"], 0.0, places=6)
+        self.assertLess(buys.index(next(b for b in buys if b["i_give"][0] == "QB_backup")), buys.index(worse))
+
+    def test_sell_side_mirrors_what_each_opponent_would_want_from_my_bench(self):
+        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
+        sells = [x for x in r["sell"] if x["buyer"] == "Femboy Cats"]
+        self.assertTrue(sells)
+        self.assertIn("QB_backup", sells[0]["they_want"])
+        # the constructor offers their cheapest player that upgrades one of my starters
+        # (FC_K_bench) and, as a second giver, FC_K_star; the list is then ranked by MY gain,
+        # so the FC_K_star package leads: me 28.5 -> 33.3 (+4.8), them 28.7 -> 29.3 (+0.6).
+        self.assertEqual({x["they_give"][0] for x in sells} & {"FC_K_bench", "FC_K_star"}, {"FC_K_bench", "FC_K_star"})
+        self.assertEqual(sells[0]["they_give"][0], "FC_K_star")
+        self.assertAlmostEqual(sells[0]["my_gain"], 4.8, places=6)
+        self.assertAlmostEqual(sells[0]["their_gain"], 0.6, places=6)
+        self.assertTrue(sells[0]["acceptable"])
+
+    def test_no_outcomes_means_no_seller_flag_and_a_stated_reason(self):
+        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=None, week=1)
+        self.assertTrue(all(b["seller"] is None for b in r["buy"]))
+        self.assertIn("no season export", r["contention_note"].lower())
+
+    def test_package_collapses_to_one_for_one_when_the_throw_in_is_a_received_player(self):
+        """Found on real data (Legion week 1, 'Tyrone Tracy not on Legion of Coom's roster'): the
+        engine's 2-for-2 throw-in is the lowest-mean player on the desperate side AFTER the
+        two received players are added, so when their second piece is the cheapest of all it
+        is 'dropped' straight back -- a 1-for-1 in substance. The package must say so: I give
+        p1 only, I get the piece that stays, and the terms must be valid for tool 2."""
+        self.engine.baselines["FC_QB_bench"]["mean"] = 5.0   # below all of mine: the throw-in is now theirs
+        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
+        pkg = next(b for b in r["buy"] if b["with"] == "Femboy Cats" and b["i_give"][0] == "QB_backup")
+        self.assertEqual(pkg["i_give"], ["QB_backup"])
+        self.assertEqual(pkg["i_get"], ["FC_K_bench"])
+        for n in pkg["i_give"]:
+            self.assertIn(n, self.engine.rosters["Legion of Coom"])
+        for n in pkg["i_get"]:
+            self.assertIn(n, self.engine.rosters["Femboy Cats"])
+
+    def test_evaluate_top_calls_tool_2_with_the_exact_terms(self):
+        with patch("fantasy_sim.decisions.evaluate_trade", return_value={"teams": {}, "n_sims": 30}) as ev:
+            r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1,
+                                   evaluate_top=1, batches=2, sims=15)
+        ev.assert_called_once()
+        args, kwargs = ev.call_args
+        self.assertEqual(args[1:4], ("Legion of Coom", ["QB_backup", "LC_K"], "Femboy Cats"))
+        self.assertEqual(sorted(args[4]), ["FC_K_bench", "FC_QB_bench"])
+        self.assertEqual((kwargs["batches"], kwargs["sims"]), (2, 15))
+        self.assertIn("evaluation", r["buy"][0])
 
 
 if __name__ == "__main__":
