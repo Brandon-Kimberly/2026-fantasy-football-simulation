@@ -448,3 +448,89 @@ def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches
                  "the paired-batch standard error. Real Champ_Pct/Playoff_Pct movement, not a proxy. "
                  "The engine's automatic trades stay active in both arms."),
     }
+
+
+# ================================================================== ROSTER-GRADE REPORT
+#
+# Composition of what exists, no new modelling: tier from positional_tiers.compute_tiers (a
+# player's standing in the WHOLE pool, free agents included -- a league-wide reference, not a
+# rank within the roster), VORP = mean - engine.replacement_levels at the player's position,
+# starter/bench from the engine's optimal assignment on the real roster (roster_gaps). Roll-ups:
+#   lineup_vorp = sum over FILLED slots of (starter's expectation - replacement level of the slot
+#                 he fills; FLEX = min(RB, WR)); an unfilled slot contributes 0, i.e. a streamer at
+#                 replacement level -- the one number that compares across teams;
+#   depth_vorp  = sum of the POSITIVE part of bench players' VORP (a bench player below
+#                 replacement is not depth, he is a roster spot);
+#   optimal_score = engine.get_optimal_score(roster), which includes the deliberate 0.1 x bench
+#                 term (AUDIT_PHASE_1 finding 8) and is labelled as such.
+# No letter grades: they would be an unsourced mapping from a sourced number. Rank is relative
+# to the league.
+def grade_roster(engine, team, week=None):
+    from fantasy_sim.positional_tiers import compute_tiers
+    week = week or engine.current_week
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    tier_of = {p['name']: p['tier'] for plist in compute_tiers(engine.baselines).values() for p in plist}
+    gaps = roster_gaps(engine, team, weeks=(week,))[week]
+    slot_of = {name: slot for slot, lst in gaps["starters"].items() for name, _ in lst}
+    rep = engine.replacement_levels
+    fa_best = {}
+    for name in free_agents(engine):
+        e = _entry(engine, name)
+        if e.get('bye') == week or _unavailable_now(e):
+            continue
+        pos = normalize_position(e.get('pos', 'FLEX'))
+        v = float(e.get('mean', 0.0)) - rep.get(pos, 4.0)
+        if pos not in fa_best or v > fa_best[pos]["vorp"]:
+            fa_best[pos] = {"name": name, "vorp": float(v), "mean": float(e.get('mean', 0.0))}
+
+    players, by_pos = [], {}
+    for name in engine.rosters[team]:
+        e = _entry(engine, name)
+        pos = normalize_position(e.get('pos', 'FLEX'))
+        mean = float(e.get('mean', 0.0))
+        vorp = mean - rep.get(pos, 4.0)
+        slot = slot_of.get(name)
+        row = {"name": name, "pos": pos, "team": e.get('team', 'FA'), "mean": mean, "vorp": float(vorp),
+               "tier": tier_of.get(name), "role": "starter" if slot else "bench", "slot": slot,
+               "bye": e.get('bye'), "injury_status": e.get('injury_status'), "on_ir": bool(e.get('on_ir', False)),
+               "available_this_week": not (e.get('bye') == week or _unavailable_now(e))}
+        players.append(row)
+        b = by_pos.setdefault(pos, {"n_starters": 0, "n_bench": 0, "starters_vorp": 0.0, "depth_vorp": 0.0,
+                                    "tiers": [], "best_free_agent": fa_best.get(pos)})
+        b["tiers"].append(row["tier"])
+        if slot:
+            b["n_starters"] += 1; b["starters_vorp"] += vorp
+        else:
+            b["n_bench"] += 1; b["depth_vorp"] += max(0.0, vorp)
+    players.sort(key=lambda r: (0 if r["role"] == "starter" else 1, -r["vorp"]))
+
+    lineup_vorp = 0.0
+    for slot, lst in gaps["starters"].items():
+        for _, value in lst:
+            lineup_vorp += float(value) - rep.get(slot, 4.0)
+    depth_vorp = sum(b["depth_vorp"] for b in by_pos.values())
+    return {"team": team, "week": week, "players": players, "by_position": by_pos,
+            "holes": gaps["unfilled"], "lineup_vorp": float(lineup_vorp), "depth_vorp": float(depth_vorp),
+            "optimal_score": float(engine.get_optimal_score(engine.rosters[team])),
+            "replacement_levels": {k: float(v) for k, v in rep.items()},
+            "note": ("tier = standing in the whole pool (free agents included); VORP = mean - replacement "
+                     "level at the player's position; lineup_vorp uses the replacement level of the slot "
+                     "filled, unfilled slots count 0; depth_vorp = positive bench VORP only; optimal_score "
+                     "includes the engine's deliberate 0.1 x bench term.")}
+
+
+def roster_grades(engine, week=None):
+    """League table: every team's grade summary ranked by lineup_vorp (1 = best)."""
+    week = week or engine.current_week
+    rows = []
+    for t in engine.team_names:
+        g = grade_roster(engine, t, week)
+        rows.append({"team": t, "lineup_vorp": g["lineup_vorp"], "depth_vorp": g["depth_vorp"],
+                     "optimal_score": g["optimal_score"], "holes": len(g["holes"]),
+                     "tier1_starters": sum(1 for p in g["players"] if p["role"] == "starter" and p["tier"] == 1),
+                     "starters_below_replacement": sum(1 for p in g["players"] if p["role"] == "starter" and p["vorp"] < 0)})
+    rows.sort(key=lambda r: -r["lineup_vorp"])
+    for i, r in enumerate(rows, 1):
+        r["rank"] = i
+    return {"week": week, "teams": rows}

@@ -25,6 +25,7 @@ from fantasy_sim.decisions import (
     prob_a_beats_b, sample_week_scores, summarise_scores, compare_players, run_reduced_simulation,
     roster_gaps, free_agents, rank_waiver_targets, suggest_bid, INDEPENDENCE_CAVEAT,
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
+    grade_roster, roster_grades,
 )
 
 
@@ -320,6 +321,63 @@ class TestTradeEvaluator(_EngineCase):
         self.assertEqual(r["n_sims"], 30)
         self.assertEqual(r["trade"]["a_gives"], ["QB_1"])
         self.assertIn("independent", r["note"].lower() + " independent")  # note exists
+
+
+class TestRosterGrades(_EngineCase):
+    """Roster-grade report: every rostered player's tier and VORP, rolled up per position and
+    overall, composed from what exists (compute_tiers, engine.replacement_levels, the optimal
+    assignment via roster_gaps). Numbers below are by hand: with a 17-point bench QB added to
+    Legion of Coom the QB pool is [20, 17, 15, 15, 15], depth index min(10, 4) = 4 -> QB
+    replacement 15.0; QB_1 VORP 5, bench QB VORP 2; every other team's lone QB is at 0."""
+
+    def setUp(self):
+        super().setUp()
+        self.engine.rosters["Legion of Coom"].append("QB_bench")
+        self.engine.meta["Legion of Coom"]["QB_bench"] = {"pos": "QB", "team": "DET"}
+        self.engine.baselines["QB_bench"] = {"mean": 17.0, "std_aleatoric": 2.0, "std_epistemic": 1.0,
+                                             "pos": "QB", "team": "DET", "bye": 0}
+        self.engine.replacement_levels = self.engine._calc_replacement_levels()
+
+    def test_per_player_rows_carry_role_tier_and_vorp(self):
+        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        rows = {r["name"]: r for r in g["players"]}
+        self.assertEqual(set(rows), {"QB_1", "QB_bench"})
+        self.assertEqual(rows["QB_1"]["role"], "starter"); self.assertEqual(rows["QB_1"]["slot"], "QB")
+        self.assertAlmostEqual(rows["QB_1"]["vorp"], 5.0)
+        self.assertEqual(rows["QB_bench"]["role"], "bench"); self.assertIsNone(rows["QB_bench"]["slot"])
+        self.assertAlmostEqual(rows["QB_bench"]["vorp"], 2.0)
+        self.assertEqual(rows["QB_1"]["tier"], 1)
+        self.assertIsInstance(rows["QB_bench"]["tier"], int)
+
+    def test_rollups_by_hand(self):
+        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        qb = g["by_position"]["QB"]
+        self.assertAlmostEqual(qb["starters_vorp"], 5.0)
+        self.assertAlmostEqual(qb["depth_vorp"], 2.0)
+        self.assertEqual((qb["n_starters"], qb["n_bench"]), (1, 1))
+        self.assertAlmostEqual(g["lineup_vorp"], 5.0, msg="12 empty slots contribute 0, not a negative")
+        self.assertAlmostEqual(g["depth_vorp"], 2.0)
+        self.assertEqual(len(g["holes"]), 12)
+        self.assertAlmostEqual(g["optimal_score"], self.engine.get_optimal_score(self.engine.rosters["Legion of Coom"]))
+        # best available free agent at the position is the replaceability reference
+        self.assertIn("best_free_agent", g["by_position"]["WR"] if "WR" in g["by_position"] else {"best_free_agent": None})
+
+    def test_negative_vorp_bench_does_not_count_as_depth(self):
+        self.engine.baselines["QB_bench"]["mean"] = 12.0
+        self.engine.replacement_levels = self.engine._calc_replacement_levels()   # pool [20,15,15,15,12] -> 12
+        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        rows = {r["name"]: r for r in g["players"]}
+        self.assertAlmostEqual(rows["QB_bench"]["vorp"], 0.0)
+        self.assertAlmostEqual(rows["QB_1"]["vorp"], 8.0)
+        self.assertAlmostEqual(g["depth_vorp"], 0.0)
+
+    def test_league_table_ranks_by_lineup_vorp_and_covers_every_team(self):
+        table = roster_grades(self.engine, week=1)
+        self.assertEqual([t["team"] for t in table["teams"]][0], "Legion of Coom")
+        self.assertEqual({t["team"] for t in table["teams"]}, set(self.engine.team_names))
+        for t in table["teams"][1:]:
+            self.assertAlmostEqual(t["lineup_vorp"], 0.0)
+        self.assertEqual(table["teams"][0]["rank"], 1)
 
 
 if __name__ == "__main__":
