@@ -802,6 +802,32 @@ run with `-X faulthandler -v` to a file and record the test that ran immediately
 failing class. Do not mark this closed on the strength of clean runs alone — it was 0/16 under
 observation and 3/9 without.
 
+**Occurrence (2026-09-01, 3 concurrent processes — F20 diagnostics).** Three `py -3.10`
+processes ran at once (the F20 channel chain, a 30 x 300 paired evaluation, and the golden
+master); the 30 x 300 process died silently after completing its first arm — partial stdout,
+no traceback, no results file. A solo re-run of the identical script completed clean, as did
+the rest of the session run one at a time. Two things this adds to the record:
+
+- *Load threshold:* the 2026-08-30 scaling run read **0/3** at 3 concurrent `probe_pure`
+  processes; this is **1/3 at 3 concurrent** with real engine workloads (heavy numpy
+  allocation and full-season simulation vs. the probe's stdlib-only loop). The "3 processes
+  is safe" reading of the scaling table does not survive contact with heavier processes; the
+  operating rule (one at a time) is the only safe level and now explicitly covers diagnostic
+  scripts, not just `run_sync`/`run_simulation`/the suite.
+- *Invocation-context evidence:* **Windows Reliability Monitor has no record of this death** —
+  no Application Error 1000 for python, no new WER report, no WHEA or System-log error in the
+  window (`Win32_ReliabilityRecords` and the Application/System logs checked same-day). Caveat:
+  the process ran inside a bash pipeline whose exit status came from the downstream `grep`, so
+  the interpreter's true exit code was masked; but a 0xC0000005 would normally log Event 1000
+  regardless, and none was logged — a silent-vanish signature not previously in R1's table.
+  Separately, while checking: WER's queue holds **kernel-level fault reports predating the
+  probe series** — `Kernel_141` (LiveKernelEvent) 2026-07-12 and 2026-08-21 (x2),
+  `Kernel_3b` 2026-07-13, `Kernel_a` 2026-08-16 — i.e. the machine was throwing kernel
+  faults weeks before R1 was first seen on 2026-08-28. Today's Application-log WER 1001
+  "LiveKernelEvent/BlueScreen" entries are re-upload retries of those queued reports, not new
+  events. Worth attaching to the RMA case: kernel-mode faults with matching dates, unprompted
+  by any probe.
+
 ## Tracked follow-ups (outside any phase's branch)
 
 ### F1 — Rekey players by Sleeper `player_id` instead of full name
