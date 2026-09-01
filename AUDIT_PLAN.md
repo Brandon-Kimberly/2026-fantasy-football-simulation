@@ -2133,3 +2133,58 @@ the realised-value comparison waits for the season.
 decision tools are the better use of remaining pre-season time. Ingestion alone (the first
 row) is worth doing early in the season so both drafts are on disk under version control;
 the analysis can follow at any checkpoint.
+
+### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
+
+**Origin:** Found while surveying the opponent-aware lineup tool (2026-09-01). The weekly loop
+draws one correlated z-vector *per fantasy team* -- `build_covariance_matrix(sim_rosters[t],
+sim_meta[t])` then `z_corr = L @ z_uncorr`, team by team -- so two players on the SAME NFL team
+rostered by two DIFFERENT fantasy teams are drawn independently. `SIM_CONFIG['CORRELATIONS']`
+(QB-WR1 0.40, QB-WR2 0.315, QB-TE 0.35, measured on real pairs and re-confirmed league-wide
+under F13) is applied only when both players sit on one roster. Sized on the real 2026
+schedule and rosters: **all 56 regular-season matchups** pair at least one same-NFL-team
+QB/WR/TE/RB across the two opposing rosters (mean ~3 candidate pairs per matchup; week 1: 6, 7,
+2, 4), so the gap is live every week, not occasional.
+
+**Why it matters, and where.** For a head-to-head margin the correlation that matters most is
+exactly the one omitted: if my QB and his WR1 boom together, the margin's variance is
+*smaller* than two independent draws imply, and the engine therefore overstates margin
+variance in every matchup that contains such a pair. Overstated margin variance biases every
+H2H win probability toward 50%: favourites' `Playoff_Pct`/`Champ_Pct` are understated,
+underdogs' overstated, by an amount that scales with how many correlated cross-roster pairs a
+team's schedule contains. This is a precision gap in `Playoff_Pct` specifically -- the number
+the closed-form `Playoff_SE` now reports to within sampling error (Phase 0, implemented
+2026-08-31) but which carries this systematic, non-sampling error on top. It is not just an
+H2H curiosity. The same omission applies to the median-beat decision (all eight totals share
+the omission), to a lesser degree.
+
+**Scope: measure first, then decide.** Two complementary measurements, neither an engine change:
+
+1. *Paired simulation, with vs without cross-roster correlation, on real matchups.* The
+   decision tool being built alongside this entry (`fantasy_sim.decisions`, opponent-aware
+   lineup construction) already samples both rosters through one combined Cholesky factor from
+   the SAME `build_covariance_matrix` -- so a `--no-cross` switch gives the engine's current
+   behaviour and the default gives the corrected one, on identical seeds. Report, for each
+   week-1 matchup and a few later ones: margin sd with vs without, and P(win) with vs without,
+   for the max-expected lineups. Effect size = the P(win) shift for the favourite.
+2. *Real data.* On the 2025 season (F13's pull machinery, all four offensive positions), the
+   realised correlation between two opposing fantasy teams' weekly totals when they share
+   same-NFL-team QB/pass-catcher pairs versus when they do not -- a direct check that the
+   effect exists in totals, not only in the model.
+
+If the P(win) shift is below the paired-batch SE of a production run (~0.5 points of
+`Playoff_Pct` at 10,000 seasons), record it as measured-and-immaterial. If it is larger, the
+engine fix is a league-wide z draw: one `build_covariance_matrix` over the union of all eight
+rosters per week (156 x 156 Cholesky, once per week per sim -- the same cost class as the
+eight per-roster factorisations it replaces), which preserves every within-roster correlation
+exactly and adds the cross-roster ones. That touches the core loop's draw order (a golden
+regeneration with a documented stage_a move) and is gated by the real-data backtest like any
+correlation change.
+
+**Acceptance criterion:** to be set once sized -- the P(win) shift on real matchups and the
+2025 totals correlation, with CIs, decide whether an engine change is warranted; if it is,
+the acceptance is the backtest gate (bias/mean z within F2 criterion (c)'s bounds) plus
+`Playoff_Pct` movement reported per team.
+
+**When:** unscheduled, no dependency on any open item. Measurement (1) becomes a one-line
+script once the opponent-aware tool lands; worth running in the first weeks of the season.
