@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from fantasy_sim.simulation import (
     FantasySimulationEngine, normalize_position, load_json, SIM_CONFIG, DUAL_ELIGIBILITY,
@@ -148,6 +149,50 @@ class TestFantasySimulation(unittest.TestCase):
                           "cut=0 must stop the KDE from extending past each team's own observed "
                           "min/max; the default (cut=2) smears an artificial tail onto every team "
                           "regardless of its real spread.")
+
+    def test_weekly_scoring_density_renders_one_row_per_team_with_shared_yaxis(self):
+        """Regression test for the Pass-2 visualization audit's Weekly Scoring Density finding:
+        8 overlapping KDE lines drawn into one shared axes were visually indistinguishable by
+        color alone. This replaces them with a ridgeline (one row/Axes per team, in summary_df's
+        ranked order). sharey=True is required, not optional: without it, independent per-row
+        y-autoscaling would force every row to *look* the same peak height regardless of its real
+        concentration -- the same density-comparability bug just fixed in the Expected_Wins
+        violin chart (density_norm='width' there; independent per-row autoscaling here). Verified
+        against real data before landing on this: peak KDE density values differed by ~11% across
+        teams in the real distribution this chart draws (0.0110-0.0122), a real difference sharey
+        correctly preserves and independent autoscaling would have erased.
+
+        Asserts one Axes per team (not a single axes with N overlapping lines) and that every
+        row's y-axis limits are literally identical (sharey in effect, not merely close)."""
+        sim = FantasySimulationEngine()
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 20
+        try:
+            captured_figs = {}
+
+            def recording_save_chart(path, **kwargs):
+                captured_figs[path] = plt.gcf()
+
+            with patch('fantasy_sim.simulation.save_chart', side_effect=recording_save_chart), \
+                 patch('matplotlib.pyplot.close'), patch('fantasy_sim.simulation.save_json'):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        density_paths = [p for p in captured_figs if 'Weekly_Scoring_Density' in p]
+        self.assertEqual(len(density_paths), 1, "Expected exactly one Weekly Scoring Density export.")
+        fig = captured_figs[density_paths[0]]
+
+        self.assertEqual(
+            len(fig.axes), len(self.test_teams),
+            "Expected one row (Axes) per team -- a ridgeline -- not one shared axes with N "
+            "overlapping lines.")
+        ylims = {ax.get_ylim() for ax in fig.axes}
+        self.assertEqual(
+            len(ylims), 1,
+            "All rows must share the same y-axis (sharey=True) so peak-height differences across "
+            "teams reflect real density differences, not independent per-row autoscaling.")
 
     def test_h2h_win_probability_matrix_export_is_not_transposed(self):
         """Regression test for a real, precisely diagnosed bug: the exported

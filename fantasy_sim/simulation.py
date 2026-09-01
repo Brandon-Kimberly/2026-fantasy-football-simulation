@@ -1691,10 +1691,8 @@ class FantasySimulationEngine:
         plt.close()
 
         # -------------------------------------------------------------
-        # Weekly Scoring Density (KDE)
+        # Weekly Scoring Density (Ridgeline)
         # -------------------------------------------------------------
-        plt.figure(figsize=(14, 7))
-        
         # global_weekly_scores is allocated as a full (total_sims, 14) array but written to
         # only for the weeks this run simulates, so on a mid-season run every column before
         # current_week is still at its initialised zero. Those cells are structural absences,
@@ -1714,21 +1712,52 @@ class FantasySimulationEngine:
                 median_cutoffs.append(np.median(scores))
         avg_median_cut = float(np.mean(median_cutoffs)) if median_cutoffs else None   # F3: undefined inside the playoffs
 
-        for t in summary_df['Team']:
-            all_scores_flat = played_weekly_scores[t].flatten()
-            if all_scores_flat.size == 0:
-                continue          # F3: no regular-season week simulated; nothing to draw
-            sns.kdeplot(all_scores_flat, label=f"{t} (Exp: {np.mean(all_scores_flat):.1f})", linewidth=2.0)
+        # F3: no regular-season week simulated (started inside the playoffs) -- every team's
+        # slice is empty. first_week_idx/weeks_simulated are the same for every team, so this
+        # is all-or-nothing, never a per-team partial list.
+        chart_teams = [t for t in summary_df['Team'] if played_weekly_scores[t].size > 0]
 
-        if avg_median_cut is not None:
-            plt.axvline(avg_median_cut, color='black', linestyle='--', linewidth=2.0, label=f"Avg Median Cut({avg_median_cut:.1f})")
-        plt.title(f"Week {self.current_week} Team Weekly Scoring Density Profiles", fontsize=14, fontweight='bold', pad=15)
-        plt.xlabel("Simulated Weekly Points Scored", fontsize=11, fontweight='bold')
-        plt.ylabel("Probability Density", fontsize=11, fontweight='bold')
-        plt.xlim(60, 250)
-        plt.legend(loc='upper right', frameon=True, facecolor='white', fontsize=9)
-        sns.despine()
-        plt.tight_layout()
+        # Ridgeline (one row per team, in summary_df's ranked order, matching Expected_Wins'
+        # convention) replaces 8 overlapping KDE lines in one axes -- at 8 teams those lines
+        # were visually indistinguishable by color alone (Pass-2 visualization audit,
+        # 2026-08-31: both a live ridgeline prototype and a small-multiples alternative were
+        # rendered from real data and compared before choosing this one). sharey=True is
+        # required, not optional: without it, each row independently autoscales to its own
+        # peak, forcing every row to *look* the same height regardless of actual concentration
+        # -- the same density-comparability bug just fixed in the Expected_Wins violin chart
+        # (density_norm='width' there; independent per-row autoscaling here). Verified against
+        # real data before landing on this: peak KDE density values differed by ~11% across
+        # teams (0.0110-0.0122) in the real distribution this chart draws -- a real difference
+        # sharey correctly preserves and independent autoscaling would have erased.
+        n_rows = max(len(chart_teams), 1)
+        fig, axes = plt.subplots(n_rows, 1, figsize=(12, 1.1 * n_rows + 1), sharex=True, sharey=True)
+        axes = np.atleast_1d(axes)
+        palette = sns.color_palette('magma', n_colors=n_rows)
+
+        for i, t in enumerate(chart_teams):
+            ax = axes[i]
+            all_scores_flat = played_weekly_scores[t].flatten()
+            sns.kdeplot(all_scores_flat, ax=ax, fill=True, color=palette[i], linewidth=1.5)
+            if avg_median_cut is not None:
+                ax.axvline(avg_median_cut, color='black', linestyle='--', linewidth=1.2, alpha=0.8)
+            ax.text(0.01, 0.55, f"{t} (Exp: {np.mean(all_scores_flat):.1f})", transform=ax.transAxes,
+                    ha='left', va='center', fontsize=10, fontweight='bold')
+
+        for i, ax in enumerate(axes):
+            ax.set_xlim(60, 250)
+            ax.set_ylabel('')
+            ax.set_yticks([])
+            for spine in ('left', 'top', 'right'):
+                ax.spines[spine].set_visible(False)
+            if i != len(axes) - 1:
+                ax.spines['bottom'].set_visible(False)
+                ax.tick_params(bottom=False)
+        axes[-1].set_xlabel("Simulated Weekly Points Scored", fontsize=11, fontweight='bold')
+
+        title_suffix = f" (Avg Median Cut {avg_median_cut:.1f})" if avg_median_cut is not None else ""
+        fig.suptitle(f"Week {self.current_week} Team Weekly Scoring Density Profiles{title_suffix}",
+                     fontsize=14, fontweight='bold')
+        plt.tight_layout(rect=[0, 0, 1, 0.97])
         out_path = weekly_scoring_density_path(self.current_week)
         save_chart(out_path, dpi=300)
         plt.close()
