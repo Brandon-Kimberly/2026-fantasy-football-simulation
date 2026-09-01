@@ -2168,6 +2168,17 @@ decision tools are the better use of remaining pre-season time. Ingestion alone 
 row) is worth doing early in the season so both drafts are on disk under version control;
 the analysis can follow at any checkpoint.
 
+**Ingestion row BUILT (2026-09-01).** `sync.ingest_drafts` walks the renewal chain
+(current league, then `previous_league_id`), writes one immutable document per season
+(an existing file is never rewritten), resolves `roster_id` via the current roster map
+and keeps the raw `roster_id` + `picked_by` on every pick so a cross-season mapping
+error is recoverable; called from `_sync_body`, warn-never-raise. Real run: **152 picks
+(2026) / 128 (2025)**, both draft_ids matching the probe above, all picks resolved to
+the 8 team names, zero unresolved. `!data/logs/draft_*.json` verified by a real pushed
+commit (`git ls-tree origin/main`), per the F7 nested-exception lesson. Tests: 3, fake
+HTTP layer. The at-draft and realised-value analysis rows remain unbuilt, buildable at
+any checkpoint.
+
 ### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
 
 **Origin:** Found while surveying the opponent-aware lineup tool (2026-09-01). The weekly loop
