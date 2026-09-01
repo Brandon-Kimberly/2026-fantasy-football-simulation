@@ -930,6 +930,26 @@ pieces for one rich bench upgrade -- is a real, separate design that may be wort
 item if trade volume still feels thin once the season is actually live; not built
 speculatively against a fixture that may not represent real in-season roster damage.
 
+**COMMIT 2 DONE (2026-09-01, `6e0dc5d`): criterion (c) reconstructed and measured.** The
+scratch `bt_points.py` the criterion cited existed nowhere in the repo or its history. It is
+now `scripts/run_points_backtest.py` (paired, seeded, 300 sims, checkpoints 3/6/9/12; bias =
+sim mean - real weekly team points; mean z; cover80/cover50), appending one JSON line per run
+to the tracked `data/logs/points_backtest.jsonl` stamped with git commit + dirty flag, Python
+version and executable, and machine (F12 is open; a result must be attributable to the exact
+code and interpreter that produced it). Harness: `run_backtest_checkpoint(return_raw=True)`,
+additive. Both runs on Python 3.10.0, same machine, same seeds:
+
+| engine | overall bias | mean z | cover80 | cp3 bias | cp6 | cp9 | cp12 |
+|---|---|---|---|---|---|---|---|
+| pre-commit-1 (`simulation.py` @ `9b7b4cd`) | -0.98 pts (-0.8%) | +0.049 | 0.63 | -3.98 | -0.33 | +0.56 | +5.96 |
+| commit 1 (`2756858`, run at `6e0dc5d`) | -1.04 pts (-0.8%) | +0.060 | 0.65 | -4.19 | -0.49 | +0.92 | +5.96 |
+
+**Criterion (c) met:** bias moved 0.06 pts (bound 0.5) and mean z 0.011 (bound 0.05). cp12 is
+identical to the last digit across the two engines -- trades occur in weeks 6-10 and a
+checkpoint at week 12 never sees one -- which is the pairing check: everything that differs
+is the trade block. The redesign did not leak into scoring. (Absolute levels are not
+comparable to the absence-modelling arc's numbers above: those were earlier code states.)
+
 ### F3 — Simulate from inside the playoffs (bracket seeded from banked standings)
 
 **Origin:** Phase 5 finding 1. `run_simulation` seeds the playoff bracket (`top4`) only by
