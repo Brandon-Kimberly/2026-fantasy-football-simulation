@@ -2239,3 +2239,52 @@ adopted only if a second season of `NA` cases gives it a basis (n >= a handful),
 carry-over stays, labelled as such.
 
 **When:** event-driven -- the week his status changes.
+
+### F18 — Decision retrospective: projected vs realized value of every logged move (scoped, not built)
+
+**Origin:** Decision-log work (2026-09-01, `033445c`/`870588c`). Every completed league
+transaction is now auto-ingested into `data/logs/decision_log.jsonl` with each involved
+player's projection snapshot at ingestion (`snapshot_is_retroactive` flagged when backfilled)
+and, for trades, an optional paired-simulation evaluation record (`--log-tx`). The
+retrospective reads that log plus `weekly_actuals` (real per-player weekly scores, synced
+weekly) and reports, for each move, over the real weeks since it: the **projected delta**
+(sum of projected weekly means of players in minus players out, frozen at the logged
+snapshot) and the **realized delta** (the same sum over actual scores; structural absences
+as zeros, byes noted). **The two are reported separately and never collapsed into one
+good/bad verdict** -- "model said +2, reality delivered -5" is a different finding from
+"model said -3 and the move was made anyway"; the four quadrants (model right/wrong x
+followed/overruled) are countable but no verdict word is emitted. Trades additionally show
+the paired Champ%/Playoff% delta where an evaluation record exists. Retroactive-snapshot
+records are surfaced as such (their projections postdate the click; the first 18 ingested
+records are all like this).
+
+**Scope:** ~120 lines in `fantasy_sim/decisions.py` + a script + tests on a crafted log and
+crafted actuals; no engine change, no golden movement.
+
+**Precondition, stated so it is not rediscovered: ~3-4 real completed weeks.** With fewer,
+every realized column is one or two noisy games and the comparison is theater. The log is
+already accumulating; nothing else blocks it.
+
+**When:** around real week 4 of 2026.
+
+### F19 — Cross-week odds trajectory: Playoff%/Champ%/expected wins across data/weeks/ (scoped, not built)
+
+**Origin:** the deferred half of the original trajectory item (the visualization session's
+"playoff-odds-over-time", explicitly left unbuilt because only one week of real forecast
+history existed), now structurally unblocked: F9 retains every week's exports under
+`data/weeks/week_NN/`, and `season_outcomes` inside each week's
+`syndicate_comprehensive_matrix_week_N.json` carries Playoff_Pct / Champ_Pct /
+Expected_Wins per team as of that real week.
+
+**Scope:** one small module reading every `week_NN` directory present and charting the three
+series per team across REAL weeks (x = real week -- distinct from `Win_Trajectory.png`,
+whose x is the simulated week within one forecast). Rendering follows `win_trajectory`'s
+conventions; output lands in the current `weeks/week_NN/` and joins the orchestrator chain
+and the HTML report's Season outlook section when built. ~80 lines + tests on crafted
+per-week fixtures.
+
+**Precondition, stated so it is not rediscovered: ~3-4 real weeks of `data/weeks/week_NN/`
+directories.** With one or two points per team the chart is two dots and a line that
+overstates whatever it connects. Only week_01 exists today.
+
+**When:** around real week 3-4 of 2026, once three or more week directories exist.
