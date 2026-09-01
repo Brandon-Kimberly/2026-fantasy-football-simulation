@@ -27,7 +27,7 @@ from fantasy_sim.decisions import (
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
     grade_roster, roster_grades, week_expectation, optimize_lineup,
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
-    find_trade_targets,
+    find_trade_targets, league_week_outlook,
 )
 
 
@@ -621,6 +621,51 @@ class TestTradeTargetFinder(_EngineCase):
         self.assertEqual(sorted(args[4]), ["FC_K_bench", "FC_QB_bench"])
         self.assertEqual((kwargs["batches"], kwargs["sims"]), (2, 15))
         self.assertIn("evaluation", r["buy"][0])
+
+
+class TestLeagueWeekOutlook(_EngineCase):
+    """League-wide 'this week': every pairing on the schedule, P(win) both ways and P(>= median)
+    for all eight teams, on ONE joint sample through the copula -- the same machinery
+    matchup_lineups uses for my matchup, applied to all pairings. Fixture schedule, week 1:
+    [Legion (QB 20) v Femboy (QB 15)], [Year of Jarvis (15) v Drunk Cats (15)]."""
+
+    def test_every_pairing_is_reported_with_probabilities_that_sum_to_one(self):
+        r = league_week_outlook(self.engine, week=1, sims=2000, seed=1)
+        self.assertEqual(r["week"], 1); self.assertEqual(r["n"], 2000); self.assertTrue(r["cross"])
+        self.assertEqual([(m["a"], m["b"]) for m in r["matchups"]],
+                         [("Legion of Coom", "Femboy Cats"), ("Year of Jarvis", "Drunk Cats")])
+        for m in r["matchups"]:
+            self.assertAlmostEqual(m["p_a"] + m["p_b"] + m["p_tie"], 1.0, places=9)
+            for k in ("margin_mean", "margin_sd", "a_expected", "b_expected"):
+                self.assertIn(k, m)
+        legion = r["matchups"][0]
+        self.assertGreater(legion["p_a"], 0.7, "a 20-point QB beats a 15-point QB's team most weeks")
+        even = r["matchups"][1]
+        self.assertAlmostEqual(even["p_a"], even["p_b"], delta=0.06, msg="identical rosters are a coin flip")
+
+    def test_every_team_has_a_lineup_and_a_median_probability(self):
+        r = league_week_outlook(self.engine, week=1, sims=500, seed=2)
+        self.assertEqual(set(r["teams"]), set(self.engine.team_names))
+        for t, d in r["teams"].items():
+            self.assertTrue(0.0 <= d["p_beat_median"] <= 1.0)
+            self.assertEqual(len(d["lineup"]), 1, "each fixture roster is one QB")
+            row = d["lineup"][0]
+            for k in ("slot", "name", "expected", "sd", "nfl_team"):
+                self.assertIn(k, row)
+            self.assertAlmostEqual(d["expected_pre_total"], row["expected"], places=9)
+            # sampled mean prices absence/onset zeros, so it sits at or below the pre-game sum
+            self.assertLessEqual(d["expected_total"], d["expected_pre_total"] * 1.05)
+            self.assertIn("opponent", d)
+        self.assertEqual(r["teams"]["Legion of Coom"]["opponent"], "Femboy Cats")
+        # the median rule: on average half the league is at or above the median each week
+        self.assertAlmostEqual(sum(d["p_beat_median"] for d in r["teams"].values()) / 4, 0.5, delta=0.1)
+
+    def test_seed_reproducible_and_no_cross_honoured(self):
+        a = league_week_outlook(self.engine, week=1, sims=300, seed=5)
+        b = league_week_outlook(self.engine, week=1, sims=300, seed=5)
+        self.assertEqual(a["matchups"][0]["p_a"], b["matchups"][0]["p_a"])
+        c = league_week_outlook(self.engine, week=1, sims=300, seed=5, cross=False)
+        self.assertFalse(c["cross"])
 
 
 if __name__ == "__main__":

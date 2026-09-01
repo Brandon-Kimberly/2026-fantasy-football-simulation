@@ -118,6 +118,20 @@ def render_digest(report, team, week):
                       [[("**%s**" % r["Team"]) if r["Team"] == team else r["Team"], f"{r['Playoff_Pct']:.1f}",
                         f"{r['Champ_Pct']:.1f}", f"{r['Expected_Wins']:.1f}", f"{r['Expected_Points']:.0f}"] for r in rows]), ""]
 
+    lg = res.get("league")
+    if lg:
+        md += [f"## League this week -- all matchups (n={lg.get('n')}, {'cross-roster copula' if lg.get('cross') else 'per-roster copula'})", ""]
+        md += [_table(["matchup", "P(A wins)", "P(B wins)", "+-", "A exp", "B exp", "margin sd"],
+                      [[f"{m['a']} v {m['b']}", f"{100 * m['p_a']:.1f}%", f"{100 * m['p_b']:.1f}%", f"{100 * m['se']:.1f}",
+                        f"{m['a_expected']:.1f}", f"{m['b_expected']:.1f}", f"{m['margin_sd']:.1f}"] for m in lg["matchups"]]), ""]
+        md += [_table(["team", "opponent", "P(>= median)", "expected", "sd"],
+                      [[("**%s**" % t) if t == team else t, d.get("opponent") or "-", f"{100 * d['p_beat_median']:.1f}%",
+                        f"{d['expected_total']:.1f}", f"{d['sd_total']:.1f}"]
+                       for t, d in sorted(lg["teams"].items(), key=lambda kv: -kv[1]["p_beat_median"])]), ""]
+        for t, d in lg["teams"].items():
+            md += [f"- {t} lineup: " + ", ".join(f"{x['slot']} {x['name']} ({x['expected']:.1f})" for x in d["lineup"])]
+        md += [""]
+
     rg = res.get("roster_grades")
     if rg:
         md += ["## Roster grade", ""]
@@ -226,6 +240,11 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
         rows = load_json(syndicate_comprehensive_matrix_path(state["week"])).get("season_outcomes", [])
         return {"season_outcomes": rows}
 
+    def step_league():
+        from fantasy_sim.decisions import league_week_outlook
+        from fantasy_sim.simulation import FantasySimulationEngine
+        return league_week_outlook(FantasySimulationEngine(), state["week"], sims=sims)
+
     def step_roster_grades():
         from scripts.roster_grades import main as m
         return m(["--team", team, "--week", str(state["week"])])
@@ -247,7 +266,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
         return m(["--team", team, "--week", str(state["week"]), "--evaluate", str(evaluate)])
 
     steps = [("freshness", step_freshness)] if skip_sync else [("sync", step_sync)]
-    steps += [("simulation", step_simulation), ("roster_grades", step_roster_grades), ("lineup", step_lineup),
+    steps += [("simulation", step_simulation), ("league", step_league), ("roster_grades", step_roster_grades), ("lineup", step_lineup),
               ("matchup", step_matchup), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))

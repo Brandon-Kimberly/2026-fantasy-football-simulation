@@ -83,6 +83,13 @@ def _fixture_results():
         "simulation": {"season_outcomes": [
             {"Team": "Legion of Coom", "Playoff_Pct": 61.0, "Champ_Pct": 15.5, "Expected_Wins": 15.1, "Expected_Points": 2300.0},
             {"Team": "Femboy Cats", "Playoff_Pct": 50.0, "Champ_Pct": 12.0, "Expected_Wins": 14.0, "Expected_Points": 2250.0}]},
+        "league": {"week": 3, "n": 5000, "cross": True,
+                   "matchups": [{"a": "Legion of Coom", "b": "Canton Killers", "p_a": 0.588, "p_b": 0.41, "p_tie": 0.002, "se": 0.007,
+                                 "a_expected": 166.4, "b_expected": 153.4, "margin_mean": 13.0, "margin_sd": 50.3}],
+                   "teams": {"Legion of Coom": {"opponent": "Canton Killers", "p_beat_median": 0.575, "expected_total": 166.4, "expected_pre_total": 177.3, "sd_total": 37.9,
+                                                "lineup": [{"slot": "QB", "name": "Jayden Daniels", "expected": 16.1, "sd": 8.7, "nfl_team": "WAS"}]},
+                             "Canton Killers": {"opponent": "Legion of Coom", "p_beat_median": 0.41, "expected_total": 153.4, "expected_pre_total": 164.0, "sd_total": 36.0,
+                                                "lineup": [{"slot": "QB", "name": "Jalen Hurts", "expected": 25.0, "sd": 9.0, "nfl_team": "PHI"}]}}},
         "roster_grades": {"league": {"teams": [{"rank": 1, "team": "Legion of Coom", "lineup_vorp": 25.9, "depth_vorp": 0.0, "optimal_score": 169.7, "holes": 0, "tier1_starters": 11, "starters_below_replacement": 1},
                                                {"rank": 2, "team": "Femboy Cats", "lineup_vorp": 20.0, "depth_vorp": 1.0, "optimal_score": 165.0, "holes": 0, "tier1_starters": 9, "starters_below_replacement": 2}]},
                           "team_detail": {"by_position": {"RB": {"n_starters": 3, "n_bench": 4, "starters_vorp": 14.2, "depth_vorp": 0.0, "tiers": [1, 1, 1], "best_free_agent": None}}}},
@@ -111,6 +118,7 @@ class TestDigest(unittest.TestCase):
                   "started_at": "2026-09-22T12:00:00Z", "finished_at": "2026-09-22T12:12:00Z"}
         md = render_digest(report, team="Legion of Coom", week=3)
         for needle in ("# Weekly report", "week 3", "DEGRADED", "ODDS: no key", "## Season outlook", "61.0",
+                       "## League this week", "Legion of Coom v Canton Killers", "58.8", "Jalen Hurts",
                        "## Roster grade", "25.9", "## Lineup", "Jayden Daniels", "## Matchup", "Canton Killers", "60.2",
                        "## Waiver targets", "Tuli Tuipulotu", "no variance lever"):
             self.assertIn(needle, md, needle)
@@ -124,7 +132,7 @@ class TestDigest(unittest.TestCase):
         md = render_digest(report, team="Legion of Coom", week=3)
         self.assertIn("FAILED AT STEP `simulation`", md)
         self.assertIn("CRITICAL ABORT", md)
-        for absent in ("## Lineup", "## Matchup", "## Waiver targets", "## Roster grade", "## Season outlook"):
+        for absent in ("## Lineup", "## Matchup", "## Waiver targets", "## Roster grade", "## Season outlook", "## League this week"):
             self.assertNotIn(absent, md)
         self.assertIn("did not run", md)
 

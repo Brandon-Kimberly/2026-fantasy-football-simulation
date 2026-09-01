@@ -860,6 +860,67 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
                      "a filter.")}
 
 
+# ================================================================ LEAGUE-WIDE THIS WEEK
+#
+# Every pairing on the schedule, P(win) both ways and P(>= median) for all eight teams, on ONE
+# joint sample through the copula (sample_week_matrix over the union of the rosters, cross-
+# roster correlation included by default) with each team on its max-expectation lineup -- the
+# same machinery matchup_lineups uses for my matchup, applied to all pairings, so the two
+# sections agree by construction. Genuinely new computation: only the loop over pairings.
+def league_week_outlook(engine, week, sims=5000, seed=None, cross=True):
+    pairs = engine.league_schedule[week - 1] if week - 1 < len(engine.league_schedule) else []
+    if not pairs:
+        raise ValueError(f"no scheduled pairings for week {week}")
+    teams = list(engine.team_names)
+    groups = [list(engine.rosters[t]) for t in teams]
+    M, names = sample_week_matrix(engine, groups, week, sims, seed=seed, cross=cross)
+    idx = {nm: i for i, nm in enumerate(names)}
+    exp = {nm: week_expectation(engine, nm, week) for nm in names}
+    sd = {nm: float(M[:, idx[nm]].std()) for nm in names}
+    avail = {nm: not (_entry(engine, nm).get('bye') == week or _unavailable_now(_entry(engine, nm))) for nm in names}
+
+    lineups, totals = {}, {}
+    for t in teams:
+        cands = [(nm, _opts(engine, nm), exp[nm]) for nm in engine.rosters[t] if avail[nm]]
+        assigned, _ = engine._solve_optimal_assignment(cands)
+        lineup = [(nm, slot) for nm, _v, slot in assigned]
+        lineups[t] = lineup
+        totals[t] = M[:, [idx[nm] for nm, _ in lineup]].sum(axis=1) if lineup else np.zeros(sims)
+    all_totals = np.column_stack([totals[t] for t in teams])
+    median = np.median(all_totals, axis=1)
+
+    opponent = {}
+    matchups = []
+    for a, b in pairs:
+        opponent[a], opponent[b] = b, a
+        ta, tb = totals[a], totals[b]
+        p_a, p_b = float(np.mean(ta > tb)), float(np.mean(tb > ta))
+        matchups.append({"a": a, "b": b, "p_a": p_a, "p_b": p_b, "p_tie": float(np.mean(ta == tb)),
+                         "se": float(np.sqrt(max(p_a * (1 - p_a), 1e-12) / sims)),
+                         "a_expected": float(ta.mean()), "b_expected": float(tb.mean()),
+                         "margin_mean": float((ta - tb).mean()), "margin_sd": float((ta - tb).std())})
+    team_rows = {}
+    for t in teams:
+        team_rows[t] = {
+            "opponent": opponent.get(t),
+            "p_beat_median": float(np.mean(totals[t] >= median)),
+            # sampled mean of the lineup total (absences and onsets priced in), the same
+            # quantity the matchup rows' a_expected/b_expected report; the pre-game sum of
+            # expectations (no hazard) is kept separately so the two are never confused.
+            "expected_total": float(totals[t].mean()),
+            "expected_pre_total": float(sum(exp[nm] for nm, _ in lineups[t])),
+            "sd_total": float(totals[t].std()),
+            "lineup": [{"slot": s_, "name": nm, "expected": exp[nm], "sd": sd[nm],
+                        "nfl_team": _entry(engine, nm).get('team', 'FA')} for nm, s_ in sorted(lineups[t], key=lambda x: x[1])],
+        }
+    return {"week": week, "n": sims, "cross": cross, "matchups": matchups, "teams": team_rows,
+            "note": ("one joint sample through the engine's copula over all rosters (cross-roster same-NFL-team "
+                     "correlation included -- the engine itself omits it, F16" if cross else
+                     "per-roster copula only, as the engine does") +
+                    "); every team on its max-expectation lineup; P(>= median) = share of sims at or above "
+                    "the median of all eight totals."}
+
+
 def roster_grades(engine, week=None):
     """League table: every team's grade summary ranked by lineup_vorp (1 = best)."""
     week = week or engine.current_week
