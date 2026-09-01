@@ -189,6 +189,46 @@ class TestFantasySimulation(unittest.TestCase):
         self.assertNotEqual(sorted(a3['weeks']), sorted(a5['weeks']),
                             "audit logs for different start weeks must cover different simulated weeks")
 
+    def test_run_warnings_are_exported_inside_the_per_week_audit_log(self):
+        """F10 (2/2). The import-time FileHandler behind syndicate_warnings.log is a process-level
+        mirror of the root logger: it holds whatever process last imported fantasy_sim.simulation
+        (a test run overwrites the last real run's), so it is no record of any single run. A
+        run's own warnings are instead exported as audit_log['warnings'] inside its per-week
+        audit JSON -- written through save_json, so it is retained per week by F10 (1/2) and
+        mocked everywhere save_json already is, with no new raw write site to forget to mock.
+
+        Capture starts at FantasySimulationEngine.__init__ (the run's earliest warning, VEGAS
+        STALE, is emitted from inside __init__), so a record logged after construction must be
+        present and one logged before construction must not. Markers are logged at ERROR because
+        setUp holds the root logger at ERROR; the export records whatever was actually emitted."""
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 5
+        try:
+            saved = {}
+
+            def recording_save_json(path, data, indent=2):
+                saved[path] = data
+
+            logging.error("F10 MARKER BEFORE CONSTRUCTION -- must not be exported")
+            sim = FantasySimulationEngine()
+            logging.error("F10 MARKER AFTER CONSTRUCTION -- must be exported")
+            with patch('fantasy_sim.simulation.save_chart'), patch('matplotlib.pyplot.close'), \
+                 patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
+                sim.run_simulation()
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+
+        audit_paths = [p for p in saved if 'simulation_audit_log_sim0' in p]
+        self.assertEqual(len(audit_paths), 1)
+        payload = saved[audit_paths[0]]
+        self.assertIn('warnings', payload, "audit log must carry the run's own warnings")
+        messages = [w['message'] for w in payload['warnings']]
+        self.assertTrue(any('AFTER CONSTRUCTION' in m for m in messages), messages)
+        self.assertFalse(any('BEFORE CONSTRUCTION' in m for m in messages), messages)
+        for w in payload['warnings']:
+            self.assertIn(w['level'], ('WARNING', 'ERROR', 'CRITICAL'))
+
     def test_weekly_scoring_density_renders_one_row_per_team_with_shared_yaxis(self):
         """Regression test for the Pass-2 visualization audit's Weekly Scoring Density finding:
         8 overlapping KDE lines drawn into one shared axes were visually indistinguishable by

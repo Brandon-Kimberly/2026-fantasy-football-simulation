@@ -14,6 +14,7 @@ a different and riskier undertaking than the pure reorganization this refactor i
 Run via `python -m fantasy_sim.simulation` (see scripts/run_simulation.py) or import
 FantasySimulationEngine directly.
 """
+import collections
 import copy
 import logging
 import os
@@ -41,18 +42,56 @@ from fantasy_sim.storage import (
     seeding_distribution_path, weekly_scoring_density_path
 )
 
-# The logging handler below opens SYNDICATE_WARNINGS_LOG_FILE immediately, at import time --
-# its directory (data/current/) must exist before that happens, since nothing else is
-# guaranteed to have created it yet (e.g. `python -m fantasy_sim.simulation` run before any
-# sync has ever populated data/).
+# WHAT SYNDICATE_WARNINGS_LOG_FILE ACTUALLY IS (F10, 2026-08-31): a process-level console
+# mirror of the root logger, nothing more. The FileHandler below is opened in overwrite mode
+# at IMPORT time, so the file holds whatever process last imported this module -- a test-suite
+# run clobbers the last real run's contents (the golden scenarios' week-6/week-15 VEGAS STALE
+# lines were sitting in it when this was written), and run_sync never imports this module, so
+# sync's own warnings never reach it. It is NOT a source of truth for any single run's
+# warnings. The per-run record is audit_log['warnings'], captured by _RUN_WARNINGS below from
+# the moment FantasySimulationEngine.__init__ starts and exported inside the per-week audit
+# JSON through save_json -- no second raw write site, so every test that already mocks
+# save_json is covered automatically (the reason a separate per-week .log file was rejected:
+# 30 run_simulation() call sites in the suite would each have needed a new mock, and one miss
+# reintroduces F11).
+#
+# The handler's directory (data/current/) must exist before the open, since nothing else is
+# guaranteed to have created it yet (e.g. `python -m fantasy_sim.simulation` before any sync).
 ensure_dir_for(SYNDICATE_WARNINGS_LOG_FILE)
+
+
+class _SequencedBufferHandler(logging.Handler):
+    """Process-wide, bounded, in-memory record buffer with a monotonic sequence number, so an
+    engine can snapshot the counter at construction and later collect exactly the records
+    emitted since -- one handler for the whole process, never one per engine (a per-engine
+    FileHandler would leak N handlers across the suite's ~30 engine constructions and write
+    real files under mocks)."""
+
+    def __init__(self, maxlen=20000):
+        super().__init__(level=logging.WARNING)
+        self._seq = 0
+        self._records = collections.deque(maxlen=maxlen)
+
+    def emit(self, record):
+        self._seq += 1
+        self._records.append((self._seq, record.levelname, record.getMessage()))
+
+    def next_seq(self):
+        return self._seq + 1
+
+    def since(self, seq):
+        return [{"level": lvl, "message": msg} for s, lvl, msg in self._records if s >= seq]
+
+
+_RUN_WARNINGS = _SequencedBufferHandler()
 
 logging.basicConfig(
     level=logging.WARNING,
     format='%(levelname)s | %(message)s',
     handlers=[
         logging.FileHandler(SYNDICATE_WARNINGS_LOG_FILE, mode='w'),
-        logging.StreamHandler()
+        logging.StreamHandler(),
+        _RUN_WARNINGS,
     ]
 )
 # CAVEAT: this log, and simulation_audit_log_sim0.json, only ever record simulation index 0
@@ -74,6 +113,9 @@ from fantasy_sim.config import normalize_position  # noqa: E402
 
 class FantasySimulationEngine:
     def __init__(self):
+        # F10: first thing, before any load -- the run's earliest warning (VEGAS STALE) is
+        # emitted from inside this constructor, and it must be in this run's exported record.
+        self._warnings_seq_start = _RUN_WARNINGS.next_seq()
         self.state = load_json(LEAGUE_STATE_FILE)
         self.current_week = self.state.get('current_week', 1)
         # F3: Sleeper's winners bracket as sync writes it (team names); {} when absent.
@@ -1795,7 +1837,13 @@ class FantasySimulationEngine:
         save_json(model_learning_report_path(self.current_week), self.calibration_report)
         save_json(syndicate_insights_path(self.current_week), syndicate_insights)
         save_json(syndicate_comprehensive_matrix_path(self.current_week), ai_matrix)
-        save_json(simulation_audit_log_path(self.current_week), audit_log)   # F10: retained per week
+        # F10: retained per week, and carrying this run's own warnings (every record the root
+        # logger emitted since this engine's __init__ began). Shallow-copied rather than
+        # mutated: `audit_log` is one of run_simulation's stage_a arguments and the golden
+        # master hashes those objects AFTER this method returns, so mutating it here would
+        # leak an export-layer addition into the run_simulation hash.
+        save_json(simulation_audit_log_path(self.current_week),
+                  {**audit_log, 'warnings': _RUN_WARNINGS.since(self._warnings_seq_start)})
 
         print(f"\n[EXPORT COMPLETE] Telemetry and 5 visual artifacts rendered for Week {self.current_week}.")
 

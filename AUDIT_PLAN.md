@@ -1460,6 +1460,43 @@ and differ.
 **When:** whenever engine-level retention work is picked up. Independent of F1–F8 and of the
 positional-tiers work F9 grew out of.
 
+**DONE (2026-08-31, commits `68269f3` and the warnings commit that follows it).** Survey first,
+which changed the design:
+
+- *The FileHandler-timing question, resolved.* Option (a) -- handler in `__init__` -- was
+  rejected on a hazard the entry had not seen: it attaches one root-logger FileHandler per
+  engine constructed, and the suite constructs ~30 engines per run across 10 files, each of
+  which would open a real file under `data/weeks/week_NN/` (the fixture's week) because no test
+  mocks `logging`. That is F11's class of bug reintroduced on purpose. Option (b) as written
+  (a second handler for the pre-`__init__` window) was moot: scanning the module found no
+  logging call before `current_week` is set, and the run's earliest warning (`VEGAS STALE`) is
+  emitted from *inside* `__init__` (`_check_vegas_staleness`, line 95), so capture simply has
+  to start at the top of `__init__`.
+- *What `syndicate_warnings.log` actually is.* `basicConfig` binds the root logger at import,
+  so the file holds whatever process last imported `simulation.py`: at survey time its two
+  lines were the golden scenarios' week-6 and week-15 `VEGAS STALE` errors, written by the test
+  suite over the last real run's. `run_sync` never imports `simulation`, so sync's 18 warning
+  sites never reach it either. It is a process-level console mirror, not a per-run record, and
+  its comment in both `storage.py` and `simulation.py` now says so plainly.
+- *Design taken: warnings merged into the per-week audit JSON, not a second per-week `.log`.*
+  One process-wide, bounded, sequence-numbered in-memory handler is installed at import next to
+  the existing FileHandler; `__init__` snapshots the sequence; `export_and_visualize` writes
+  `{**audit_log, 'warnings': [records since the snapshot]}` through the existing `save_json`
+  call. Zero new raw write sites, so every test that already mocks `save_json` is covered
+  automatically -- a separate `save_text` file would have needed a new mock at all 30
+  `run_simulation()` test call sites, and one miss reintroduces F11. Shallow copy, not
+  mutation: `audit_log` is a stage_a argument hashed after export returns.
+
+Acceptance, measured: week-3 and week-5 audit logs coexist at distinct per-week paths and
+differ (`test_sim0_audit_log_is_retained_per_week`); a marker logged after construction is
+exported and one logged before is not (`test_run_warnings_are_exported_inside_the_per_week_
+audit_log`). Both tests confirmed failing first. Golden master, commit 1: the audit-log payload
+hash under the renamed key is *byte-identical* to the old key's in all three scenarios and both
+export stages (checked explicitly, not inferred from the rename); commit 2: stage_a
+byte-identical everywhere, and only the audit-log payload moved in stage_b/c. Suite 294 → 298.
+Along the way: `week15` had been in `golden_master.SCENARIOS` since F3 but never compared by
+any test -- run and regenerated, never asserted -- fixed in `89badc8` (golden suite 12 → 15).
+
 ### F11 — `test_simulation.py` silently truncated real production data on every full-suite run, since the initial commit
 
 **What happened.** Three tests in `tests/test_simulation.py` mocked `json.dump` directly instead
