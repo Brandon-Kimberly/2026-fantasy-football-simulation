@@ -1676,6 +1676,68 @@ adjustment layered on the existing calibrated correlation, not a replacement of 
 threshold gate -- sized the way every other item in this document is sized: measured effect
 first, specific lines and tests second.
 
+**MEASURED 2026-08-31 (throwaway analysis in scratch, not committed; raw pulls retained there).**
+Data: Sleeper's positional stats endpoint (`api.sleeper.com/stats/nfl/2025/{week}?season_type=
+regular&position[]=QB&position[]=WR`, which carries `team`/`opponent` per player-week -- the
+local player cache is 2026 and would mis-group offseason movers), all 18 regular-season weeks,
+scored with the live league's `scoring_settings` (offensive keys identical between the 2025 and
+2026 league objects -- checked). Spread source: ESPN's core odds endpoint (`sports.core.api.espn.
+com/.../events/{id}/competitions/{id}/odds`, ESPN BET closing line) retains 2025 lines -- **272
+of 272 games had one, so the spread view was measured as asked, nothing substituted.** Pairing
+mirrors `backtest_player.analyze_correlations` (one primary QB per team = most weeks leading in
+pass attempts, weeks with >= 10 attempts; WR1/WR2 by mean points over >= 8 played weeks with that
+team; >= 8 common weeks per pair): 31 QB-WR1 pairs / 401 pair-weeks, 25 QB-WR2 pairs / 313
+pair-weeks. Series z-scored within pair before pooling (so level differences between pairs do
+not masquerade as co-movement); CIs are 4,000-rep bootstraps over *pairs*, not weeks.
+
+| | QB-WR1 (31 pairs) | QB-WR2 (25 pairs) |
+|---|---|---|
+| unconditional pooled r (calibrated) | **+0.364** [+0.26, +0.46] (0.40) | **+0.382** [+0.29, +0.46] (0.315) |
+| mean / median per-pair r (backtest_player's statistic) | +0.351 / +0.382 | +0.361 / +0.414 |
+| boom half (QB > own median) r | +0.193 (n=193) | +0.240 (n=153) |
+| bust half (QB <= own median) r | +0.247 (n=208) | +0.170 (n=160) |
+| **boom - bust** | **-0.054** [-0.276, +0.155] | **+0.070** [-0.082, +0.238] |
+| P(WR > own med \| QB top quartile) | 0.652 (n=112) | 0.701 (n=87) |
+| P(WR < own med \| QB bottom quartile) | 0.723 (n=112) | 0.586 (n=87) |
+| upper - lower tail | -0.071 [-0.162, +0.018] | +0.115 [+0.035, +0.188] |
+| spread slope d(r)/d(spread), per point | +0.0034 [-0.0118, +0.0199] | +0.0049 [-0.0136, +0.0213] |
+| implied r at -7 vs +7 | +0.315 vs +0.363 | +0.324 vs +0.392 |
+| by spread bin (fav>=7 / fav 3-6.5 / pick / dog 3-6.5 / dog>=7) | .31 / .25 / .43 / .47 / .18 | .26 / .51 / .25 / .36 / .27 |
+
+Reading, plainly:
+
+- **Calibration holds.** Both calibrated values sit inside the unconditional CIs (0.40 in
+  [0.26, 0.46]; 0.315 in [0.29, 0.46]). The per-pair mean, the statistic `backtest_player.py`
+  reports, lands at 0.35/0.36. Nothing here argues for re-tuning `CORRELATIONS`.
+- **Boom/bust asymmetry: not measurable at a full league-season.** The two pair types point in
+  *opposite* directions (WR1 -0.05, WR2 +0.07), both CIs straddle zero, and the bootstrap bound
+  says |boom - bust| < ~0.25 at 95% -- i.e. the data cannot distinguish the asymmetry from zero,
+  and whatever it is, it is smaller than the calibration's own uncertainty (~+-0.10). The
+  quartile tail statistic tells the same story: WR1's *lower* tail is nominally the stronger
+  one (-0.07, CI touching zero), WR2's *upper* tail is (+0.12, CI excluding zero). One
+  nominally significant result of opposite sign to its sibling, out of the four asymmetry
+  contrasts computed here, is what noise looks like -- not a consistent tail-dependence
+  signal. The qualitative prior ("boom correlates more than bust") is not contradicted; it is
+  simply not visible at this sample size in this scoring system, which bounds its magnitude.
+- **Game script (Vegas spread): no continuous relationship.** Slopes +0.003/+0.005 per point of
+  spread, CIs [-0.012, +0.020] / [-0.014, +0.021]; across the whole realistic -7..+7 range that is
+  a point-estimate swing of ~0.05 in r, with the CI edges allowing at most ~+-0.28. The bins are
+  non-monotonic (WR1 peaks at pick'em/small dog and collapses for big dogs; WR2 peaks at small
+  favourite), which is the signature of five noisy sub-samples, not of a dose-response. The
+  secondary realised-margin view (reported only alongside, never instead of, the spread) is
+  likewise inconsistent across the two pair types (WR1 trailing 0.40 vs leading 0.29 -- the
+  hypothesised direction; WR2 the reverse, 0.31 vs 0.38).
+
+**What this establishes for the copula question.** Neither scoped effect is detectable at the
+largest sample one real season provides, and both are bounded well inside the range where a
+t- or Archimedean copula would change any exported probability by more than the calibration
+noise already present. Under this document's own rule -- no added model complexity without a
+measured effect size that justifies it -- the measurement does not justify touching the copula,
+and the measured bounds say the cost of *not* touching it is small. The result is recorded here
+so the question can be re-asked only with more seasons of data (the bounds shrink ~1/sqrt(k)
+with k seasons), not re-argued from priors. **Decision on closing this item is deferred to the
+user per instruction ("report ... before we decide anything about touching the copula").**
+
 **Acceptance criterion:** cannot be set yet -- there is no measurement to hold it to. To be set
 once the measurement above exists, under this project's standing rule for every constant and
 every model-complexity decision: no adoption of a more complex correlation model (a t-copula for
