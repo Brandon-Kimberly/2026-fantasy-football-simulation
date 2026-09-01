@@ -27,7 +27,7 @@ from fantasy_sim.decisions import (
     apply_trade, run_paired_capture, evaluate_trade, ACTIVE_ROSTER_LIMIT,
     grade_roster, roster_grades, week_expectation, optimize_lineup,
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
-    find_trade_targets, league_week_outlook,
+    find_trade_targets, league_week_outlook, evaluate_logged_trade, unevaluated_my_trades,
 )
 
 
@@ -666,6 +666,91 @@ class TestLeagueWeekOutlook(_EngineCase):
         self.assertEqual(a["matchups"][0]["p_a"], b["matchups"][0]["p_a"])
         c = league_week_outlook(self.engine, week=1, sims=300, seed=5, cross=False)
         self.assertFalse(c["cross"])
+
+
+class TestEvaluateLoggedTrade(_EngineCase):
+    """--log-tx: run tool 2's paired evaluation on a trade already in the decision log and
+    append the result as an evaluation record referencing the transaction. Reads terms from
+    the log (a side's gives = the players whose to_team is the OTHER side), dedupes on an
+    existing evaluation, and reports roster drift (a logged player no longer on the roster)
+    as a clear error instead of a stack trace. Written before the function existed."""
+
+    def _log_with_trade(self, d, txid="tr9"):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        tx = {"transaction_id": txid, "type": "trade", "week": 1, "created": "2026-09-01T00:00:00Z",
+              "snapshot_at": "2026-09-01T00:00:00Z", "snapshot_lag_days": 0.0,
+              "snapshot_is_retroactive": False, "teams": ["Legion of Coom", "Femboy Cats"],
+              "is_mine": True, "faab_bid": None,
+              "adds": [{"player_id": "1", "name": "QB_1", "to_team": "Femboy Cats", "projection": None},
+                        {"player_id": "2", "name": "QB_2", "to_team": "Legion of Coom", "projection": None}],
+              "drops": []}
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(tx) + chr(10))
+        return path
+
+    def test_evaluates_the_logged_terms_and_appends_a_referencing_record(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log_with_trade(d)
+            with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_trade(self.engine, "tr9", batches=2, sims=10, log_path=path)
+            self.assertEqual(r["trade"]["team_a"], "Legion of Coom")
+            self.assertEqual(r["trade"]["a_gives"], ["QB_1"])   # QB_1's to_team is Femboy: Legion gave him
+            self.assertEqual(r["trade"]["b_gives"], ["QB_2"])
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertEqual(len(rows), 2)
+        ev = rows[1]
+        self.assertEqual(ev["record_type"], "evaluation")
+        self.assertEqual(ev["transaction_id"], "tr9")
+        self.assertEqual(ev["n_sims"], 20)
+        self.assertIn("champ_pct", ev["teams"]["Legion of Coom"])
+
+    def test_skips_when_an_evaluation_already_exists(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log_with_trade(d)
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps({"record_type": "evaluation", "transaction_id": "tr9"}) + chr(10))
+            r = evaluate_logged_trade(self.engine, "tr9", batches=2, sims=10, log_path=path)
+            self.assertEqual(r["skipped"], "already evaluated")
+            self.assertEqual(sum(1 for _ in open(path, encoding="utf-8")), 2, "nothing appended")
+
+    def test_missing_or_non_trade_transaction_is_a_clear_error(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log_with_trade(d)
+            with self.assertRaises(ValueError):
+                evaluate_logged_trade(self.engine, "nope", batches=2, sims=10, log_path=path)
+
+    def test_roster_drift_is_reported_not_a_stack_trace(self):
+        import tempfile
+        self.engine.rosters["Legion of Coom"].remove("QB_1")   # the logged player has since moved on
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log_with_trade(d)
+            with self.assertRaises(ValueError) as ctx:
+                evaluate_logged_trade(self.engine, "tr9", batches=2, sims=10, log_path=path)
+        self.assertIn("no longer", str(ctx.exception))
+
+    def test_unevaluated_my_trades_lists_only_mine_without_evaluations(self):
+        import json, tempfile, os
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "decision_log.jsonl")
+            rows = [
+                {"transaction_id": "a", "type": "trade", "is_mine": True, "week": 1,
+                 "teams": ["Legion of Coom", "Femboy Cats"], "adds": [], "drops": []},
+                {"transaction_id": "b", "type": "trade", "is_mine": False, "week": 1, "teams": [], "adds": [], "drops": []},
+                {"transaction_id": "c", "type": "waiver", "is_mine": True, "week": 1, "teams": [], "adds": [], "drops": []},
+                {"transaction_id": "d", "type": "trade", "is_mine": True, "week": 1,
+                 "teams": ["Legion of Coom", "Drunk Cats"], "adds": [], "drops": []},
+                {"record_type": "evaluation", "transaction_id": "d"},
+            ]
+            with open(path, "w", encoding="utf-8") as f:
+                for r in rows:
+                    f.write(json.dumps(r) + chr(10))
+            out = unevaluated_my_trades(path)
+        self.assertEqual([t["transaction_id"] for t in out], ["a"])
+        self.assertEqual(unevaluated_my_trades(os.path.join(d, "missing.jsonl")), [])
 
 
 if __name__ == "__main__":

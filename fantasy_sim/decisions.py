@@ -860,6 +860,98 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
                      "a filter.")}
 
 
+# ============================================================ DECISION-LOG EVALUATION
+#
+# The decision log (data/logs/decision_log.jsonl, sync.ingest_transactions) records every
+# completed league transaction with its projection snapshot. For trades, tool 2's paired
+# evaluation can be attached after the fact: evaluate_logged_trade reads the logged terms,
+# runs evaluate_trade, and appends an `evaluation` record referencing the transaction_id --
+# opt-in per trade (scripts.evaluate_trade --log-tx), never automatic, because a full paired
+# simulation per transaction inside every sync is exactly the cost trap F2 commit 3 avoided.
+# A trade that has already EXECUTED is evaluated by reversing it on the current rosters and
+# negating the deltas (the "without" arm is the undo); a trade the rosters still show as
+# pending is evaluated directly; anything in between is roster drift, reported plainly --
+# the evaluation is only meaningful near the time of the trade.
+import datetime as _dt2
+import json as _json
+
+
+def _read_decision_log(path):
+    """Open-and-catch rather than exists()-then-open: robust to TOCTOU, and to test harnesses
+    that patch os.path.exists globally (the engine fixture does)."""
+    rows = []
+    try:
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if line:
+                    rows.append(_json.loads(line))
+    except FileNotFoundError:
+        return []
+    return rows
+
+
+def unevaluated_my_trades(path=None):
+    """My logged trades with no evaluation record yet -- the weekly digest's reminder list.
+    Never raises: an unreadable log returns []."""
+    if path is None:
+        from fantasy_sim.storage import DECISION_LOG_FILE as path  # noqa: F811
+    try:
+        rows = _read_decision_log(path)
+    except Exception:
+        return []
+    evaluated = {r.get("transaction_id") for r in rows if r.get("record_type") == "evaluation"}
+    return [{"transaction_id": r["transaction_id"], "week": r.get("week"), "teams": r.get("teams", [])}
+            for r in rows
+            if r.get("record_type") is None and r.get("type") == "trade" and r.get("is_mine")
+            and r.get("transaction_id") not in evaluated]
+
+
+def evaluate_logged_trade(engine, transaction_id, batches=10, sims=300, log_path=None):
+    if log_path is None:
+        from fantasy_sim.storage import DECISION_LOG_FILE as log_path  # noqa: F811
+    rows = _read_decision_log(log_path)
+    if any(r.get("record_type") == "evaluation" and r.get("transaction_id") == transaction_id for r in rows):
+        return {"skipped": "already evaluated", "transaction_id": transaction_id}
+    tx = next((r for r in rows if r.get("record_type") is None and r.get("transaction_id") == transaction_id), None)
+    if tx is None or tx.get("type") != "trade" or len(tx.get("teams", [])) < 2:
+        raise ValueError(f"{transaction_id!r} is not a logged trade in {log_path}")
+    team_a, team_b = tx["teams"][0], tx["teams"][1]
+    a_received = [a["name"] for a in tx["adds"] if a["to_team"] == team_a]
+    b_received = [a["name"] for a in tx["adds"] if a["to_team"] == team_b]
+
+    def on(team, names):
+        return all(n in engine.rosters.get(team, []) for n in names)
+
+    if on(team_a, b_received) and on(team_b, a_received):
+        # pre-trade state on disk: evaluate directly (A gives what B received)
+        r = evaluate_trade(engine, team_a, b_received, team_b, a_received, batches=batches, sims=sims)
+        reversed_eval = False
+    elif on(team_a, a_received) and on(team_b, b_received):
+        # already executed: evaluate the undo and negate every delta
+        r = evaluate_trade(engine, team_a, a_received, team_b, b_received, batches=batches, sims=sims)
+        for d in r["teams"].values():
+            for k in ("champ_pct", "playoff_pct", "expected_wins"):
+                d[k]["delta"] = -d[k]["delta"]
+                d[k]["with"], d[k]["without"] = d[k]["without"], d[k]["with"]
+        r["trade"] = {"team_a": team_a, "a_gives": b_received, "team_b": team_b, "b_gives": a_received, "drops": {}}
+        r["note"] += " Evaluated post-execution by reversing the trade on current rosters; deltas negated."
+        reversed_eval = True
+    else:
+        missing = [n for n in a_received + b_received
+                   if n not in engine.rosters.get(team_a, []) and n not in engine.rosters.get(team_b, [])]
+        raise ValueError(f"{missing or 'the logged players'} are no longer on the two rosters -- the paired "
+                         "evaluation is only meaningful near the time of the trade (roster drift since).")
+    record = {"record_type": "evaluation", "transaction_id": transaction_id,
+              "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "n_sims": r["n_sims"], "batches": batches, "post_execution_reversed": reversed_eval,
+              "teams": {t: {"champ_pct": d["champ_pct"], "playoff_pct": d["playoff_pct"]}
+                        for t, d in r["teams"].items()}}
+    with open(log_path, "a", encoding="utf-8") as handle:
+        handle.write(_json.dumps(record, sort_keys=True) + chr(10))
+    return r
+
+
 # ================================================================ LEAGUE-WIDE THIS WEEK
 #
 # Every pairing on the schedule, P(win) both ways and P(>= median) for all eight teams, on ONE

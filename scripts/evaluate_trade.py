@@ -44,13 +44,33 @@ def _names(engine, team, text):
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--team-a", required=True); ap.add_argument("--a-gives", default="")
-    ap.add_argument("--team-b", required=True); ap.add_argument("--b-gives", default="")
+    ap.add_argument("--log-tx", default=None, metavar="TRANSACTION_ID",
+                    help="evaluate a trade already in data/logs/decision_log.jsonl and append the "
+                         "evaluation record to it (see the weekly digest's Housekeeping list)")
+    ap.add_argument("--team-a", default=None); ap.add_argument("--a-gives", default="")
+    ap.add_argument("--team-b", default=None); ap.add_argument("--b-gives", default="")
     ap.add_argument("--a-drops", default=""); ap.add_argument("--b-drops", default="")
     ap.add_argument("--batches", type=int, default=10); ap.add_argument("--sims", type=int, default=300)
     args = ap.parse_args(argv)
 
     engine = FantasySimulationEngine()
+    if args.log_tx:
+        from fantasy_sim.decisions import evaluate_logged_trade
+        r = evaluate_logged_trade(engine, args.log_tx, batches=args.batches, sims=args.sims)
+        if r.get("skipped"):
+            print(f"[SKIP] transaction {args.log_tx}: {r['skipped']}")
+            return r
+        print(f"\nLOGGED TRADE {args.log_tx}: {r['trade']['team_a']} gives {r['trade']['a_gives']} <-> "
+              f"{r['trade']['team_b']} gives {r['trade']['b_gives']}  ({r['n_sims']} paired seasons per arm)")
+        for t in (r['trade']['team_a'], r['trade']['team_b']):
+            d = r["teams"][t]
+            print(f"  {t:18s} Champ {d['champ_pct']['delta']:+6.2f}+-{d['champ_pct']['se']:.2f}  "
+                  f"Playoff {d['playoff_pct']['delta']:+6.2f}+-{d['playoff_pct']['se']:.2f}")
+        print(f"  {r['note']}")
+        print("  evaluation record appended to the decision log.")
+        return r
+    if not args.team_a or not args.team_b:
+        raise SystemExit("either --log-tx, or both --team-a and --team-b, are required")
     for t in (args.team_a, args.team_b):
         if t not in engine.rosters:
             raise SystemExit(f"unknown team {t!r}; teams: {sorted(engine.rosters)}")

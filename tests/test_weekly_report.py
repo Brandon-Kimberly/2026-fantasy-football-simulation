@@ -158,6 +158,25 @@ class TestDigest(unittest.TestCase):
                 self.assertIn("# Weekly report", f.read())
 
 
+class TestHousekeepingReminder(unittest.TestCase):
+    def test_unevaluated_trades_are_listed_in_both_formats(self):
+        report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
+                  "started_at": "x", "finished_at": "y",
+                  "housekeeping": {"unevaluated_trades": [
+                      {"transaction_id": "123", "week": 2, "teams": ["Legion of Coom", "Femboy Cats"]}]}}
+        md = render_digest(report, team="Legion of Coom", week=3)
+        self.assertIn("Housekeeping", md)
+        self.assertIn("scripts.evaluate_trade --log-tx 123", md)
+        with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
+            html = render_html(report, team="Legion of Coom", week=3)
+        self.assertIn("--log-tx 123", html)
+
+    def test_no_reminder_when_nothing_is_pending(self):
+        report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
+                  "started_at": "x", "finished_at": "y", "housekeeping": {"unevaluated_trades": []}}
+        self.assertNotIn("Housekeeping", render_digest(report, team="Legion of Coom", week=3))
+
+
 class TestHtmlTable(unittest.TestCase):
     """Reuses positional_tiers' sortable-table pattern: every header carries data-key/data-type,
     every cell data-sort (numbers by value, text lower-cased), and the page carries the sorter."""

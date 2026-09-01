@@ -210,6 +210,13 @@ def render_digest(report, team, week):
         if tr.get("sell"):
             md += ["Sell side: " + "; ".join(f"{s['buyer']} wants {', '.join(s['they_want'])} for {', '.join(s['they_give'])} "
                                               f"({s['my_gain']:+.1f} / {s['their_gain']:+.1f})" for s in tr["sell"][:5]), ""]
+
+    hk = report.get("housekeeping") or {}
+    if hk.get("unevaluated_trades"):
+        md += ["## Housekeeping", ""]
+        md += [f"- logged trade {t['transaction_id']} (week {t.get('week')}, {' v '.join(t.get('teams') or [])}) has no "
+               f"paired evaluation -- run: py -3.10 -m scripts.evaluate_trade --log-tx {t['transaction_id']}"
+               for t in hk["unevaluated_trades"]] + [""]
     return "\n".join(md)
 
 
@@ -469,6 +476,12 @@ def render_html(report, team, week, embed=False):
                               f"({s_['my_gain']:+.1f} / {s_['their_gain']:+.1f})" for s_ in tr["sell"][:5])
             out.append(f"<p>Sell side: {T(sells)}</p>")
 
+    hk = report.get("housekeeping") or {}
+    if hk.get("unevaluated_trades"):
+        out.append('<h2 id="housekeeping">Housekeeping</h2><ul>'
+                   + "".join(f"<li>logged trade {escape(str(t['transaction_id']))} (week {escape(str(t.get('week')))}) has no paired "
+                             f"evaluation -- run: <code>py -3.10 -m scripts.evaluate_trade --log-tx {escape(str(t['transaction_id']))}</code></li>"
+                             for t in hk["unevaluated_trades"]) + "</ul>")
     out.append(f"<script>{_TABLE_JS}</script></body></html>")
     return "".join(out)
 
@@ -552,6 +565,11 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
 def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, embed=False):
     steps, state = build_steps(team, full=full, skip_sync=skip_sync, sims=sims, evaluate=evaluate)
     report = run_steps(steps)
+    try:
+        from fantasy_sim.decisions import unevaluated_my_trades
+        report["housekeeping"] = {"unevaluated_trades": unevaluated_my_trades()}
+    except Exception:
+        report["housekeeping"] = {"unevaluated_trades": []}
     week = state["week"] or "?"
     md = render_digest(report, team, week)
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
