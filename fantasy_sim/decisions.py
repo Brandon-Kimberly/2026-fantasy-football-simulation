@@ -415,14 +415,13 @@ def run_paired_capture(engine, batches, sims):
     return captured
 
 
-def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300):
-    """Paired evaluation of one proposed trade. Returns per-team deltas (with minus without)
-    for champ_pct, playoff_pct and expected_wins, each with the paired-batch SE, plus the
-    trade's terms, the sample size and a note on what the number is."""
-    with_engine = apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=drops)
+def _paired_evaluation(engine, with_engine, batches, sims):
+    """The shared core of every paired evaluation: run both arms on identical seeds and return
+    per-team champ_pct / playoff_pct / expected_wins, each with the paired-batch SE. Used by
+    evaluate_trade and evaluate_add_drop so the two outputs are the same shape by
+    construction."""
     base = run_paired_capture(_copy.deepcopy(engine), batches, sims)
     alt = run_paired_capture(with_engine, batches, sims)
-    n = batches * sims
 
     def paired(rates_with, rates_without, scale):
         d = (np.asarray(rates_with, float) - np.asarray(rates_without, float)) * scale
@@ -438,8 +437,19 @@ def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches
             "champ_pct": paired(alt['b_champs'][t], base['b_champs'][t], 100.0),
             "playoff_pct": paired(alt['b_playoffs'][t], base['b_playoffs'][t], 100.0),
             "expected_wins": paired(w_with, w_without, 1.0),
-            "side": "A" if t == team_a else ("B" if t == team_b else "bystander"),
         }
+    return teams
+
+
+def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300):
+    """Paired evaluation of one proposed trade. Returns per-team deltas (with minus without)
+    for champ_pct, playoff_pct and expected_wins, each with the paired-batch SE, plus the
+    trade's terms, the sample size and a note on what the number is."""
+    with_engine = apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=drops)
+    teams = _paired_evaluation(engine, with_engine, batches, sims)
+    n = batches * sims
+    for t, d in teams.items():
+        d["side"] = "A" if t == team_a else ("B" if t == team_b else "bystander")
     return {
         "trade": {"team_a": team_a, "a_gives": list(a_gives), "team_b": team_b, "b_gives": list(b_gives),
                   "drops": {k: list(v) for k, v in (drops or {}).items()}},
@@ -860,6 +870,57 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
                      "a filter.")}
 
 
+# ============================================================== SINGLE-ROSTER MOVES
+def apply_add_drop(engine, team, adds, drops):
+    """A deep copy of `engine` with a single-roster move applied: `adds` come from the
+    free-agent pool (each must be in the baseline pool and on no roster -- a player Sleeper
+    never projected is a loud error, never an invented baseline), `drops` are released to it.
+    The original engine is untouched. Raises on an unknown team, an add already rostered
+    anywhere, a drop not on the roster, or a roster left above ACTIVE_ROSTER_LIMIT."""
+    if team not in engine.rosters:
+        raise KeyError(f"unknown team {team!r}")
+    if not adds and not drops:
+        raise ValueError("nothing to do: no adds and no drops")
+    for n in adds:
+        if any(n in r for r in engine.rosters.values()):
+            raise ValueError(f"cannot add {n!r}: already on a roster")
+        if n not in engine.baselines or not isinstance(engine.baselines[n], dict):
+            raise ValueError(f"cannot add {n!r}: not in the baseline pool (no projection exists for him)")
+    for n in drops:
+        if n not in engine.rosters[team]:
+            raise ValueError(f"cannot drop {n!r}: not on {team}'s roster")
+    e2 = _copy.deepcopy(engine)
+    for n in drops:
+        e2.rosters[team].remove(n)
+        e2.meta[team].pop(n, None)
+    for n in adds:
+        e2.rosters[team].append(n)
+        e2.meta[team][n] = {'pos': _entry(engine, n).get('pos', 'FLEX'),
+                            'team': _entry(engine, n).get('team', 'FA')}
+    if _active_count(e2, team) > ACTIVE_ROSTER_LIMIT:
+        raise ValueError(f"{team} would carry {_active_count(e2, team)} active players "
+                         f"(limit {ACTIVE_ROSTER_LIMIT}); a drop is needed")
+    return e2
+
+
+def evaluate_add_drop(engine, team, adds, drops, batches=10, sims=300, faab_bid=None):
+    """Paired evaluation of a single-roster move (free-agent add/drop, or a waiver claim when
+    faab_bid is given): the same machinery as evaluate_trade, with one roster changing and no
+    counterparty -- one 'team' side, seven bystanders. Champ deltas still sum to zero across
+    the league (one champion per sim regardless of what changed)."""
+    with_engine = apply_add_drop(engine, team, adds, drops)
+    teams = _paired_evaluation(engine, with_engine, batches, sims)
+    for t, d in teams.items():
+        d["side"] = "team" if t == team else "bystander"
+    move = {"team": team, "adds": list(adds), "drops": list(drops)}
+    if faab_bid is not None:
+        move["faab_bid"] = faab_bid
+    return {"move": move, "n_sims": batches * sims, "batches": batches, "sims_per_batch": sims,
+            "teams": teams,
+            "note": ("paired full simulations on identical seeds; delta = with the move minus without; "
+                     "SE is the paired-batch standard error. One roster changes; there is no counterparty.")}
+
+
 # ============================================================ DECISION-LOG EVALUATION
 #
 # The decision log (data/logs/decision_log.jsonl, sync.ingest_transactions) records every
@@ -907,15 +968,25 @@ def unevaluated_my_trades(path=None):
             and r.get("transaction_id") not in evaluated]
 
 
-def evaluate_logged_trade(engine, transaction_id, batches=10, sims=300, log_path=None):
+def evaluate_logged_transaction(engine, transaction_id, batches=10, sims=300, log_path=None):
+    """--log-tx, dispatched on the logged transaction's type: trades through evaluate_trade's
+    two-roster path, free-agent moves and waiver claims through evaluate_add_drop's
+    single-roster path. Either way: an already-executed move is evaluated by REVERSING it on
+    current rosters with the deltas negated; a still-pending one directly; anything in
+    between is roster drift, reported plainly. Appends an `evaluation` record referencing the
+    transaction_id; dedupes on an existing one."""
     if log_path is None:
         from fantasy_sim.storage import DECISION_LOG_FILE as log_path  # noqa: F811
     rows = _read_decision_log(log_path)
     if any(r.get("record_type") == "evaluation" and r.get("transaction_id") == transaction_id for r in rows):
         return {"skipped": "already evaluated", "transaction_id": transaction_id}
     tx = next((r for r in rows if r.get("record_type") is None and r.get("transaction_id") == transaction_id), None)
-    if tx is None or tx.get("type") != "trade" or len(tx.get("teams", [])) < 2:
-        raise ValueError(f"{transaction_id!r} is not a logged trade in {log_path}")
+    if tx is None:
+        raise ValueError(f"{transaction_id!r} is not a logged transaction in {log_path}")
+    if tx.get("type") in ("free_agent", "waiver") and tx.get("teams"):
+        return _evaluate_logged_move(engine, tx, batches, sims, log_path)
+    if tx.get("type") != "trade" or len(tx.get("teams", [])) < 2:
+        raise ValueError(f"{transaction_id!r} has unsupported type {tx.get('type')!r}")
     team_a, team_b = tx["teams"][0], tx["teams"][1]
     a_received = [a["name"] for a in tx["adds"] if a["to_team"] == team_a]
     b_received = [a["name"] for a in tx["adds"] if a["to_team"] == team_b]
@@ -950,6 +1021,50 @@ def evaluate_logged_trade(engine, transaction_id, batches=10, sims=300, log_path
     with open(log_path, "a", encoding="utf-8") as handle:
         handle.write(_json.dumps(record, sort_keys=True) + chr(10))
     return r
+
+
+def _evaluate_logged_move(engine, tx, batches, sims, log_path):
+    team = tx["teams"][0]
+    added = [a["name"] for a in tx.get("adds", [])]
+    dropped = [a["name"] for a in tx.get("drops", [])]
+    bid = tx.get("faab_bid")
+
+    def on_team(names):
+        return all(n in engine.rosters.get(team, []) for n in names)
+
+    def in_pool(names):
+        return all(not any(n in r for r in engine.rosters.values()) for n in names)
+
+    if in_pool(added) and on_team(dropped):
+        r = evaluate_add_drop(engine, team, added, dropped, batches=batches, sims=sims, faab_bid=bid)
+        reversed_eval = False
+    elif on_team(added) and in_pool(dropped):
+        r = evaluate_add_drop(engine, team, dropped, added, batches=batches, sims=sims, faab_bid=bid)
+        for d in r["teams"].values():
+            for k in ("champ_pct", "playoff_pct", "expected_wins"):
+                d[k]["delta"] = -d[k]["delta"]
+                d[k]["with"], d[k]["without"] = d[k]["without"], d[k]["with"]
+        r["move"] = {"team": team, "adds": added, "drops": dropped}
+        if bid is not None:
+            r["move"]["faab_bid"] = bid
+        r["note"] += " Evaluated post-execution by reversing the move on current rosters; deltas negated."
+        reversed_eval = True
+    else:
+        raise ValueError(f"roster drift since the logged move {tx['transaction_id']!r}: the involved players "
+                         "are neither in their pre-move nor their post-move places -- the paired evaluation "
+                         "is only meaningful near the time of the move.")
+    record = {"record_type": "evaluation", "transaction_id": tx["transaction_id"],
+              "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+              "n_sims": r["n_sims"], "batches": batches, "post_execution_reversed": reversed_eval,
+              "teams": {t: {"champ_pct": d["champ_pct"], "playoff_pct": d["playoff_pct"]}
+                        for t, d in r["teams"].items()}}
+    with open(log_path, "a", encoding="utf-8") as handle:
+        handle.write(_json.dumps(record, sort_keys=True) + chr(10))
+    return r
+
+
+# Compatibility alias: the original trade-only entry point's name.
+evaluate_logged_trade = evaluate_logged_transaction
 
 
 # ================================================================ LEAGUE-WIDE THIS WEEK

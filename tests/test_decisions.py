@@ -28,6 +28,7 @@ from fantasy_sim.decisions import (
     grade_roster, roster_grades, week_expectation, optimize_lineup,
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
     find_trade_targets, league_week_outlook, evaluate_logged_trade, unevaluated_my_trades,
+    apply_add_drop, evaluate_add_drop, evaluate_logged_transaction,
 )
 
 
@@ -751,6 +752,129 @@ class TestEvaluateLoggedTrade(_EngineCase):
             out = unevaluated_my_trades(path)
         self.assertEqual([t["transaction_id"] for t in out], ["a"])
         self.assertEqual(unevaluated_my_trades(os.path.join(d, "missing.jsonl")), [])
+
+
+class TestApplyAddDrop(_EngineCase):
+    """A single-roster move: add from the free-agent pool (the player must exist in the
+    baseline pool -- never an invented baseline), drop to it. Same validation posture as
+    apply_trade; the original engine is never mutated. Written before the function existed."""
+
+    def test_add_and_drop_swap_the_roster_and_leave_the_original_untouched(self):
+        e2 = apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=["QB_1"])
+        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
+        self.assertNotIn("QB_1", e2.rosters["Legion of Coom"])
+        self.assertEqual(e2.meta["Legion of Coom"]["FA_WR_healthy"]["pos"], "WR",
+                         "meta for a pool player comes from his baseline record")
+        self.assertEqual(self.engine.rosters["Legion of Coom"], ["QB_1"], "original untouched")
+
+    def test_adding_a_rostered_player_or_unknown_player_is_a_loud_error(self):
+        with self.assertRaises(ValueError):
+            apply_add_drop(self.engine, "Legion of Coom", adds=["QB_2"], drops=[])   # on Femboy Cats
+        with self.assertRaises(ValueError):
+            apply_add_drop(self.engine, "Legion of Coom", adds=["Nobody"], drops=[])
+        with self.assertRaises(ValueError):
+            apply_add_drop(self.engine, "Legion of Coom", adds=[], drops=["FA_WR_healthy"])  # not on roster
+        with self.assertRaises(KeyError):
+            apply_add_drop(self.engine, "Nobody FC", adds=["FA_WR_healthy"], drops=[])
+
+    def test_an_add_without_a_drop_needs_room_under_the_active_limit(self):
+        from fantasy_sim.decisions import ACTIVE_ROSTER_LIMIT
+        for i in range(ACTIVE_ROSTER_LIMIT - 1):
+            n = f"pad_{i}"
+            self.engine.rosters["Legion of Coom"].append(n)
+            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.baselines[n] = {"mean": 5.0, "std_aleatoric": 3.0, "std_epistemic": 0.0,
+                                        "pos": "WR", "team": "CHI", "bye": 9}
+        with self.assertRaises(ValueError):
+            apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=[])
+        e2 = apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=["pad_0"])
+        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
+
+
+class TestEvaluateAddDrop(_EngineCase):
+    def test_same_output_shape_as_a_trade_with_one_team_and_seven_bystanders(self):
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+            r = evaluate_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"],
+                                  drops=["QB_1"], batches=2, sims=15)
+        self.assertEqual(set(r["teams"]), set(self.engine.team_names))
+        self.assertEqual(r["teams"]["Legion of Coom"]["side"], "team")
+        self.assertEqual(sum(1 for d in r["teams"].values() if d["side"] == "bystander"), 3)
+        for d in r["teams"].values():
+            for k in ("champ_pct", "playoff_pct", "expected_wins"):
+                for f in ("with", "without", "delta", "se"):
+                    self.assertIn(f, d[k])
+        self.assertAlmostEqual(sum(d["champ_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
+        self.assertAlmostEqual(sum(d["playoff_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
+        self.assertEqual(r["n_sims"], 30)
+        self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
+
+
+class TestEvaluateLoggedTransaction(_EngineCase):
+    """--log-tx now dispatches all three logged types. For an add/drop: pending (added player
+    still in the pool, dropped still on the roster) evaluates directly; executed (added on
+    the roster, dropped gone) evaluates the reverse and negates the deltas; the dropped
+    player resurfacing on ANOTHER roster is drift, reported plainly."""
+
+    def _log(self, d, adds, drops, tx_type="free_agent", txid="fa1", team="Legion of Coom"):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        tx = {"transaction_id": txid, "type": tx_type, "week": 1, "created": "2026-09-01T00:00:00Z",
+              "snapshot_at": "2026-09-01T00:00:00Z", "snapshot_lag_days": 0.0,
+              "snapshot_is_retroactive": False, "teams": [team], "is_mine": True,
+              "faab_bid": 7 if tx_type == "waiver" else None,
+              "adds": [{"player_id": "x", "name": n, "to_team": team, "projection": None} for n in adds],
+              "drops": [{"player_id": "y", "name": n, "to_team": team, "projection": None} for n in drops]}
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(tx) + chr(10))
+        return path
+
+    def test_pending_add_drop_is_evaluated_directly_and_the_record_references_the_tx(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
+            with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
+            self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        ev = rows[1]
+        self.assertEqual(ev["record_type"], "evaluation"); self.assertEqual(ev["transaction_id"], "fa1")
+        self.assertFalse(ev["post_execution_reversed"])
+
+    def test_executed_add_drop_is_reversed_with_negated_deltas(self):
+        import json, tempfile
+        # execute the move first: FA_WR_healthy is on the roster, QB_1 is back in the pool
+        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
+        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
+            with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertTrue(rows[1]["post_execution_reversed"])
+        self.assertIn("revers", r["note"].lower())
+        self.assertEqual(r["move"]["adds"], ["FA_WR_healthy"], "terms reported as the ORIGINAL move")
+
+    def test_dropped_player_on_another_roster_is_drift(self):
+        import tempfile
+        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
+        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        self.engine.rosters["Drunk Cats"].append("QB_1")   # the dropped player was picked up elsewhere
+        self.engine.meta["Drunk Cats"]["QB_1"] = {"pos": "QB", "team": "DET"}
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
+            with self.assertRaises(ValueError) as ctx:
+                evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
+        self.assertIn("drift", str(ctx.exception).lower())
+
+    def test_waiver_dispatches_like_an_add_drop_and_keeps_the_bid_in_the_record(self):
+        import json, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"], tx_type="waiver", txid="wv1")
+            with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_transaction(self.engine, "wv1", batches=2, sims=10, log_path=path)
+            self.assertEqual(r["move"]["faab_bid"], 7)
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertEqual(rows[1]["transaction_id"], "wv1")
 
 
 if __name__ == "__main__":

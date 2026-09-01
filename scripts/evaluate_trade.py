@@ -55,17 +55,26 @@ def main(argv=None):
 
     engine = FantasySimulationEngine()
     if args.log_tx:
-        from fantasy_sim.decisions import evaluate_logged_trade
-        r = evaluate_logged_trade(engine, args.log_tx, batches=args.batches, sims=args.sims)
+        from fantasy_sim.decisions import evaluate_logged_transaction
+        r = evaluate_logged_transaction(engine, args.log_tx, batches=args.batches, sims=args.sims)
         if r.get("skipped"):
             print(f"[SKIP] transaction {args.log_tx}: {r['skipped']}")
             return r
-        print(f"\nLOGGED TRADE {args.log_tx}: {r['trade']['team_a']} gives {r['trade']['a_gives']} <-> "
-              f"{r['trade']['team_b']} gives {r['trade']['b_gives']}  ({r['n_sims']} paired seasons per arm)")
-        for t in (r['trade']['team_a'], r['trade']['team_b']):
+        if "trade" in r:
+            head = (f"LOGGED TRADE {args.log_tx}: {r['trade']['team_a']} gives {r['trade']['a_gives']} <-> "
+                    f"{r['trade']['team_b']} gives {r['trade']['b_gives']}")
+            focus = (r['trade']['team_a'], r['trade']['team_b'])
+        else:
+            m = r["move"]
+            bid = f", bid {m['faab_bid']}" if m.get("faab_bid") is not None else ""
+            head = f"LOGGED MOVE {args.log_tx}: {m['team']} adds {m['adds']} drops {m['drops']}{bid}"
+            focus = (m["team"],)
+        print(f"\n{head}  ({r['n_sims']} paired seasons per arm)")
+        for t in focus:
             d = r["teams"][t]
             print(f"  {t:18s} Champ {d['champ_pct']['delta']:+6.2f}+-{d['champ_pct']['se']:.2f}  "
-                  f"Playoff {d['playoff_pct']['delta']:+6.2f}+-{d['playoff_pct']['se']:.2f}")
+                  f"Playoff {d['playoff_pct']['delta']:+6.2f}+-{d['playoff_pct']['se']:.2f}  "
+                  f"ExpW {d['expected_wins']['delta']:+6.3f}+-{d['expected_wins']['se']:.3f}")
         print(f"  {r['note']}")
         print("  evaluation record appended to the decision log.")
         return r
