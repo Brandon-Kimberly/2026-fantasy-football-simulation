@@ -1422,6 +1422,67 @@ conjugate re-run) — its weight criterion is met; the late-checkpoint bias is t
 after F7 has a season of projections, so the prior's own error and its drift are derived from
 the same data; independent of F1–F3.
 
+**SURVEY (2026-09-01): the F7 log holds one pre-kickoff week.** 465 rows, all `(2026, week 1)`
+from three syncs (the analysis keeps the last row per season/week/pid: 156 players x 1 week);
+Sleeper's `/state/nfl` reads 2026 regular season week 1, `weekly_actuals` is empty, kickoff is
+~9 days out. Zero (projection, realised) pairs exist, so the "same data" derivation this entry's
+When clause requires is wholly blocked on the season -- informative around week 8-10, complete
+at season end. What is not blocked is the drift constant itself, which this entry scoped to be
+measured on real 2025. Done below, as a throwaway read-only analysis (scratch, not committed;
+raw pull cached there), same treatment as F13.
+
+**MEASURED (2026-09-01): within-season drift of the true weekly mean, real 2025, league-wide.**
+Sleeper's positional stats endpoint, all 18 weeks, QB/RB/WR/TE, scored with the live league's
+`scoring_settings`; played weeks only (gp >= 1 or offensive snaps > 0); players with >= 10
+played weeks: **391** (QB 31, RB 96, WR 162, TE 102; 386 with usable variance). Three
+estimators, pooled per position, 3,000-rep bootstrap CIs over players:
+
+1. *Between-window variance excess* (windows = weeks 1-6 / 7-12 / 13-18; under a static mean
+   E[MS_between] = MS_within, so the excess is drift resolvable at ~6-week scale):
+
+   | | QB | RB | WR | TE | **ALL (386)** |
+   |---|---|---|---|---|---|
+   | excess, % of within-variance | +23 [-30, +87] | **+36 [+5, +68]** | **+39 [+16, +66]** | +34 [-0, +69] | **+34 [+18, +52]** |
+   | F = MS_between / MS_within | 1.23 | 1.36 | 1.39 | 1.34 | -- |
+
+2. *Lag-k autocorrelation of standardised residuals* (null under a static mean is -1/(n-1)
+   ~ -0.074, not 0): pooled lag-1 **-0.019 [-0.042, +0.006] vs null -0.074**, i.e. +0.055
+   above the static-mean line and the CI excludes it; lags 2-4 sit +0.02 to +0.06 above null in
+   every position except a few negative lag-3/4 cells. Positive, small, consistent.
+
+3. *Variogram* -- mean (x_t - x_{t+k})^2 / (2 sigma_within^2) vs week separation k; flat at 1.0
+   under a static mean, rises linearly under a random walk with slope = q / sigma_within^2 per
+   week, which is exactly the one constant this entry's random-walk form needs:
+
+   | | QB | RB | WR | TE | **ALL** |
+   |---|---|---|---|---|---|
+   | slope per week | +0.020 [-0.006, +0.046] | +0.010 [-0.003, +0.024] | +0.003 [-0.006, +0.014] | +0.012 [+0.000, +0.024] | **+0.0085 [+0.0021, +0.0148]** |
+
+**Reading, plainly: drift is real, and small.** The static-mean assumption is measurably wrong
+in real 2025 data, by two independent estimators that agree on magnitude: a random walk on the
+true mean with per-week variance about **0.85% of the within-game (aleatoric) variance** (95%
+CI 0.2-1.5%), which accumulates to ~14% of it over a 17-week season -- a drift sd of roughly
+0.4 sigma_aleatoric by season's end -- and a ~34% excess in the variance of 6-week window means
+over what sampling alone predicts (the two are consistent: n_w x k x q ~ 6 x 6 x 0.0085 ~ 0.3).
+Positive lag-1 autocorrelation of the same order confirms the direction. Per position only RB
+and WR are individually significant on the window estimator and only TE on the variogram; the
+pooled estimate is the defensible number, and no position contradicts it. This is the first
+direct test of the static-mean assumption in this project, and it does not survive: a
+"no detectable drift" answer would have exonerated it, and the answer is the opposite.
+
+**What it does and does not establish.** Drift of this size is a plausible *contributor* to
+the late-checkpoint std_z rise on Phase 7's instrument (1.0 at cp3 to 1.05-1.35 by cp12); it
+is not shown to be the whole cause, and the number is one season's -- exactly the
+single-season overfitting risk already flagged. It also cannot separate a random walk from
+deterministic within-season trends (role changes, returns at less than full strength), which
+the variogram treats alike; either is "drift" for the engine's purposes. **The engine mechanism
+is deliberately NOT scoped here** (step 2 stays held): `_apply_bayesian_updates` and the
+epistemic draw are touched only once real 2026 data exists to validate the forgetting rate
+against, per this entry's acceptance criterion (std_z within +-0.1 of 1.0 at every checkpoint,
+paired backtest not worse). What this measurement contributes to that future step is its
+starting value and its bound: q / sigma_aleatoric^2 ~ 0.01 per week, not larger than 0.015,
+not zero.
+
 ### F9 — `data/` directory structure: season-long retention, DONE (2026-08-30)
 
 **Origin:** the visualization work adding `fantasy_sim.positional_tiers` (tiers/charts/HTML
