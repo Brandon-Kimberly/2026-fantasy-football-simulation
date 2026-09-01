@@ -2332,3 +2332,37 @@ cross-check trade).
 
 **When:** unscheduled, no precondition — measurable now. Worth doing before the tool's numbers
 are leaned on for a real in-season decision.
+
+**Resolution (2026-09-01): no defect — decomposed; the arithmetic was only ever the mean
+channel.** Measurement only, no code changed; scripts and raw results in the session
+scratchpad (`f20_null.py`, `f20_chain.py`, `f20_se30.py`).
+
+1. *Null tests pass.* An identical-baseline clone of Tuipulotu swapped for him through the
+   shipped path at 10 x 300: every team/metric delta within |z| <= 2.6 across 48 pairs (max
+   ExpW |delta| 0.27 +- 0.16). An order-preserving variant still decorrelates, which locates
+   the divergence: the epistemic draw iterates `self.baselines.items()` and downstream draws
+   (streamers, injuries) consume conditionally, so ANY name difference shifts the stream —
+   "paired" is effectively unpaired for the changed roster. Unbiased; the batch SE already
+   prices the decorrelation (this was step 2's worry, and it is benign).
+2. *Reproduction and SE honesty.* The logged 10 x 300 reproduces byte-exactly (the first 10
+   seeds of a 30 x 300 run give -4.033/-6.967/-1.071, the logged values negated). The
+   30 x 300 refinement: **+4.02 +- 0.54 Champ%, +5.66 +- 0.85 Playoff%, +0.954 +- 0.108
+   ExpW**. Per-batch deltas show no heavy tails (excess kurtosis negative on all three
+   metrics; max |z| 2.2 in 30). The 10-batch +1.07 sat ~1 SE high of +0.95 — noise, not
+   inflation.
+3. *Channel chain* (clone acquires Hunter's attributes one at a time; shared base arm, so
+   steps sum exactly to the total; ExpW, "value of having Tuipulotu"): **mean-only +0.31 +-
+   0.15** — the ~+0.3 arithmetic, confirmed; **+ stds +0.14**; **+ team/bye +0.29** (the
+   swap turns a 3/3 bye split across weeks 7-8 into 2/4, and Tuipulotu shares LAC games with
+   McConkey); **+ dual-eligibility/name +0.22** (opposite the conservative direction step 4
+   hypothesised, but +- ~0.3 — not individually resolved). Chain total -0.953 vs the clean
+   30-batch -0.954. The injury cut: zeroing INJURY_RATES in both arms removes only **0.08**
+   — the one-deep-DL injury hypothesis (step 3) is NOT the driver. The three structural
+   channels are each noise-level at 10 x 300; their sum (+0.64) is ~4 sigma and real.
+4. *Retroactive check of the logged records:* the path is unbiased and its SEs honest, so
+   both evaluation records stand as sound — Tuipulotu's +1.07 +- 0.14 is within 1 SE of the
+   refined +0.95 +- 0.11, Bolton's -0.18 +- 0.23 required nothing. No correction note; the
+   refinement lives here, because the decision log records what the tool said at decision
+   time. (R1 aside: one diagnostic process died silently after its first arm while three
+   engine processes ran concurrently; solo re-run was clean. Consistent with the known
+   load-dependent fault — avoid concurrent engine runs on this machine.)
