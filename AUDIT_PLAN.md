@@ -2288,3 +2288,47 @@ directories.** With one or two points per team the chart is two dots and a line 
 overstates whatever it connects. Only week_01 exists today.
 
 **When:** around real week 3-4 of 2026, once three or more week directories exist.
+
+### F20 — Tuipulotu magnitude gap: +1.07 expected wins where mean-swap arithmetic supports ~+0.3
+
+**Origin:** 2026-09-01, the first real `--log-tx` evaluations (`a72c47d`/`fdec5cd`). The paired
+evaluation of the logged Tuipulotu-for-Hunter move (10 x 300 paired seasons, reversed on
+current rosters) measured **+1.07 +- 0.14 expected wins** (+4.03 +- 0.94 Champ%, +6.97 +- 1.09
+Playoff%). The naive channel — +1.35 mean points/week at the DL slot against a ~50-point weekly
+margin sd, 28 decisions — supports roughly +0.3 wins. That is a ~3.5x discrepancy in a headline
+number the tool now produces on demand, currently explained only by hypothesis ("depth and
+injury channels around a single-DL roster"), which is not an explanation. The companion
+evaluation (Bolton-for-Sutton, same machinery, same session) read -0.18 +- 0.23 — consistent
+with its own arithmetic — so the gap is move-specific, not obviously systematic; but one
+consistent case does not clear the path.
+
+**Scope: decompose, or find the defect.** Measurable now; candidates in order of suspicion:
+
+1. *Null and controlled-magnitude tests of the paired path itself.* (a) Two engines differing
+   by a negligible swap (an equal-mean bench player for an equal-mean pool player) must read
+   ~0 within SE; (b) a synthetic swap where ONLY the DL mean changes by a controlled +1.35
+   (clone Hunter with the higher mean) isolates the pure mean channel — its measured value
+   against the ~+0.3 arithmetic validates or indicts the back-of-envelope itself; the residual
+   against the real Tuipulotu evaluation is then the structural component to explain. If (a)
+   fails, the paired-evaluation path is inflating deltas and everything it has produced is
+   suspect until fixed.
+2. *SE honesty at 10 batches.* The arms' RNG streams diverge at the first roster-dependent
+   draw, so "paired" is close to unpaired; the per-batch deltas at n=10 could be heavy-tailed
+   and the SE understated. Re-run the real evaluation at 30 x 300 and check the delta and SE
+   hold.
+3. *The injury/absence channel on a one-deep position* (F4/F5 machinery): with a single DL, an
+   onset drops the slot to a replacement-level streamer; quantify by re-running with
+   INJURY_RATES zeroed (both arms) — the remaining delta is injury-free, the difference is the
+   injury channel.
+4. *Dual-eligibility asymmetry:* Danielle Hunter is in DUAL_ELIGIBILITY (DL/LB), Tuipulotu is
+   not; the without-arm's extra lineup flexibility should HELP it, making the measured delta
+   conservative — unless the assignment interaction runs the other way. Quantify by removing
+   Hunter's dual eligibility in both arms.
+
+**Acceptance criterion:** the +1.07 decomposed into named channels that sum to it within the
+paired SE — or a defect found in the evaluation path, fixed test-first, with every previously
+produced evaluation record re-run and corrected (three exist: the two logged pickups and the
+cross-check trade).
+
+**When:** unscheduled, no precondition — measurable now. Worth doing before the tool's numbers
+are leaned on for a real in-season decision.
