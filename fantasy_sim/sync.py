@@ -399,6 +399,30 @@ def resolve_player_keys(pids, players_db, rostered_pids=None):
     return keys
 
 
+def _last_logged_projections(path=PROJECTION_LOG_FILE):
+    """{pid: (sleeper_mean, espn_mean or None)} from the LAST non-zero row per pid in F7's
+    projection log -- the second data-sourced fallback for a rostered player whose projection
+    is zero now and whose prior the baselines file has already lost. Reads the log directly
+    (backtest_player.load_projection_log would be a circular import)."""
+    out = {}
+    if not os.path.exists(path):
+        return out
+    try:
+        with open(path, encoding="utf-8") as handle:
+            for line in handle:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                mean = float(row.get("sleeper_mean") or 0.0)
+                if mean > 0.0:
+                    espn = row.get("espn_mean")
+                    out[str(row.get("player_id"))] = (mean, float(espn) if espn else None)
+    except Exception as ex:
+        logging.warning("PROJECTION LOG: could not read %s for carried priors (%s).", path, ex)
+    return out
+
+
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
                               rostered_pids=None, byes=None, reserve_pids=None):
     existing_baselines = {}
@@ -417,6 +441,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         str(entry["player_id"]): entry for entry in existing_baselines.values()
         if isinstance(entry, dict) and entry.get("player_id") is not None
     }
+    logged_projections = None   # F7 log, read lazily only if a carried prior is needed
 
     projections = {}
     url_weekly = f"{BASE_URL}/projections/nfl/regular/{current_year}/{week}"
@@ -474,10 +499,51 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         sleeper_weekly_mean = round(total_pts / games_played, 2)
         if sleeper_weekly_mean <= 0.0:
             if name in rostered_names:
-                # A rostered player with no projection has no baseline; the engine aborts on
-                # him unless KNOWN_MISSING_ASSETS carries a hand-typed entry. That used to
-                # happen silently, and the only signal was the crash one stage later
-                # (Phase 3 finding 6 / inventory P5).
+                # A rostered player with no projection. If a previous sync stored a baseline
+                # for this pid, CARRY it (2026-09-01): a zero projection for a player Sleeper
+                # marks absent (IR / PUP / NA / the league IR slot) is not "no data", it is
+                # "out now" -- F4's case, which needs the absence signal (kept below from
+                # today's roster) and a healthy-week mean for the return; the prior IS that
+                # mean (Sleeper's own earlier projection), never an invented number. Live
+                # cases: Josh Jacobs (NA, Commissioner Exempt) and Zach Charbonnet (PUP, on
+                # IR), both of whose zero projections aborted the engine one stage later.
+                # Flagged and warned every sync it persists, so the manifest shows it.
+                prior = existing_by_pid.get(str(pid))
+                carried_mean, source, prior_sd = None, None, (None, None)
+                if prior is not None and prior.get("mean", 0.0) > 0.0:
+                    carried_mean, source = float(prior["mean"]), "carried_prior"
+                    prior_sd = (prior.get("std_aleatoric"), prior.get("std_epistemic"))
+                else:
+                    if logged_projections is None:
+                        logged_projections = _last_logged_projections()
+                    logged = logged_projections.get(str(pid))
+                    if logged:
+                        s_mean, e_mean = logged
+                        carried_mean = round((s_mean + e_mean) / 2.0, 2) if e_mean else s_mean
+                        source = "carried_log"
+                if carried_mean is not None:
+                    slot = normalize_position(raw_pos)
+                    baselines[name] = {
+                        "pos": raw_pos, "mean": carried_mean,
+                        "std_aleatoric": float(prior_sd[0] if prior_sd[0] else round(VOLATILITY_CONSTANTS.get(slot, 1.5) * math.sqrt(max(0.5, carried_mean)), 2)),
+                        "std_epistemic": float(prior_sd[1] if prior_sd[1] else round(EPISTEMIC_ERROR_RATES.get(slot, 0.18) * carried_mean, 2)),
+                        "bye": (byes or {}).get(team, 0), "team": team, "player_id": str(pid),
+                        "injury_status": player.get("injury_status"),
+                        "on_ir": str(pid) in (reserve_pids or ()),
+                        "projection_source": source,
+                    }
+                    logging.warning(
+                        "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper projection "
+                        "(injury_status=%s, on_ir=%s); CARRIED %s mean %.2f as his healthy-week "
+                        "expectation. He enters the engine through F4's absence handling if his "
+                        "status warrants it, not at full strength.",
+                        name, raw_pos, team, player.get("injury_status"), str(pid) in (reserve_pids or ()),
+                        "the previous sync's baseline" if source == "carried_prior" else "the projection log's last",
+                        carried_mean)
+                    continue
+                # No prior either: the engine aborts on him unless KNOWN_MISSING_ASSETS carries
+                # a hand-typed entry. That used to happen silently, and the only signal was
+                # the crash one stage later (Phase 3 finding 6 / inventory P5).
                 logging.warning(
                     "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper projection "
                     "and is NOT in baselines. The engine will abort on him unless "

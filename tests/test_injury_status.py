@@ -177,7 +177,10 @@ class TestInitialAbsenceClock(unittest.TestCase):
 
     def test_healthy_statuses_draw_nothing(self):
         state = np.random.get_state()
-        for status in (None, "Questionable", "Doubtful", "COV", "NA", "Active"):
+        # "NA" was in this list until 2026-09-01: it is Sleeper's reserve / non-football code
+        # (Commissioner Exempt included) and now enters the stage-2 clock -- see
+        # TestCommissionerExemptIsAnAbsence and config.INITIAL_ABSENCE_STATUSES.
+        for status in (None, "Questionable", "Doubtful", "COV", "Active"):
             self.assertEqual(FantasySimulationEngine._initial_absence_clock(status, False), 0)
         after = np.random.get_state()
         self.assertEqual(state[2], after[2], "a healthy player consumed RNG draws")
@@ -582,3 +585,25 @@ class TestInjuryRateLevel(unittest.TestCase):
             h, n, k = self._hazard(pos)
             lo, hi = REAL_2025_ALL_CAUSE_HAZARD[pos][2:]
             self.assertTrue(lo <= h <= hi, "%s realised hazard %.4f (%d/%d) outside real interval %.3f-%.3f" % (pos, h, k, n, lo, hi))
+
+
+class TestCommissionerExemptIsAnAbsence(unittest.TestCase):
+    """Sleeper's injury_status "NA" (reserve / non-football, incl. the Commissioner Exempt
+    list; a live case: Josh Jacobs, 2026 week 1) is a roster-eligibility absence of unknown
+    length. It enters F4's clock at stage 2 (already >= 2 weeks in), like IR/PUP/Sus/DNR. The
+    return hazard for NA was NOT isolated in the 2025 measurement -- the steady hazard is
+    carried over, unverified, and config.py says so. Written before "NA" was in
+    INITIAL_ABSENCE_STATUSES: the first assertion failed (clock 0 = healthy)."""
+
+    def test_na_enters_on_a_stage_two_clock(self):
+        np.random.seed(3)
+        clocks = [FantasySimulationEngine._initial_absence_clock("NA", False) for _ in range(4000)]
+        self.assertTrue(all(c >= 1 for c in clocks), "NA must never enter healthy")
+        self.assertNotIn("NA", SIM_CONFIG["INITIAL_ABSENCE_STAGE1_STATUSES"])
+        # stage 2: 1 + 0.84 / 0.16 = 6.25 expected weeks (cap 16 pulls it slightly down)
+        self.assertGreater(float(np.mean(clocks)), 5.0); self.assertLess(float(np.mean(clocks)), 7.5)
+        self.assertEqual(FantasySimulationEngine._initial_absence_clock(None, False), 0)
+
+
+if __name__ == "__main__":
+    unittest.main()

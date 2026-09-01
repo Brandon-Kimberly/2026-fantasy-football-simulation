@@ -534,5 +534,74 @@ class TestSyncManifest(unittest.TestCase):
         self.assertNotIn(SYNC_MANIFEST_FILE, saved)
 
 
+class TestMissingProjectionIsAnAbsence(unittest.TestCase):
+    """A rostered player whose weekly projection is zero used to be DROPPED from the baselines
+    file, and the engine aborted one stage later. For a player Sleeper marks absent (IR / PUP /
+    NA / on the league IR slot) a zero projection is not "no data", it is "out now" -- exactly
+    F4's case, which needs the absence signal (present) and a healthy-week mean for the return.
+    The previous sync's stored baseline for the same pid IS that mean (Sleeper's own earlier
+    projection), so it is carried, flagged, and warned about -- never invented. With no prior
+    the player is still dropped (the whitelist remains the only path). Written before the
+    carry existed: the first assertion failed with KeyError."""
+
+    def _run(self, existing, reserve_pids=(), injury_status="PUP"):
+        players_db = {"1234": {"first_name": "Test", "last_name": "Player", "position": "RB", "team": "SEA",
+                               "injury_status": injury_status}}
+        live_rosters = {"SomeTeam": [{"name": "Test Player", "pos": "RB", "team": "SEA"}]}
+        zero_projection = {"1234": {"stats": {"rec": 0, "rec_yd": 0}}}
+
+        def fake_get(url, timeout=None):
+            if "/projections/nfl/regular/2026/2" in url:
+                return self._resp(zero_projection)
+            return self._resp({}, status_code=404)
+
+        with (patch('os.path.exists', return_value=True),
+              patch('requests.get', side_effect=fake_get),
+              patch('fantasy_sim.sync.fetch_espn_projections', return_value={}),
+              patch('builtins.open', mock_open(read_data=json.dumps(existing))),
+              patch('json.load', return_value=existing),
+              patch('json.dump'),
+              self.assertLogs(level="WARNING") as logs):
+            result = generate_player_baselines({"rec": 1.0, "rec_yd": 0.1}, players_db, live_rosters,
+                                               current_year="2026", week=2, rostered_pids={"1234"},
+                                               reserve_pids=set(reserve_pids))
+        return result, chr(10).join(logs.output)
+
+    @staticmethod
+    def _resp(payload, status_code=200):
+        m = MagicMock(); m.status_code = status_code; m.json.return_value = payload
+        return m
+
+    def test_zero_projection_with_a_prior_carries_the_prior_and_keeps_the_absence_signal(self):
+        existing = {"Test Player": {"mean": 11.5, "std_aleatoric": 4.2, "std_epistemic": 2.1, "pos": "RB",
+                                    "team": "SEA", "player_id": "1234", "bye": 8}}
+        result, log = self._run(existing, reserve_pids={"1234"}, injury_status="PUP")
+        e = result["Test Player"]
+        self.assertAlmostEqual(e["mean"], 11.5); self.assertAlmostEqual(e["std_aleatoric"], 4.2)
+        self.assertEqual(e["projection_source"], "carried_prior")
+        self.assertEqual(e["injury_status"], "PUP"); self.assertTrue(e["on_ir"])
+        self.assertEqual(e["player_id"], "1234")
+        self.assertIn("carried", log.lower())
+
+    def test_zero_projection_without_a_file_prior_falls_back_to_the_projection_log(self):
+        """The baselines file can have lost the prior already (the sync that first saw the
+        zero projection dropped him). F7's projection log retains every earlier Sleeper (and
+        ESPN) projection per pid; its last non-zero row is the second data-sourced fallback,
+        blended 50/50 with ESPN when ESPN was matched, exactly like the fresh path."""
+        with patch('fantasy_sim.sync._last_logged_projections', return_value={"1234": (9.0, 11.0)}):
+            result, log = self._run(existing={}, reserve_pids=(), injury_status="NA")
+        e = result["Test Player"]
+        self.assertAlmostEqual(e["mean"], 10.0)
+        self.assertEqual(e["projection_source"], "carried_log")
+        self.assertEqual(e["injury_status"], "NA"); self.assertFalse(e["on_ir"])
+        self.assertIn("carried", log.lower())
+
+    def test_zero_projection_without_a_prior_is_still_dropped_with_the_warning(self):
+        with patch('fantasy_sim.sync._last_logged_projections', return_value={}):
+            result, log = self._run(existing={}, reserve_pids=(), injury_status="NA")
+        self.assertNotIn("Test Player", result)
+        self.assertIn("NOT in baselines", log)
+
+
 if __name__ == "__main__":
     unittest.main()

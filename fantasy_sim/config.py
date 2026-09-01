@@ -456,7 +456,14 @@ SIM_CONFIG = {
     # probability source, and no live case to gate one against (see AUDIT_PLAN F4). One season
     # of data, n as above; re-derive when a second season is available. The clock is capped at
     # 16 like every other injury clock.
-    "INITIAL_ABSENCE_STATUSES": ("IR", "PUP", "Out", "Sus", "DNR"),
+    # "NA" (added 2026-09-01): Sleeper's reserve / non-football code, which includes the
+    # Commissioner Exempt list -- a roster-eligibility absence of unknown length, not an injury.
+    # Live case: Josh Jacobs, 2026 week 1, rostered with no projection; the sync now carries his
+    # prior mean (see sync.generate_player_baselines) and this entry puts him on the stage-2
+    # clock like IR/PUP. UNVERIFIED for this status: the 2025 measurement above did not isolate
+    # NA returns, so the steady hazard is carried over, not derived. This league does not allow
+    # NA on its IR slot (Sleeper reserve_allow_na = 0), so on_ir can never cover the case.
+    "INITIAL_ABSENCE_STATUSES": ("IR", "PUP", "Out", "Sus", "DNR", "NA"),
     "INITIAL_ABSENCE_STAGE1_STATUSES": ("Out",),
     "ABSENCE_RETURN_HAZARD_FIRST_WEEK": 0.29,
     "ABSENCE_RETURN_HAZARD_STEADY": 0.16,
