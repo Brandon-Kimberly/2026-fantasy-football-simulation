@@ -15,6 +15,7 @@ from unittest.mock import patch
 
 from fantasy_sim.weekly_report import (
     run_steps, gate_sync_fresh, gate_export_fresh, render_digest, StepFailed,
+    html_table, render_html, build_steps,
 )
 
 
@@ -155,6 +156,80 @@ class TestDigest(unittest.TestCase):
             self.assertTrue(os.path.exists(path))
             with open(path, encoding="utf-8") as f:
                 self.assertIn("# Weekly report", f.read())
+
+
+class TestHtmlTable(unittest.TestCase):
+    """Reuses positional_tiers' sortable-table pattern: every header carries data-key/data-type,
+    every cell data-sort (numbers by value, text lower-cased), and the page carries the sorter."""
+
+    def test_headers_cells_and_types(self):
+        h = html_table(["player", "exp", "P(win)"], [["Jayden Daniels", 16.1, "60.2%"], ["Zed", 9.0, "5.0%"]],
+                       types=["text", "number", "number"], sort_keys=[["jayden daniels", 16.1, 60.2], ["zed", 9.0, 5.0]])
+        self.assertIn('<th data-key="exp" data-type="number">exp</th>', h)
+        # numeric cells carry class="num" (the tier table's convention), text cells do not
+        self.assertIn('<td class="num" data-sort="16.1"', h); self.assertIn('<td class="num" data-sort="60.2"', h)
+        self.assertIn('<td data-sort="jayden daniels"', h)
+        self.assertIn("Jayden Daniels", h); self.assertIn("60.2%", h)
+
+    def test_types_are_inferred_when_not_given(self):
+        h = html_table(["a", "b"], [["x", 1.5], ["y", 2.5]])
+        self.assertIn('data-type="text">a', h); self.assertIn('data-type="number">b', h)
+
+
+class TestHtmlReport(unittest.TestCase):
+    def _ok_report(self):
+        return {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
+                "started_at": "2026-09-22T12:00:00Z", "finished_at": "2026-09-22T12:12:00Z"}
+
+    def test_ok_html_has_every_section_details_per_team_and_relative_images(self):
+        with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
+            html = render_html(self._ok_report(), team="Legion of Coom", week=3)
+        for needle in ("<title>", "Weekly report", "DEGRADED", "ODDS: no key", "League this week", "Season outlook",
+                       "Roster grade", "Lineup", "Matchup", "Waiver targets", "no variance lever",
+                       "<details>", "<summary>Legion of Coom", "<summary>Canton Killers", "Jalen Hurts",
+                       'data-type="number"', "querySelectorAll('th[data-key]')"):
+            self.assertIn(needle, html, needle)
+        # charts referenced relative to data/decisions/, in the sections proposed
+        self.assertIn('src="../weeks/week_03/Season_Outcomes.png"', html)
+        self.assertIn('src="../weeks/week_03/All_Teams_Trajectories.png"', html)
+        self.assertIn('src="../weeks/week_03/Win_Trajectory.png"', html)
+        self.assertIn("boom_bust", html); self.assertIn("floor_ceiling", html)
+        self.assertIn('src="../weeks/week_03/tiers/DL', html, "tier chart for a position in the waiver list")
+        self.assertIn("Strength_of_Schedule_By_Roster.png", html)
+        self.assertNotIn("Trade targets", html)
+
+    def test_missing_chart_is_stated_not_broken(self):
+        with patch("fantasy_sim.weekly_report.os.path.exists", return_value=False):
+            html = render_html(self._ok_report(), team="Legion of Coom", week=3)
+        self.assertNotIn("<img", html)
+        self.assertIn("chart not generated", html)
+
+    def test_embed_inlines_images_as_data_uris(self):
+        with (patch("fantasy_sim.weekly_report.os.path.exists", return_value=True),
+              patch("fantasy_sim.weekly_report._read_bytes", return_value=bytes([137, 80, 78, 71]))):
+            html = render_html(self._ok_report(), team="Legion of Coom", week=3, embed=True)
+        self.assertIn('src="data:image/png;base64,', html)
+        self.assertNotIn('src="../weeks/', html)
+
+    def test_failed_html_has_the_banner_and_no_downstream_sections(self):
+        report = {"status": "FAILED", "failed_step": "simulation", "error": "ValueError: CRITICAL ABORT",
+                  "results": {"sync": _fixture_results()["sync"]}, "started_at": "x", "finished_at": "y",
+                  "planned": ["sync", "simulation", "lineup"]}
+        with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
+            html = render_html(report, team="Legion of Coom", week=3)
+        self.assertIn("FAILED AT STEP", html); self.assertIn("CRITICAL ABORT", html); self.assertIn("DEGRADED", html)
+        for absent in ("League this week", "Season outlook", "Roster grade", 'id="lineup"', "Matchup", "Waiver targets"):
+            self.assertNotIn(absent, html)
+
+
+class TestChain(unittest.TestCase):
+    def test_default_chain_order_includes_the_three_chart_steps_after_the_simulation(self):
+        steps, _ = build_steps("Legion of Coom")
+        self.assertEqual([n for n, _ in steps],
+                         ["sync", "simulation", "positional_tiers", "strength_of_schedule", "win_trajectory",
+                          "league", "roster_grades", "lineup", "matchup", "waivers"])
+        steps, _ = build_steps("Legion of Coom", full=True, skip_sync=True)
+        self.assertEqual(steps[0][0], "freshness"); self.assertEqual(steps[-1][0], "trades")
 
 
 if __name__ == "__main__":

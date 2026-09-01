@@ -21,8 +21,17 @@ import os
 import time
 import traceback
 
+import base64
+from html import escape
+
 from fantasy_sim.freshness import read_manifest, read_export_mtime   # module attrs: patchable in tests
-from fantasy_sim.storage import ensure_dir_for, decisions_path
+from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS       # the sortable-table pattern, reused as-is
+from fantasy_sim.storage import (
+    ensure_dir_for, decisions_path, season_outcomes_chart_path, all_teams_trajectories_chart_path,
+    win_trajectory_chart_path, expected_wins_chart_path, power_rankings_chart_path, h2h_heatmap_chart_path,
+    seeding_distribution_path, weekly_scoring_density_path, boom_bust_chart_path, floor_ceiling_chart_path,
+    tier_chart_path, positional_tiers_table_path, sos_roster_chart_path, sos_team_summary_chart_path,
+)
 
 
 class StepFailed(Exception):
@@ -211,6 +220,259 @@ def write_digest(md, path):
     return path
 
 
+# ------------------------------------------------------------------------ HTML report
+def _is_number(v):
+    if isinstance(v, bool):
+        return False
+    if isinstance(v, (int, float)):
+        return True
+    try:
+        float(str(v).replace("%", "").replace("+", ""))
+        return True
+    except ValueError:
+        return False
+
+
+def _sort_value(v):
+    if isinstance(v, (int, float)) and not isinstance(v, bool):
+        return v
+    t = str(v)
+    try:
+        return float(t.replace("%", "").replace("+", ""))
+    except ValueError:
+        return t.lower()
+
+
+def html_table(headers, rows, types=None, sort_keys=None, css_class=""):
+    """A sortable table in positional_tiers' pattern: th[data-key][data-type], td[data-sort]."""
+    if types is None:
+        types = []
+        for c in range(len(headers)):
+            col = [r[c] for r in rows if c < len(r)]
+            types.append("number" if col and all(_is_number(v) for v in col) else "text")
+    head = "".join(f'<th data-key="{escape(str(h))}" data-type="{types[c]}">{escape(str(h))}</th>'
+                   for c, h in enumerate(headers))
+    body = []
+    for ri, r in enumerate(rows):
+        cells = []
+        for c, v in enumerate(r):
+            key = sort_keys[ri][c] if sort_keys else _sort_value(v)
+            cls = ' class="num"' if types[c] == "number" else ""
+            cells.append(f'<td{cls} data-sort="{escape(str(key))}">{escape(str(v))}</td>')
+        body.append("<tr>" + "".join(cells) + "</tr>")
+    return f'<table class="{css_class}"><thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>'
+
+
+def _read_bytes(path):
+    with open(path, "rb") as f:
+        return f.read()
+
+
+def _rel(path):
+    return os.path.relpath(path, start=os.path.dirname(decisions_path("x"))).replace(os.sep, "/")
+
+
+def _img(path, caption, embed):
+    if not os.path.exists(path):
+        return f'<p class="missing">chart not generated: {escape(os.path.basename(path))}</p>'
+    if embed:
+        src = "data:image/png;base64," + base64.b64encode(_read_bytes(path)).decode("ascii")
+    else:
+        src = _rel(path)
+    return (f'<figure><img src="{src}" alt="{escape(caption)}" loading="lazy">'
+            f'<figcaption>{escape(caption)}</figcaption></figure>')
+
+
+def _link(path, text):
+    if not os.path.exists(path):
+        return escape(text) + " (not generated)"
+    return f'<a href="{_rel(path)}">{escape(text)}</a>'
+
+
+_REPORT_CSS = _TABLE_CSS + """
+body { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; }
+h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+.banner { background: #fde2e2; border: 2px solid #c0392b; padding: 1rem; margin: 1rem 0; }
+.degraded { background: #fff4d6; border: 2px solid #d68910; padding: .8rem 1rem; margin: 1rem 0; }
+.degraded li { font-family: monospace; font-size: .85rem; }
+.missing { color: #999; font-style: italic; }
+figure { display: inline-block; margin: .6rem .6rem .6rem 0; vertical-align: top; max-width: 100%; }
+figure img { max-width: 100%; height: auto; border: 1px solid #ddd; }
+figcaption { font-size: .8rem; color: #555; }
+.charts { display: flex; flex-wrap: wrap; gap: .5rem; }
+.charts figure { flex: 1 1 45%; }
+details { margin: .4rem 0; } summary { cursor: pointer; font-weight: bold; }
+pre { background: #f4f4f4; padding: .6rem; overflow-x: auto; font-size: .8rem; }
+.note { color: #555; font-size: .9rem; }
+"""
+
+
+def render_html(report, team, week, embed=False):
+    res = report.get("results", {})
+    T = lambda s_: escape(str(s_))  # noqa: E731
+    out = [f'<!doctype html><html><head><meta charset="utf-8"><title>Weekly report -- {T(team)}, week {week}</title>'
+           f'<style>{_REPORT_CSS}</style></head><body>',
+           f'<h1>Weekly report -- {T(team)}, week {week}</h1>',
+           f'<p class="note">{T(report.get("started_at", ""))} -> {T(report.get("finished_at", ""))} UTC</p>']
+
+    if report.get("status") == "FAILED":
+        planned = report.get("planned") or []
+        done = list(res)
+        not_run = ", ".join(n for n in planned if n not in done and n != report.get("failed_step"))
+        out.append(f'<div class="banner"><h2>FAILED AT STEP <code>{T(report.get("failed_step"))}</code></h2>'
+                   f'<p><b>{T(report.get("error"))}</b></p>'
+                   '<p>Downstream steps did not run. Nothing below reflects this week\'s data beyond the steps '
+                   'listed as completed; fix the failure and re-run.</p>'
+                   + (f'<p>Completed: {T(", ".join(done) or "none")}<br>Did not run: {T(not_run)}</p>' if planned else "")
+                   + (f'<pre>{T(report["traceback"].strip()[-1500:])}</pre>' if report.get("traceback") else "")
+                   + '</div>')
+
+    manifest = (res.get("sync") or {}).get("manifest")
+    if manifest:
+        out.append(f'<p>Sync for week {T(manifest.get("current_week"))} completed {T(manifest.get("finished_at"))} UTC '
+                   f'({T(manifest.get("notices_count", 0))} routine notices).</p>')
+        if manifest.get("degraded"):
+            out.append('<div class="degraded"><h2>DEGRADED -- the sync tolerated these failures</h2><ul>'
+                       + "".join(f"<li>{T(d)}</li>" for d in manifest["degraded"]) + '</ul></div>')
+    if res.get("freshness"):
+        st, reasons = res["freshness"]["status"], res["freshness"]["reasons"]
+        out.append(f'<div class="degraded"><h2>DATA FRESHNESS (sync skipped): {T(st)}</h2><ul>'
+                   + "".join(f"<li>{T(r)}</li>" for r in reasons) + '</ul></div>')
+    if report.get("status") == "FAILED":
+        out.append(f"<script>{_TABLE_JS}</script></body></html>")
+        return "".join(out)
+
+    lg = res.get("league")
+    if lg:
+        cop = "cross-roster copula" if lg.get("cross") else "per-roster copula"
+        out.append(f'<h2 id="league">League this week -- all matchups <span class="note">(n={T(lg.get("n"))}, {cop})</span></h2>')
+        out.append(html_table(["matchup", "P(A wins)", "P(B wins)", "+-", "A expected", "B expected", "margin sd"],
+                              [[f"{m['a']} v {m['b']}", f"{100 * m['p_a']:.1f}%", f"{100 * m['p_b']:.1f}%", f"{100 * m['se']:.1f}",
+                                f"{m['a_expected']:.1f}", f"{m['b_expected']:.1f}", f"{m['margin_sd']:.1f}"] for m in lg["matchups"]]))
+        out.append(html_table(["team", "opponent", "P(>= median)", "expected", "sd"],
+                              [[t, d.get("opponent") or "-", f"{100 * d['p_beat_median']:.1f}%", f"{d['expected_total']:.1f}", f"{d['sd_total']:.1f}"]
+                               for t, d in sorted(lg["teams"].items(), key=lambda kv: -kv[1]["p_beat_median"])]))
+        out.append("<h3>Assumed optimal lineups (max-expectation, the engine's rule)</h3>")
+        for t, d in sorted(lg["teams"].items(), key=lambda kv: (kv[0] != team, kv[0])):
+            opened = " open" if t == team else ""
+            out.append(f'<details{opened}><summary>{T(t)} -- expected {d["expected_total"]:.1f}, sd {d["sd_total"]:.1f}, '
+                       f'vs {T(d.get("opponent") or "-")}</summary>'
+                       + html_table(["slot", "player", "NFL", "expected", "sd"],
+                                    [[x["slot"], x["name"], x.get("nfl_team") or "-", f"{x['expected']:.1f}", f"{x['sd']:.1f}"] for x in d["lineup"]])
+                       + "</details>")
+        out.append(f'<p class="note">{T(lg.get("note", ""))}</p>')
+
+    sim = res.get("simulation")
+    if sim and sim.get("season_outcomes"):
+        rows = sorted(sim["season_outcomes"], key=lambda r: -r["Playoff_Pct"])
+        out.append('<h2 id="outlook">Season outlook</h2>')
+        out.append(html_table(["team", "Playoff%", "Champ%", "Exp W", "Exp Pts"],
+                              [[r["Team"], f"{r['Playoff_Pct']:.1f}", f"{r['Champ_Pct']:.1f}", f"{r['Expected_Wins']:.1f}", f"{r['Expected_Points']:.0f}"]
+                               for r in rows]))
+        charts = ((season_outcomes_chart_path(week), "Season outcomes"),
+                  (all_teams_trajectories_chart_path(week), "Cumulative win trajectories"),
+                  (win_trajectory_chart_path(week), "Expected wins over the simulated season"),
+                  (expected_wins_chart_path(week), "Expected wins & variance"),
+                  (power_rankings_chart_path(week), "Roster value baseline"),
+                  (h2h_heatmap_chart_path(week), "Head-to-head win probabilities"),
+                  (seeding_distribution_path(week), "Seeding distribution"),
+                  (weekly_scoring_density_path(week), "Weekly scoring density"))
+        out.append('<div class="charts">' + "".join(_img(p_, c, embed) for p_, c in charts) + "</div>")
+
+    rg = res.get("roster_grades")
+    if rg:
+        out.append('<h2 id="grades">Roster grade</h2>')
+        lt = rg.get("league", {}).get("teams", [])
+        out.append(html_table(["#", "team", "lineup VORP", "depth VORP", "opt score", "holes", "T1 starters", "starters < rep"],
+                              [[t["rank"], t["team"], f"{t['lineup_vorp']:.1f}", f"{t['depth_vorp']:.1f}", f"{t['optimal_score']:.1f}",
+                                t["holes"], t["tier1_starters"], t["starters_below_replacement"]] for t in lt]))
+        bp = (rg.get("team_detail") or {}).get("by_position", {})
+        if bp:
+            out.append(f"<h3>{T(team)} by position</h3>" + html_table(
+                ["pos", "starters", "bench", "start VORP", "depth VORP", "best free agent"],
+                [[p_, b["n_starters"], b["n_bench"], f"{b['starters_vorp']:.1f}", f"{b['depth_vorp']:.1f}",
+                  (f"{b['best_free_agent']['name']} ({b['best_free_agent']['vorp']:+.1f})" if b.get("best_free_agent") else "-")]
+                 for p_, b in sorted(bp.items())]))
+
+    lu = res.get("lineup")
+    if lu:
+        unfilled = f' <span class="note">UNFILLED: {T(lu["unfilled"])}</span>' if lu.get("unfilled") else ""
+        out.append(f'<h2 id="lineup">Lineup -- expected total {lu["expected_total"]:.1f}{unfilled}</h2>')
+        out.append(html_table(["slot", "player", "pos", "exp", "p10", "p50", "p90", "zero", "margin", "alternative"],
+                              [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
+                                f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
+                               for r in lu["lineup"]]))
+        if lu.get("bench"):
+            bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
+            out.append(f"<p>Bench: {T(bench)}</p>")
+        out.append('<div class="charts">' + _img(boom_bust_chart_path(team, week), f"{team}: boom/bust by player", embed)
+                   + _img(floor_ceiling_chart_path(team, week), f"{team}: floor/ceiling by player", embed) + "</div>")
+
+    mu = res.get("matchup")
+    if mu:
+        c = mu["constructions"]
+        fav = "favoured" if mu.get("favoured_by_max_mean") else "underdog"
+        cop = "cross-roster copula" if mu.get("cross") else "per-roster copula"
+        out.append(f'<h2 id="matchup">Matchup -- vs {T(mu["opponent"])} <span class="note">({fav} on the engine\'s lineup; '
+                   f'n={T(mu.get("n"))}, {cop})</span></h2>')
+        out.append(html_table(["construction", "mean", "sd", "P(beat opp)", "+-", "P(>= median)", "margin", "margin sd"],
+                              [[k, f"{c[k]['mean']:.1f}", f"{c[k]['sd']:.1f}", f"{100 * c[k]['p_beat_opponent']:.1f}%", f"{100 * c[k]['se']:.1f}",
+                                f"{100 * c[k]['p_beat_median']:.1f}%", f"{c[k]['margin_mean']:+.1f}", f"{c[k]['margin_sd']:.1f}"]
+                               for k in mu["ranking_by_p_beat_opponent"]]))
+        lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
+        if len(lineups) == 1:
+            out.append("<p><b>All four constructions pick the same lineup: no variance lever on this roster this week</b> "
+                       "(every bench alternative is dominated at its slot).</p>")
+        else:
+            best = mu["ranking_by_p_beat_opponent"][0]
+            base = {x["slot"]: x["name"] for x in c["max_mean"]["lineup"]}
+            diffs = [f"{x['slot']}: {base.get(x['slot'])} -> {x['name']}" for x in c[best]["lineup"] if base.get(x["slot"]) != x["name"]]
+            changes = (" -- changes vs max_mean: " + T("; ".join(diffs))) if diffs else ""
+            out.append(f"<p>Best by P(beat opponent): <b>{T(best)}</b>{changes}</p>")
+        assumed = "assumed" if mu.get("opponent_lineup_assumed") else "supplied"
+        out.append(f"<details><summary>Opponent lineup ({assumed})</summary>"
+                   + html_table(["slot", "player", "expected"], [[x["slot"], x["name"], f"{x['expected']:.1f}"] for x in mu.get("opponent_lineup", [])])
+                   + "</details>")
+        out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed)
+                   + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed) + "</div>")
+
+    wv = res.get("waivers")
+    if wv:
+        out.append(f'<h2 id="waivers">Waiver targets <span class="note">FAAB {wv["remaining_faab"]:.0f} (league avg {wv["league_avg_faab"]:.0f}); '
+                   f'holes: {T(wv["holes"] or "none")}; next week: {T(wv["holes_next_week"] or "none")}</span></h2>')
+        out.append(html_table(["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"],
+                              [[t["name"], t["pos"], t.get("tier") or "-", f"{t['mean']:.1f}", f"{t['vorp']:+.1f}", f"{t['week']['mean']:.1f}",
+                                f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
+                                (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else "-")]
+                               for t in wv["targets"]]))
+        out.append(f'<p class="note">* bid = UNVERIFIED value heuristic. P(beats incumbent): {T(wv.get("caveat", ""))}</p>')
+        positions = []
+        for t in wv["targets"]:
+            if t["pos"] not in positions:
+                positions.append(t["pos"])
+        if positions:
+            out.append('<h3>Positional tiers for the positions above</h3><div class="charts">'
+                       + "".join(_img(tier_chart_path(p_, week), f"{p_} tiers", embed) for p_ in positions) + "</div>"
+                       + '<p class="note">Full ranked tables: ' + " | ".join(_link(positional_tiers_table_path(p_, week), p_) for p_ in positions) + "</p>")
+
+    tr = res.get("trades")
+    if tr:
+        out.append(f'<h2 id="trades">Trade targets <span class="note">({T(tr.get("contention_note", ""))})</span></h2>')
+        out.append(html_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
+                              [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
+                                ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
+                                (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
+                                ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
+                               for b in tr.get("buy", [])]))
+        if tr.get("sell"):
+            sells = "; ".join(f"{s_['buyer']} wants {', '.join(s_['they_want'])} for {', '.join(s_['they_give'])} "
+                              f"({s_['my_gain']:+.1f} / {s_['their_gain']:+.1f})" for s_ in tr["sell"][:5])
+            out.append(f"<p>Sell side: {T(sells)}</p>")
+
+    out.append(f"<script>{_TABLE_JS}</script></body></html>")
+    return "".join(out)
+
+
 # ------------------------------------------------------------------- the real chain
 def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
     """Wires the real tools. Each step returns the object the digest renders from."""
@@ -240,6 +502,18 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
         rows = load_json(syndicate_comprehensive_matrix_path(state["week"])).get("season_outcomes", [])
         return {"season_outcomes": rows}
 
+    def step_positional_tiers():
+        from scripts.run_positional_tiers import main as m
+        m(); return {"ok": True}
+
+    def step_strength_of_schedule():
+        from scripts.run_strength_of_schedule import main as m
+        m(); return {"ok": True}
+
+    def step_win_trajectory():
+        from scripts.run_win_trajectory import main as m
+        m(); return {"ok": True}
+
     def step_league():
         from fantasy_sim.decisions import league_week_outlook
         from fantasy_sim.simulation import FantasySimulationEngine
@@ -266,18 +540,25 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
         return m(["--team", team, "--week", str(state["week"]), "--evaluate", str(evaluate)])
 
     steps = [("freshness", step_freshness)] if skip_sync else [("sync", step_sync)]
-    steps += [("simulation", step_simulation), ("league", step_league), ("roster_grades", step_roster_grades), ("lineup", step_lineup),
+    steps += [("simulation", step_simulation), ("positional_tiers", step_positional_tiers),
+              ("strength_of_schedule", step_strength_of_schedule), ("win_trajectory", step_win_trajectory),
+              ("league", step_league), ("roster_grades", step_roster_grades), ("lineup", step_lineup),
               ("matchup", step_matchup), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))
     return steps, state
 
 
-def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0):
+def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, embed=False):
     steps, state = build_steps(team, full=full, skip_sync=skip_sync, sims=sims, evaluate=evaluate)
     report = run_steps(steps)
     week = state["week"] or "?"
     md = render_digest(report, team, week)
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    path = write_digest(md, decisions_path(f"weekly_report_week{week}_{stamp}{'_FAILED' if report['status'] == 'FAILED' else ''}.md"))
-    return report, md, path
+    suffix = "_FAILED" if report["status"] == "FAILED" else ""
+    path = write_digest(md, decisions_path(f"weekly_report_week{week}_{stamp}{suffix}.md"))
+    html_path = None
+    if isinstance(week, int):
+        html_path = write_digest(render_html(report, team, week, embed=embed),
+                                 decisions_path(f"weekly_report_week{week}_{stamp}{suffix}.html"))
+    return report, md, path, html_path
