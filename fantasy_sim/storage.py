@@ -18,12 +18,13 @@ All paths resolve under DATA_DIR.
 
 DIRECTORY LAYOUT (season-long retention -- AUDIT_PLAN.md, "data/ directory structure"):
     data/current/   -- sync's snapshot of the world as of the LAST sync. Always overwritten in
-                        place; never historical. (Two exceptions live here despite their
-                        "log"-sounding names: SIMULATION_AUDIT_LOG_FILE and
-                        SYNDICATE_WARNINGS_LOG_FILE are both opened in overwrite mode --
-                        verified by reading their write sites, not assumed from the filename --
-                        so they behave exactly like the rest of this bucket, not like logs/.
-                        Flagged as a pre-existing retention gap, not fixed here: making them
+                        place; never historical. (One exception lives here despite its
+                        "log"-sounding name: SYNDICATE_WARNINGS_LOG_FILE is a process-level
+                        console mirror opened in overwrite mode at import time -- verified by
+                        reading its write site, not assumed from the filename -- so it behaves
+                        exactly like the rest of this bucket, not like logs/. The sim-0 audit
+                        log used to be a second such exception until F10 moved it to weeks/.
+                        Originally flagged as a pre-existing retention gap, not fixed: making them
                         genuinely per-week would mean threading `week` through simulation.py's
                         own call sites, the same category of change as the positional-tiers fix
                         below, but on code this session didn't write.)
@@ -39,8 +40,9 @@ simulation engine, backtesting artifacts -- is named exactly once here, instead 
 open()/json.load()/json.dump() calls or bare string literals scattered through the codebase.
 
 BASENAME STABILITY: the four weekly JSON exports (live_season_forecast_path,
-model_learning_report_path, syndicate_insights_path, syndicate_comprehensive_matrix_path) and
-SIMULATION_AUDIT_LOG_FILE keep their pre-existing basenames (e.g. still
+model_learning_report_path, syndicate_insights_path, syndicate_comprehensive_matrix_path) keep
+their pre-existing basenames, and simulation_audit_log_path (F10) follows the same
+"_week_N" convention (e.g. still
 "live_season_forecast_week_3.json", now living under weeks/week_03/ instead of flat) even
 though the week number is now redundant with the directory name. This is deliberate: golden
 master's stage_b hash keys each save_json call by os.path.basename(path)
@@ -163,10 +165,20 @@ def syndicate_comprehensive_matrix_path(week):
     return _week(week, f"syndicate_comprehensive_matrix_week_{week}.json")
 
 
-# Ephemeral despite the name -- see module docstring. Lives in current/, not weeks/, because it
-# carries no week-retention today; that would be a separate fix (thread `week` through
-# simulation.py's own write site), not a rename.
-SIMULATION_AUDIT_LOG_FILE = _current("simulation_audit_log_sim0.json")
+# F10 (2026-08-31): the sim-0 audit log is retained per week like the four weekly JSON exports
+# above. It was SIMULATION_AUDIT_LOG_FILE = _current("simulation_audit_log_sim0.json") -- a
+# single always-overwritten path -- until F10 threaded `week` through its one write site.
+# Basename carries the week (redundant with the directory, deliberately -- see BASENAME
+# STABILITY in the module docstring; golden master keys stage_b by basename).
+def simulation_audit_log_path(week):
+    return _week(week, f"simulation_audit_log_sim0_week_{week}.json")
+
+
+# Process-level console mirror of the root logger -- NOT a per-run artefact and not a source
+# of truth for any single run's warnings. Opened in overwrite mode at fantasy_sim.simulation
+# import time, so it holds whatever PROCESS last imported that module (a test run overwrites
+# the last real run's; run_sync never imports simulation, so sync's warnings never reach it).
+# A run's own warnings are exported inside its per-week audit log (F10, commit 2).
 SYNDICATE_WARNINGS_LOG_FILE = _current("syndicate_warnings.log")
 
 

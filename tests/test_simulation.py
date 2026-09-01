@@ -150,6 +150,45 @@ class TestFantasySimulation(unittest.TestCase):
                           "min/max; the default (cut=2) smears an artificial tail onto every team "
                           "regardless of its real spread.")
 
+    def test_sim0_audit_log_is_retained_per_week(self):
+        """F10 (AUDIT_PLAN.md) acceptance criterion: week 3's and week 5's audit logs coexist and
+        differ. The sim-0 audit log was written to a single always-overwritten path in
+        data/current/ (F9 classified it there honestly, as a description of the existing
+        behaviour, not a fix), so a manager auditing week 3's simulation from week 10 had nothing
+        to look at. Runs the same fixture engine at current_week 3 and 5 and asserts the two
+        runs save the audit log to two distinct per-week paths, each naming its own week and
+        living under data/weeks/, and that the two payloads are not the same object/content."""
+        original_batches, original_sims = SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH']
+        SIM_CONFIG['NUM_BATCHES'] = 1
+        SIM_CONFIG['SIMS_PER_BATCH'] = 5
+        saved_by_week = {}
+        try:
+            for week in (3, 5):
+                self.mock_fs[LEAGUE_STATE_FILE] = {"current_week": week}
+                saved = {}
+
+                def recording_save_json(path, data, indent=2, _saved=saved):
+                    _saved[path] = data
+
+                with patch('fantasy_sim.simulation.save_chart'), patch('matplotlib.pyplot.close'), \
+                     patch('fantasy_sim.simulation.save_json', side_effect=recording_save_json):
+                    FantasySimulationEngine().run_simulation()
+                audit_paths = [p for p in saved if 'simulation_audit_log_sim0' in p]
+                self.assertEqual(len(audit_paths), 1, f"week {week}: expected exactly one audit-log save, got {audit_paths}")
+                saved_by_week[week] = (audit_paths[0], saved[audit_paths[0]])
+        finally:
+            SIM_CONFIG['NUM_BATCHES'], SIM_CONFIG['SIMS_PER_BATCH'] = original_batches, original_sims
+            self.mock_fs[LEAGUE_STATE_FILE] = {"current_week": 1}
+
+        (p3, a3), (p5, a5) = saved_by_week[3], saved_by_week[5]
+        self.assertNotEqual(p3, p5, "week 3 and week 5 audit logs must not share a path (one would overwrite the other)")
+        for week, path in ((3, p3), (5, p5)):
+            norm = path.replace('\\', '/')
+            self.assertIn(f"weeks/week_{week:02d}/", norm, f"week {week} audit log must live under data/weeks/week_{week:02d}/: {path}")
+            self.assertIn(f"_week_{week}.json", norm, f"week {week} audit log basename must carry its week: {path}")
+        self.assertNotEqual(sorted(a3['weeks']), sorted(a5['weeks']),
+                            "audit logs for different start weeks must cover different simulated weeks")
+
     def test_weekly_scoring_density_renders_one_row_per_team_with_shared_yaxis(self):
         """Regression test for the Pass-2 visualization audit's Weekly Scoring Density finding:
         8 overlapping KDE lines drawn into one shared axes were visually indistinguishable by

@@ -31,7 +31,7 @@ from fantasy_sim.config import (
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
 )
 from fantasy_sim.storage import (
-    load_json, save_json, save_chart, ensure_dir_for, SIMULATION_AUDIT_LOG_FILE, SYNDICATE_WARNINGS_LOG_FILE,
+    load_json, save_json, save_chart, ensure_dir_for, simulation_audit_log_path, SYNDICATE_WARNINGS_LOG_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
@@ -1795,7 +1795,7 @@ class FantasySimulationEngine:
         save_json(model_learning_report_path(self.current_week), self.calibration_report)
         save_json(syndicate_insights_path(self.current_week), syndicate_insights)
         save_json(syndicate_comprehensive_matrix_path(self.current_week), ai_matrix)
-        save_json(SIMULATION_AUDIT_LOG_FILE, audit_log)
+        save_json(simulation_audit_log_path(self.current_week), audit_log)   # F10: retained per week
 
         print(f"\n[EXPORT COMPLETE] Telemetry and 5 visual artifacts rendered for Week {self.current_week}.")
 
