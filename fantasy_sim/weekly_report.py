@@ -95,6 +95,83 @@ def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=N
     return 1
 
 
+def _decision_log_summary(week, log_path=None):
+    """The decision log, finally rendered: this week's transactions joined to their
+    evaluation records, with the contemporaneity split computed from data -- which frozen
+    snapshots were actually recorded at decision time. Backfilled (retro) rows' projections
+    were never contemporaneous, which F18's retrospective must know without inferring it
+    from per-row flags. Read-only; None when there is no log."""
+    import json as _json
+    if log_path is None:
+        from fantasy_sim.storage import DECISION_LOG_FILE as log_path  # noqa: F811
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            rows = [_json.loads(line) for line in f if line.strip()]
+    except FileNotFoundError:
+        return None
+    evals = {r.get("transaction_id"): r for r in rows if r.get("record_type") == "evaluation"}
+    txs = [r for r in rows if r.get("record_type") is None]
+    if not txs:
+        return None
+
+    def players(entries):
+        return [(e.get("name"), (e.get("projection") or {}).get("mean")) for e in entries or []]
+
+    out_rows = []
+    for t in txs:
+        if t.get("week") != week:
+            continue
+        ev = evals.get(t.get("transaction_id"))
+        ev_summary = None
+        if ev:
+            mover = (t.get("teams") or [None])[0]
+            d = (ev.get("teams") or {}).get(mover) or {}
+            ev_summary = {"champ_delta": (d.get("champ_pct") or {}).get("delta"),
+                          "champ_se": (d.get("champ_pct") or {}).get("se"),
+                          "playoff_delta": (d.get("playoff_pct") or {}).get("delta"),
+                          "playoff_se": (d.get("playoff_pct") or {}).get("se")}
+        out_rows.append({"transaction_id": t.get("transaction_id"), "created": t.get("created"),
+                         "team": (t.get("teams") or ["?"])[0], "type": t.get("type"),
+                         "adds": players(t.get("adds")), "drops": players(t.get("drops")),
+                         "faab_bid": t.get("faab_bid"), "is_mine": bool(t.get("is_mine")),
+                         "retro": bool(t.get("snapshot_is_retroactive")),
+                         "lag_days": t.get("snapshot_lag_days"), "eval": ev_summary})
+    return {"week": week, "rows": out_rows,
+            "older_unevaluated": sum(1 for t in txs if t.get("week") != week
+                                     and t.get("transaction_id") not in evals),
+            "mine_count": sum(1 for r in out_rows if r["is_mine"]),
+            "contemporaneous_mine": sum(1 for r in out_rows if r["is_mine"] and not r["retro"]),
+            "contemporaneous_other": sum(1 for r in out_rows if not r["is_mine"] and not r["retro"]),
+            "retro_count": sum(1 for r in out_rows if r["retro"])}
+
+
+def _declog_caveat(dl):
+    return (f"Frozen snapshots are contemporaneous only for moves made after the log's first "
+            f"ingestion: {dl['contemporaneous_mine']} of my {dl['mine_count']} and "
+            f"{dl['contemporaneous_other']} league move(s) this week; the {dl['retro_count']} "
+            f"retro-flagged row(s) were backfilled -- their projections were never a record of "
+            f"what the model thought at decision time (F18). Evaluations are paired simulations "
+            f"under CURRENT projections. Catch up: "
+            f"py -3.10 -m scripts.evaluate_move --evaluate-unevaluated [--mine-only]")
+
+
+def _declog_cells(r):
+    """(in, out, bid, mine, snapshot, evaluation) display strings shared by both renderers."""
+    def pl(lst):
+        return ", ".join(f"{n} ({m:.1f})" if m is not None else str(n) for n, m in lst) or "-"
+    snap = (f"retro +{r['lag_days']:.1f}d" if r["retro"]
+            else (f"{r['lag_days']:.2f}d" if r["lag_days"] is not None else "-"))
+    if r["eval"]:
+        e = r["eval"]
+        ev = (f"Champ {e['champ_delta']:+.2f}+-{e['champ_se']:.2f} / "
+              f"PO {e['playoff_delta']:+.2f}+-{e['playoff_se']:.2f}")
+    else:
+        ev = f"unevaluated -- py -3.10 -m scripts.evaluate_move --log-tx {r['transaction_id']}"
+    return (pl(r["adds"]), pl(r["drops"]),
+            r["faab_bid"] if r["faab_bid"] is not None else "-",
+            "yes" if r["is_mine"] else "", snap, ev)
+
+
 def run_steps(steps):
     """steps: [(name, callable)]. Runs in order; stops at the first exception."""
     report = {"status": "OK", "failed_step": None, "error": None, "traceback": None, "results": {},
@@ -271,6 +348,16 @@ def render_digest(report, team, week):
                           [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
                             ", ".join(x["they_want"]), ", ".join(x["they_give"]),
                             f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]), ""]
+
+    dl = report.get("decision_log")
+    if dl and dl["rows"]:
+        md += [f"## Decision log -- week {dl['week']} ({len(dl['rows'])} transaction(s))", ""]
+        md += [_table(["date", "team", "type", "in", "out", "bid", "mine", "snapshot", "evaluation"],
+                      [[(r["created"] or "")[:10], r["team"], r["type"], *_declog_cells(r)]
+                       for r in dl["rows"]]), ""]
+        md += ["_" + _declog_caveat(dl) + "_", ""]
+        if dl["older_unevaluated"]:
+            md += [f"{dl['older_unevaluated']} older transaction(s) from other weeks remain unevaluated.", ""]
 
     hk = report.get("housekeeping") or {}
     if hk.get("unevaluated_trades"):
@@ -559,6 +646,18 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                                     ", ".join(x["they_want"]), ", ".join(x["they_give"]),
                                     f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]))
 
+    dl = report.get("decision_log")
+    if dl and dl["rows"]:
+        out.append(f'<h2 id="decision-log">Decision log <span class="note">week {dl["week"]}, '
+                   f'{len(dl["rows"])} transaction(s)</span></h2>')
+        out.append(html_table(["date", "team", "type", "in", "out", "bid", "mine", "snapshot", "evaluation"],
+                              [[(r["created"] or "")[:10], r["team"], r["type"], *_declog_cells(r)]
+                               for r in dl["rows"]]))
+        out.append(f'<p class="note">{T(_declog_caveat(dl))}</p>')
+        if dl["older_unevaluated"]:
+            out.append(f'<p class="note">{dl["older_unevaluated"]} older transaction(s) from other '
+                       f'weeks remain unevaluated.</p>')
+
     hk = report.get("housekeeping") or {}
     if hk.get("unevaluated_trades"):
         out.append('<h2 id="housekeeping">Housekeeping</h2><ul>'
@@ -665,6 +764,11 @@ def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, 
         report["housekeeping"] = {"unevaluated_trades": unevaluated_my_trades()}
     except Exception:
         report["housekeeping"] = {"unevaluated_trades": []}
+    try:
+        report["decision_log"] = (_decision_log_summary(state["week"])
+                                  if isinstance(state["week"], int) else None)
+    except Exception:
+        report["decision_log"] = None
     week = state["week"] or "?"
     md = render_digest(report, team, week)
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")

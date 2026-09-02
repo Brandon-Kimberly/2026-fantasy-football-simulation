@@ -29,7 +29,7 @@ from fantasy_sim.decisions import (
     sample_week_matrix, weekly_scores_vectorised, matchup_lineups,
     find_trade_targets, league_week_outlook, evaluate_logged_trade, unevaluated_my_trades,
     apply_add_drop, evaluate_add_drop, evaluate_logged_transaction,
-    faab_context, MARKET_MIN_COMPARABLES,
+    faab_context, MARKET_MIN_COMPARABLES, evaluate_pending, pending_evaluations,
 )
 
 
@@ -963,6 +963,69 @@ class TestFaabContext(_EngineCase):
         self.assertEqual(r["faab"]["n_comparables"], 2, "its own claim is excluded from its market")
         self.assertIsNone(r["faab"]["market"])
         self.assertIn("teams", r, "the roster-change value block is untouched beside the budget block")
+
+
+class TestBatchEvaluation(unittest.TestCase):
+    """--evaluate-unevaluated: catch up on the backlog in one command, serialized, opt-in.
+    pending_evaluations orders my moves first then chronological; evaluate_pending loops
+    them through evaluate_logged_transaction, counting drift skips (expected for old moves
+    reverse-evaluated on current rosters) and already-evaluated records without stopping.
+    Written before either function existed."""
+
+    def _log(self, d):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        rows = [
+            {"transaction_id": "a", "type": "free_agent", "week": 1, "created": "2026-08-20T00:00:00Z",
+             "is_mine": False, "teams": ["Clankers"], "adds": [], "drops": []},
+            {"transaction_id": "b", "type": "waiver", "week": 1, "created": "2026-09-01T02:00:00Z",
+             "is_mine": True, "teams": ["Legion of Coom"], "adds": [], "drops": []},
+            {"transaction_id": "c", "type": "free_agent", "week": 1, "created": "2026-08-25T00:00:00Z",
+             "is_mine": True, "teams": ["Legion of Coom"], "adds": [], "drops": []},
+            {"transaction_id": "d", "type": "free_agent", "week": 1, "created": "2026-08-22T00:00:00Z",
+             "is_mine": False, "teams": ["Drunk Cats"], "adds": [], "drops": []},
+            {"record_type": "evaluation", "transaction_id": "d", "teams": {}},
+        ]
+        with open(path, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + chr(10))
+        return path
+
+    def test_pending_orders_mine_first_then_chronological_and_respects_filters(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d)
+            ids = [t["transaction_id"] for t in pending_evaluations(log_path=path)]
+            self.assertEqual(ids, ["c", "b", "a"], "mine first (chronological), then the rest; d is evaluated")
+            ids = [t["transaction_id"] for t in pending_evaluations(log_path=path, mine_only=True)]
+            self.assertEqual(ids, ["c", "b"])
+            ids = [t["transaction_id"] for t in pending_evaluations(log_path=path, limit=1)]
+            self.assertEqual(ids, ["c"])
+
+    def test_evaluate_pending_counts_drift_and_already_without_stopping(self):
+        import tempfile
+        calls = []
+
+        def fake_eval(engine, txid, batches, sims, log_path):
+            calls.append(txid)
+            if txid == "c":
+                raise ValueError("roster drift since the logged move")
+            if txid == "b":
+                return {"skipped": "already evaluated", "transaction_id": txid}
+            return {"move": {"team": "Clankers", "adds": [], "drops": []},
+                    "teams": {"Clankers": {"champ_pct": {"delta": 1.0, "se": 0.5},
+                                           "playoff_pct": {"delta": 2.0, "se": 0.6},
+                                           "expected_wins": {"delta": 0.1, "se": 0.05}}}}
+
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d)
+            with patch("fantasy_sim.decisions.evaluate_logged_transaction", side_effect=fake_eval):
+                out = evaluate_pending(engine=None, log_path=path, batches=2, sims=10,
+                                       progress=lambda *_a: None)
+        self.assertEqual(calls, ["c", "b", "a"], "drift and already-evaluated do not stop the loop")
+        self.assertEqual(out["evaluated"], ["a"])
+        self.assertEqual(out["drift"], ["c"])
+        self.assertEqual(out["already"], ["b"])
 
 
 if __name__ == "__main__":

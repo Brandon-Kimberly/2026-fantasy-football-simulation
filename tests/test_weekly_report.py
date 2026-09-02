@@ -430,5 +430,78 @@ class TestTradeAndMatchupRendering(unittest.TestCase):
             self.assertIn("sampling noise", out)
 
 
+class TestDecisionLogSection(unittest.TestCase):
+    """The decision log finally renders: the week's transactions as a sortable table with
+    frozen snapshot means, retro flags, inline evaluation deltas where a record exists and
+    the exact --log-tx command where it does not -- plus the computed contemporaneity split
+    (which moves' snapshots were actually recorded at decision time; the backfilled majority
+    were not, which F18 must not have to infer from per-row flags). Written before
+    _decision_log_summary existed."""
+
+    def _log(self, d):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        rows = [
+            {"transaction_id": "t1", "type": "waiver", "week": 1, "created": "2026-09-01T02:00:00Z",
+             "snapshot_lag_days": 0.03, "snapshot_is_retroactive": False, "teams": ["Legion of Coom"],
+             "is_mine": True, "faab_bid": 9,
+             "adds": [{"name": "Nick Bolton", "projection": {"mean": 9.6}}],
+             "drops": [{"name": "Courtland Sutton", "projection": {"mean": 11.2}}]},
+            {"transaction_id": "t2", "type": "free_agent", "week": 1, "created": "2026-08-23T00:00:00Z",
+             "snapshot_lag_days": 8.84, "snapshot_is_retroactive": True, "teams": ["Drunk Cats"],
+             "is_mine": False, "faab_bid": None,
+             "adds": [{"name": "Some Guy", "projection": {"mean": 5.0}}], "drops": []},
+            {"transaction_id": "t3", "type": "free_agent", "week": 1, "created": "2026-09-01T03:00:00Z",
+             "snapshot_lag_days": 0.04, "snapshot_is_retroactive": False, "teams": ["Canton Killers"],
+             "is_mine": False, "faab_bid": None,
+             "adds": [{"name": "Seth McGowan", "projection": {"mean": 4.1}}], "drops": []},
+            {"transaction_id": "old", "type": "free_agent", "week": 0, "created": "2026-08-20T00:00:00Z",
+             "snapshot_lag_days": 10.0, "snapshot_is_retroactive": True, "teams": ["Clankers"],
+             "is_mine": False, "faab_bid": None, "adds": [], "drops": []},
+            {"record_type": "evaluation", "transaction_id": "t1", "post_execution_reversed": True,
+             "teams": {"Legion of Coom": {"champ_pct": {"delta": -0.33, "se": 1.27},
+                                          "playoff_pct": {"delta": -1.27, "se": 1.48}}}},
+        ]
+        with open(path, "w", encoding="utf-8") as f:
+            for r in rows:
+                f.write(json.dumps(r) + chr(10))
+        return path
+
+    def test_summary_joins_evaluations_and_computes_the_contemporaneity_split(self):
+        import tempfile
+        from fantasy_sim.weekly_report import _decision_log_summary
+        with tempfile.TemporaryDirectory() as d:
+            s_ = _decision_log_summary(1, log_path=self._log(d))
+        self.assertEqual(len(s_["rows"]), 3, "week-1 rows only")
+        by_id = {r["transaction_id"]: r for r in s_["rows"]}
+        self.assertAlmostEqual(by_id["t1"]["eval"]["champ_delta"], -0.33)
+        self.assertAlmostEqual(by_id["t1"]["eval"]["playoff_se"], 1.48)
+        self.assertIsNone(by_id["t2"]["eval"])
+        self.assertTrue(by_id["t2"]["retro"])
+        self.assertEqual(s_["contemporaneous_mine"], 1)
+        self.assertEqual(s_["contemporaneous_other"], 1)
+        self.assertEqual(s_["retro_count"], 1, "within the week")
+        self.assertEqual(s_["older_unevaluated"], 1, "the week-0 leftover is counted, not hidden")
+
+    def test_rendering_shows_deltas_commands_retro_flags_and_the_caveat(self):
+        import tempfile
+        from fantasy_sim.weekly_report import _decision_log_summary
+        with tempfile.TemporaryDirectory() as d:
+            summary = _decision_log_summary(1, log_path=self._log(d))
+        report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
+                  "started_at": "x", "finished_at": "y", "decision_log": summary}
+        md = render_digest(report, team="Legion of Coom", week=1)
+        html = render_html(report, team="Legion of Coom", week=1)
+        for out in (md, html):
+            self.assertIn("Nick Bolton (9.6)", out)
+            self.assertIn("Courtland Sutton (11.2)", out)
+            self.assertIn("-0.3", out)                       # champ delta inline
+            self.assertIn("retro +8.8d", out)
+            self.assertIn("scripts.evaluate_move --log-tx t2", out)
+            self.assertIn("never a record of what the model thought at decision time", out)
+            self.assertIn("1 of my", out)                    # computed split, not hardcoded
+        self.assertIn('data-key="in"', html, "sortable")
+
+
 if __name__ == "__main__":
     unittest.main()

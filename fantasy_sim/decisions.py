@@ -1126,6 +1126,59 @@ def _evaluate_logged_move(engine, tx, batches, sims, log_path):
     return r
 
 
+def pending_evaluations(log_path=None, mine_only=False, limit=None):
+    """Logged transactions with no evaluation record yet, MY moves first (each group
+    chronological), so --limit catches the owner up before spending engine-hours on the
+    rest of the league. Read-only."""
+    if log_path is None:
+        from fantasy_sim.storage import DECISION_LOG_FILE as log_path  # noqa: F811
+    rows = _read_decision_log(log_path)
+    done = {r.get("transaction_id") for r in rows if r.get("record_type") == "evaluation"}
+    txs = [r for r in rows if r.get("record_type") is None and r.get("transaction_id") not in done]
+    if mine_only:
+        txs = [t for t in txs if t.get("is_mine")]
+    txs.sort(key=lambda t: (not t.get("is_mine"), t.get("created") or ""))
+    return txs[:limit] if limit else txs
+
+
+def evaluate_pending(engine, mine_only=False, limit=None, batches=10, sims=300,
+                     log_path=None, progress=print):
+    """The batch catch-up (scripts.evaluate_move --evaluate-unevaluated): every pending
+    logged transaction through evaluate_logged_transaction, strictly SEQUENTIAL in this one
+    process -- R1: never run engines concurrently on this machine. Roster drift (players
+    re-moved since an old transaction; EXPECTED for backfilled moves reverse-evaluated on
+    current rosters) and already-evaluated records are counted and reported, never fatal.
+    Each completed evaluation is appended to the log before the next starts, so an
+    interrupt between evaluations loses nothing. Deliberately manual and opt-in: automatic
+    evaluation inside sync is exactly the cost trap F2 commit 3 avoided."""
+    out = {"evaluated": [], "drift": [], "already": []}
+    todo = pending_evaluations(log_path=log_path, mine_only=mine_only, limit=limit)
+    for i, tx in enumerate(todo, 1):
+        txid = tx["transaction_id"]
+        label = f"[{i}/{len(todo)}] {txid} ({tx.get('type')}, {(tx.get('teams') or ['?'])[0]})"
+        try:
+            r = evaluate_logged_transaction(engine, txid, batches=batches, sims=sims,
+                                            log_path=log_path)
+        except ValueError as ex:
+            if "drift" in str(ex).lower():
+                out["drift"].append(txid)
+                progress(f"{label}: SKIPPED -- {ex}")
+                continue
+            raise
+        if r.get("skipped"):
+            out["already"].append(txid)
+            progress(f"{label}: skipped ({r['skipped']})")
+            continue
+        out["evaluated"].append(txid)
+        m = r.get("move") or r.get("trade") or {}
+        mover = m.get("team") or m.get("team_a")
+        d = (r.get("teams") or {}).get(mover) or {}
+        progress(f"{label}: {mover} Champ {d['champ_pct']['delta']:+.2f}+-{d['champ_pct']['se']:.2f}  "
+                 f"Playoff {d['playoff_pct']['delta']:+.2f}+-{d['playoff_pct']['se']:.2f}  "
+                 f"ExpW {d['expected_wins']['delta']:+.3f}+-{d['expected_wins']['se']:.3f}")
+    return out
+
+
 # Compatibility alias: the original trade-only entry point's name.
 evaluate_logged_trade = evaluate_logged_transaction
 

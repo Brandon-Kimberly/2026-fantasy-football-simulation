@@ -48,11 +48,31 @@ def main(argv=None):
     ap.add_argument("--add", default="", help="comma-separated free agents to add")
     ap.add_argument("--drop", default="", help="comma-separated rostered players to drop")
     ap.add_argument("--bid", type=int, default=None, help="FAAB bid: adds the separated budget-cost block")
+    ap.add_argument("--evaluate-unevaluated", action="store_true",
+                    help="batch-evaluate every logged transaction lacking an evaluation record (serialized)")
+    ap.add_argument("--mine-only", action="store_true", help="with --evaluate-unevaluated: my moves only")
+    ap.add_argument("--limit", type=int, default=None, help="with --evaluate-unevaluated: at most N evaluations")
     ap.add_argument("--batches", type=int, default=10)
     ap.add_argument("--sims", type=int, default=300)
     args = ap.parse_args(argv)
 
     engine = FantasySimulationEngine()
+    if args.evaluate_unevaluated:
+        from fantasy_sim.decisions import evaluate_pending, pending_evaluations
+        todo = pending_evaluations(mine_only=args.mine_only, limit=args.limit)
+        est = len(todo) * 6.5   # ~3.3 min per 10x300 engine run (F20's timing), two runs per evaluation
+        print(f"\n{len(todo)} pending evaluation(s) x ~6.5 min each (two paired "
+              f"{args.batches}x{args.sims} runs, serialized per R1) ~= "
+              f"{int(est // 60)}h{int(est % 60):02d}m total. Ctrl+C between evaluations is "
+              f"safe: completed records are already appended to the log.")
+        if not todo:
+            return {"evaluated": [], "drift": [], "already": []}
+        out = evaluate_pending(engine, mine_only=args.mine_only, limit=args.limit,
+                               batches=args.batches, sims=args.sims)
+        print(f"\n  evaluated {len(out['evaluated'])}; drift-skipped {len(out['drift'])}"
+              + (f" ({', '.join(out['drift'])})" if out['drift'] else "")
+              + f"; already-evaluated {len(out['already'])}")
+        return out
     if args.log_tx:
         r = evaluate_logged_transaction(engine, args.log_tx, batches=args.batches, sims=args.sims)
         if r.get("skipped"):
