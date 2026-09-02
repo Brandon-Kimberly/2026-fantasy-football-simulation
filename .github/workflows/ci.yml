@@ -1,0 +1,34 @@
+# CI: full suite + golden master on every push and PR.
+#
+# Runner is WINDOWS on purpose: the golden master's hashes are byte-exact to the
+# generating platform's libm (tests/golden_master.py's documented platform lock; the
+# _meta block records Windows). Running on Linux would either fail the goldens on float
+# repr differences or force tolerance-based comparison, which would surrender the
+# byte-exactness that is Phase 0's entire guarantee. Public repo: minutes are free.
+#
+# R1 note (AUDIT_PLAN.md): the project's own machine has a load-dependent CPU fault, so a
+# green run HERE -- an independent, fault-free box -- is meaningful evidence about the
+# code beyond gating commits. Hermeticity was proven before this workflow existed: the
+# suite passes with socket.connect disabled (0 network attempts) and from a fresh clone
+# with no synced data (473 OK, skipped=3: the live-ingestion opt-in plus two graceful
+# data-absent skips).
+name: ci
+on:
+  push:
+  pull_request:
+
+jobs:
+  suite:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+      - name: Full suite
+        run: python -m unittest discover tests
+      - name: Golden master (byte-exact reproducibility harness)
+        run: python -m unittest tests.test_golden_master
