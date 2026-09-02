@@ -55,6 +55,7 @@ def generate_nfl_schedule(current_nfl_week=1):
     nfl_schedule = {}
     completed_results = []
     failed_weeks = []
+    kickoffs = {}
 
     for wk in range(1, 19):
         nfl_schedule[str(wk)] = {}
@@ -64,6 +65,9 @@ def generate_nfl_schedule(current_nfl_week=1):
             if resp.status_code != 200:
                 raise RuntimeError(f"HTTP {resp.status_code}")
             events = resp.json().get('events', [])
+            # Real kickoff datetimes (UTC), persisted for scripts.run_windows' canonical-run
+            # deadlines: _meta is invisible to the engine like the rest of this block.
+            kickoffs[str(wk)] = sorted(e["date"] for e in events if e.get("date"))
         except Exception as e:
             failed_weeks.append(wk)
             logging.warning(
@@ -121,7 +125,7 @@ def generate_nfl_schedule(current_nfl_week=1):
         logging.warning("NFL SCHEDULE: no single bye week derivable for %d teams (absent from 0 or "
                         "several usable weeks; failed_weeks=%s): %s. Their players get bye 0 (never on bye).",
                         len(missing_bye), failed_weeks, ", ".join(missing_bye))
-    nfl_schedule["_meta"] = {"failed_weeks": failed_weeks, "byes": byes}
+    nfl_schedule["_meta"] = {"failed_weeks": failed_weeks, "byes": byes, "kickoffs": kickoffs}
     save_json(NFL_SCHEDULE_FILE, nfl_schedule)
 
     return completed_results

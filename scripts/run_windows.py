@@ -1,0 +1,122 @@
+#!/usr/bin/env python3
+"""
+Canonical-run window assistant -- READ-ONLY, safe to run unattended from Task Scheduler.
+Not a runner: R1 makes unattended engine runs unsafe on this machine (no void-and-re-run
+judgment, and a scheduled run could fire alongside an ad-hoc one -- the exact multi-process
+load that produces silent corruption). This reports; a human runs
+`py -3.10 -m scripts.weekly_report --canonical` inside a window.
+
+  py -3.10 -m scripts.run_windows            # human-readable report
+  py -3.10 -m scripts.run_windows --json     # machine-readable (the future post-RMA
+                                             # auto-runner consumes this; see
+                                             # fantasy_sim.run_windows's module docstring)
+
+Windows (America/Los_Angeles): run 1 before the week's earliest real kickoff (from
+nfl_schedule._meta.kickoffs, live-fetched from ESPN if a pre-migration sync has not stored
+them); run 2 Sunday before 10:00; run 3 Tuesday before the Wednesday 00:00 waiver clear.
+Coverage = a canonical weekly digest in data/decisions/week_NN/ stamped inside the window.
+"""
+import argparse
+import json
+import os
+import re
+from datetime import datetime, timezone
+
+from fantasy_sim.freshness import check as freshness_check
+from fantasy_sim.run_windows import PT, compute_windows
+from fantasy_sim.storage import NFL_SCHEDULE_FILE, decisions_week_path, load_json
+
+
+def _parse_utc(text):
+    return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+
+def _kickoffs():
+    """{week: [aware UTC]} from the synced schedule's _meta; live ESPN fallback (same
+    endpoint sync uses) when a pre-migration sync has not stored kickoffs yet."""
+    meta = {}
+    if os.path.exists(NFL_SCHEDULE_FILE):
+        meta = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("kickoffs") or {}
+    if meta:
+        return {int(w): [_parse_utc(t) for t in ts] for w, ts in meta.items() if ts}, "synced schedule"
+    import requests
+    out = {}
+    for wk in range(1, 19):
+        try:
+            r = requests.get("http://site.api.espn.com/apis/site/v2/sports/football/nfl/"
+                             f"scoreboard?week={wk}&seasontype=2", timeout=5)
+            dates = [e["date"] for e in (r.json().get("events") or []) if e.get("date")]
+            if dates:
+                out[wk] = [_parse_utc(t) for t in dates]
+        except Exception:
+            continue
+    return out, "live ESPN fetch (run a sync to persist kickoffs)"
+
+
+def _canonical_stamps(week):
+    """Canonical weekly digests on disk for the week -- _FAILED runs cover nothing."""
+    week_dir = os.path.dirname(decisions_week_path(week, "x", canonical=True))
+    stamps = []
+    if os.path.isdir(week_dir):
+        for name in sorted(os.listdir(week_dir)):
+            m = re.match(rf"weekly_report_week{week}_(\d{{8}}T\d{{6}}Z)\.md$", name)
+            if m:
+                stamps.append((name, datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ")
+                               .replace(tzinfo=timezone.utc)))
+    return stamps
+
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("--json", action="store_true")
+    args = ap.parse_args(argv)
+
+    now = datetime.now(timezone.utc)
+    kicks, kick_source = _kickoffs()
+    if not kicks:
+        raise SystemExit("no kickoff data: schedule meta empty and ESPN unreachable")
+
+    status, reasons, details = freshness_check()
+    state_week = details.get("nfl_week") or details.get("week")
+
+    target = compute_windows(now, kicks, [], state_week=state_week)["target_week"]
+    stamps = _canonical_stamps(target) if target else []
+    r = compute_windows(now, kicks, stamps, state_week=state_week)
+    r["freshness"] = {"status": status, "reasons": reasons}
+    r["kickoff_source"] = kick_source
+    r["now"] = now
+
+    if args.json:
+        def enc(o):
+            return o.isoformat() if isinstance(o, datetime) else o
+        print(json.dumps(r, default=enc, indent=1, sort_keys=True))
+        return r
+
+    pt_now = now.astimezone(PT)
+    print(f"\nCanonical run windows -- week {r['target_week']}  "
+          f"(now {pt_now.strftime('%a %Y-%m-%d %H:%M %Z')}; kickoffs from {kick_source})")
+    print(f"  freshness: {status}" + (f" -- {'; '.join(reasons)}" if reasons else ""))
+    for w in r["windows"]:
+        s_, d_ = w["start"].astimezone(PT), w["deadline"].astimezone(PT)
+        line = (f"  {w['status']:8s} {w['name']:18s} "
+                f"{s_.strftime('%a %m-%d %H:%M')} -> {d_.strftime('%a %m-%d %H:%M %Z')}")
+        if w["covered_by"]:
+            line += f"  [{w['covered_by']}]"
+        elif w["status"] == "OPEN":
+            remaining = w["deadline"] - now
+            hrs = remaining.total_seconds() / 3600
+            line += f"  ({hrs:.1f} h remaining)"
+        print(line)
+    if r["outside_windows"]:
+        print("  canonical runs outside every window (covered nothing): "
+              + ", ".join(r["outside_windows"]))
+    for f in r["flags"]:
+        print(f"  FLAG: {f}")
+    if any(w["status"] == "MISSED" for w in r["windows"]):
+        print("  >> a window was MISSED -- run `py -3.10 -m scripts.weekly_report --canonical` "
+              "at the next opportunity")
+    return r
+
+
+if __name__ == "__main__":
+    main()

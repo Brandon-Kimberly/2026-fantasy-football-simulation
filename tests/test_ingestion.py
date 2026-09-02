@@ -79,7 +79,7 @@ def _capture_saves():
 def _scoreboard_response(completed=True):
     m = MagicMock()
     m.status_code = 200
-    m.json.return_value = {"events": [{"competitions": [{
+    m.json.return_value = {"events": [{"date": "2026-09-10T00:20Z", "competitions": [{
         "competitors": [{"team": {"abbreviation": "DET"}, "score": "27"},
                         {"team": {"abbreviation": "CHI"}, "score": "20"}],
         "status": {"type": {"completed": completed}},
@@ -244,6 +244,17 @@ class TestNflScheduleFallbacks(unittest.TestCase):
         sched = saved[os.path.basename(NFL_SCHEDULE_FILE)]
         self.assertEqual(sched["1"]["DET"], "NO")   # from WEEK_1_VERIFIED_VEGAS
         self.assertEqual(sched["5"], {})
+
+    def test_meta_carries_each_weeks_kickoff_datetimes(self):
+        # run_windows computes canonical-run deadlines from real kickoff times; the fetch
+        # already has them, so _meta persists them (invisible to the engine, like the rest
+        # of _meta). Written before the kickoffs key existed.
+        saved, fake_save = _capture_saves()
+        with patch.object(sync, "save_json", side_effect=fake_save),              patch.object(sync.requests, "get", return_value=_scoreboard_response()):
+            sync.generate_nfl_schedule(1)
+        sched = saved[os.path.basename(NFL_SCHEDULE_FILE)]
+        self.assertEqual(sched["_meta"]["kickoffs"]["1"], ["2026-09-10T00:20Z"])
+        self.assertEqual(sched["_meta"]["kickoffs"]["18"], ["2026-09-10T00:20Z"])
 
     def test_a_single_failed_week_is_loud(self):
         """Regression guard for Phase 3 finding 2. Week 7 fails; every other week is fine.
