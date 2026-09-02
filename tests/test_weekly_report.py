@@ -553,25 +553,64 @@ class TestPredictionsCanonicality(unittest.TestCase):
         self.assertEqual(_digest_name(3, "20260907T120000Z", "md"),
                          "weekly_report_week3_20260907T120000Z.md", "no window: unchanged shape")
 
-    def test_superseded_same_window_canonical_sets_move_to_archive(self):
-        import os, tempfile
+    WINDOWS = None  # built in _windows()
+
+    @staticmethod
+    def _windows():
         from datetime import datetime, timezone
+        u = lambda s_: datetime.fromisoformat(s_).replace(tzinfo=timezone.utc)
+        return [
+            {"name": "run1_pre_kickoff", "start": u("2026-09-02T07:00:00"), "deadline": u("2026-09-10T00:20:00")},
+            {"name": "run2_sunday", "start": u("2026-09-13T07:00:00"), "deadline": u("2026-09-13T17:00:00")},
+            {"name": "run3_tuesday", "start": u("2026-09-15T07:00:00"), "deadline": u("2026-09-16T07:00:00")},
+        ]
+
+    def _run_supersede(self, files, current_window, keep_stamp):
+        import os, tempfile
         from fantasy_sim.weekly_report import _archive_superseded
         with tempfile.TemporaryDirectory() as d:
-            in_window = ("weekly_report_week1_run2_sunday_20260913T150000Z.md",
-                         "lineup_20260913T150000Z_week1.json")
-            keep = ("weekly_report_week1_run2_sunday_20260913T163000Z.md",)
-            outside = ("weekly_report_week1_20260909T000100Z.md",)
-            for n in in_window + keep + outside:
+            for n in files:
                 open(os.path.join(d, n), "w").close()
-            u = lambda s_: datetime.fromisoformat(s_).replace(tzinfo=timezone.utc)
-            moved = _archive_superseded(d, u("2026-09-13T07:00:00"), u("2026-09-13T17:00:00"),
-                                        keep_stamp="20260913T163000Z")
-            archived_ok = all(os.path.exists(os.path.join(d, "archive", n)) for n in in_window)
-            kept_ok = all(os.path.exists(os.path.join(d, n)) for n in keep + outside)
-        self.assertEqual(sorted(moved), sorted(in_window), "the whole superseded set moves")
-        self.assertTrue(archived_ok, "superseded files land in archive/, not deleted")
-        self.assertTrue(kept_ok, "the new run and other-window files stay put")
+            moved = _archive_superseded(d, self._windows(), current_window, keep_stamp)
+            remaining = sorted(n for n in os.listdir(d) if os.path.isfile(os.path.join(d, n)))
+            archived = sorted(os.listdir(os.path.join(d, "archive"))) if os.path.isdir(
+                os.path.join(d, "archive")) else []
+        return sorted(moved), remaining, archived
+
+    def test_a_run_set_spanning_a_second_boundary_is_never_split(self):
+        # The real 2026-09-02 bug: tool JSONs stamped 215239Z, digest 215240Z -- exact-stamp
+        # keep archived three of the new run's own files. Tolerance protects the whole set.
+        new_set = ["lineup_20260902T215239Z_week1.json", "matchup_20260902T215239Z_week1.json",
+                   "roster_grades_20260902T215239Z_week1.json",
+                   "trade_targets_20260902T215240Z_week1.json",
+                   "weekly_report_week1_run1_pre_kickoff_20260902T215240Z.md"]
+        old_in_window = ["weekly_report_week1_run1_pre_kickoff_20260902T120000Z.md",
+                         "lineup_20260902T115959Z_week1.json"]
+        moved, remaining, _arch = self._run_supersede(new_set + old_in_window,
+                                                      "run1_pre_kickoff", "20260902T215240Z")
+        self.assertEqual(moved, sorted(old_in_window), "only the OLD in-window set moves")
+        self.assertEqual(remaining, sorted(new_set), "the new run's whole set stays, both stamps")
+
+    def test_a_pre_window_stray_set_is_superseded_even_with_the_old_name_shape(self):
+        # The 02:47Z case: an old-shape digest (no window infix) whose stamps predate every
+        # window. It covers nothing, so a new canonical run archives it.
+        stray = ["weekly_report_week1_20260902T024723Z.md",
+                 "weekly_report_week1_20260902T024723Z_embed.html",
+                 "lineup_20260902T024722Z_week1.json"]
+        new_set = ["weekly_report_week1_run1_pre_kickoff_20260902T215240Z.md"]
+        moved, remaining, _arch = self._run_supersede(stray + new_set,
+                                                      "run1_pre_kickoff", "20260902T215240Z")
+        self.assertEqual(moved, sorted(stray))
+        self.assertEqual(remaining, new_set)
+
+    def test_another_windows_canonical_cover_is_never_touched(self):
+        run1_cover = ["weekly_report_week1_run1_pre_kickoff_20260909T230000Z.md",
+                      "lineup_20260909T225959Z_week1.json"]
+        new_run2 = ["weekly_report_week1_run2_sunday_20260913T163000Z.md"]
+        moved, remaining, _arch = self._run_supersede(run1_cover + new_run2,
+                                                      "run2_sunday", "20260913T163000Z")
+        self.assertEqual(moved, [], "run 1's canonical record survives run 2's supersede")
+        self.assertEqual(remaining, sorted(run1_cover + new_run2))
 
     def test_build_steps_stashes_the_canonical_flag_for_the_predictions_step(self):
         _steps, state = build_steps("Legion of Coom", skip_sync=True, canonical=True)

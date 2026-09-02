@@ -198,27 +198,43 @@ def read_predictions_log(season, path=None):
     return {wk: last_canon.get(wk, row) for wk, row in last_any.items()}
 
 
-def _archive_superseded(week_dir, window_start, window_end, keep_stamp):
-    """A second canonical run in the same window REPLACES the first, explicitly: every file
-    in week_dir whose stamp falls inside [window_start, window_end) -- except the new run's
-    own keep_stamp -- moves to week_dir/archive/ (never deleted; the no-pruning rule).
-    Called only AFTER the new digest wrote successfully, so an aborted run can never
-    archive the good set and leave a partial one. Returns the moved names."""
+def _archive_superseded(week_dir, windows, current_window, keep_stamp, tolerance_s=300):
+    """A new canonical run REPLACES what it supersedes, explicitly. Archived (moved to
+    week_dir/archive/, never deleted): files whose stamps fall inside the CURRENT window,
+    and stray canonical leftovers belonging to NO window at all (e.g. a pre-cycle set --
+    run_windows already reports those as covering nothing). Kept: the new run's own set --
+    a run's files span stamps (tool JSONs land seconds before the digest; the real
+    2026-09-02 run split at a one-second boundary under exact-stamp matching), so
+    everything within tolerance_s of keep_stamp is protected (runs are chain-length
+    minutes apart, so 300 s cannot bridge two runs) -- and any OTHER window's files: run
+    1's canonical record must survive run 2's supersede. Called only AFTER the new digest
+    wrote successfully. Returns the moved names."""
     import re
     import shutil
-    from datetime import datetime, timezone
+    from datetime import datetime, timedelta, timezone
     moved = []
     if not os.path.isdir(week_dir):
+        return moved
+    keep_dt = datetime.strptime(keep_stamp, "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+    cur = next((w for w in windows if w["name"] == current_window), None)
+    if cur is None:
         return moved
     for name in sorted(os.listdir(week_dir)):
         src = os.path.join(week_dir, name)
         if not os.path.isfile(src):
             continue
         m = re.search(r"(\d{8}T\d{6}Z)", name)
-        if not m or m.group(1) == keep_stamp:
+        if not m:
             continue
         dt = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
-        if window_start <= dt < window_end:
+        if abs(dt - keep_dt) <= timedelta(seconds=tolerance_s):
+            continue                                      # the new run's own set
+        in_current = cur["start"] <= dt < cur["deadline"]
+        in_other = any(w["start"] <= dt < w["deadline"] for w in windows
+                       if w["name"] != current_window)
+        if in_other:
+            continue                                      # another window's record stays
+        if in_current or dt < min(w["start"] for w in windows):
             os.makedirs(os.path.join(week_dir, "archive"), exist_ok=True)
             shutil.move(src, os.path.join(week_dir, "archive", name))
             moved.append(name)
@@ -845,9 +861,10 @@ def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, 
             from fantasy_sim.run_windows import compute_windows, load_kickoffs
             kicks, _src = load_kickoffs()
             now_utc = _dt.datetime.now(_dt.timezone.utc)
-            for w_ in compute_windows(now_utc, kicks, [])["windows"]:
+            all_windows = compute_windows(now_utc, kicks, [])["windows"]
+            for w_ in all_windows:
                 if w_["start"] <= now_utc < w_["deadline"]:
-                    window, win_interval = w_["name"], (w_["start"], w_["deadline"])
+                    window, win_interval = w_["name"], all_windows
                     break
             if window is None:
                 print("[NOTE] canonical run outside every window: plain naming, no supersede.")
@@ -860,7 +877,7 @@ def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, 
         html_path = write_digest(render_html(report, team, week, embed=embed,
                                              anchor_dir=os.path.dirname(html_out)), html_out)
     if window is not None and not failed:
-        moved = _archive_superseded(os.path.dirname(path), win_interval[0], win_interval[1], stamp)
+        moved = _archive_superseded(os.path.dirname(path), win_interval, window, stamp)
         if moved:
             print(f"[NOTE] superseded same-window canonical set -> archive/: {', '.join(moved)}")
     return report, md, path, html_path
