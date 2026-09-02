@@ -23,46 +23,20 @@ import re
 from datetime import datetime, timezone
 
 from fantasy_sim.freshness import check as freshness_check
-from fantasy_sim.run_windows import PT, compute_windows
+from fantasy_sim.run_windows import PT, compute_windows, load_kickoffs, parse_canonical_digest
 from fantasy_sim.storage import NFL_SCHEDULE_FILE, decisions_week_path, load_json
 
 
-def _parse_utc(text):
-    return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(timezone.utc)
-
-
-def _kickoffs():
-    """{week: [aware UTC]} from the synced schedule's _meta; live ESPN fallback (same
-    endpoint sync uses) when a pre-migration sync has not stored kickoffs yet."""
-    meta = {}
-    if os.path.exists(NFL_SCHEDULE_FILE):
-        meta = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("kickoffs") or {}
-    if meta:
-        return {int(w): [_parse_utc(t) for t in ts] for w, ts in meta.items() if ts}, "synced schedule"
-    import requests
-    out = {}
-    for wk in range(1, 19):
-        try:
-            r = requests.get("http://site.api.espn.com/apis/site/v2/sports/football/nfl/"
-                             f"scoreboard?week={wk}&seasontype=2", timeout=5)
-            dates = [e["date"] for e in (r.json().get("events") or []) if e.get("date")]
-            if dates:
-                out[wk] = [_parse_utc(t) for t in dates]
-        except Exception:
-            continue
-    return out, "live ESPN fetch (run a sync to persist kickoffs)"
-
-
 def _canonical_stamps(week):
-    """Canonical weekly digests on disk for the week -- _FAILED runs cover nothing."""
+    """Canonical weekly digests on disk for the week (both name shapes; _FAILED covers
+    nothing -- see run_windows.parse_canonical_digest)."""
     week_dir = os.path.dirname(decisions_week_path(week, "x", canonical=True))
     stamps = []
     if os.path.isdir(week_dir):
         for name in sorted(os.listdir(week_dir)):
-            m = re.match(rf"weekly_report_week{week}_(\d{{8}}T\d{{6}}Z)\.md$", name)
-            if m:
-                stamps.append((name, datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ")
-                               .replace(tzinfo=timezone.utc)))
+            dt = parse_canonical_digest(name, week)
+            if dt is not None:
+                stamps.append((name, dt))
     return stamps
 
 
@@ -72,7 +46,7 @@ def main(argv=None):
     args = ap.parse_args(argv)
 
     now = datetime.now(timezone.utc)
-    kicks, kick_source = _kickoffs()
+    kicks, kick_source = load_kickoffs()
     if not kicks:
         raise SystemExit("no kickoff data: schedule meta empty and ESPN unreachable")
 

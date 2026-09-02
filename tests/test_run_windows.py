@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fantasy_sim.run_windows import compute_windows
+from fantasy_sim.run_windows import compute_windows, parse_canonical_digest
 
 PT = ZoneInfo("America/Los_Angeles")
 UTC = timezone.utc
@@ -89,6 +89,21 @@ class TestComputeWindows(unittest.TestCase):
         w = self._by_name(r)
         self.assertEqual(w["run2_sunday"]["deadline"].astimezone(UTC),
                          u("2026-11-08T18:00:00"), "10:00 PST, not PDT")
+
+
+class TestParseCanonicalDigest(unittest.TestCase):
+    """Coverage detection must accept both digest name shapes -- plain stamps and the
+    window-infixed canonical names -- and never count a _FAILED digest. Written before
+    parse_canonical_digest existed."""
+
+    def test_both_name_shapes_parse_and_failures_and_wrong_weeks_do_not(self):
+        dt = parse_canonical_digest("weekly_report_week1_20260909T001000Z.md", 1)
+        self.assertEqual((dt.year, dt.hour, dt.minute), (2026, 0, 10))
+        dt = parse_canonical_digest("weekly_report_week1_run1_pre_kickoff_20260909T001000Z.md", 1)
+        self.assertIsNotNone(dt)
+        self.assertIsNone(parse_canonical_digest("weekly_report_week1_20260909T001000Z_FAILED.md", 1))
+        self.assertIsNone(parse_canonical_digest("weekly_report_week2_20260909T001000Z.md", 1))
+        self.assertIsNone(parse_canonical_digest("lineup_20260909T001000Z_week1.json", 1))
 
 
 if __name__ == "__main__":

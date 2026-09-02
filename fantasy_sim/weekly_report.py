@@ -55,7 +55,7 @@ def _git_head():
 
 
 def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=None,
-                           commit=None, backfilled=False, provenance=None):
+                           commit=None, backfilled=False, provenance=None, canonical=False):
     """The weekly prediction record (storage.predictions_log_file) F18's decision
     retrospective and F19's cross-week trajectory both read from: one JSON line per week
     carrying the season-outcome table (all teams' Playoff_Pct / Champ_Pct / Expected_Wins,
@@ -76,7 +76,7 @@ def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=N
     record = {
         "record_type": "week_predictions", "season": season, "week": week,
         "logged_at": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "commit": commit, "backfilled": bool(backfilled),
+        "commit": commit, "backfilled": bool(backfilled), "canonical": bool(canonical),
         "sync_started_at": manifest.get("started_at"), "sync_finished_at": manifest.get("finished_at"),
         "season_outcomes": season_outcomes,
         "matchups": [{"a": m.get("a"), "b": m.get("b"), "p_a": m.get("p_a"), "p_b": m.get("p_b"),
@@ -170,6 +170,59 @@ def _declog_cells(r):
     return (pl(r["adds"]), pl(r["drops"]),
             r["faab_bid"] if r["faab_bid"] is not None else "-",
             "yes" if r["is_mine"] else "", snap, ev)
+
+
+def read_predictions_log(season, path=None):
+    """THE consumer entry point for the predictions log (F18/F19): {week: selected row} for
+    `season`. Per week the LAST CANONICAL row wins; only a week with no canonical row falls
+    back to its last row of any kind. Rows predating the canonical field count as
+    non-canonical. The predictions log is the AUTHORITATIVE per-week forecast record;
+    data/weeks/ is a working directory overwritten by any run, canonical or not."""
+    import json as _json
+    if path is None:
+        path = predictions_log_file(season)
+    last_any, last_canon = {}, {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                r = _json.loads(line)
+                if str(r.get("season")) != str(season):
+                    continue
+                last_any[r.get("week")] = r
+                if r.get("canonical"):
+                    last_canon[r.get("week")] = r
+    except FileNotFoundError:
+        return {}
+    return {wk: last_canon.get(wk, row) for wk, row in last_any.items()}
+
+
+def _archive_superseded(week_dir, window_start, window_end, keep_stamp):
+    """A second canonical run in the same window REPLACES the first, explicitly: every file
+    in week_dir whose stamp falls inside [window_start, window_end) -- except the new run's
+    own keep_stamp -- moves to week_dir/archive/ (never deleted; the no-pruning rule).
+    Called only AFTER the new digest wrote successfully, so an aborted run can never
+    archive the good set and leave a partial one. Returns the moved names."""
+    import re
+    import shutil
+    from datetime import datetime, timezone
+    moved = []
+    if not os.path.isdir(week_dir):
+        return moved
+    for name in sorted(os.listdir(week_dir)):
+        src = os.path.join(week_dir, name)
+        if not os.path.isfile(src):
+            continue
+        m = re.search(r"(\d{8}T\d{6}Z)", name)
+        if not m or m.group(1) == keep_stamp:
+            continue
+        dt = datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+        if window_start <= dt < window_end:
+            os.makedirs(os.path.join(week_dir, "archive"), exist_ok=True)
+            shutil.move(src, os.path.join(week_dir, "archive", name))
+            moved.append(name)
+    return moved
 
 
 def run_steps(steps):
@@ -449,10 +502,11 @@ def _link(path, text, anchor=None):
     return f'<a href="{_rel(path, anchor)}">{escape(text)}</a>'
 
 
-def _digest_name(week, stamp, ext, failed=False, embed=False):
+def _digest_name(week, stamp, ext, failed=False, embed=False, window=None):
     """Digest file name: _FAILED marks an aborted chain; _embed marks the deliberately
     large self-contained HTML (charts inlined as data URIs) so it is visible at a glance."""
-    return (f"weekly_report_week{week}_{stamp}{'_FAILED' if failed else ''}"
+    win = f"{window}_" if window else ""
+    return (f"weekly_report_week{week}_{win}{stamp}{'_FAILED' if failed else ''}"
             f"{'_embed' if embed and ext == 'html' else ''}.{ext}")
 
 
@@ -674,6 +728,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
     from fantasy_sim.storage import load_json, syndicate_comprehensive_matrix_path, LEAGUE_STATE_FILE
     state = {"run_started": time.time(), "week": None}
     state["tool_extra_argv"] = ["--canonical"] if canonical else []
+    state["canonical"] = bool(canonical)
 
     def step_sync():
         from fantasy_sim.sync import sync_all
@@ -720,7 +775,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
 
     def step_predictions_log():
         n = append_predictions_log(state["week"], state["season_outcomes"], state["league_outlook"],
-                                   commit=_git_head())
+                                   commit=_git_head(), canonical=state["canonical"])
         return {"appended": n}
 
     def step_roster_grades():
@@ -779,10 +834,33 @@ def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, 
         out_path = lambda name: decisions_week_path(week, name, canonical=canonical)  # noqa: E731
     else:
         out_path = decisions_adhoc_path
-    path = write_digest(md, out_path(_digest_name(week, stamp, "md", failed=failed)))
+    # Canonical runs are named by the window they cover and REPLACE any earlier canonical
+    # run in the same window (superseded sets move to archive/; the owner's intent is a
+    # late-window snapshot, so latest-wins is explicit, not emergent). Window resolution
+    # failing for any reason -- no kickoff data, a run outside every window -- degrades to
+    # the plain stamped name with no supersede, never to a failed report.
+    window = win_interval = None
+    if canonical and isinstance(week, int):
+        try:
+            from fantasy_sim.run_windows import compute_windows, load_kickoffs
+            kicks, _src = load_kickoffs()
+            now_utc = _dt.datetime.now(_dt.timezone.utc)
+            for w_ in compute_windows(now_utc, kicks, [])["windows"]:
+                if w_["start"] <= now_utc < w_["deadline"]:
+                    window, win_interval = w_["name"], (w_["start"], w_["deadline"])
+                    break
+            if window is None:
+                print("[NOTE] canonical run outside every window: plain naming, no supersede.")
+        except Exception as ex:
+            print(f"[NOTE] window resolution unavailable ({ex}); plain naming, no supersede.")
+    path = write_digest(md, out_path(_digest_name(week, stamp, "md", failed=failed, window=window)))
     html_path = None
     if isinstance(week, int):
-        html_out = out_path(_digest_name(week, stamp, "html", failed=failed, embed=embed))
+        html_out = out_path(_digest_name(week, stamp, "html", failed=failed, embed=embed, window=window))
         html_path = write_digest(render_html(report, team, week, embed=embed,
                                              anchor_dir=os.path.dirname(html_out)), html_out)
+    if window is not None and not failed:
+        moved = _archive_superseded(os.path.dirname(path), win_interval[0], win_interval[1], stamp)
+        if moved:
+            print(f"[NOTE] superseded same-window canonical set -> archive/: {', '.join(moved)}")
     return report, md, path, html_path

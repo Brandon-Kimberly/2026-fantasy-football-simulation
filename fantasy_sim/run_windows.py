@@ -33,6 +33,53 @@ PT = ZoneInfo("America/Los_Angeles")
 RUN2_DEADLINE_LOCAL = time(10, 0)   # Sunday 10:00 PT -- the owner's rule, not a kickoff
 
 
+DIGEST_STAMP_RE = r"(\d{8}T\d{6}Z)"
+
+
+def parse_canonical_digest(name, week):
+    """The stamp of a canonical weekly digest .md for `week`, accepting both name shapes --
+    plain (weekly_report_week1_<stamp>.md) and window-infixed
+    (weekly_report_week1_run2_sunday_<stamp>.md). _FAILED digests and other files parse as
+    None: a failed run covers nothing."""
+    import re
+    from datetime import datetime, timezone
+    m = re.match(rf"weekly_report_week{week}_(?:[a-z0-9_]+_)?{DIGEST_STAMP_RE}\.md$", name)
+    if not m:
+        return None
+    return datetime.strptime(m.group(1), "%Y%m%dT%H%M%SZ").replace(tzinfo=timezone.utc)
+
+
+def load_kickoffs():
+    """{week: [aware UTC kickoffs]} from the synced schedule's _meta.kickoffs, with a live
+    ESPN fallback (the same endpoint sync uses) until a post-migration sync stores them.
+    Returns (kickoffs, source_description). Shared by scripts.run_windows and the
+    orchestrator's canonical-window naming."""
+    import os
+    from datetime import datetime, timezone
+    from fantasy_sim.storage import NFL_SCHEDULE_FILE, load_json
+
+    def parse(t):
+        return datetime.fromisoformat(t.replace("Z", "+00:00")).astimezone(timezone.utc)
+
+    meta = {}
+    if os.path.exists(NFL_SCHEDULE_FILE):
+        meta = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("kickoffs") or {}
+    if meta:
+        return {int(w): [parse(t) for t in ts] for w, ts in meta.items() if ts}, "synced schedule"
+    import requests
+    out = {}
+    for wk in range(1, 19):
+        try:
+            r = requests.get("http://site.api.espn.com/apis/site/v2/sports/football/nfl/"
+                             f"scoreboard?week={wk}&seasontype=2", timeout=5)
+            dates = [e["date"] for e in (r.json().get("events") or []) if e.get("date")]
+            if dates:
+                out[wk] = [parse(t) for t in dates]
+        except Exception:
+            continue
+    return out, "live ESPN fetch (run a sync to persist kickoffs)"
+
+
 def _pt(dt):
     return dt.astimezone(PT)
 

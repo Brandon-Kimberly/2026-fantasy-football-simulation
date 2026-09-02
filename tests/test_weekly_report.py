@@ -503,5 +503,82 @@ class TestDecisionLogSection(unittest.TestCase):
         self.assertIn('data-key="in"', html, "sortable")
 
 
+class TestPredictionsCanonicality(unittest.TestCase):
+    """The predictions log records whether its run was canonical, and the consumer entry
+    point (read_predictions_log -- what F18/F19 read) prefers the LAST CANONICAL row per
+    week over append order; only a week with no canonical row falls back to its last row.
+    Rows predating the field count as non-canonical. Written before either existed."""
+
+    OUTCOMES = [{"Team": "Legion of Coom", "Playoff_Pct": 61.5, "Champ_Pct": 20.2, "Expected_Wins": 15.9}]
+    OUTLOOK = {"n": 100, "cross": True, "matchups": [], "teams": {}}
+    MANIFEST = {"season": "2026", "started_at": "s", "finished_at": "f"}
+
+    def _append(self, path, commit, canonical=False):
+        from fantasy_sim.weekly_report import append_predictions_log
+        append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
+                               manifest=self.MANIFEST, commit=commit, canonical=canonical)
+
+    def test_the_record_carries_the_canonical_flag(self):
+        import json, os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "predictions_2026.jsonl")
+            self._append(path, "a")                       # default: exploratory
+            self._append(path, "b", canonical=True)
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertFalse(rows[0]["canonical"])
+        self.assertTrue(rows[1]["canonical"])
+
+    def test_the_reader_prefers_the_last_canonical_row_per_week(self):
+        import json, os, tempfile
+        from fantasy_sim.weekly_report import read_predictions_log
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "predictions_2026.jsonl")
+            self._append(path, "early-noncanon")
+            self._append(path, "the-canonical", canonical=True)
+            self._append(path, "later-noncanon")           # append order would pick this
+            # a legacy row with NO canonical field, for week 2
+            legacy = {"record_type": "week_predictions", "season": "2026", "week": 2,
+                      "commit": "legacy", "season_outcomes": [], "matchups": [], "median": {}}
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(legacy) + chr(10))
+            sel = read_predictions_log("2026", path=path)
+        self.assertEqual(sel[1]["commit"], "the-canonical",
+                         "last CANONICAL wins over the later non-canonical append")
+        self.assertEqual(sel[2]["commit"], "legacy", "no canonical row: last row stands in")
+
+    def test_digest_names_carry_the_window_id_when_given(self):
+        from fantasy_sim.weekly_report import _digest_name
+        self.assertEqual(_digest_name(3, "20260907T120000Z", "html", window="run1_pre_kickoff"),
+                         "weekly_report_week3_run1_pre_kickoff_20260907T120000Z.html")
+        self.assertEqual(_digest_name(3, "20260907T120000Z", "md"),
+                         "weekly_report_week3_20260907T120000Z.md", "no window: unchanged shape")
+
+    def test_superseded_same_window_canonical_sets_move_to_archive(self):
+        import os, tempfile
+        from datetime import datetime, timezone
+        from fantasy_sim.weekly_report import _archive_superseded
+        with tempfile.TemporaryDirectory() as d:
+            in_window = ("weekly_report_week1_run2_sunday_20260913T150000Z.md",
+                         "lineup_20260913T150000Z_week1.json")
+            keep = ("weekly_report_week1_run2_sunday_20260913T163000Z.md",)
+            outside = ("weekly_report_week1_20260909T000100Z.md",)
+            for n in in_window + keep + outside:
+                open(os.path.join(d, n), "w").close()
+            u = lambda s_: datetime.fromisoformat(s_).replace(tzinfo=timezone.utc)
+            moved = _archive_superseded(d, u("2026-09-13T07:00:00"), u("2026-09-13T17:00:00"),
+                                        keep_stamp="20260913T163000Z")
+            archived_ok = all(os.path.exists(os.path.join(d, "archive", n)) for n in in_window)
+            kept_ok = all(os.path.exists(os.path.join(d, n)) for n in keep + outside)
+        self.assertEqual(sorted(moved), sorted(in_window), "the whole superseded set moves")
+        self.assertTrue(archived_ok, "superseded files land in archive/, not deleted")
+        self.assertTrue(kept_ok, "the new run and other-window files stay put")
+
+    def test_build_steps_stashes_the_canonical_flag_for_the_predictions_step(self):
+        _steps, state = build_steps("Legion of Coom", skip_sync=True, canonical=True)
+        self.assertTrue(state["canonical"])
+        _steps, state = build_steps("Legion of Coom", skip_sync=True)
+        self.assertFalse(state["canonical"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -2344,6 +2344,12 @@ already accumulating; nothing else blocks it.
 
 ### F19 — Cross-week odds trajectory: Playoff%/Champ%/expected wins across data/weeks/ (scoped, not built)
 
+**Authority note (2026-09-02):** the predictions log (`data/logs/predictions_{season}.jsonl`,
+read via `weekly_report.read_predictions_log` -- last CANONICAL row per week wins, append
+order only as fallback) is the AUTHORITATIVE per-week forecast record. `data/weeks/` is a
+WORKING DIRECTORY, overwritten by any run, canonical or not -- use it for charts and rich
+artifacts, never as the record of what the model forecast.
+
 **Origin:** the deferred half of the original trajectory item (the visualization session's
 "playoff-odds-over-time", explicitly left unbuilt because only one week of real forecast
 history existed), now structurally unblocked: F9 retains every week's exports under
