@@ -2472,3 +2472,40 @@ completed seasons, from real weekly scores; the in-code comment now references i
 open for the LIVE mid-season path: the engine's simulated-season luck index retains its
 span mismatch -- closing it in-engine would mean feeding banked weeks' real all-play into
 the live run, a separate change.
+
+### F22 — IDP constant sensitivity: VOLATILITY_CONSTANTS / EPISTEMIC_ERROR_RATES / INJURY_RATES were never checked for whether they move outputs
+
+**Origin:** 2026-09-02. Unlike MANAGER_PROFILES (F14: measured, outcome-inert, closed), the
+IDP entries in these three families were never sensitivity-checked -- and they were never
+derivable from 2025, which had no IDP players.
+
+**Standing concern, independent of the sensitivity results (survey finding, 2026-09-02):**
+`VOLATILITY_CONSTANTS` DL/LB/DB = 1.5/1.5/1.5 is **byte-identical to the unknown-position
+fallback** (`.get(slot, 1.5)`), and `EPISTEMIC_ERROR_RATES` at a uniform 0.15 for all three
+IDP positions -- against an offensive mean of 0.476 -- **implies Sleeper's IDP projections
+are 3x more trustworthy than its RB projections**. Nobody derived either claim, and the
+second is likely BACKWARDS on domain grounds: IDP projections are generally considered less
+reliable than offensive ones. This stands whatever the Champ% deltas say.
+
+**Analytic pre-result:** the VORP ordering of IDP waiver targets is invariant by
+construction -- none of the three families touches a mean, and rank_waiver_targets ranks by
+VORP = mean - replacement. The waiver channel that CAN move is p_beats_incumbent and the
+suggested bid (both consume week-distribution stds); measured instead.
+
+**Design (F14's paired method, F20's machinery):** 9 variants + shared base at the
+deterministic 10 x 300 paired configuration, serialized per the R1 rule. Per family
+(volatility k, epistemic rate, injury rate), three arms applied to DL/LB/DB only:
+offensive-position mean (k 1.80; rate 0.476; injury 0.060), +50%, -50%. Volatility and
+epistemic are BAKED INTO BASELINES AT SYNC (std_aleatoric = k*sqrt(mean), std_epistemic =
+max(rate*mean, disagreement/2)); IDP is excluded from the ESPN blend so its stored
+std_epistemic is exactly rate*mean and the in-memory transform std' = std * (rate'/rate) is
+exact. INJURY_RATES is read live and flips via SIM_CONFIG. Measured per arm: per-team
+Champ%/Playoff%/ExpW paired deltas vs the paired SE; DL/LB/DB tier-boundary movement
+(compute_tiers, deterministic); p_beats_incumbent deltas for the top IDP waiver targets.
+
+**Acceptance:** material movement -> these constants need real derivation before IDP
+recommendations are trusted, and the honest interim is WIDENING stated IDP uncertainty, not
+re-pointing estimates. Immaterial -> record and close F14-style. The standing-concern note
+above stays either way.
+
+**When:** no precondition -- measurable now.
