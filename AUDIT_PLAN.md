@@ -1751,6 +1751,23 @@ believe any conclusion in this document is compromised by it -- but that is an i
 what the files are used for, not a verification that it never mattered, and is recorded here
 exactly that plainly rather than rounded up to "no impact."
 
+**Regression guard for this class (2026-09-02, `tests/test_zz_log_integrity.py`).** At
+unittest discovery (all test modules import before any test runs) the guard snapshots
+size, mtime_ns and sha256 of every file under `data/logs/` -- the one dataset that cannot
+be refetched -- and a test in the alphabetically-last module compares at the end of the
+suite, naming any changed/created/deleted file and citing this entry. A same-content
+rewrite is flagged via mtime (an unmocked write path is this class even when the bytes
+survive). The detection mechanism is itself tested on temp dirs (truncation, same-size
+rewrite, identical rewrite, create/delete), and the wiring was demonstrated end to end: a
+throwaway F11-style test writing one unmocked file under data/logs/ failed the guard with
+the file named. Scope: full-suite runs, the exact F11 vector; single-module runs do not
+import the guard. Also verified while building it: the golden master's verify AND
+`--regenerate` paths both run inside `_sandbox` (load_json -> fixtures, save_json -> an
+in-memory dict, save_chart patched), so regeneration writes only to
+`tests/fixtures/golden/expected/` and cannot touch `data/` through those channels; the
+guard exists precisely for the bypass this class used -- a write that goes around
+save_json.
+
 ### F12 — `SystemError: error return without exception set` inside `_solve_optimal_assignment`, seen once during Pass-2 fix verification (OPEN, does not reproduce under single-process conditions)
 
 **What happened.** While regenerating `Expected_Wins.png` to visually confirm the violin
