@@ -173,6 +173,15 @@ def season_log_file(season):
     return _log(f"season_{season}.json")
 
 
+# The weekly prediction record F18/F19 read from (weekly_report.append_predictions_log):
+# one JSON line per week -- the season-outcome table, the week's matchup win probabilities
+# and P(>= median), commit hash and sync-manifest timestamps. Tracked in git, unlike
+# data/weeks/, so the pre-season baseline survives a machine loss. Append-only; a re-run
+# within a week appends again and consumers keep the last row per (season, week).
+def predictions_log_file(season):
+    return _log(f"predictions_{season}.jsonl")
+
+
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 

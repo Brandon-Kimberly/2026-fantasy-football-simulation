@@ -246,9 +246,92 @@ class TestChain(unittest.TestCase):
         steps, _ = build_steps("Legion of Coom")
         self.assertEqual([n for n, _ in steps],
                          ["sync", "simulation", "positional_tiers", "strength_of_schedule", "win_trajectory",
-                          "league", "roster_grades", "lineup", "matchup", "waivers"])
+                          "league", "predictions_log", "roster_grades", "lineup", "matchup", "waivers"])
         steps, _ = build_steps("Legion of Coom", full=True, skip_sync=True)
         self.assertEqual(steps[0][0], "freshness"); self.assertEqual(steps[-1][0], "trades")
+
+
+class TestPredictionsLog(unittest.TestCase):
+    """The tracked prediction record F18 and F19 need (data/logs/predictions_{season}.jsonl):
+    one line per week with the season-outcome table, the week's matchup win probabilities and
+    P(>= median), the commit hash and the sync-manifest timestamps. Unlike data/weeks/ it is
+    git-tracked, so it survives a machine loss. Written before append_predictions_log existed."""
+
+    OUTCOMES = [{"Team": "Legion of Coom", "Expected_Wins": 15.93, "Expected_Points": 2457.9,
+                 "Playoff_Pct": 61.5, "Playoff_SE": 0.49, "Champ_Pct": 20.2, "Toilet_Pct": 7.5},
+                {"Team": "Clankers", "Expected_Wins": 14.1, "Expected_Points": 2400.0,
+                 "Playoff_Pct": 55.0, "Playoff_SE": 0.5, "Champ_Pct": 15.0, "Toilet_Pct": 9.0}]
+    OUTLOOK = {"week": 1, "n": 5000, "cross": True,
+               "matchups": [{"a": "Legion of Coom", "b": "Clankers", "p_a": 0.654, "p_b": 0.346,
+                             "p_tie": 0.0, "se": 0.007, "a_expected": 174.0, "b_expected": 153.6,
+                             "margin_sd": 50.8}],
+               "teams": {"Legion of Coom": {"opponent": "Clankers", "p_beat_median": 0.61,
+                                            "expected_total": 174.0, "sd_total": 36.0},
+                         "Clankers": {"opponent": "Legion of Coom", "p_beat_median": 0.44,
+                                      "expected_total": 153.6, "sd_total": 34.0}}}
+    MANIFEST = {"season": "2026", "started_at": "2026-09-01T19:44:32Z",
+                "finished_at": "2026-09-01T19:44:39Z"}
+
+    def test_one_line_per_append_with_the_fields_f18_and_f19_need(self):
+        import json, os, tempfile
+        from fantasy_sim.weekly_report import append_predictions_log
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "predictions_2026.jsonl")
+            n = append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
+                                       manifest=self.MANIFEST, commit="abc123")
+            self.assertEqual(n, 1)
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        r = rows[0]
+        self.assertEqual(r["record_type"], "week_predictions")
+        self.assertEqual((r["season"], r["week"]), ("2026", 1))
+        self.assertEqual(r["commit"], "abc123")
+        self.assertEqual(r["sync_started_at"], "2026-09-01T19:44:32Z")
+        self.assertFalse(r["backfilled"])
+        teams = {o["Team"]: o for o in r["season_outcomes"]}
+        self.assertAlmostEqual(teams["Legion of Coom"]["Champ_Pct"], 20.2)
+        self.assertAlmostEqual(teams["Legion of Coom"]["Playoff_Pct"], 61.5)
+        self.assertAlmostEqual(teams["Legion of Coom"]["Expected_Wins"], 15.93)
+        m = r["matchups"][0]
+        self.assertEqual((m["a"], m["b"]), ("Legion of Coom", "Clankers"))
+        self.assertAlmostEqual(m["p_a"], 0.654)
+        self.assertAlmostEqual(r["median"]["Clankers"]["p_beat_median"], 0.44)
+        self.assertEqual(r["outlook_sims"], 5000)
+
+    def test_append_only_a_rerun_appends_again(self):
+        import json, os, tempfile
+        from fantasy_sim.weekly_report import append_predictions_log
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "predictions_2026.jsonl")
+            append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
+                                   manifest=self.MANIFEST, commit="abc123")
+            append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
+                                   manifest=self.MANIFEST, commit="def456")
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertEqual(len(rows), 2, "append-only; consumers keep the last row per (season, week)")
+        self.assertEqual([r["commit"] for r in rows], ["abc123", "def456"])
+
+    def test_a_write_failure_raises_instead_of_warning(self):
+        # Divergence from append_projection_log's warn-never-raise, on purpose: this runs as
+        # an orchestrator STEP, and the orchestrator's contract is fail-loud. A silent miss
+        # here would be a hole in the F18/F19 record nobody notices until January.
+        import os, tempfile
+        from fantasy_sim.weekly_report import append_predictions_log
+        with tempfile.TemporaryDirectory() as d:
+            bad = os.path.join(d, "not_a_dir_file")
+            open(bad, "w").close()
+            with self.assertRaises(OSError):
+                append_predictions_log(1, self.OUTCOMES, self.OUTLOOK,
+                                       path=os.path.join(bad, "x.jsonl"),
+                                       manifest=self.MANIFEST, commit=None)
+
+    def test_the_orchestrator_plans_the_step_after_league(self):
+        from fantasy_sim.weekly_report import build_steps
+        steps, _state = build_steps("Legion of Coom", skip_sync=True)
+        names = [n for n, _ in steps]
+        self.assertIn("predictions_log", names)
+        self.assertGreater(names.index("predictions_log"), names.index("league"),
+                           "the step needs the league outlook, so it runs after it")
+        self.assertGreater(names.index("predictions_log"), names.index("simulation"))
 
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from html import escape
 from fantasy_sim.freshness import read_manifest, read_export_mtime   # module attrs: patchable in tests
 from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS       # the sortable-table pattern, reused as-is
 from fantasy_sim.storage import (
+    SYNC_MANIFEST_FILE, load_json, predictions_log_file,
     ensure_dir_for, decisions_path, season_outcomes_chart_path, all_teams_trajectories_chart_path,
     win_trajectory_chart_path, expected_wins_chart_path, power_rankings_chart_path, h2h_heatmap_chart_path,
     seeding_distribution_path, weekly_scoring_density_path, boom_bust_chart_path, floor_ceiling_chart_path,
@@ -43,6 +44,57 @@ def _now_iso():
 
 
 # ---------------------------------------------------------------------------- runner
+def _git_head():
+    """The current commit hash, or None outside a working git checkout."""
+    import subprocess
+    try:
+        return subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True,
+                              timeout=10, check=True).stdout.strip() or None
+    except Exception:
+        return None
+
+
+def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=None,
+                           commit=None, backfilled=False, provenance=None):
+    """The weekly prediction record (storage.predictions_log_file) F18's decision
+    retrospective and F19's cross-week trajectory both read from: one JSON line per week
+    carrying the season-outcome table (all teams' Playoff_Pct / Champ_Pct / Expected_Wins,
+    plus the SE and points columns the table already has), this week's matchup win
+    probabilities and each team's P(>= median), the commit hash, and the sync manifest's
+    timestamps. Tracked in git, unlike data/weeks/ -- the point is surviving a machine loss.
+
+    Append-only: a re-run within a week appends again; consumers keep the last row per
+    (season, week), the projection log's convention. DIVERGENCE from append_projection_log's
+    warn-never-raise, on purpose: this runs as an orchestrator STEP and the orchestrator's
+    contract is fail-loud -- a silent miss would be a hole in the F18/F19 record nobody
+    notices until January. Returns rows appended (always 1)."""
+    if manifest is None:
+        manifest = load_json(SYNC_MANIFEST_FILE)
+    season = str(manifest.get("season") or "")
+    if path is None:
+        path = predictions_log_file(season)
+    record = {
+        "record_type": "week_predictions", "season": season, "week": week,
+        "logged_at": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "commit": commit, "backfilled": bool(backfilled),
+        "sync_started_at": manifest.get("started_at"), "sync_finished_at": manifest.get("finished_at"),
+        "season_outcomes": season_outcomes,
+        "matchups": [{"a": m.get("a"), "b": m.get("b"), "p_a": m.get("p_a"), "p_b": m.get("p_b"),
+                      "se": m.get("se")} for m in (outlook.get("matchups") or [])],
+        "median": {t: {"opponent": d.get("opponent"), "p_beat_median": d.get("p_beat_median"),
+                       "expected_total": d.get("expected_total"), "sd_total": d.get("sd_total")}
+                   for t, d in (outlook.get("teams") or {}).items()},
+        "outlook_sims": outlook.get("n"), "outlook_cross": outlook.get("cross"),
+    }
+    if provenance is not None:
+        record["provenance"] = provenance
+    import json as _json
+    ensure_dir_for(path)
+    with open(path, "a", encoding="utf-8") as handle:
+        handle.write(_json.dumps(record, sort_keys=True) + "\n")
+    return 1
+
+
 def run_steps(steps):
     """steps: [(name, callable)]. Runs in order; stops at the first exception."""
     report = {"status": "OK", "failed_step": None, "error": None, "traceback": None, "results": {},
@@ -513,6 +565,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
         run_simulation()
         gate_export_fresh(state["week"], started)
         rows = load_json(syndicate_comprehensive_matrix_path(state["week"])).get("season_outcomes", [])
+        state["season_outcomes"] = rows
         return {"season_outcomes": rows}
 
     def step_positional_tiers():
@@ -530,7 +583,14 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
     def step_league():
         from fantasy_sim.decisions import league_week_outlook
         from fantasy_sim.simulation import FantasySimulationEngine
-        return league_week_outlook(FantasySimulationEngine(), state["week"], sims=sims)
+        r = league_week_outlook(FantasySimulationEngine(), state["week"], sims=sims)
+        state["league_outlook"] = r
+        return r
+
+    def step_predictions_log():
+        n = append_predictions_log(state["week"], state["season_outcomes"], state["league_outlook"],
+                                   commit=_git_head())
+        return {"appended": n}
 
     def step_roster_grades():
         from scripts.roster_grades import main as m
@@ -555,7 +615,8 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
     steps = [("freshness", step_freshness)] if skip_sync else [("sync", step_sync)]
     steps += [("simulation", step_simulation), ("positional_tiers", step_positional_tiers),
               ("strength_of_schedule", step_strength_of_schedule), ("win_trajectory", step_win_trajectory),
-              ("league", step_league), ("roster_grades", step_roster_grades), ("lineup", step_lineup),
+              ("league", step_league), ("predictions_log", step_predictions_log),
+              ("roster_grades", step_roster_grades), ("lineup", step_lineup),
               ("matchup", step_matchup), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))
