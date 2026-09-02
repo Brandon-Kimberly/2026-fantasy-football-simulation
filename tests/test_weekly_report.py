@@ -388,5 +388,47 @@ class TestDecisionsLayout(unittest.TestCase):
         self.assertEqual(state["tool_extra_argv"], [])
 
 
+class TestTradeAndMatchupRendering(unittest.TestCase):
+    """Rendering fixes from real-report inspection (2026-09-02): an empty buy side must say
+    so instead of emitting a header row over an empty tbody; the sell side is a sortable
+    table like every other section; and the Matchup section's P(beat opp) is an independent
+    sample from the League table's matchup row -- the report says so explicitly instead of
+    letting a 0.3-point disagreement look like a bug. Written before the fixes existed."""
+
+    def _report(self, buy, sell):
+        results = _fixture_results()
+        results["trades"] = {"buy": buy, "sell": sell, "contention_note": "n"}
+        return {"status": "OK", "failed_step": None, "error": None, "results": results,
+                "started_at": "x", "finished_at": "y"}
+
+    def test_an_empty_buy_side_prints_a_message_not_an_empty_table(self):
+        report = self._report([], [])
+        md = render_digest(report, team="Legion of Coom", week=3)
+        html = render_html(report, team="Legion of Coom", week=3)
+        for out in (md, html):
+            self.assertIn("no buy-side candidates met both sides' acceptance rule", out)
+        self.assertNotIn('data-key="from"', html, "no header row over an empty tbody")
+
+    def test_the_sell_side_is_a_table_with_the_buy_tables_column_family(self):
+        sell = [{"buyer": "Drunk Cats", "they_want": ["Fred Warner"],
+                 "they_give": ["Bijan Robinson"], "my_gain": 3.2, "their_gain": 1.1}]
+        report = self._report([], sell)
+        md = render_digest(report, team="Legion of Coom", week=3)
+        html = render_html(report, team="Legion of Coom", week=3)
+        self.assertNotIn("Sell side: Drunk Cats wants", md, "prose paragraph replaced")
+        self.assertIn("| Drunk Cats | Fred Warner | Fred Warner | Bijan Robinson | +3.2 | +1.1 |", md)
+        for col in ("from", "target", "I give", "I get", "my +", "their +"):
+            self.assertIn(f'data-key="{col}"', html)
+        self.assertIn("Drunk Cats", html)
+
+    def test_the_matchup_section_notes_its_sample_is_independent_of_the_league_table(self):
+        report = self._report([], [])
+        md = render_digest(report, team="Legion of Coom", week=3)
+        html = render_html(report, team="Legion of Coom", week=3)
+        for out in (md, html):
+            self.assertIn("independent", out)
+            self.assertIn("sampling noise", out)
+
+
 if __name__ == "__main__":
     unittest.main()

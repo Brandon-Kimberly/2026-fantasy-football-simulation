@@ -227,6 +227,9 @@ def render_digest(report, team, week):
                       [[k, f"{c[k]['mean']:.1f}", f"{c[k]['sd']:.1f}", f"{100 * c[k]['p_beat_opponent']:.1f}%", f"{100 * c[k]['se']:.1f}",
                         f"{100 * c[k]['p_beat_median']:.1f}%", f"{c[k]['margin_mean']:+.1f}", f"{c[k]['margin_sd']:.1f}"]
                        for k in mu["ranking_by_p_beat_opponent"]]), ""]
+        md += ["_P(beat opp) is computed on this section's own joint sample, independent of the League "
+               "table's matchup row; the two estimates differ by sampling noise (SE ~ +-0.7 points), "
+               "not signal._", ""]
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
         if len(lineups) == 1:
             md += ["All four constructions pick the same lineup: **no variance lever on this roster this week** "
@@ -253,15 +256,21 @@ def render_digest(report, team, week):
     tr = res.get("trades")
     if tr:
         md += [f"## Trade targets ({tr.get('contention_note', '')})", ""]
-        md += [_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
+        if not tr.get("buy"):
+            md += ["No trades to propose: no buy-side candidates met both sides' acceptance rule this week.", ""]
+        else:
+            md += [_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
                       [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
                         ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
                         (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
-                        ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
-                       for b in tr.get("buy", [])]), ""]
+                            ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
+                           for b in tr.get("buy", [])]), ""]
         if tr.get("sell"):
-            md += ["Sell side: " + "; ".join(f"{s['buyer']} wants {', '.join(s['they_want'])} for {', '.join(s['they_give'])} "
-                                              f"({s['my_gain']:+.1f} / {s['their_gain']:+.1f})" for s in tr["sell"][:5]), ""]
+            md += ["Sell side:", ""]
+            md += [_table(["from", "target", "I give", "I get", "my +", "their +"],
+                          [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
+                            ", ".join(x["they_want"]), ", ".join(x["they_give"]),
+                            f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]), ""]
 
     hk = report.get("housekeeping") or {}
     if hk.get("unevaluated_trades"):
@@ -491,6 +500,9 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                               [[k, f"{c[k]['mean']:.1f}", f"{c[k]['sd']:.1f}", f"{100 * c[k]['p_beat_opponent']:.1f}%", f"{100 * c[k]['se']:.1f}",
                                 f"{100 * c[k]['p_beat_median']:.1f}%", f"{c[k]['margin_mean']:+.1f}", f"{c[k]['margin_sd']:.1f}"]
                                for k in mu["ranking_by_p_beat_opponent"]]))
+        out.append("<p class=\"note\">P(beat opp) is computed on this section's own joint sample, "
+                   "independent of the League table's matchup row; the two estimates differ by "
+                   "sampling noise (SE ~ +-0.7 points), not signal.</p>")
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
         if len(lineups) == 1:
             out.append("<p><b>All four constructions pick the same lineup: no variance lever on this roster this week</b> "
@@ -530,16 +542,22 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     tr = res.get("trades")
     if tr:
         out.append(f'<h2 id="trades">Trade targets <span class="note">({T(tr.get("contention_note", ""))})</span></h2>')
-        out.append(html_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
+        if not tr.get("buy"):
+            out.append("<p class=\"note\">No trades to propose: no buy-side candidates met both "
+                       "sides' acceptance rule this week.</p>")
+        else:
+            out.append(html_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
                               [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
                                 ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
                                 (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
-                                ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
-                               for b in tr.get("buy", [])]))
+                                    ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
+                                   for b in tr.get("buy", [])]))
         if tr.get("sell"):
-            sells = "; ".join(f"{s_['buyer']} wants {', '.join(s_['they_want'])} for {', '.join(s_['they_give'])} "
-                              f"({s_['my_gain']:+.1f} / {s_['their_gain']:+.1f})" for s_ in tr["sell"][:5])
-            out.append(f"<p>Sell side: {T(sells)}</p>")
+            out.append("<h3>Sell side</h3>")
+            out.append(html_table(["from", "target", "I give", "I get", "my +", "their +"],
+                                  [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
+                                    ", ".join(x["they_want"]), ", ".join(x["they_give"]),
+                                    f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]))
 
     hk = report.get("housekeeping") or {}
     if hk.get("unevaluated_trades"):
