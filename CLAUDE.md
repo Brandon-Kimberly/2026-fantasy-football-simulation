@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 474 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 476 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
@@ -87,9 +87,12 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   drives epistemic uncertainty.
 - `VACATED_VOLUME_CAPTURE_RATE = 0.65` is explicitly **not** rigorously derived. It is carried
   over and documented as such. Do not silently re-tune it; if you have a real source, say so.
-- Mean-weighted vacated-volume apportionment is **known to be backwards in the handcuff case**
-  (a true backup carries a low projection precisely because he sits behind the starter). The
-  correct fix is ingesting Sleeper's `depth_chart_order`, not adjusting the weights by feel.
+- Mean-weighted vacated-volume apportionment was long suspected backwards in the handcuff
+  case, and F24 (2026-09-03) **measured it as correct**: on 8 real 2025 lead-RB absences,
+  mean-weighting ties depth weighting and matches observed inheritance concentration, and in
+  the one live chart-vs-mean disagreement the CHART was wrong (Commissioner Exempt listing).
+  Do not switch to `depth_chart_order` weighting; the sync depth watchdog surfaces live
+  disagreements for human judgment.
 - `INJURY_RATES` for TE/QB/DL/LB/DB are less rigorously sourced than RB/WR. This is documented
   in `config.py`. Improving them requires real position-specific data, not interpolation.
 - `MANAGER_PROFILES` are deliberately excluded from data-driven calibration — per-manager sample

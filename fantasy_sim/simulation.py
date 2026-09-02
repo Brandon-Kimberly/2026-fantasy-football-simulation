@@ -342,12 +342,17 @@ class FantasySimulationEngine:
         is the substantive part of what "extend redistribution into the real NFL depth chart" was
         reaching for, achieved with data already on hand.
 
-        KNOWN LIMITATION: mean-weighting is a proxy for depth-chart order, and it is imperfect in
-        exactly the handcuff case -- a true backup RB carries a LOW projection precisely because
-        he sits behind the starter, yet he is the man who most inherits that starter's role. Real
-        depth-chart ordering (Sleeper exposes depth_chart_order on its player objects) would model
-        this properly and is the natural next improvement. Mean-weighting is still a strict
-        improvement over awarding every claimant 100%.
+        MEASURED, NOT BACKWARDS (F24, 2026-09-03; previously carried here as a known
+        limitation): on 8 real 2025 lead-RB absence events (full-NFL weekly stats),
+        mean-analog weighting TIES depth-signal weighting (MAE 0.187 vs 0.188) and
+        proportional weighting's predicted top-backup share matches observed inheritance
+        (0.76 predicted vs 0.74 actual on the 6 stable-depth events). The residual failure
+        mode is means misordering a backfield's depth -- measured live at 0-1 of 27 teams,
+        and in the one disagreement the CHART was the wrong signal (a Commissioner Exempt
+        listing), so switching to chart-ordering would have degraded that team.
+        sync.warn_depth_mean_disagreements surfaces any live disagreement for human
+        judgment instead. Two of the 8 events were mid-season role changes no static
+        weighting captures; n = 8 is stated, not hidden.
 
         Extracted as a method rather than left inline specifically so tests can exercise this
         real production code path directly, instead of re-implementing a mirror of it.

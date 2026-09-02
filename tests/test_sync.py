@@ -603,6 +603,50 @@ class TestMissingProjectionIsAnAbsence(unittest.TestCase):
         self.assertIn("NOT in baselines", log)
 
 
+class TestDepthMeanWatchdog(unittest.TestCase):
+    """F24's watchdog: the 2025 study cleared mean-weighted vacated-volume apportionment
+    (it ties depth weighting and matches observed inheritance concentration), leaving one
+    rare failure mode -- baseline means misordering a backfield's true depth. Rather than
+    switching to the chart (which was WRONG in the one live disagreement: Josh Jacobs on
+    the Commissioner Exempt list, charted depth 4 while being GB's lead), sync WARNS when
+    the two signals disagree about a team's top backup RB, surfacing the case for human
+    judgment. Warn-never-raise; the warning lands in the manifest like the rest. Written
+    before warn_depth_mean_disagreements existed."""
+
+    def _players_db(self):
+        return {"1": {"player_id": "1", "position": "RB", "team": "SEA", "depth_chart_order": 1},
+                "2": {"player_id": "2", "position": "RB", "team": "SEA", "depth_chart_order": 2,
+                      "first_name": "True", "last_name": "Handcuff"},
+                "3": {"player_id": "3", "position": "RB", "team": "SEA", "depth_chart_order": 3,
+                      "first_name": "Satellite", "last_name": "Back"}}
+
+    def _baselines(self, mean2, mean3):
+        return {"Lead Guy": {"pos": "RB", "team": "SEA", "mean": 15.0, "player_id": "1"},
+                "True Handcuff": {"pos": "RB", "team": "SEA", "mean": mean2, "player_id": "2"},
+                "Satellite Back": {"pos": "RB", "team": "SEA", "mean": mean3, "player_id": "3"}}
+
+    def test_disagreement_warns_with_both_players_named(self):
+        import fantasy_sim.sync as syncmod
+        with self.assertLogs(level="WARNING") as logs:
+            n = syncmod.warn_depth_mean_disagreements(self._baselines(4.0, 7.0), self._players_db())
+        self.assertEqual(n, 1)
+        msg = "\n".join(logs.output)
+        self.assertIn("SEA", msg)
+        self.assertIn("True Handcuff", msg)
+        self.assertIn("Satellite Back", msg)
+
+    def test_agreement_and_missing_depth_data_stay_silent(self):
+        import logging
+        import fantasy_sim.sync as syncmod
+        n = syncmod.warn_depth_mean_disagreements(self._baselines(7.0, 4.0), self._players_db())
+        self.assertEqual(n, 0, "means agree with the chart: silence")
+        db = self._players_db()
+        for v in db.values():
+            v["depth_chart_order"] = None
+        n = syncmod.warn_depth_mean_disagreements(self._baselines(4.0, 7.0), db)
+        self.assertEqual(n, 0, "no chart data: nothing to disagree with")
+
+
 class TestSeasonIngestion(unittest.TestCase):
     """Season-retrospective ingestion: one immutable bundle per completed season at
     data/logs/season_{season}.json -- league metadata (roster_positions, the settings the

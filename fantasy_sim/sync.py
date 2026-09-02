@@ -896,6 +896,7 @@ def _sync_body(sharp_polling=False):
     n_draft = ingest_drafts(roster_map)
     if n_draft:
         print(f"[DRAFT LOG] {n_draft} draft(s) ingested.")
+    warn_depth_mean_disagreements(baselines, players_db)
     return current_nfl_week, str(state.get("season", "2026"))
 
 
@@ -994,6 +995,47 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                         "re-ingested by the next successful sync.", len(records), path, ex)
         return 0
     return appended
+
+
+def warn_depth_mean_disagreements(baselines, players_db):
+    """F24's watchdog. The 2025 study cleared mean-weighted vacated-volume apportionment
+    (ties depth weighting, matches observed inheritance concentration), leaving one rare
+    failure mode: baseline means misordering a backfield's true depth. The chart is not
+    simply trusted instead -- in the one live disagreement measured (2026-09-02), the
+    CHART was wrong (Josh Jacobs on the Commissioner Exempt list, charted depth 4 while
+    being GB's lead) and the mean was right. So sync WARNS when the two signals disagree
+    about a team's top healthy backup RB and lets a human judge; the warning lands in the
+    manifest's degraded list like every other sync warning. Returns warnings emitted."""
+    by_pid = {}
+    for v in players_db.values():
+        if isinstance(v, dict) and v.get("player_id") is not None:
+            by_pid[str(v["player_id"])] = v
+    teams = {}
+    for name, b in baselines.items():
+        if not isinstance(b, dict) or normalize_position(b.get("pos") or "") != "RB":
+            continue
+        p = by_pid.get(str(b.get("player_id")), {})
+        do = p.get("depth_chart_order")
+        if do is None or not b.get("team"):
+            continue
+        teams.setdefault(b["team"], []).append((int(do), float(b.get("mean", 0.0)), name))
+    n_warn = 0
+    for team, rbs in teams.items():
+        backups = sorted(r for r in rbs if r[0] >= 2)
+        if len(backups) < 2:
+            continue
+        by_depth = backups[0]
+        by_mean = max(backups, key=lambda r: r[1])
+        if by_depth[2] != by_mean[2]:
+            logging.warning(
+                "DEPTH WATCHDOG: %s backup RBs -- depth chart says %r (depth %d, mean %.1f) "
+                "but baseline means say %r (depth %d, mean %.1f). Vacated-volume weighting "
+                "follows the MEANS (F24: measured correct on 2025 events); judge this case "
+                "by hand if that backfield's lead goes down.",
+                team, by_depth[2], by_depth[0], by_depth[1],
+                by_mean[2], by_mean[0], by_mean[1])
+            n_warn += 1
+    return n_warn
 
 
 def ingest_drafts(roster_map, league_id=None, path_fn=None):

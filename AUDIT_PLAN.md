@@ -2583,3 +2583,34 @@ IDP levels stay open):
 
 Script and raw output in the session scratchpad (`variance_form_study.py`). Status:
 CLEARED for offense at current data; WR flagged for a 2026 re-check; IDP remains F22's.
+
+### F24 — Handcuff vacated-volume weighting: MEASURED AND CLEARED (2026-09-03); watchdog built
+
+The oldest tracked suspicion (pre-Phase 0): _apportion_vacated_volume weights by baseline
+mean, believed backwards for true handcuffs. Measured on full-NFL 2025 weekly stats
+(Sleeper's historical stats endpoint -- complete backfields; team assignment by
+snap-triple clustering with majority-vote labels so 2025 movers land on their true teams;
+the stale 2026 depth chart was NOT used retrospectively, the draft-review proxy lesson):
+
+- **n = 8** lead-RB absence events (>= 2 missed weeks, mid-season, >= 2 active mates).
+  The healthy top-carry backup took mean 57% / median 71% of absence carries; 6/8
+  concordant (mean share 74% +- 10); the 2 exceptions were MID-SEASON ROLE CHANGES no
+  static weighting captures.
+- **Head to head, the weightings tie**: predicting healthy mates' actual absence shares,
+  depth-signal weights MAE 0.188 vs mean-analog weights 0.187 (mean-analog closer on
+  19/27 observations). Proportional weighting's predicted top-backup share (0.76) matches
+  the concordant reality (0.74) -- magnitudes were never the problem.
+- **Live exposure of the residual ordering failure: 1 of 27 teams** -- and in that one
+  (GB), the CHART is the wrong signal: Josh Jacobs sits on the Commissioner Exempt list,
+  charted depth 4 while being the actual lead. **Switching to chart-ordering would have
+  degraded that team, not improved it.**
+
+Verdict: the "known to be backwards" claim is retired from CLAUDE.md and the in-code
+comment; NO reweighting is adopted (n = 8 supports no fitted constant, and none is
+needed). Built instead: `sync.warn_depth_mean_disagreements`, a sync-time watchdog that
+warns (into the manifest) when the chart and the means disagree about a team's top healthy
+backup RB, so the rare live case gets human judgment rather than either imperfect signal
+silently winning. Revisit trigger: a real 2026 disagreement coinciding with a lead injury;
+the study script (`handcuff_study*.py`, session scratchpad) is the measurement path.
+Caveats: RB only (WR/TE volume spreads broadly and was not measured); position labels for
+2025 came from the current cache.
