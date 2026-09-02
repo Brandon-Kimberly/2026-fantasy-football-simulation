@@ -2219,6 +2219,17 @@ curiosity until the realised-value row exists.
 
 ### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
 
+**MEASURED AND CLOSED as inert (2026-09-03), F14/F22/F23-style.** Cross-roster vs
+independent copula on the four real week-1 matchups (the tools' own cross=True/False
+switch, same seed, n = 20,000 -- week 1 is a pair-RICH week per the counts above):
+margin sd moved **-0.7% to +0.1%** (sub-percent everywhere) and P(A wins) moved -0.76 to
++0.93 points against a paired SE of ~0.5 -- mixed signs, nothing past 2 SE, no
+systematic direction. The engine's per-roster independence costs nothing measurable at
+the week level, and season effects flow through weekly win probabilities, so this bounds
+them too. Caveat: measured at the attenuated realized correlation (~0.29); after the
+copula pre-warp restores ~0.40, the effect scales by roughly x1.4 and stays sub-percent
+on margin sd. No build; the engine keeps its per-roster draw.
+
 **Origin:** Found while surveying the opponent-aware lineup tool (2026-09-01). The weekly loop
 draws one correlated z-vector *per fantasy team* -- `build_covariance_matrix(sim_rosters[t],
 sim_meta[t])` then `z_corr = L @ z_uncorr`, team by team -- so two players on the SAME NFL team
