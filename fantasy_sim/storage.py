@@ -164,6 +164,15 @@ def draft_log_file(season):
     return _log(f"draft_{season}.json")
 
 
+# Season-retrospective bundle: one immutable document per completed season -- league
+# metadata (roster_positions, scoring-format settings), the roster map resolved to team
+# names, final standings, and every week's matchups with per-player realized points
+# (sync.ingest_season; a file that exists is never rewritten). Tracked in git like the
+# other logs: Sleeper ages seasons out, after which this is the only record.
+def season_log_file(season):
+    return _log(f"season_{season}.json")
+
+
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 

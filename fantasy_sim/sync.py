@@ -28,7 +28,7 @@ from fantasy_sim.storage import (
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
-    draft_log_file,
+    draft_log_file, season_log_file,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1059,6 +1059,66 @@ def ingest_drafts(roster_map, league_id=None, path_fn=None):
                 logging.warning("DRAFT LOG: could not write %s (%s); a later sync will retry.", path, ex)
         lid = info.get("previous_league_id")
     return written
+
+
+def ingest_season(league_id, path_fn=None):
+    """The season-retrospective bundle (storage.season_log_file): one document per season --
+    the league's metadata (roster_positions, playoff_week_start, league_average_match), the
+    roster map resolved to team names, final standings, and every week's real matchups
+    trimmed to what a retrospective needs (roster_id, matchup_id, points, players, starters,
+    players_points -- per-player REALIZED scores, no projections). A bundle that already
+    exists is NEVER rewritten. Not called from the sync body: a completed historical season
+    does not belong in every sync -- scripts.season_retrospective ingests on demand. Any
+    fetch failure warns and writes nothing (no partial bundle). Returns files written."""
+    if path_fn is None:
+        path_fn = season_log_file
+    try:
+        info = requests.get(f"{BASE_URL}/league/{league_id}", timeout=10).json() or {}
+        season = str(info.get("season") or "")
+        if not season:
+            logging.warning("SEASON LOG: league %s returned no season; nothing written.", league_id)
+            return 0
+        path = path_fn(season)
+        if os.path.exists(path):
+            return 0  # immutable once written
+        users = requests.get(f"{BASE_URL}/league/{league_id}/users", timeout=10).json() or []
+        rosters = requests.get(f"{BASE_URL}/league/{league_id}/rosters", timeout=10).json() or []
+        user_map = {u["user_id"]: u.get("display_name", "") for u in users}
+        roster_map = {str(r["roster_id"]): TEAM_NAME_MAP.get(user_map.get(r.get("owner_id"), ""),
+                                                             f"roster_{r['roster_id']}")
+                      for r in rosters}
+        final_standings = {}
+        for r in rosters:
+            st = r.get("settings", {})
+            final_standings[roster_map[str(r["roster_id"])]] = {
+                "wins": int(st.get("wins", 0)), "losses": int(st.get("losses", 0)),
+                "ties": int(st.get("ties", 0)),
+                "points_scored": float(f"{st.get('fpts', 0)}.{st.get('fpts_decimal', 0)}"),
+            }
+        matchups = {}
+        for wk in range(1, 19):
+            resp = requests.get(f"{BASE_URL}/league/{league_id}/matchups/{wk}", timeout=10)
+            wk_data = resp.json() if resp.status_code == 200 else None
+            if not wk_data:
+                continue
+            matchups[str(wk)] = [{"roster_id": e.get("roster_id"), "matchup_id": e.get("matchup_id"),
+                                  "points": e.get("points"), "players": e.get("players"),
+                                  "starters": e.get("starters"),
+                                  "players_points": e.get("players_points")} for e in wk_data]
+        bundle = {"league_id": league_id, "season": season, "name": info.get("name"),
+                  "status": info.get("status"),
+                  "roster_positions": info.get("roster_positions"),
+                  "settings": {"playoff_week_start": (info.get("settings") or {}).get("playoff_week_start"),
+                               "league_average_match": (info.get("settings") or {}).get("league_average_match")},
+                  "roster_map": roster_map, "final_standings": final_standings,
+                  "matchups": matchups,
+                  "ingested_at": datetime.utcfromtimestamp(_now_ms() / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ")}
+        save_json(path, bundle)
+        return 1
+    except Exception as ex:
+        logging.warning("SEASON LOG: season bundle for league %s could not be ingested (%s); "
+                        "nothing written.", league_id, ex)
+        return 0
 
 
 def append_projection_log(rows, path=PROJECTION_LOG_FILE):

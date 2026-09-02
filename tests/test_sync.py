@@ -603,6 +603,104 @@ class TestMissingProjectionIsAnAbsence(unittest.TestCase):
         self.assertIn("NOT in baselines", log)
 
 
+class TestSeasonIngestion(unittest.TestCase):
+    """Season-retrospective ingestion: one immutable bundle per completed season at
+    data/logs/season_{season}.json -- league metadata (roster_positions, the settings the
+    retrospective needs), the roster map resolved to team names, final standings, and every
+    week's matchups with per-player realized points. Cannot be reconstructed once Sleeper
+    ages the season out -- same bucket as the draft and projection logs. Written before
+    sync.ingest_season existed."""
+
+    def _fake_get(self, fail_matchups=False):
+        info = {"league_id": "L0", "season": "2025", "name": "Test League 2025", "status": "complete",
+                "previous_league_id": None,
+                "roster_positions": ["QB", "FLEX", "BN"],
+                "settings": {"playoff_week_start": 3, "league_average_match": 0}}
+        users = [{"user_id": "u1", "display_name": "brandon.kimberly"},
+                 {"user_id": "u2", "display_name": "clanker_han"}]
+        rosters = [{"roster_id": 1, "owner_id": "u1",
+                    "settings": {"wins": 1, "losses": 1, "fpts": 200, "fpts_decimal": 50}},
+                   {"roster_id": 2, "owner_id": "u2",
+                    "settings": {"wins": 1, "losses": 1, "fpts": 190, "fpts_decimal": 0}}]
+        matchups = {1: [{"roster_id": 1, "matchup_id": 1, "points": 100.5,
+                         "players": ["11", "12"], "starters": ["11"],
+                         "players_points": {"11": 100.5, "12": 0.0}, "custom_points": None},
+                        {"roster_id": 2, "matchup_id": 1, "points": 90.0,
+                         "players": ["21"], "starters": ["21"],
+                         "players_points": {"21": 90.0}, "custom_points": None}],
+                    2: [{"roster_id": 1, "matchup_id": 1, "points": 80.0,
+                         "players": ["11"], "starters": ["11"],
+                         "players_points": {"11": 80.0}, "custom_points": None},
+                        {"roster_id": 2, "matchup_id": 1, "points": 95.0,
+                         "players": ["21"], "starters": ["21"],
+                         "players_points": {"21": 95.0}, "custom_points": None}]}
+
+        def fake(url, timeout=None):
+            m = MagicMock(); m.status_code = 200
+            parts = url.rstrip("/").split("/")
+            if parts[-2] == "matchups":
+                if fail_matchups:
+                    raise OSError("boom")
+                m.json.return_value = matchups.get(int(parts[-1]), [])
+            elif parts[-1] == "users":
+                m.json.return_value = users
+            elif parts[-1] == "rosters":
+                m.json.return_value = rosters
+            elif parts[-2] == "league":
+                m.json.return_value = info
+            else:
+                m.status_code = 404; m.json.return_value = None
+            return m
+        return fake
+
+    def _run(self, d, fake=None):
+        import fantasy_sim.sync as syncmod, os as _os
+        path_fn = lambda season: _os.path.join(d, f"season_{season}.json")
+        name_map = {"brandon.kimberly": "Legion of Coom", "clanker_han": "Clankers"}
+        with patch("requests.get", side_effect=fake or self._fake_get()), \
+             patch.object(syncmod, "TEAM_NAME_MAP", name_map):
+            return syncmod.ingest_season("L0", path_fn=path_fn)
+
+    def test_the_bundle_carries_slots_map_standings_and_weekly_matchups(self):
+        import json as _json, os as _os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            self.assertEqual(self._run(d), 1)
+            with open(_os.path.join(d, "season_2025.json"), encoding="utf-8") as f:
+                b = _json.load(f)
+        self.assertEqual(b["season"], "2025"); self.assertEqual(b["league_id"], "L0")
+        self.assertEqual(b["roster_positions"], ["QB", "FLEX", "BN"],
+                         "the slot list is IN the bundle -- the retrospective reads it, never hardcodes")
+        self.assertEqual(b["settings"]["playoff_week_start"], 3)
+        self.assertEqual(b["settings"]["league_average_match"], 0)
+        self.assertEqual(b["roster_map"]["1"], "Legion of Coom")
+        self.assertEqual(b["final_standings"]["Legion of Coom"]["wins"], 1)
+        self.assertAlmostEqual(b["final_standings"]["Legion of Coom"]["points_scored"], 200.50)
+        self.assertEqual(sorted(b["matchups"]), ["1", "2"], "only weeks that returned data")
+        e = b["matchups"]["1"][0]
+        self.assertEqual(e["roster_id"], 1); self.assertEqual(e["matchup_id"], 1)
+        self.assertAlmostEqual(e["players_points"]["11"], 100.5)
+        self.assertEqual(e["starters"], ["11"])
+        self.assertNotIn("custom_points", e, "entries are trimmed to what the retrospective uses")
+
+    def test_an_existing_bundle_is_never_rewritten(self):
+        import json as _json, os as _os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            sentinel = {"sentinel": True}
+            with open(_os.path.join(d, "season_2025.json"), "w", encoding="utf-8") as f:
+                _json.dump(sentinel, f)
+            self.assertEqual(self._run(d), 0)
+            with open(_os.path.join(d, "season_2025.json"), encoding="utf-8") as f:
+                kept = _json.load(f)
+        self.assertEqual(kept, sentinel, "immutable once written")
+
+    def test_a_fetch_failure_warns_and_writes_nothing(self):
+        import os as _os, tempfile
+        with tempfile.TemporaryDirectory() as d:
+            n = self._run(d, fake=self._fake_get(fail_matchups=True))
+            self.assertEqual(n, 0)
+            self.assertEqual(_os.listdir(d), [], "no partial bundle on disk")
+
+
 class TestDraftIngestion(unittest.TestCase):
     """F15 ingestion row: every completed draft in the league renewal chain, pulled at sync,
     one document per season at data/logs/draft_{season}.json, IMMUTABLE once written (a file

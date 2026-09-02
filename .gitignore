@@ -44,3 +44,7 @@ venv/
 # on-disk file is the source. The nested-exception rule above applies: data/logs/ is already
 # un-excluded, so this pattern works; verified against a real commit like the others.
 !data/logs/draft_*.json
+# The season-retrospective bundle: a completed season's real matchups with per-player
+# realized scores (sync.ingest_season). Same reasoning -- Sleeper ages seasons out, so
+# once written the on-disk file is the source; verified against a real commit.
+!data/logs/season_*.json
