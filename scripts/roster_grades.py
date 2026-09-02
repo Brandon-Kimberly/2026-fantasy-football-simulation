@@ -17,13 +17,14 @@ import datetime as _dt
 
 from fantasy_sim.decisions import grade_roster, roster_grades
 from fantasy_sim.simulation import FantasySimulationEngine
-from fantasy_sim.storage import decisions_path, save_json
+from fantasy_sim.storage import decisions_week_path, save_json
 
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--team", default=None)
     ap.add_argument("--week", type=int, default=None)
+    ap.add_argument("--canonical", action="store_true", help="a scheduled/deliberate run: write to week_NN/ instead of week_NN/archive/")
     args = ap.parse_args(argv)
 
     engine = FantasySimulationEngine()
@@ -59,7 +60,7 @@ def main(argv=None):
         print(f"  {g['note']}")
         record["team_detail"] = g
 
-    out = decisions_path(f"roster_grades_{stamp}_week{week}.json")
+    out = decisions_week_path(week, f"roster_grades_{stamp}_week{week}.json", canonical=args.canonical)
     save_json(out, record)
     print(f"  logged -> {out}")
     return record

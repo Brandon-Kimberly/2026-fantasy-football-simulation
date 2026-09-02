@@ -21,7 +21,7 @@ import requests
 
 from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM
 from fantasy_sim.season_retrospective import season_retrospective
-from fantasy_sim.storage import PLAYER_CACHE_FILE, decisions_path, load_json, save_json, season_log_file
+from fantasy_sim.storage import PLAYER_CACHE_FILE, decisions_season_path, load_json, save_json, season_log_file
 from fantasy_sim.sync import ingest_season
 
 
@@ -102,7 +102,7 @@ def main(argv=None):
         print(f"  {t:18s} {d['losses']:6d} {d['vs_week_high_scorer']:10d}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    out = decisions_path(f"season_retrospective_{args.season}_{stamp}.json")
+    out = decisions_season_path(f"season_retrospective_{args.season}_{stamp}.json")
     save_json(out, {"timestamp_utc": stamp, "tool": "season_retrospective", "retrospective":
                     {k: v for k, v in r.items()}})
     print(f"\n  logged -> {out}")

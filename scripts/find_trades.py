@@ -20,7 +20,7 @@ import os
 
 from fantasy_sim.decisions import find_trade_targets
 from fantasy_sim.simulation import FantasySimulationEngine
-from fantasy_sim.storage import decisions_path, save_json, load_json, syndicate_comprehensive_matrix_path
+from fantasy_sim.storage import decisions_week_path, save_json, load_json, syndicate_comprehensive_matrix_path
 
 from fantasy_sim.config import MY_TEAM as DEFAULT_TEAM
 
@@ -37,6 +37,7 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--team", default=DEFAULT_TEAM)
     ap.add_argument("--week", type=int, default=None)
+    ap.add_argument("--canonical", action="store_true", help="a scheduled/deliberate run: write to week_NN/ instead of week_NN/archive/")
     ap.add_argument("--top", type=int, default=10)
     ap.add_argument("--seller-threshold", type=float, default=35.0)
     ap.add_argument("--evaluate", type=int, default=0)
@@ -77,7 +78,7 @@ def main(argv=None):
     print(f"  {r['note']}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    out = decisions_path(f"trade_targets_{stamp}_week{week}.json")
+    out = decisions_week_path(week, f"trade_targets_{stamp}_week{week}.json", canonical=args.canonical)
     save_json(out, {"timestamp_utc": stamp, "tool": "find_trades", **r})
     print(f"  logged -> {out}")
     return r

@@ -87,6 +87,29 @@ def _log(filename):
     return _path("logs", filename)
 
 
+def decisions_week_path(week, filename, canonical=False):
+    """A weekly decision artifact (the seven tools' JSON, the weekly digests), F9's layout
+    applied to decisions: canonical runs -- the scheduled Tuesday/Sunday reports, or a
+    deliberate re-run after a real roster move, marked with --canonical -- live at
+    data/decisions/week_NN/; everything else (exploratory, mid-week checks, development)
+    defaults into week_NN/archive/. Intent is the CALLER'S flag: it is not inferrable from
+    the artifact, so exploratory is the cheap default and canonical a deliberate act."""
+    parts = ["decisions", _week_dir_name(week)] + ([] if canonical else ["archive"]) + [filename]
+    return _path(*parts)
+
+
+def decisions_season_path(filename):
+    """A season-spanning one-off (draft review, season retrospective): data/decisions/season/."""
+    return _path("decisions", "season", filename)
+
+
+def decisions_adhoc_path(filename):
+    """Ad-hoc tool output tied to a moment rather than a report run (compare_players,
+    evaluate_move/evaluate_trade): data/decisions/adhoc/. The durable record of the moves
+    themselves is the decision log, not these files."""
+    return _path("decisions", "adhoc", filename)
+
+
 def decisions_path(filename):
     """A decision-support output (fantasy_sim.decisions): one file per tool invocation under
     data/decisions/, timestamped by the caller. Never read by the engine or the season

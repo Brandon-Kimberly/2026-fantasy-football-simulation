@@ -334,5 +334,59 @@ class TestPredictionsLog(unittest.TestCase):
         self.assertGreater(names.index("predictions_log"), names.index("simulation"))
 
 
+class TestDecisionsLayout(unittest.TestCase):
+    """data/decisions/ layout (F9's shape applied to decisions): weekly artifacts under
+    week_NN/ when the run is marked canonical (--canonical: the scheduled Tuesday/Sunday
+    runs, or a deliberate re-run after a real roster move) and week_NN/archive/ by default
+    (exploratory is the cheap default; marking canonical is a deliberate act). Season
+    one-offs under season/, ad-hoc tool output under adhoc/. Intent is a caller flag --
+    it is not inferrable from the artifact. Written before the helpers existed."""
+
+    def test_week_helper_routes_on_the_canonical_flag_in_both_directions(self):
+        import os
+        from fantasy_sim.storage import decisions_week_path
+        canon = decisions_week_path(3, "lineup_x.json", canonical=True)
+        arch = decisions_week_path(3, "lineup_x.json")
+        self.assertTrue(canon.replace(os.sep, "/").endswith("data/decisions/week_03/lineup_x.json"))
+        self.assertTrue(arch.replace(os.sep, "/").endswith("data/decisions/week_03/archive/lineup_x.json"))
+
+    def test_season_and_adhoc_helpers(self):
+        import os
+        from fantasy_sim.storage import decisions_adhoc_path, decisions_season_path
+        self.assertTrue(decisions_season_path("draft_review_2026.json").replace(os.sep, "/")
+                        .endswith("data/decisions/season/draft_review_2026.json"))
+        self.assertTrue(decisions_adhoc_path("move_x.json").replace(os.sep, "/")
+                        .endswith("data/decisions/adhoc/move_x.json"))
+
+    def test_rel_is_anchored_to_the_html_files_own_directory(self):
+        import os
+        from fantasy_sim.storage import decisions_week_path, tier_chart_path
+        from fantasy_sim.weekly_report import _rel
+        chart = tier_chart_path("DL", 3)
+        canon_dir = os.path.dirname(decisions_week_path(3, "x.html", canonical=True))
+        arch_dir = os.path.dirname(decisions_week_path(3, "x.html"))
+        self.assertEqual(_rel(chart, canon_dir).replace(os.sep, "/"),
+                         "../../weeks/week_03/tiers/DL_tiers.png".replace(
+                             "DL_tiers.png", os.path.basename(chart)))
+        self.assertEqual(_rel(chart, arch_dir).count("../"), 3,
+                         "one level deeper from archive/")
+
+    def test_digest_names_mark_embed_and_failed(self):
+        from fantasy_sim.weekly_report import _digest_name
+        self.assertEqual(_digest_name(3, "20260907T120000Z", "html", failed=False, embed=False),
+                         "weekly_report_week3_20260907T120000Z.html")
+        self.assertEqual(_digest_name(3, "20260907T120000Z", "html", failed=False, embed=True),
+                         "weekly_report_week3_20260907T120000Z_embed.html")
+        self.assertEqual(_digest_name(3, "20260907T120000Z", "md", failed=True, embed=False),
+                         "weekly_report_week3_20260907T120000Z_FAILED.md")
+
+    def test_orchestrator_threads_the_canonical_flag_to_the_tools(self):
+        from fantasy_sim.weekly_report import build_steps
+        _steps, state = build_steps("Legion of Coom", skip_sync=True, canonical=True)
+        self.assertEqual(state["tool_extra_argv"], ["--canonical"])
+        _steps, state = build_steps("Legion of Coom", skip_sync=True)
+        self.assertEqual(state["tool_extra_argv"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

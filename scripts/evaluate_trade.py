@@ -20,7 +20,7 @@ import sys
 
 from fantasy_sim.decisions import evaluate_trade
 from fantasy_sim.simulation import FantasySimulationEngine
-from fantasy_sim.storage import decisions_path, save_json
+from fantasy_sim.storage import decisions_adhoc_path, save_json
 
 
 def _git(*args):
@@ -106,7 +106,7 @@ def main(argv=None):
     record = {"timestamp_utc": stamp, "tool": "evaluate_trade", "git_commit": _git("rev-parse", "HEAD"),
               "git_dirty": bool(_git("status", "--porcelain")), "python": sys.version.split()[0],
               "python_executable": sys.executable, "machine": platform.node(), **r}
-    out = decisions_path(f"trade_{stamp}.json")
+    out = decisions_adhoc_path(f"trade_{stamp}.json")
     save_json(out, record)
     print(f"  commit {record['git_commit']}{' (dirty)' if record['git_dirty'] else ''}  python {record['python']}\n  logged -> {out}")
     return r

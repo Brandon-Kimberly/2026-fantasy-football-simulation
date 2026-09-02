@@ -21,7 +21,7 @@ import re
 
 from fantasy_sim.decisions import compare_players
 from fantasy_sim.simulation import FantasySimulationEngine
-from fantasy_sim.storage import decisions_path, save_json
+from fantasy_sim.storage import decisions_adhoc_path, save_json
 
 
 def _resolve(engine, query):
@@ -63,7 +63,7 @@ def main(argv=None):
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     slug = re.sub(r"[^A-Za-z0-9]+", "_", f"{a}_vs_{b}")[:60]
-    out = decisions_path(f"compare_{stamp}_{slug}.json")
+    out = decisions_adhoc_path(f"compare_{stamp}_{slug}.json")
     save_json(out, {"timestamp_utc": stamp, "tool": "compare_players", **r})
     print(f"  logged -> {out}")
     return r

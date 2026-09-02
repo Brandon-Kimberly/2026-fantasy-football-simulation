@@ -23,10 +23,11 @@ No arguments are needed for the common case: the team comes from `config.MY_TEAM
 from the sync. The orchestrator chains, in-process and in order: `sync_all` -> the Monte Carlo
 simulation -> positional tiers, strength of schedule and the win-trajectory chart -> the
 league-wide "this week" outlook -> roster grades -> the lineup optimizer -> the opponent-aware
-matchup tool -> waiver targets. It writes one consolidated digest to `data/decisions/`, as
+matchup tool -> waiver targets. It writes one consolidated digest to `data/decisions/week_NN/` (`--canonical`) or `week_NN/archive/` (default), as
 both **`weekly_report_week{N}_{stamp}.html`** (sortable tables, every chart of the week inlined
 in the section it belongs to, a collapsible assumed-optimal lineup per team) and
 **`…md`** for quick console reading.
+`--embed` inlines every chart as a data URI -- portable but large by design (several MB, vs ~60 KB normally); embedded digests are named `*_embed.html` so the size is visible before opening.
 
 **It fails loud.** The first step that raises -- or a gate that finds the previous step did not
 leave its data (no sync manifest from *this* run; no simulation export newer than the step) --
@@ -120,7 +121,11 @@ tests/                        # 22 test modules + golden_master.py (the reproduc
 data/                         # runtime output, three buckets (see storage.py):
 ├── current/                  #   sync's snapshot of the world as of the last sync (overwritten each sync) + the manifest
 ├── weeks/week_NN/            #   one directory per simulated week: exports, charts, tiers, SoS, audit log
-├── decisions/                #   decision-tool records and the weekly digests
+├── decisions/                #   decision-tool records and the weekly digests:
+│   ├── week_NN/              #     canonical runs (--canonical: the scheduled Tue/Sun reports)
+│   │   └── archive/          #     everything else -- exploratory and mid-week runs (the default)
+│   ├── season/               #     draft reviews, season retrospectives
+│   └── adhoc/                #     compare/evaluate output tied to a moment, not a report run
 └── logs/                     #   append-only, season-spanning: projection_log.jsonl and points_backtest.jsonl -- tracked in git
 ```
 

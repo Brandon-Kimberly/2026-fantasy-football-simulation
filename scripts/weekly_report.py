@@ -29,10 +29,11 @@ def main(argv=None):
     ap.add_argument("--evaluate", type=int, default=0, help="with --full: tool-2 evaluations of the top N trade packages")
     ap.add_argument("--team", default=MY_TEAM)
     ap.add_argument("--embed", action="store_true", help="inline the charts as data URIs (portable, ~15-20 MB)")
+    ap.add_argument("--canonical", action="store_true", help="a scheduled run (Tue post-waivers / Sun pre-lock): artifacts to week_NN/ instead of week_NN/archive/")
     args = ap.parse_args(argv)
 
     report, md, path, html_path = run_weekly_report(args.team, full=args.full, skip_sync=args.skip_sync,
-                                                    sims=args.sims, evaluate=args.evaluate, embed=args.embed)
+                                                    sims=args.sims, evaluate=args.evaluate, embed=args.embed, canonical=args.canonical)
     print("\n" + md)
     print(f"\n[{report['status']}] digest -> {path}" + (f"\n[{report['status']}] html   -> {html_path}" if html_path else ""))
     if report["status"] != "OK":

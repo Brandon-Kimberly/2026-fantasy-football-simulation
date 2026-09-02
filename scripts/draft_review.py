@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 from fantasy_sim.draft_review import render_draft_html, review_draft
 from fantasy_sim.positional_tiers import TIER_Z
 from fantasy_sim.simulation import FantasySimulationEngine
-from fantasy_sim.storage import decisions_path, draft_log_file, save_chart, save_json
+from fantasy_sim.storage import decisions_season_path, draft_log_file, save_chart, save_json
 
 
 def main(argv=None):
@@ -95,7 +95,7 @@ def main(argv=None):
     ax.set_title(f"Draft {r['season']} -- pick quality by manager vs the league median "
                  f"(PROXY: today's board, not draft-day's; {TIER_Z:.1f} combined-SE verdicts)", fontsize=9)
     fig.tight_layout()
-    chart_path = decisions_path(f"draft_review_{args.season}_{stamp}.png")
+    chart_path = decisions_season_path(f"draft_review_{args.season}_{stamp}.png")
     save_chart(chart_path, dpi=300, bbox_inches="tight")
     plt.close(fig)
 
@@ -106,11 +106,11 @@ def main(argv=None):
                   f'<figcaption>0 = league median pick quality ({med:+.2f} absolute gap); the dashed '
                   f'line is the unachievable 0.0-absolute ceiling. Positive bars drafted better than '
                   f'the typical pick.</figcaption></figure>')
-    html_path = decisions_path(f"draft_review_{args.season}_{stamp}.html")
+    html_path = decisions_season_path(f"draft_review_{args.season}_{stamp}.html")
     with open(html_path, "w", encoding="utf-8") as fh:
         fh.write(render_draft_html(r, chart_html=chart_html))
 
-    out = decisions_path(f"draft_review_{args.season}_{stamp}.json")
+    out = decisions_season_path(f"draft_review_{args.season}_{stamp}.json")
     save_json(out, {"timestamp_utc": stamp, "tool": "draft_review", "review": r})
     print(f"\n  chart -> {chart_path}\n  report -> {html_path}\n  logged -> {out}")
     return r

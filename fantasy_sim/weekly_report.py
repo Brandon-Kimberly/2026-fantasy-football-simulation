@@ -27,7 +27,7 @@ from html import escape
 from fantasy_sim.freshness import read_manifest, read_export_mtime   # module attrs: patchable in tests
 from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS       # the sortable-table pattern, reused as-is
 from fantasy_sim.storage import (
-    SYNC_MANIFEST_FILE, load_json, predictions_log_file,
+    SYNC_MANIFEST_FILE, load_json, predictions_log_file, decisions_adhoc_path, decisions_week_path,
     ensure_dir_for, decisions_path, season_outcomes_chart_path, all_teams_trajectories_chart_path,
     win_trajectory_chart_path, expected_wins_chart_path, power_rankings_chart_path, h2h_heatmap_chart_path,
     seeding_distribution_path, weekly_scoring_density_path, boom_bust_chart_path, floor_ceiling_chart_path,
@@ -327,25 +327,37 @@ def _read_bytes(path):
         return f.read()
 
 
-def _rel(path):
-    return os.path.relpath(path, start=os.path.dirname(decisions_path("x"))).replace(os.sep, "/")
+def _rel(path, anchor=None):
+    """Relative link from the HTML file's OWN directory (`anchor`) to `path`. The digests
+    now live at data/decisions/week_NN/[archive/], so the anchor is per-file -- the old
+    flat data/decisions/ is only the fallback for legacy callers."""
+    if anchor is None:
+        anchor = os.path.dirname(decisions_path("x"))
+    return os.path.relpath(path, start=anchor).replace(os.sep, "/")
 
 
-def _img(path, caption, embed):
+def _img(path, caption, embed, anchor=None):
     if not os.path.exists(path):
         return f'<p class="missing">chart not generated: {escape(os.path.basename(path))}</p>'
     if embed:
         src = "data:image/png;base64," + base64.b64encode(_read_bytes(path)).decode("ascii")
     else:
-        src = _rel(path)
+        src = _rel(path, anchor)
     return (f'<figure><img src="{src}" alt="{escape(caption)}" loading="lazy">'
             f'<figcaption>{escape(caption)}</figcaption></figure>')
 
 
-def _link(path, text):
+def _link(path, text, anchor=None):
     if not os.path.exists(path):
         return escape(text) + " (not generated)"
-    return f'<a href="{_rel(path)}">{escape(text)}</a>'
+    return f'<a href="{_rel(path, anchor)}">{escape(text)}</a>'
+
+
+def _digest_name(week, stamp, ext, failed=False, embed=False):
+    """Digest file name: _FAILED marks an aborted chain; _embed marks the deliberately
+    large self-contained HTML (charts inlined as data URIs) so it is visible at a glance."""
+    return (f"weekly_report_week{week}_{stamp}{'_FAILED' if failed else ''}"
+            f"{'_embed' if embed and ext == 'html' else ''}.{ext}")
 
 
 _REPORT_CSS = _TABLE_CSS + """
@@ -366,8 +378,9 @@ pre { background: #f4f4f4; padding: .6rem; overflow-x: auto; font-size: .8rem; }
 """
 
 
-def render_html(report, team, week, embed=False):
+def render_html(report, team, week, embed=False, anchor_dir=None):
     res = report.get("results", {})
+    anchor = anchor_dir or os.path.dirname(decisions_path("x"))
     T = lambda s_: escape(str(s_))  # noqa: E731
     out = [f'<!doctype html><html><head><meta charset="utf-8"><title>Weekly report -- {T(team)}, week {week}</title>'
            f'<style>{_REPORT_CSS}</style></head><body>',
@@ -436,7 +449,7 @@ def render_html(report, team, week, embed=False):
                   (h2h_heatmap_chart_path(week), "Head-to-head win probabilities"),
                   (seeding_distribution_path(week), "Seeding distribution"),
                   (weekly_scoring_density_path(week), "Weekly scoring density"))
-        out.append('<div class="charts">' + "".join(_img(p_, c, embed) for p_, c in charts) + "</div>")
+        out.append('<div class="charts">' + "".join(_img(p_, c, embed, anchor) for p_, c in charts) + "</div>")
 
     rg = res.get("roster_grades")
     if rg:
@@ -464,8 +477,8 @@ def render_html(report, team, week, embed=False):
         if lu.get("bench"):
             bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
             out.append(f"<p>Bench: {T(bench)}</p>")
-        out.append('<div class="charts">' + _img(boom_bust_chart_path(team, week), f"{team}: boom/bust by player", embed)
-                   + _img(floor_ceiling_chart_path(team, week), f"{team}: floor/ceiling by player", embed) + "</div>")
+        out.append('<div class="charts">' + _img(boom_bust_chart_path(team, week), f"{team}: boom/bust by player", embed, anchor)
+                   + _img(floor_ceiling_chart_path(team, week), f"{team}: floor/ceiling by player", embed, anchor) + "</div>")
 
     mu = res.get("matchup")
     if mu:
@@ -492,8 +505,8 @@ def render_html(report, team, week, embed=False):
         out.append(f"<details><summary>Opponent lineup ({assumed})</summary>"
                    + html_table(["slot", "player", "expected"], [[x["slot"], x["name"], f"{x['expected']:.1f}"] for x in mu.get("opponent_lineup", [])])
                    + "</details>")
-        out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed)
-                   + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed) + "</div>")
+        out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed, anchor)
+                   + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed, anchor) + "</div>")
 
     wv = res.get("waivers")
     if wv:
@@ -511,8 +524,8 @@ def render_html(report, team, week, embed=False):
                 positions.append(t["pos"])
         if positions:
             out.append('<h3>Positional tiers for the positions above</h3><div class="charts">'
-                       + "".join(_img(tier_chart_path(p_, week), f"{p_} tiers", embed) for p_ in positions) + "</div>"
-                       + '<p class="note">Full ranked tables: ' + " | ".join(_link(positional_tiers_table_path(p_, week), p_) for p_ in positions) + "</p>")
+                       + "".join(_img(tier_chart_path(p_, week), f"{p_} tiers", embed, anchor) for p_ in positions) + "</div>"
+                       + '<p class="note">Full ranked tables: ' + " | ".join(_link(positional_tiers_table_path(p_, week), p_, anchor) for p_ in positions) + "</p>")
 
     tr = res.get("trades")
     if tr:
@@ -539,10 +552,11 @@ def render_html(report, team, week, embed=False):
 
 
 # ------------------------------------------------------------------- the real chain
-def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
+def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canonical=False):
     """Wires the real tools. Each step returns the object the digest renders from."""
     from fantasy_sim.storage import load_json, syndicate_comprehensive_matrix_path, LEAGUE_STATE_FILE
     state = {"run_started": time.time(), "week": None}
+    state["tool_extra_argv"] = ["--canonical"] if canonical else []
 
     def step_sync():
         from fantasy_sim.sync import sync_all
@@ -594,23 +608,23 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
 
     def step_roster_grades():
         from scripts.roster_grades import main as m
-        return m(["--team", team, "--week", str(state["week"])])
+        return m(["--team", team, "--week", str(state["week"])] + state["tool_extra_argv"])
 
     def step_lineup():
         from scripts.optimize_lineup import main as m
-        return m(["--team", team, "--week", str(state["week"])])
+        return m(["--team", team, "--week", str(state["week"])] + state["tool_extra_argv"])
 
     def step_matchup():
         from scripts.matchup_lineup import main as m
-        return m(["--team", team, "--week", str(state["week"]), "--sims", str(sims)])
+        return m(["--team", team, "--week", str(state["week"]), "--sims", str(sims)] + state["tool_extra_argv"])
 
     def step_waivers():
         from scripts.waiver_targets import main as m
-        return m(["--team", team, "--week", str(state["week"])])
+        return m(["--team", team, "--week", str(state["week"])] + state["tool_extra_argv"])
 
     def step_trades():
         from scripts.find_trades import main as m
-        return m(["--team", team, "--week", str(state["week"]), "--evaluate", str(evaluate)])
+        return m(["--team", team, "--week", str(state["week"]), "--evaluate", str(evaluate)] + state["tool_extra_argv"])
 
     steps = [("freshness", step_freshness)] if skip_sync else [("sync", step_sync)]
     steps += [("simulation", step_simulation), ("positional_tiers", step_positional_tiers),
@@ -623,8 +637,10 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0):
     return steps, state
 
 
-def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, embed=False):
-    steps, state = build_steps(team, full=full, skip_sync=skip_sync, sims=sims, evaluate=evaluate)
+def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, embed=False,
+                      canonical=False):
+    steps, state = build_steps(team, full=full, skip_sync=skip_sync, sims=sims, evaluate=evaluate,
+                               canonical=canonical)
     report = run_steps(steps)
     try:
         from fantasy_sim.decisions import unevaluated_my_trades
@@ -634,10 +650,17 @@ def run_weekly_report(team, full=False, skip_sync=False, sims=5000, evaluate=0, 
     week = state["week"] or "?"
     md = render_digest(report, team, week)
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    suffix = "_FAILED" if report["status"] == "FAILED" else ""
-    path = write_digest(md, decisions_path(f"weekly_report_week{week}_{stamp}{suffix}.md"))
+    failed = report["status"] == "FAILED"
+    # week_NN/ for a canonical run, week_NN/archive/ otherwise; a failure before the week is
+    # even known has no week directory to belong to and goes to adhoc/.
+    if isinstance(week, int):
+        out_path = lambda name: decisions_week_path(week, name, canonical=canonical)  # noqa: E731
+    else:
+        out_path = decisions_adhoc_path
+    path = write_digest(md, out_path(_digest_name(week, stamp, "md", failed=failed)))
     html_path = None
     if isinstance(week, int):
-        html_path = write_digest(render_html(report, team, week, embed=embed),
-                                 decisions_path(f"weekly_report_week{week}_{stamp}{suffix}.html"))
+        html_out = out_path(_digest_name(week, stamp, "html", failed=failed, embed=embed))
+        html_path = write_digest(render_html(report, team, week, embed=embed,
+                                             anchor_dir=os.path.dirname(html_out)), html_out)
     return report, md, path, html_path
