@@ -492,7 +492,7 @@ class FantasySimulationEngine:
         return report
 
     @staticmethod
-    def _solve_optimal_assignment(candidates):
+    def _solve_optimal_assignment(candidates, slots=None):
         """
         True optimal lineup assignment via the Hungarian algorithm (scipy's
         linear_sum_assignment), replacing a previous greedy, fixed-position-order fill. The
@@ -503,13 +503,18 @@ class FantasySimulationEngine:
         where greedy scores 24.5 and the true optimum is 38.0 on an identical roster.
 
         candidates: list of (player_name, position_eligibility_list, value) tuples.
+        slots: the starting-slot list to fill; None (every in-engine caller) means
+          REQUIRED_STARTING_SLOTS -- the parameter exists for retrospectives on OTHER
+          seasons' formats (e.g. 2025's QB/RB/RB/WR/WR/TE/FLEXx3/K/DEF), where the slot
+          list comes from the persisted season bundle. Behaviour with slots=None is
+          unchanged (golden master).
         Returns (assigned, unfilled_slot_positions):
           assigned: list of (player_name, value, slot_position) for each filled slot.
           unfilled_slot_positions: list of position strings with no eligible player available
             (the live simulation injects a streamer for each of these; get_optimal_score just
             treats them as contributing zero, matching its previous behavior).
         """
-        slots = list(REQUIRED_STARTING_SLOTS)
+        slots = list(REQUIRED_STARTING_SLOTS) if slots is None else list(slots)
         n_players, n_slots = len(candidates), len(slots)
         if n_players == 0:
             return [], list(slots)
