@@ -2543,3 +2543,32 @@ survives contact with data) or the constants re-pointed from measurement. The st
 concern above stays regardless.
 
 **When:** no precondition -- measured 2026-09-02; closure gated on the F7-data derivation.
+
+### F23 — Variance-form study: k·sqrt(mean) MEASURED AND CLEARED on 2025 realized data (2026-09-02)
+
+The independent audit hypothesised weekly sd might scale ~linearly with mean (constant CV)
+rather than the engine's k*sqrt(mean). Measured on `season_2025.json` -- 138 players with
+>= 6 play-conditional weeks (exact-0.0 weeks excluded to match what std_aleatoric
+represents; DEF excluded; NO IDP EXISTS IN 2025, so this clears offense+K only and F22's
+IDP levels stay open):
+
+- **Constant CV is rejected**: fitted log-log exponents RB 0.65 +- 0.12 and WR 0.69 +-
+  0.10 sit ~3 SE below b = 1, TE lands at 0.50 +- 0.23, and binned pooled CV falls
+  monotonically with mean (0.79 at mean ~7 -> 0.44 at ~20) -- the signature of
+  sqrt-scaling, forbidden under constant CV. The free exponent buys <= 0.03 R^2 over the
+  sqrt form; tail effects at representative means are <= ~1 point of p10/p90 against
+  weekly sds of 6-8. The audit hypothesis was wrong; **no refit warranted**.
+- **Independent corroboration of backtest_player, not just a null result**: the fitted k
+  values reproduce the engine's calibrated constants across four of five positions -- QB
+  1.66 vs 1.65, RB 2.05 vs 1.98, TE 2.09 vs 2.00, K 1.69 vs 1.57 -- from data the
+  calibration never saw framed this way. That is real evidence the calibration pipeline
+  works, not merely an absence of contradiction.
+- **The one item worth re-checking on 2026 data: WR.** Fitted k 1.95 vs engine 1.80 (~8%
+  low) AND b = 0.69 +- 0.10 -- the only position where both the level and the exponent
+  visibly diverge; the effect concentrates in the high-mean WR right tail (p90 ~27.9 vs
+  ~29.3 at mean 18). Re-fit once 2026 weeks accumulate.
+- Caveats: per-player sds are noisy at n ~= 12-16; QB is uninformative (n = 17, SE 0.60);
+  K weakly prefers linear at n = 10; 2025 scoring assumed comparable for offense.
+
+Script and raw output in the session scratchpad (`variance_form_study.py`). Status:
+CLEARED for offense at current data; WR flagged for a 2026 re-check; IDP remains F22's.

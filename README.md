@@ -62,6 +62,12 @@ py -3.10 -m scripts.run_simulation              # the Monte Carlo engine: export
 py -3.10 -m scripts.run_positional_tiers        # statistically-derived tiers per position (PNG + sortable HTML tables)
 py -3.10 -m scripts.run_strength_of_schedule    # NFL-team and fantasy-roster schedule heatmaps
 py -3.10 -m scripts.run_win_trajectory          # expected wins over the simulated season, all teams
+py -3.10 -m scripts.run_windows                 # this week's three canonical-run windows: which are open, covered, or missed (read-only)
+py -3.10 -m scripts.draft_review                # at-draft value review of an ingested draft (--season; PROXY caveat on the page)
+py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/drop or waiver (--log-tx <id>, --bid N,
+                                                #   --evaluate-unevaluated [--mine-only] [--limit N] for the logged backlog)
+py -3.10 -m scripts.season_retrospective        # a completed season's record in four measurements (schedule luck, lineup
+                                                #   efficiency, absences, high-scorer losses), no combined verdict
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
@@ -117,7 +123,7 @@ fantasy_sim/
 └── backtest_player.py        # player-level calibration checks; projection-error derivation (F7)
 
 scripts/                      # 17 thin CLI entry points (weekly_report is the primary one); probes/ = R1 machine-fault probes
-tests/                        # 22 test modules + golden_master.py (the reproducibility harness); 377 tests
+tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 473 tests
 data/                         # runtime output, three buckets (see storage.py):
 ├── current/                  #   sync's snapshot of the world as of the last sync (overwritten each sync) + the manifest
 ├── weeks/week_NN/            #   one directory per simulated week: exports, charts, tiers, SoS, audit log
@@ -150,7 +156,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 377 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 473 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
 ```
 
@@ -176,7 +182,7 @@ deliberate non-fix is recorded:
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 
-Concretely: **377 tests** with every regression test written to fail before its fix; a
+Concretely: **473 tests** with every regression test written to fail before its fix; a
 **three-scenario golden master** that makes any behaviour change in the engine falsifiable
 byte-for-byte; a **real-data backtest gate** on this league's 2025 season (points bias, mean z,
 coverage, logged per commit and interpreter) that every correlation- or scoring-adjacent change
