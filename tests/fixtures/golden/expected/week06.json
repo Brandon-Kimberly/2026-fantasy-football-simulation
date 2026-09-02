@@ -21,14 +21,14 @@
       }
     },
     "audit_log": {
-      "hash": "6ce49a6c4939614e7ffc13d315582976fbbff2de430feac06da7e1e149454756",
+      "hash": "b1d3cdb7fbf53fcfb789a8b8db48f15ca0d0f3542a27e21fb9d1b575c5ddcf0b",
       "summary": {
         "max": 231.19,
-        "mean": 18.741616,
+        "mean": 18.741612,
         "min": 0.0,
         "n": 2376,
-        "std": 30.347566,
-        "sum": 44530.08
+        "std": 30.347541,
+        "sum": 44530.07
       }
     },
     "b_champs": {
@@ -76,14 +76,14 @@
       }
     },
     "global_weekly_scores": {
-      "hash": "60f414864a805b589411756f7d95942b2d5961a1d147d8442d547f57ce55f51c",
+      "hash": "30cf07c6e9a6e522cf4e0025e2304a30c1b4ea4a4fc9e938fa7018d5c68d9b7c",
       "summary": {
         "max": 273.200342,
-        "mean": 106.844351,
+        "mean": 106.844363,
         "min": 0.0,
         "n": 3360,
-        "std": 82.679591,
-        "sum": 358997.01909
+        "std": 82.679587,
+        "sum": 358997.060565
       }
     },
     "h2h": {
@@ -126,25 +126,25 @@
       }
     },
     "points": {
-      "hash": "e67e92ecf508e96cac9c545c4b63236549a50415d0ba7a5f0441b5b3809f1c2b",
+      "hash": "f8082e60c2a0bf688028f2be2cc577fc3c4371f925995106237ab72e3f5a3fb0",
       "summary": {
         "max": 2886.26122,
-        "mean": 2493.152163,
-        "min": 2136.959948,
+        "mean": 2493.152336,
+        "min": 2136.962704,
         "n": 240,
-        "std": 138.474277,
-        "sum": 598356.51909
+        "std": 138.473824,
+        "sum": 598356.560565
       }
     },
     "pts_against": {
-      "hash": "1b9cd7be992bebf622652304c215244b542940dd99e04917b987f6bbc13bb911",
+      "hash": "8671012874330001453ea6c7dc7e1b3ab2747f28e6b069168ac811a241cac496",
       "summary": {
-        "max": 46223.478152,
-        "mean": 44874.627386,
-        "min": 43874.283688,
+        "max": 46223.536444,
+        "mean": 44874.632571,
+        "min": 43874.381167,
         "n": 8,
-        "std": 718.087961,
-        "sum": 358997.01909
+        "std": 718.101663,
+        "sum": 358997.060565
       }
     },
     "seed_matrix": {
@@ -216,25 +216,25 @@
       }
     },
     "simulation_audit_log_sim0_week_6.json": {
-      "hash": "2e3714081b043cbb1b18b064ca93e42bf98194ee604ef694f40d57ef82e99c9e",
+      "hash": "f1b1f87ac3703c12d98aafa7d1ef6713ddb78e2d701d1689a4682ef41ebf2179",
       "summary": {
         "max": 231.19,
-        "mean": 18.741616,
+        "mean": 18.741612,
         "min": 0.0,
         "n": 2376,
-        "std": 30.347566,
-        "sum": 44530.08
+        "std": 30.347541,
+        "sum": 44530.07
       }
     },
     "syndicate_comprehensive_matrix_week_6.json": {
-      "hash": "973bd2352351d1440c2c734a13a251df618f1ff73c119cf6d2e5226fe57ded11",
+      "hash": "e2a9335bff5fe6b1a60247bfdb00f16195c926c3782ad0d8c1b42ca3c1537176",
       "summary": {
         "max": 2716.057941,
-        "mean": 81.624711,
+        "mean": 81.624715,
         "min": 0.0,
         "n": 395,
-        "std": 353.588276,
-        "sum": 31588.763203
+        "std": 353.588301,
+        "sum": 31588.764586
       }
     },
     "syndicate_insights_week_6.json": {
@@ -273,25 +273,25 @@
       }
     },
     "simulation_audit_log_sim0_week_6.json": {
-      "hash": "2e3714081b043cbb1b18b064ca93e42bf98194ee604ef694f40d57ef82e99c9e",
+      "hash": "f1b1f87ac3703c12d98aafa7d1ef6713ddb78e2d701d1689a4682ef41ebf2179",
       "summary": {
         "max": 231.19,
-        "mean": 18.741616,
+        "mean": 18.741612,
         "min": 0.0,
         "n": 2376,
-        "std": 30.347566,
-        "sum": 44530.08
+        "std": 30.347541,
+        "sum": 44530.07
       }
     },
     "syndicate_comprehensive_matrix_week_6.json": {
-      "hash": "973bd2352351d1440c2c734a13a251df618f1ff73c119cf6d2e5226fe57ded11",
+      "hash": "e2a9335bff5fe6b1a60247bfdb00f16195c926c3782ad0d8c1b42ca3c1537176",
       "summary": {
         "max": 2716.057941,
-        "mean": 81.624711,
+        "mean": 81.624715,
         "min": 0.0,
         "n": 395,
-        "std": 353.588276,
-        "sum": 31588.763203
+        "std": 353.588301,
+        "sum": 31588.764586
       }
     },
     "syndicate_insights_week_6.json": {

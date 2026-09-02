@@ -689,6 +689,28 @@ class FantasySimulationEngine:
     def build_covariance_matrix(self, players_list, team_meta):
         n = len(players_list)
         cov = np.eye(n)
+        # Copula pre-warp (audit 2026-09-03; the intended-change golden regeneration is in
+        # the same commit). CORRELATIONS were calibrated on REALIZED score pairs, but the
+        # correlated z is diluted downstream by each player's INDEPENDENT environment draw:
+        # the realized log-score correlation is corr(z) * sqrt(share_i * share_j), where
+        # share = the fraction of a player's log-variance that comes from z rather than the
+        # env draw (QB_WR1's 0.40 realized as only ~0.29). Dividing the input by
+        # sqrt(share_i * share_j) here makes the CALIBRATED value the one that realizes.
+        # Shares use baseline mean/std_aleatoric and the ratio~1 environment approximation
+        # (env log-noise ~0.10; true vegas ratios shift shares a few percent -- tolerated,
+        # see the realization test). Capped at 0.8: near-deterministic pairs would
+        # otherwise explode the warp; the scaled diagonal loading below still guards PSD.
+        env2 = 0.10 ** 2
+        shares = []
+        for p_ in players_list:
+            b = self.baselines.get(p_, {}) if isinstance(getattr(self, 'baselines', None), dict) else {}
+            m_ = float(b.get('mean', 8.0) or 8.0)
+            sd_ = float(b.get('std_aleatoric', 0.0) or 0.0)
+            if m_ <= 0.01 or sd_ <= 0.0:
+                shares.append(1.0)
+            else:
+                sa2 = np.log(1 + (sd_ / m_) ** 2)
+                shares.append(float(sa2 / (sa2 + env2)))
         for i in range(n):
             p1 = players_list[i]
             p1_team = team_meta.get(p1, {}).get('team', 'FA')
@@ -740,6 +762,8 @@ class FantasySimulationEngine:
                         corr = SIM_CONFIG['CORRELATIONS']['WR_WR']
                     elif (pos1 == 'RB' and pos2 == 'QB') or (pos2 == 'RB' and pos1 == 'QB'):
                         corr = SIM_CONFIG['CORRELATIONS']['QB_RB']
+                if corr:
+                    corr = min(corr / np.sqrt(shares[i] * shares[j]), 0.8)
                 cov[i, j] = corr
                 cov[j, i] = corr
 

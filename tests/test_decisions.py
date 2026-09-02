@@ -456,21 +456,16 @@ class TestJointSampler(_EngineCase):
             _, ref = FantasySimulationEngine._weekly_score_from_z(mean, std, z[i], 1.05, env_var[i], 1.06, 0.0)
             self.assertAlmostEqual(out[i], ref, places=12)
 
-    def test_cross_roster_correlation_is_present_with_cross_and_absent_without(self):
+    def test_cross_roster_correlation_realizes_the_calibrated_target_after_the_prewarp(self):
         # QB_1 (DET) and FA_WR_healthy (DET, the only DET WR -> WR1: target 0.40), both with
-        # std_epistemic 0. log(score) = mu_a + sigma_a*z + log(env_var) + const, so the
-        # log-score correlation is corr(z) = 0.40 attenuated by each player's share of
-        # log-variance that comes from z rather than the independent environment draw:
-        # QB_1 (mean 20, aleatoric sd 2) has sigma_a ~ 0.10 against env noise ~ 0.09, a share
-        # of only ~0.55; the WR (12, sd 4) ~ 0.93. Expected ~ 0.40 * sqrt(0.55 * 0.93) ~ 0.29.
+        # std_epistemic 0. Without the pre-warp, corr(z) = 0.40 realized as only ~0.29 in
+        # log-score space: each player's independent environment draw dilutes the correlated
+        # z by his share of log-variance (QB_1 mean 20 / aleatoric sd 2 has a z-share of only
+        # ~0.55). The pre-warp divides the input correlation by sqrt(share_i * share_j) at
+        # covariance-build time, so the REALIZED correlation hits the calibrated 0.40 the
+        # backtest actually measured. Tolerance 0.05 covers the warp's ratio~1 environment
+        # approximation (the true vegas ratio shifts shares a few percent) plus sampling.
         self.engine.baselines["QB_1"]["std_epistemic"] = 0.0
-        veg = self.engine._compute_week_environment(1, "DET")
-        ratio = veg['total'] / self.engine._compute_environment_normaliser()
-        se2 = (0.10 / ratio) ** 2
-        def share(mean, sd):
-            sa2 = np.log(1 + (sd / mean) ** 2)
-            return sa2 / (sa2 + se2)
-        expected = SIM_CONFIG['CORRELATIONS']['QB_WR1'] * np.sqrt(share(20.0, 2.0) * share(12.0, 4.0))
         groups = [["QB_1"], ["FA_WR_healthy"]]
         m, names = sample_week_matrix(self.engine, groups, week=1, n=30000, seed=3, cross=True)
         self.assertEqual(names, ["QB_1", "FA_WR_healthy"]); self.assertEqual(m.shape, (30000, 2))
@@ -479,9 +474,35 @@ class TestJointSampler(_EngineCase):
         m2, _ = sample_week_matrix(self.engine, groups, week=1, n=30000, seed=3, cross=False)
         ok2 = (m2[:, 0] > 0) & (m2[:, 1] > 0)
         r_none = float(np.corrcoef(np.log(m2[ok2, 0]), np.log(m2[ok2, 1]))[0, 1])
-        self.assertGreater(expected, 0.2)
-        self.assertAlmostEqual(r_cross, float(expected), delta=0.03)
+        self.assertAlmostEqual(r_cross, SIM_CONFIG['CORRELATIONS']['QB_WR1'], delta=0.05,
+                               msg="the calibrated correlation must REALIZE, not just enter")
         self.assertLess(abs(r_none), 0.04)
+
+    def test_covariance_builder_prewarps_pairs_and_caps_the_warp(self):
+        # Unit view of the same fix: the Cholesky factor's implied pair correlation must be
+        # the INPUT correlation divided by sqrt of the players' z-shares (computed from
+        # baseline mean / std_aleatoric with the ratio~1 environment approximation), capped
+        # at 0.8 so low-CV pairs cannot push the matrix toward degeneracy.
+        import math
+        self.engine.baselines["QB_1"].update(mean=20.0, std_aleatoric=2.0)
+        self.engine.baselines["FA_WR_healthy"].update(mean=12.0, std_aleatoric=4.0)
+        meta = {"QB_1": {"pos": "QB", "team": "DET"}, "FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        L = self.engine.build_covariance_matrix(["QB_1", "FA_WR_healthy"], meta)
+        implied = float((L @ L.T)[0, 1])
+
+        def share(mean, sd):
+            sa2 = math.log(1 + (sd / mean) ** 2)
+            return sa2 / (sa2 + 0.10 ** 2)
+        want = SIM_CONFIG['CORRELATIONS']['QB_WR1'] / math.sqrt(share(20.0, 2.0) * share(12.0, 4.0))
+        self.assertGreater(implied, SIM_CONFIG['CORRELATIONS']['QB_WR1'],
+                           "warped above the raw input")
+        self.assertAlmostEqual(implied, want, places=6)
+        # cap: two huge-mean, tiny-sd players have near-zero z-shares -> uncapped warp
+        # would explode; it must clamp at 0.8
+        self.engine.baselines["QB_1"].update(mean=30.0, std_aleatoric=0.3)
+        self.engine.baselines["FA_WR_healthy"].update(mean=30.0, std_aleatoric=0.3)
+        L = self.engine.build_covariance_matrix(["QB_1", "FA_WR_healthy"], meta)
+        self.assertAlmostEqual(float((L @ L.T)[0, 1]), 0.8, places=6)
 
     def test_bye_and_ir_columns_are_zero_and_seed_is_reproducible(self):
         m, names = sample_week_matrix(self.engine, [["FA_WR_bye", "FA_RB_ir", "FA_WR_healthy"]], week=1, n=200, seed=5)
