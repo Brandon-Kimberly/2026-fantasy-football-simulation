@@ -360,7 +360,16 @@ def _build_tier_table_html(pos, players):
         "<p class=\"caption\">Tier background color matches the position's tier chart "
         "(viridis, tier 1 = darkest). Click a column header to sort; click again to reverse."
         "</p>"
-        f"<table><thead><tr>{header_cells}</tr></thead><tbody>{''.join(body_rows)}</tbody></table>"
+        # F22 (AUDIT_PLAN.md): IDP tier boundaries are dominated by the underived
+        # EPISTEMIC_ERROR_RATES entries (a uniform 0.15 nobody derived; at the offensive-mean
+        # rate, DB tier 1 goes from 11 players to 104 of 163). Until those rates are actually
+        # derived (F7's projection log provides the data next season), the stated uncertainty
+        # is widened here rather than the constants re-pointed.
+        + (("<p class=\"caption\"><b>Provisional tier boundaries (F22):</b> the separations on "
+            "this page rest on an underived IDP uncertainty constant; under plausible "
+            "alternatives most of these tiers merge. Treat the ORDER as meaningful and the "
+            "tier CUTS as provisional.</p>") if pos in ("DL", "LB", "DB") else "")
+        + f"<table><thead><tr>{header_cells}</tr></thead><tbody>{''.join(body_rows)}</tbody></table>"
         f"<script>{_TABLE_JS}</script></body></html>"
     )
 

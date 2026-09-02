@@ -353,5 +353,25 @@ class TestWeekStampedPaths(unittest.TestCase):
         self.assertNotEqual(positional_tiers_report_path(1), positional_tiers_report_path(2))
 
 
+class TestIdpTierCaveat(unittest.TestCase):
+    """F22: IDP tier boundaries are dominated by the underived EPISTEMIC_ERROR_RATES entries
+    (0.15 uniform; set to the offensive mean, DB tier 1 goes 11 -> 104 of 163). The interim
+    response is stating that uncertainty on the IDP tier artifacts, not re-pointing the
+    constants. Written before the caveat existed."""
+
+    PLAYERS = [{"name": "A", "mean": 10.0, "std_epistemic": 1.0, "team": "SEA", "bye": 5,
+                "injury_status": None, "on_ir": False, "tier": 1, "rank": 1},
+               {"name": "B", "mean": 6.0, "std_epistemic": 1.0, "team": "DET", "bye": 6,
+                "injury_status": None, "on_ir": False, "tier": 2, "rank": 2}]
+
+    def test_idp_tables_carry_the_f22_caveat_and_offensive_tables_do_not(self):
+        for pos in ("DL", "LB", "DB"):
+            html = _build_tier_table_html(pos, self.PLAYERS)
+            self.assertIn("F22", html, pos)
+            self.assertIn("underived", html, pos)
+        html = _build_tier_table_html("WR", self.PLAYERS)
+        self.assertNotIn("F22", html)
+
+
 if __name__ == '__main__':
     unittest.main()

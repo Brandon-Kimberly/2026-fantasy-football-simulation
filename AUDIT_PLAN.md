@@ -2508,4 +2508,32 @@ recommendations are trusted, and the honest interim is WIDENING stated IDP uncer
 re-pointing estimates. Immaterial -> record and close F14-style. The standing-concern note
 above stays either way.
 
-**When:** no precondition -- measurable now.
+**Measured (2026-09-02; scripts and raw JSON in the session scratchpad,
+`f22_sensitivity.py`). Split verdict:**
+
+- *Season outcomes (Champ%/Playoff%/ExpW): immaterial, F14-style.* Across all 9 arms, 1-3 of
+  24 team-metrics per arm exceed |z| = 2 against the paired SE (the F20 null floor produced
+  |z| up to 2.6 on pure noise); the worst single excursions are 2-4 Playoff points, scattered
+  across different teams with no consistent sign between arms. Legion of Coom's own deltas
+  never exceed 1.2 SE in any arm (|dChamp| <= 0.9, |dExpW| <= 0.14).
+- *Waiver channel: immaterial.* VORP ordering invariant by construction; p_beats_incumbent
+  moves at most 0.06 across all arms on base values ~0.39-0.55 -- not decision-changing.
+- *Tier channel: MATERIAL.* At the offensive-mean epistemic rate (0.476 vs the current
+  0.15), tier 1 goes **DB 11 -> 104 of 163, DL 5 -> 52 of 157, LB 9 -> 67 of 103** -- the
+  IDP tier structure collapses to "mostly indistinguishable". Even +-50% moves tier-1
+  membership by 3-13 players per position. Every DL/LB/DB tier cut therefore rests on the
+  underived 0.15.
+
+**Interim response applied (as scoped -- widen stated uncertainty, do not re-point):** the
+DL/LB/DB tier table pages now carry a "Provisional tier boundaries (F22)" caption -- order
+meaningful, cuts provisional -- test-pinned so it cannot silently disappear. The constants
+themselves are untouched.
+
+**Status: OPEN pending real derivation.** The derivation route already exists with a season
+clock on it: EPISTEMIC_ERROR_RATES is precisely what F7's projection log measures, and one
+season of logged IDP projections vs realized scores yields the honest per-position rates.
+Close this item when those rates are derived and the caveat is either removed (if ~0.15
+survives contact with data) or the constants re-pointed from measurement. The standing
+concern above stays regardless.
+
+**When:** no precondition -- measured 2026-09-02; closure gated on the F7-data derivation.
