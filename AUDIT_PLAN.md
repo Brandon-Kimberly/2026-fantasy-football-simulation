@@ -2191,6 +2191,15 @@ Tuipulotu) highly, so late-round "reach" verdicts are the picks most polluted by
 -- the realised-value comparison is the honest arbiter there. That row remains unbuilt; it
 genuinely needs the season.
 
+**2025 verdicts contradicted by the season retrospective (2026-09-02, F21).** The 2025 draft
+review graded Legion of Coom's draft best in the league (mean VORP gap -3.54, top of the
+per-manager table) -- and the 2025 season retrospective measured the same roster at
+**7th of 8 in realized points** (1721.32). The 2025 grade should be read as measuring
+HINDSIGHT (who holds up on a board 13 months later), not draft-day decision quality: the
+13-month proxy gap makes it unreliable in a way the 2026 grade's 10-day gap is not. The
+2026 table is the one fit for reading as decision quality; the 2025 table is fit only for
+curiosity until the realised-value row exists.
+
 ### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
 
 **Origin:** Found while surveying the opponent-aware lineup tool (2026-09-01). The weekly loop
@@ -2415,3 +2424,34 @@ scratchpad (`f20_null.py`, `f20_chain.py`, `f20_se30.py`).
    time. (R1 aside: one diagnostic process died silently after its first arm while three
    engine processes ran concurrently; solo re-run was clean. Consistent with the known
    load-dependent fault — avoid concurrent engine runs on this machine.)
+
+### F21 — 2025 season retrospective (BUILT 2026-09-02; no further build planned)
+
+Why a strong-looking roster produced the worst regular-season record (4-10). Four
+measurements, reported separately with no combined verdict
+(`fantasy_sim.season_retrospective`, `scripts.season_retrospective`, bundle at
+`data/logs/season_2025.json` via `sync.ingest_season` -- immutable, git-tracked, slot list
+read from the bundle so the 2026 run in January needs only `--season 2026`):
+
+1. Schedule luck: all-play expected 5.14 wins vs actual 4 -> **-1.14, the league's worst**
+   (Year of Jarvis +1.43 at the other end; league sums to zero). Context carried in the
+   output: 2025 ran pure H2H (`league_average_match=0`), one decision per week --
+   structurally higher record variance than the current hybrid format.
+2. Lineup efficiency: 88.42% of the Hungarian optimum on realized scores, 6th of 8, 225.4
+   points left on benches -- inside the league's 86.3-91.6% band. Mid-pack, not the story.
+3. Absences (0.0-point DNP proxy): **12.4%, second-healthiest** (league mean 16.3%), 2
+   started zeros. The opposite of the problem.
+4. High-scorer losses: 3 of the 10 losses came against the week's league-high score.
+
+The largest single fact is in measurement 1's own table: realized points ranked 7th of 8 --
+the "strong roster" premise is what 2025's realized scores contradict (see the F15 note on
+the 2025 draft grade).
+
+**This built the missing historical-all-play feature.** `schedule_luck_index`'s in-code
+KNOWN LIMITATION comment (simulation.py, above the luck computation) names "historical
+all-play recomputed from weekly_actuals" as the real feature its divisor mismatch needs and
+records it as an open item. `season_retrospective`'s measurement 1 IS that computation for
+completed seasons, from real weekly scores; the in-code comment now references it. Still
+open for the LIVE mid-season path: the engine's simulated-season luck index retains its
+span mismatch -- closing it in-engine would mean feeding banked weeks' real all-play into
+the live run, a separate change.

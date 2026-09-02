@@ -1764,7 +1764,10 @@ class FantasySimulationEngine:
         # luck_rating sums to zero across the league -- one team's easy schedule is another's
         # hard one -- but making the two spans genuinely comparable needs historical all-play
         # recomputed from weekly_actuals, which is a real feature rather than a divisor change.
-        # Recorded as an open item rather than papered over.
+        # Recorded as an open item rather than papered over. That computation now EXISTS for
+        # completed seasons -- season_retrospective.season_retrospective measurement 1
+        # (AUDIT_PLAN.md F21) does real all-play from real weekly scores; what stays open is
+        # feeding banked weeks' real all-play into THIS live mid-season path.
         schedule_luck = {}
         for t in self.team_names:
             true_win_pct = all_play[t] / (total_sims * weeks_divisor * opponents_per_week)
