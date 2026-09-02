@@ -45,7 +45,12 @@ def main(argv=None):
     print(f"  holes this week: {r['holes'] or 'none'}   next week: {r['holes_next_week'] or 'none'}")
     print(f"  {'#':>2s} {'player':26s} {'pos':4s} {'tier':>4s} {'season':>6s} {'VORP':>5s} {'wk mean':>7s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
           f"{'zero':>5s} {'fills':8s} {'bid':>4s} {'model':>5s}  incumbent / P(beats)")
+    depth_header_shown = False
     for i, t in enumerate(r["targets"], 1):
+        if t["fills"] == "depth" and not depth_header_shown:
+            print("  --- depth upgrades: beat your worst bench at the position, or fill an empty "
+                  "bench (capped at 3/position) ---")
+            depth_header_shown = True
         w = t["week"]
         inc = ""
         if t["p_beats_incumbent"]:

@@ -392,12 +392,22 @@ def render_digest(report, team, week):
     if wv:
         md += [f"## Waiver targets -- FAAB {wv['remaining_faab']:.0f} (league avg {wv['league_avg_faab']:.0f}); "
                f"holes: {wv['holes'] or 'none'}; next week: {wv['holes_next_week'] or 'none'}", ""]
-        md += [_table(["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"],
-                      [[t["name"], t["pos"], t.get("tier") or "-", f"{t['mean']:.1f}", f"{t['vorp']:+.1f}", f"{t['week']['mean']:.1f}",
-                        f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
-                        (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else "-")]
-                       for t in wv["targets"]]), "",
+        def _wv_row(t):
+            return [t["name"], t["pos"], t.get("tier") or "-", f"{t['mean']:.1f}", f"{t['vorp']:+.1f}", f"{t['week']['mean']:.1f}",
+                    f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
+                    (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else
+                     (t.get("incumbent") or "-"))]
+        _wv_cols = ["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"]
+        main_wv = [t for t in wv["targets"] if t["fills"] != "depth"]
+        depth_wv = [t for t in wv["targets"] if t["fills"] == "depth"]
+        md += [_table(_wv_cols, [_wv_row(t) for t in main_wv]), "",
                "\\* bid = UNVERIFIED value heuristic. P(beats incumbent): " + wv.get("caveat", ""), ""]
+        if depth_wv:
+            md += ["### Depth upgrades", "",
+                   "_Beats your worst bench player at the position (named as the natural drop), or "
+                   "fills an EMPTY bench behind a lone starter with positive VORP. Separated from the "
+                   "starter-facing ranking above; capped at three per position._", ""]
+            md += [_table(_wv_cols, [_wv_row(t) for t in depth_wv]), ""]
 
     tr = res.get("trades")
     if tr:
@@ -681,12 +691,23 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if wv:
         out.append(f'<h2 id="waivers">Waiver targets <span class="note">FAAB {wv["remaining_faab"]:.0f} (league avg {wv["league_avg_faab"]:.0f}); '
                    f'holes: {T(wv["holes"] or "none")}; next week: {T(wv["holes_next_week"] or "none")}</span></h2>')
-        out.append(html_table(["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"],
-                              [[t["name"], t["pos"], t.get("tier") or "-", f"{t['mean']:.1f}", f"{t['vorp']:+.1f}", f"{t['week']['mean']:.1f}",
-                                f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
-                                (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else "-")]
-                               for t in wv["targets"]]))
+        def _wv_row(t):
+            return [t["name"], t["pos"], t.get("tier") or "-", f"{t['mean']:.1f}", f"{t['vorp']:+.1f}", f"{t['week']['mean']:.1f}",
+                    f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
+                    (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else
+                     (t.get("incumbent") or "-"))]
+        _wv_cols = ["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"]
+        main_wv = [t for t in wv["targets"] if t["fills"] != "depth"]
+        depth_wv = [t for t in wv["targets"] if t["fills"] == "depth"]
+        out.append(html_table(_wv_cols, [_wv_row(t) for t in main_wv]))
         out.append(f'<p class="note">* bid = UNVERIFIED value heuristic. P(beats incumbent): {T(wv.get("caveat", ""))}</p>')
+        if depth_wv:
+            out.append("<h3>Depth upgrades</h3>"
+                       '<p class="note">Beats your worst bench player at the position (named as the '
+                       "natural drop), or fills an EMPTY bench behind a lone starter with positive "
+                       "VORP. Separated from the starter-facing ranking above; capped at three per "
+                       "position.</p>")
+            out.append(html_table(_wv_cols, [_wv_row(t) for t in depth_wv]))
         positions = []
         for t in wv["targets"]:
             if t["pos"] not in positions:

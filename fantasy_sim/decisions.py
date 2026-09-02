@@ -251,7 +251,12 @@ def suggest_bid(vorp, fills, remaining_faab, league_avg_faab, min_bid=1):
 
 def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, positions=None):
     """Rank free agents for `team` in `week`: hole-fillers first (a slot no rostered player can
-    fill), then upgrades over the weakest incumbent at a slot; within each, by VORP. Each
+    fill), then upgrades over the weakest incumbent at a slot, then DEPTH upgrades -- a free
+    agent who beats the team's worst BENCH player at his position (that player named as the
+    natural drop candidate), or any positive-VORP free agent at a position whose bench is
+    EMPTY behind a lone starter. Depth is block-ordered last and capped at three per
+    position; it is never merged into the starter-facing ranking. Within each block, by
+    VORP. Each
     target carries tier (positional_tiers), a light-sampled week distribution, the suggested
     bid (unverified heuristic) and the engine's behavioural bid, and -- for upgrades -- the
     secondary P(beats incumbent) with INDEPENDENCE_CAVEAT."""
@@ -265,6 +270,15 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
     remaining = float(engine.current_faab.get(team, 100.0))
     league_avg = float(np.mean(list(engine.current_faab.values()))) if engine.current_faab else 100.0
     agg = MANAGER_PROFILES.get(team, {}).get('faab_agg', 0.5)
+
+    starter_names = {nm for lst in starters.values() for nm, _v in lst}
+    bench_by_pos = {}
+    for r_ in engine.rosters.get(team, []):
+        if r_ in starter_names:
+            continue
+        e_ = _entry(engine, r_)
+        bench_by_pos.setdefault(normalize_position(e_.get('pos', 'FLEX')), []).append(
+            (float(e_.get('mean', 0.0)), r_))
 
     def slots_for(opts):
         s = [p for p in opts]
@@ -292,17 +306,32 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
                 val, inc_name, slot = min(weakest)
                 if mean > val:
                     fills, incumbent = "upgrade", inc_name
-        if fills is None:
-            continue
         rep = engine.replacement_levels.get(pos, 4.0)
         vorp = mean - rep
+        if fills is None:
+            bench = bench_by_pos.get(pos, [])
+            if bench:
+                worst_mean, worst_name = min(bench)
+                if mean > worst_mean:
+                    fills, incumbent = "depth", worst_name
+            elif vorp > 0:
+                fills, incumbent = "depth", None
+        if fills is None:
+            continue
         targets.append({"name": name, "pos": pos, "team": e.get('team', 'FA'), "mean": mean,
                         "replacement_level": float(rep), "vorp": float(vorp), "tier": tier_of.get(name),
                         "bye": e.get('bye'), "injury_status": e.get('injury_status'),
                         "fills": fills, "incumbent": incumbent,
                         "need_next_week": any(s in next_holes for s in my_slots)})
-    targets.sort(key=lambda t: (0 if t["fills"] == "hole" else 1, -t["vorp"]))
-    targets = targets[:top_n]
+    targets.sort(key=lambda t: ({"hole": 0, "upgrade": 1, "depth": 2}[t["fills"]], -t["vorp"]))
+    kept, depth_per_pos = [], {}
+    for t in targets:
+        if t["fills"] == "depth":
+            if depth_per_pos.get(t["pos"], 0) >= 3:
+                continue
+            depth_per_pos[t["pos"]] = depth_per_pos.get(t["pos"], 0) + 1
+        kept.append(t)
+    targets = kept[:top_n]
 
     for i, t in enumerate(targets):
         s = sample_week_scores(engine, t["name"], week, sims, seed=None if seed is None else seed + i)

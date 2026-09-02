@@ -30,6 +30,7 @@ from fantasy_sim.decisions import (
     find_trade_targets, league_week_outlook, evaluate_logged_trade, unevaluated_my_trades,
     apply_add_drop, evaluate_add_drop, evaluate_logged_transaction,
     faab_context, MARKET_MIN_COMPARABLES, evaluate_pending, pending_evaluations,
+    rank_waiver_targets,
 )
 
 
@@ -1026,6 +1027,80 @@ class TestBatchEvaluation(unittest.TestCase):
         self.assertEqual(out["evaluated"], ["a"])
         self.assertEqual(out["drift"], ["c"])
         self.assertEqual(out["already"], ["b"])
+
+
+class TestDepthUpgrades(_EngineCase):
+    """The waiver tool's blind spot: it ranked hole-fills and starter-upgrades only, so a
+    free agent who beats the worst BENCH player -- or fills an empty bench position behind a
+    lone starter -- was invisible (the real case: zero bench DL/TE/QB while positive-VORP
+    players sat on waivers, and the Bolton/Sutton paired evaluation priced depth loss).
+    Depth is a THIRD category, block-ordered after upgrades, never merged. Written before
+    the depth category existed."""
+
+    def _rig(self, roster, starters, pool, replacement=None):
+        import copy
+        displaced = [n for n in self.engine.rosters["Legion of Coom"] if n not in roster]
+        self.engine.rosters["Legion of Coom"] = list(roster)
+        self.engine.meta["Legion of Coom"] = {}
+        for n in [n for n in self.engine.baselines if n.startswith("FA_")] + displaced:
+            # the fixture pool -- and players displaced from the rigged roster -- would
+            # otherwise leak into the rankings as legitimate free agents
+            self.engine.baselines.pop(n, None)
+        for n, mean in roster.items():
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
+                                        "pos": n.split("_")[0], "team": "SEA", "bye": 9}
+            self.engine.meta["Legion of Coom"][n] = {"pos": n.split("_")[0], "team": "SEA"}
+        for n, mean in pool.items():
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
+                                        "pos": n.split("_")[0], "team": "DET", "bye": 9}
+        self.engine.replacement_levels = replacement or {"QB": 10.0, "WR": 6.0, "DL": 5.0,
+                                                         "RB": 5.0, "FLEX": 5.0}
+        gaps = {1: {"unfilled": [], "starters": {s_: [(n, roster[n])] for s_, n in starters.items()}},
+                2: {"unfilled": [], "starters": {}}}
+        return patch("fantasy_sim.decisions.roster_gaps", return_value=copy.deepcopy(gaps))
+
+    def _targets(self, **kw):
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+            return rank_waiver_targets(self.engine, "Legion of Coom", 1, sims=20, seed=1, **kw)
+
+    def test_a_free_agent_who_beats_the_worst_bench_player_is_depth_with_the_incumbent_named(self):
+        roster = {"QB_10": 20.0, "WR_A": 11.0, "WR_B": 9.0, "WR_C": 6.0}
+        rig = self._rig(roster, {"QB": "QB_10", "WR": "WR_A", "WR2": "WR_B"},
+                        {"WR_FA_mid": 7.0, "WR_FA_scrub": 5.5})
+        with rig:
+            r = self._targets()
+        by = {t["name"]: t for t in r["targets"]}
+        self.assertIn("WR_FA_mid", by)
+        self.assertEqual(by["WR_FA_mid"]["fills"], "depth",
+                         "7.0 beats bench WR_C (6.0) but not the weakest starter (9.0)")
+        self.assertEqual(by["WR_FA_mid"]["incumbent"], "WR_C", "the natural drop candidate")
+        self.assertNotIn("WR_FA_scrub", by, "5.5 beats nobody on the roster")
+
+    def test_an_empty_bench_position_takes_any_positive_vorp_free_agent(self):
+        roster = {"QB_10": 20.0, "DL_1": 10.0}
+        rig = self._rig(roster, {"QB": "QB_10", "DL": "DL_1"},
+                        {"DL_FA_ok": 8.0, "DL_FA_below_rep": 4.0})
+        with rig:
+            r = self._targets()
+        by = {t["name"]: t for t in r["targets"]}
+        self.assertEqual(by["DL_FA_ok"]["fills"], "depth")
+        self.assertIsNone(by["DL_FA_ok"]["incumbent"], "no bench DL exists to name")
+        self.assertNotIn("DL_FA_below_rep", by, "empty bench still requires VORP > 0")
+
+    def test_depth_is_block_ordered_last_and_capped_at_three_per_position(self):
+        roster = {"QB_10": 20.0, "WR_A": 11.0, "WR_B": 9.0, "WR_C": 6.0}
+        pool = {f"WR_FA_{i}": 7.0 + i * 0.1 for i in range(5)}
+        pool["WR_FA_upgrade"] = 12.0                     # beats the weakest starter: an upgrade
+        rig = self._rig(roster, {"QB": "QB_10", "WR": "WR_A", "WR2": "WR_B"}, pool)
+        with rig:
+            r = self._targets()
+        fills = [t["fills"] for t in r["targets"]]
+        self.assertEqual(fills, sorted(fills, key=("hole", "upgrade", "depth").index),
+                         "hole -> upgrade -> depth, never interleaved")
+        depth = [t for t in r["targets"] if t["fills"] == "depth"]
+        self.assertEqual(len(depth), 3, "capped at three per position")
+        self.assertEqual([t["name"] for t in depth],
+                         ["WR_FA_4", "WR_FA_3", "WR_FA_2"], "the best three by VORP")
 
 
 if __name__ == "__main__":

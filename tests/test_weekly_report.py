@@ -619,5 +619,36 @@ class TestPredictionsCanonicality(unittest.TestCase):
         self.assertFalse(state["canonical"])
 
 
+class TestDepthWaiverRendering(unittest.TestCase):
+    """Depth waiver targets render as their OWN subsection in both digest formats, with the
+    qualification rule stated -- clearly separated, never merged into the main ranking.
+    Written before the rendering existed."""
+
+    def test_depth_targets_get_a_separate_table_and_absence_renders_nothing(self):
+        results = _fixture_results()
+        depth_row = {"name": "Mark Andrews", "pos": "TE", "tier": 2, "mean": 9.8, "vorp": 1.0,
+                     "fills": "depth", "incumbent": None,
+                     "week": {"mean": 10.1, "p10": 3.0, "p50": 9.2, "p90": 18.0, "p_zero": 0.02},
+                     "bid": {"suggested": 2, "typical_manager_model": 1.0},
+                     "p_beats_incumbent": None}
+        results["waivers"]["targets"] = results["waivers"]["targets"] + [depth_row]
+        report = {"status": "OK", "failed_step": None, "error": None, "results": results,
+                  "started_at": "x", "finished_at": "y"}
+        md = render_digest(report, team="Legion of Coom", week=3)
+        html = render_html(report, team="Legion of Coom", week=3)
+        for out in (md, html):
+            self.assertIn("Depth upgrades", out)
+            self.assertIn("Mark Andrews", out)
+            self.assertIn("worst bench", out, "the qualification rule is stated on the page")
+        # main table does not contain the depth row's name ahead of the depth section
+        self.assertLess(md.index("Tuli Tuipulotu"), md.index("Depth upgrades"),
+                        "depth is separated below the main ranking")
+
+        results["waivers"]["targets"] = [t for t in results["waivers"]["targets"]
+                                         if t["fills"] != "depth"]
+        md2 = render_digest(report, team="Legion of Coom", week=3)
+        self.assertNotIn("Depth upgrades", md2, "no depth rows: no empty section")
+
+
 if __name__ == "__main__":
     unittest.main()
