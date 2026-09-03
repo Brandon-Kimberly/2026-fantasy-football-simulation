@@ -6,9 +6,9 @@
 ![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-73.9%25-yellowgreen)](#validation-and-audit-trail)
 
-**What this is:** a Monte Carlo season simulator -- 10,000 simulated seasons forward from
-the current week -- and seven decision tools for a real IDP fantasy league. Every
-projection is a distribution, every probability carries a standard error.
+**What this is:** a Monte Carlo season simulator and seven decision tools for a real
+IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
+Every projection is a distribution, every probability carries a standard error.
 
 **What makes it different:** the audit trail. **~72 findings and tracked follow-ups
 across 8 audit phases: 43 fixed or built, six suspected defects measured-and-cleared, 5
@@ -19,9 +19,9 @@ ships -- and when a measurement said a suspected defect wasn't one, the claim wa
 rather than "fixed" (F13, F14, F16, F20, F23, F24).
 
 **How it was built:** with Claude Code. The audit methodology, the accept/reject decision
-on every finding, and the domain judgment are mine; the code is largely AI-generated, and
-the verification apparatus -- test-first fixes, the byte-exact golden master, the
-real-data backtest gates -- is the experiment: whether disciplined verification can make
+on every finding, and the domain judgment are mine; the code is largely AI-generated.
+The verification apparatus is the experiment: test-first fixes, a byte-exact golden
+master, and real-data backtest gates, asking whether disciplined verification can make
 AI-generated code trustworthy. The audit trail above is the evidence either way.
 
 ![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
@@ -36,15 +36,15 @@ py -3.10 -m scripts.weekly_report --embed    # inline the charts (portable singl
 py -3.10 -m scripts.check_freshness          # one glance: has sync run this week, and did it succeed?
 ```
 
-No arguments are needed for the common case: the team comes from `config.MY_TEAM`, the
-week from the sync. The orchestrator chains every step in-process and writes one
-consolidated digest -- sortable-table HTML plus Markdown -- to `data/decisions/week_NN/`
-(`--canonical`) or `week_NN/archive/` (default). `--embed` inlines every chart for
-portability and names the file `*_embed.html` so the size is visible before opening.
+With no arguments it uses `config.MY_TEAM` and the synced week. The orchestrator chains
+every step in-process and writes one consolidated digest, as sortable-table HTML plus
+Markdown, to `data/decisions/week_NN/` (`--canonical`) or `week_NN/archive/` (default).
+`--embed` inlines every chart; the file is several MB and the `_embed` suffix warns you
+before opening.
 
-**It fails loud.** The first step that raises -- or leaves no data behind -- stops the
-chain, writes the digest with a `FAILED AT STEP ...` banner and *no* downstream sections,
-and exits 1; nothing ever runs on stale or partial data. A sync that tolerated failures
+**It fails loud.** Any step that raises, or leaves no data behind, stops the chain,
+writes the digest with a `FAILED AT STEP ...` banner and no downstream sections, and
+exits 1. Nothing ever runs on stale or partial data. A sync that tolerated failures
 leads the digest with its `DEGRADED` list every week it persists. These gates exist
 because an earlier defect that silently truncated real data on every suite run was found
 only by accident (`docs/AUDIT_PLAN.md` F11).
@@ -92,8 +92,8 @@ py -3.10 -m scripts.run_player_backtest         # variance / correlation / epist
   manifest *last*, so a manifest's presence means the sync completed.
 - **Two-variance scores:** each player's week is lognormal, with aleatoric (week-to-week)
   variance redrawn weekly and epistemic (projection) variance drawn *once per simulated
-  season* and held -- so parameter uncertainty propagates to season outcomes instead of
-  averaging away.
+  season* and held. Holding the epistemic draw is what carries parameter uncertainty
+  through to season outcomes instead of letting it average away.
 - **Correlation:** same-NFL-team players move together through a Gaussian copula with
   measured coefficients.
 - **Lineups on expectation, never on outcomes:** chosen by the Hungarian algorithm on
@@ -104,7 +104,7 @@ py -3.10 -m scripts.run_player_backtest         # variance / correlation / epist
   hazard -- never a hand-typed healthy baseline.
 - **Season mechanics:** waivers and FAAB bidding run stochastically through the season
   (calibrated to the real league's spending); an automatic trade mechanism runs too but
-  almost never completes a trade -- a tracked limitation, not a feature. The 4-team
+  almost never completes a trade -- this is a tracked limitation. The 4-team
   playoff is simulated, or seeded from banked standings when the run starts inside it.
 - **Backtesting** (`fantasy_sim.backtest_season`, `backtest_player`,
   `scripts.run_points_backtest`): as-of-week inputs reconstructed from this league's real
@@ -125,8 +125,8 @@ Runtime is **Python 3.10** with the exact pins in `requirements.txt`:
 py -3.10 -m pip install -r requirements.txt
 ```
 
-(`py -3.10` is deliberate: on the original machine plain `python` resolved to a faulty
-end-of-life 3.8 -- `docs/AUDIT_PLAN.md` R1.)
+(Plain `python` resolves to a broken end-of-life 3.8 on the original machine; use
+`py -3.10`. See `docs/AUDIT_PLAN.md` R1.)
 
 Two credentials are read from environment variables, never hardcoded:
 
@@ -141,7 +141,8 @@ Two credentials are read from environment variables, never hardcoded:
 py -3.10 -m unittest discover tests      # expected: Ran 514 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
-                                         # CAVEAT: the monoliths' high % is golden-master EXECUTION, not assertion-level verification.
+                                         # CAVEAT: high coverage on the two monoliths means the golden master RUNS them,
+                                         # not that their behavior is asserted line-by-line.
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
 ```
 
@@ -185,9 +186,9 @@ system and need re-deriving for yours.** `VOLATILITY_CONSTANTS`, `EPISTEMIC_ERRO
 `SIM_CONFIG['CORRELATIONS']`, the injury onset/duration/return parameters and the replacement
 levels were all calibrated on real player-week data scored *this way* (`backtest_player`, F13,
 F4/F5) and validated against *this* league's 2025 history. Change the scoring or the roster
-format and those numbers are no longer sourced for your league -- the honest path is to re-run
-`scripts.run_player_backtest` against your own season's data, re-establish the backtest gate,
-and only then trust the outputs. Editing the IDs below without doing that produces a
+format and those numbers are no longer sourced for your league. Re-run
+`scripts.run_player_backtest` on your own league's data and re-establish the backtest
+gate before trusting the outputs. Editing the IDs below without doing that produces a
 professional-looking forecast whose constants belong to someone else's league.
 
 **Straightforward, config-only edits** (`fantasy_sim/config.py`):

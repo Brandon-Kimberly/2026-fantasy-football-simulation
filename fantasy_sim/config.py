@@ -345,7 +345,7 @@ MY_TEAM = "Legion of Coom"
 
 # F31 (docs/AUDIT_PLAN.md, 2026-09-03): FAAB behavior measured on the 99 attributed
 # real 2025 waiver claims. League-level bid-size distribution: a single lognormal
-# reproduces the whole shape including the conviction tail (fitted median 4.15 vs
+# reproduces the whole shape including the large-bid tail (fitted median 4.15 vs
 # real 4.0, mean 7.77 vs 7.35, p95 26 vs 21, real max 39).
 FAAB_BID_LOGNORMAL_MU = 1.423
 FAAB_BID_LOGNORMAL_SIGMA = 1.120

@@ -344,7 +344,7 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
                 remaining, 0.0, agg, league_avg)), 1),
             "remaining_faab": remaining,
             "basis": "UNVERIFIED value heuristic (see suggest_bid); the model bid is what a typical "
-                     "manager is simulated to pay, not advice.",
+                     "manager would pay.",
         }
         if t["incumbent"] is not None:
             inc = sample_week_scores(engine, t["incumbent"], week, sims, seed=None if seed is None else seed + 1000 + i)
@@ -493,7 +493,7 @@ def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches
                   "faab_a_to_b": (int(faab_a_to_b) if faab_a_to_b else None)},
         "n_sims": n, "batches": batches, "sims_per_batch": sims, "teams": teams,
         "note": ("paired full simulations on identical seeds; delta = with trade minus without; SE is "
-                 "the paired-batch standard error. Real Champ_Pct/Playoff_Pct movement, not a proxy. "
+                 "the paired-batch standard error. The deltas are real Champ_Pct/Playoff_Pct movement. "
                  "The engine's automatic trades stay active in both arms."),
     }
     if faab_a_to_b:

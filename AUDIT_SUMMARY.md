@@ -35,10 +35,10 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F9–F34 (2026-08-30 → 09-03; see the F9–F34 section below) | 26 | 10 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
 | **grand total** | **~72 findings and tracked follow-ups** | **43 fixed or built** | — | open set enumerated in the table below | — |
 
-"Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
-Fixed defects were each verified by a test that failed against the old behaviour; where a fix
-was verified against real data and made calibration worse, it was reverted and the reason
-recorded (this happened five times — see "Reverted on evidence").
+"Open" means tracked with an acceptance criterion and a stated blocker.
+Fixed defects were verified by tests that failed against the old behaviour. Where a fix
+made real-data calibration worse, it was reverted and the reason recorded (five times —
+see "Reverted on evidence").
 
 ---
 
@@ -232,10 +232,9 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 
 ## F9–F34 — follow-ups and measurements (2026-08-30 → 2026-09-03)
 
-One line each; full entries in `docs/AUDIT_PLAN.md`. The distinctive pattern of this stretch:
-five suspected defects were MEASURED and the claims retired rather than "fixed" (F13, F14,
-F16, F20, F23, F24 — six, counting both weighting suspicions), because the measurement said
-the code was right.
+One line each; full entries in `docs/AUDIT_PLAN.md`. Six suspected defects in this
+stretch (F13, F14, F16, F20, F23, F24) were measured and the claims retired rather
+than "fixed": the measurement said the code was right.
 
 - **F9** data/ directory structure, season-long retention — DONE.
 - **F10** audit-log / warnings retention — DONE (2026-08-31).
