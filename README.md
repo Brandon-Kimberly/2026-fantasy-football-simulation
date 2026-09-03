@@ -10,7 +10,7 @@
 the current week -- and seven decision tools for a real IDP fantasy league. Every
 projection is a distribution, every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~69 findings and tracked follow-ups
+**What makes it different:** the audit trail. **~70 findings and tracked follow-ups
 across 8 audit phases: 43 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
 fix required a test that failed first; every constant cites a source or says "unverified";
@@ -165,7 +165,7 @@ deliberate non-fix is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`** -- the working spec, with 31 tracked follow-ups (F1-F31), each with
+- **`docs/AUDIT_PLAN.md`** -- the working spec, with 32 tracked follow-ups (F1-F32), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 

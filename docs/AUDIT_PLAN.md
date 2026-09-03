@@ -3128,3 +3128,53 @@ re-measure simulated-vs-real spend AND the blended profiles once 2026 accumulate
 ~100 attributed claims league-wide (the prior weight then carries ~50% — roughly weeks
 8–10 at 2025's pace). If the blend has drifted the aggregate out of the band, that is
 the recalibration point — not before.
+
+### F32 — The waiver claim premium: the one honest path to pricing waiver skill (2026-09-03)
+
+**Origin (owner's question, answered structurally):** can the sim ever price waiver
+skill without damaging the rest of the model? The general version is a category error,
+not a calibration gap: inside a simulation whose ground truth is the projections,
+"skill" means knowing what the projections don't — any injected version of it is
+invented value (Phase 4's exploit and the lookahead rule are both shapes of this).
+Exactly one version survives the objection.
+
+**The measurable quantity: the claim premium.** Real claims are made on news the
+projections LAG — a player is claimed Tuesday on Monday's injury; his projection
+catches up Thursday. So the population of CLAIMED players may systematically outperform
+their AT-CLAIM projections. That selection effect is a league-level, measurable
+quantity: premium = realized post-claim value minus at-claim projected value, over all
+claims. If real, won streamers could draw from replacement + a MEASURED premium
+distribution — the same epistemic move F31 made for spending (calibrate the aggregate,
+refuse to model the individual).
+
+**Why it is blocked on season data, precisely:** the baseline is the at-claim
+projection, and 2025's projections are gone (F7's founding problem; a trailing-realized
+proxy would import the draft-review proxy caveat). The instrument is ALREADY RUNNING:
+the decision log freezes contemporaneous projection snapshots at claim time, and F18's
+contemporaneity split separates real snapshots from backfilled ones. At 2025's pace
+(~99 claims/season), January gives ~100 claims with clean at-claim baselines — the
+first dataset from which this premium has ever been computable here.
+
+**Measurement design (set now, before results exist):** for every 2026 claim with a
+contemporaneous snapshot, premium_i = (mean realized league-scored points over the N
+weeks the player was actually rostered post-claim, play-conditional) minus the frozen
+at-claim projected mean. Report the distribution (mean, median, CI), split
+upgrade-vs-hole-fill, and week-of-season profile. Adoption bar: a constant enters the
+engine only if the CI excludes zero and n >= ~60 contemporaneous claims; otherwise
+record measured-as-negligible — which would ALSO be decisive, making the trade
+evaluator's unpriced FAAB block permanent rather than provisional.
+
+**Constraints, fixed in advance so the adoption cannot drift:**
+- League-level only, identical for all teams — per-manager skill at 5–19 claims each is
+  exactly F14's prohibition. Note the consequence honestly: a uniform premium largely
+  cancels in relative outcomes; its real effects are variance, league scoring level
+  (gate-checked), and — the point — giving FAAB a marginal value (premium x expected
+  claims per dollar), the only visible path to ever pricing a FAAB trade transfer
+  through the machinery instead of around it (F31's unpriced block).
+- Drawn as a distribution, never a deterministic bonus; value sourced from the FA pool
+  (conservation untouched); constant carries n and CI.
+- Engine-side if adopted: goldens regenerate, gate applies, MAJOR.
+
+**Status: OPEN, blocked on season data.** Unlock: ~January 2027 (season-end), alongside
+F7/F8/F22 — or earlier at ~60 contemporaneous claims if the season runs hot. Nothing to
+build until then; the logging already collects everything the measurement needs.
