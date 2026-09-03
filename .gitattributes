@@ -1,0 +1,4 @@
+# The tamper-evidence guard hashes these files byte-for-byte; autocrlf conversion on
+# checkout would rewrite LF->CRLF and trip it as a false alarm. Pin them binary-stable.
+SEASON_2026_EVALUATION.md -text
+SEASON_2026_EVALUATION.sha256 -text
