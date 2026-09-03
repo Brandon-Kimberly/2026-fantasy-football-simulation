@@ -11,9 +11,10 @@ so a sync-time change either leaves these hashes byte-identical or regenerates t
 the deltas explained in the commit (MAJOR per the release policy's sync-time clause).
 
 COVERAGE LIMIT, stated plainly: the ESPN snapshot is taken at the
-fetch_espn_projections return-value boundary, so the ESPN client's PARSING sits outside
-this golden (its own unit tests cover it). The seam between stage goldens is where
-changes ship unverified -- the same pattern F28 documented for the engine golden.
+fetch_espn_projection_data return-value boundary (points AND the F29 sub-scores), so
+the ESPN client's PARSING sits outside this golden (its own unit tests cover it). The
+seam between stage goldens is where changes ship unverified -- the same pattern F28
+documented for the engine golden.
 
 Hermeticity: runs in a throwaway temp workdir (storage paths are CWD-relative, the same
 isolation backtest_season uses), with requests.get faked (an unexpected URL raises --
@@ -59,6 +60,7 @@ def run_golden_sync():
     proj = _jz("projections.json.gz")
     players_db = _jz("players_db.json.gz")
     espn = _j("espn_projections.json")
+    espn_subs = _j("espn_subscores.json")
     scoring = _j("scoring_settings.json")
     live_rosters = _j("live_rosters.json")
     byes = _j("byes.json")
@@ -100,8 +102,17 @@ def run_golden_sync():
             f.write(prior_log)
 
         os.chdir(workdir)
+        def _stale_seam(*args, **kwargs):
+            # If sync ever calls the OLD single-channel fetch again, fail loud instead of
+            # letting an unpatched seam reach the live network inside a "hermetic" run --
+            # exactly the near-miss caught during F29's regeneration.
+            raise AssertionError("golden_sync: sync called fetch_espn_projections -- the "
+                                 "harness patches fetch_espn_projection_data; update the seam")
+
         with patch.object(sync.requests, "get", fake_get), \
-             patch.object(sync, "fetch_espn_projections", lambda year, week: dict(espn)), \
+             patch.object(sync, "fetch_espn_projections", _stale_seam), \
+             patch.object(sync, "fetch_espn_projection_data",
+                          lambda year, week, scoring=None: (dict(espn), dict(espn_subs))), \
              patch.object(sync, "datetime", FrozenDatetime):
             baselines = sync.generate_player_baselines(
                 scoring, players_db, live_rosters, meta["season"], meta["week"],

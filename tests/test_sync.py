@@ -58,7 +58,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
 
         with patch('os.path.exists', return_value=False), \
              patch('requests.get', side_effect=fake_get), \
-             patch('fantasy_sim.sync.fetch_espn_projections', return_value={}), \
+             patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({}, {})), \
              patch('builtins.open', mock_open()), \
              patch('json.dump') as mock_json_dump:
             result = generate_player_baselines(scoring_settings, players_db, live_rosters, current_year="2026", week=1)
@@ -90,7 +90,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
 
         with patch('os.path.exists', return_value=True), \
              patch('requests.get', side_effect=fake_get), \
-             patch('fantasy_sim.sync.fetch_espn_projections', return_value={}), \
+             patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({}, {})), \
              patch('builtins.open', mock_open(read_data=json.dumps(existing_baselines_payload))), \
              patch('json.load', return_value=existing_baselines_payload), \
              patch('json.dump'):
@@ -268,7 +268,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
 
         with patch('os.path.exists', return_value=False), \
              patch('requests.get', side_effect=fake_get), \
-             patch('fantasy_sim.sync.fetch_espn_projections', return_value={"test player": 40.0}), \
+             patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({"test player": 40.0}, {})), \
              patch('builtins.open', mock_open()), \
              patch('json.dump'):
             result = generate_player_baselines(scoring_settings, players_db, live_rosters, current_year="2026", week=1)
@@ -300,7 +300,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
 
         with patch('os.path.exists', return_value=False), \
              patch('requests.get', side_effect=fake_get), \
-             patch('fantasy_sim.sync.fetch_espn_projections', return_value={}), \
+             patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({}, {})), \
              patch('builtins.open', mock_open()), \
              patch('json.dump'):
             result = generate_player_baselines(scoring_settings, players_db, live_rosters, current_year="2026", week=1)
@@ -557,7 +557,7 @@ class TestMissingProjectionIsAnAbsence(unittest.TestCase):
 
         with (patch('os.path.exists', return_value=True),
               patch('requests.get', side_effect=fake_get),
-              patch('fantasy_sim.sync.fetch_espn_projections', return_value={}),
+              patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({}, {})),
               patch('builtins.open', mock_open(read_data=json.dumps(existing))),
               patch('json.load', return_value=existing),
               patch('json.dump'),

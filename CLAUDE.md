@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 492 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 500 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
@@ -62,7 +62,7 @@ These are non-negotiable and exist because each was learned the hard way on this
    a second for the fix. This keeps "what was wrong" reviewable independently of "what changed".
 
 4. **Do not refactor what is not covered by intent.** `run_simulation` (571 lines) and
-   `export_and_visualize` (492 lines) ARE pinned byte-exactly by the golden master (Phase 0
+   `export_and_visualize` (500 lines) ARE pinned byte-exactly by the golden master (Phase 0
    is complete; coverage there is execution, not assertion — see F26). Decomposition is
    Phase 8, which stays blocked until the R1 hardware is replaced and Arm D passes 12/12 —
    the golden certifies refactors only on a machine that can be trusted to run it.
@@ -95,9 +95,14 @@ Each of these looks like a defect and is not. Changing any of them requires expl
 
 - `SIM_CONFIG['MEDIAN_SCORING_ENABLED'] = False` in the season backtest. The 2025 season really
   was pure H2H; the flag exists so a historical season is simulated under the rules that applied.
-- `ESPN_BLEND_ELIGIBLE_POSITIONS` excludes K and IDP. Sleeper and ESPN scoring for those
-  positions could not be matched, so blending them would corrupt the disagreement signal that
-  drives epistemic uncertainty.
+- `ESPN_BLEND_ELIGIBLE_POSITIONS` excludes K and IDP from the POINTS-level mean blend.
+  The original reasoning -- Sleeper and ESPN scoring cannot be matched at the points level --
+  was measured by F29 (2026-09-02) as right about points and wrong about STAT LINES: ESPN's
+  projected stat lines, scored under this league's own settings on the shared category
+  subset, now drive a K/IDP epistemic disagreement signal (epistemic-only; the mean stays
+  Sleeper's, because ESPN projects no TFL and a blended mean would be biased low). Do not
+  extend the points blend to K/IDP -- that half of the exclusion still holds -- and keep
+  sync's shared-subset keys in lockstep with the ESPN map in clients/espn.py.
 - `VACATED_VOLUME_CAPTURE_RATE = 0.65` is explicitly **not** rigorously derived. It is carried
   over and documented as such. Do not silently re-tune it; if you have a real source, say so.
 - Mean-weighted vacated-volume apportionment was long suspected backwards in the handcuff

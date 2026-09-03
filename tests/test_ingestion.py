@@ -344,7 +344,7 @@ class _BaselineHarness(unittest.TestCase):
              patch.object(sync.os.path, "exists", return_value=existing is not None), \
              patch.object(sync, "load_json", return_value=existing or {}), \
              patch.object(sync.requests, "get", return_value=weekly), \
-             patch.object(sync, "fetch_espn_projections", return_value=espn or {}):
+             patch.object(sync, "fetch_espn_projection_data", return_value=(espn or {}, {})):
             out = sync.generate_player_baselines(self.SCORING, players_db, {}, "2026", 1)
         return out, saved
 
@@ -390,7 +390,7 @@ class TestBaselineIngestion(_BaselineHarness):
              patch.object(sync.os.path, "exists", return_value=existing is not None), \
              patch.object(sync, "load_json", return_value=existing or {}), \
              patch.object(sync.requests, "get", return_value=weekly), \
-             patch.object(sync, "fetch_espn_projections", return_value={}):
+             patch.object(sync, "fetch_espn_projection_data", return_value=({}, {})):
             return sync.generate_player_baselines(self.SCORING, players_db, {}, "2026", 1,
                                                   rostered_pids=rostered)
 
@@ -475,7 +475,7 @@ class TestBaselineIngestion(_BaselineHarness):
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync.os.path, "exists", return_value=False), \
              patch.object(sync.requests, "get", return_value=weekly), \
-             patch.object(sync, "fetch_espn_projections", return_value={}), \
+             patch.object(sync, "fetch_espn_projection_data", return_value=({}, {})), \
              self.assertLogs(level="WARNING"):
             sync.generate_player_baselines(self.SCORING, db, live, "2026", 1)
 
@@ -707,7 +707,7 @@ class TestByeWeekDerivation(unittest.TestCase):
         with patch.object(sync, "save_json", side_effect=fake_save), \
              patch.object(sync.os.path, "exists", return_value=False), \
              patch.object(sync.requests, "get", return_value=weekly), \
-             patch.object(sync, "fetch_espn_projections", return_value={}):
+             patch.object(sync, "fetch_espn_projection_data", return_value=({}, {})):
             out = sync.generate_player_baselines({"rush_yd": 0.1}, db, {}, "2026", 1, byes={"DET": 6})
         self.assertEqual(out["Amon-Ra St. Brown"]["bye"], 6)
         self.assertEqual(out["Free Agent"]["bye"], 0)
@@ -773,7 +773,7 @@ class TestInjuryStatusIngestion(unittest.TestCase):
         with patch.object(sync, "save_json", side_effect=fake_save):
             with patch.object(sync.os.path, "exists", return_value=False):
                 with patch.object(sync.requests, "get", return_value=weekly):
-                    with patch.object(sync, "fetch_espn_projections", return_value={}):
+                    with patch.object(sync, "fetch_espn_projection_data", return_value=({}, {})):
                         out = sync.generate_player_baselines({"rush_yd": 0.1}, db, {}, "2026", 1,
                                                              byes={"GB": 5}, reserve_pids={"7640"})
         mp, hg = out["Micah Parsons"], out["Healthy Guy"]

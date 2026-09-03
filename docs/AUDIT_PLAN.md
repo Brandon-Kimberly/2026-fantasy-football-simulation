@@ -2864,7 +2864,7 @@ hash `player_baselines.json`)? Surveyed, not built:
   could not see — which changes the hash. Coverage limit stated in the harness
   docstring: ESPN client parsing sits outside (snapshot at the fetch boundary).
 
-### F29 — K/IDP epistemic disagreement from ESPN raw stat lines (2026-09-02)
+### F29 — K/IDP epistemic disagreement from ESPN raw stat lines — BUILT (2026-09-02)
 
 **Origin (owner's question, answered sideways):** asked whether a THIRD source's raw stat
 lines could be scored under this league's settings for IDP. Survey answer: the SECOND
@@ -2934,3 +2934,29 @@ through this path), **MAJOR** under the release policy's sync-time clause, and t
 CLAUDE.md "Deliberate decisions" entry for the ESPN exclusion is REWRITTEN (not
 deleted), F24-style: right about points, wrong about stat lines, dated, citing this
 entry.
+
+**Adoption (same day, tests-first: 8 new tests confirmed failing before the
+implementation existed).** New seam `fetch_espn_projection_data` (one ESPN fetch, two
+channels: the unchanged points blend + F29 sub-scores); `fetch_espn_projections` kept as
+a wrapper; sync computes the Sleeper side via `_shared_subscore` and logs both
+sub-scores into the F7 rows for F22's eventual derivation.
+
+**Sync-golden deltas, its first live regeneration (fixture population, 888 baselines):**
+`std_epistemic` rose for **143 entries — and nothing else changed anywhere**: zero mean
+movements (the epistemic-only design held mechanically), zero aleatoric changes, zero K
+changes (the 0.40 floor dominates observed K agreement, as the study measured). The
+study's 3 rostered LBs land at exactly the predicted values (Brooks 1.05 → 3.74, Warner
+1.50 → 1.88, Sherwood 1.38 → 1.67 — the study cross-validated by the adoption). The
+other 140 are free-agent-pool IDP, where low means put low floors under genuine source
+disagreement — wider epistemic on streamer-tier IDP is the honest reading of two
+sources disputing small projections. Hashes: baselines 3137129… (was 79c25e7b…), F7 log
+327fcc61… (was 59b99d23…, two new row fields `sleeper_sub`/`espn_sub`).
+
+**Gate: PASS, fully inert** — overall bias −0.811, mean z +0.043, identical to the F28
+line at logged precision (the backtest reconstructs baselines from historical means and
+never executes this path). Engine goldens byte-identical (15 OK, fixtures clean), as
+the sync-time clause predicts. **One near-miss recorded:** the first regeneration ran
+with the harness still patching the OLD seam, so the "hermetic" run silently reached
+the live ESPN client; caught by comparing against a second run, fixed, and the harness
+now trips loudly if sync ever calls the old seam name — the stale-patch failure mode is
+exactly how a stage golden's seam rots.

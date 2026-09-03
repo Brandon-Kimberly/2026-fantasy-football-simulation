@@ -61,7 +61,7 @@ class TestProjectionLogFromSync(unittest.TestCase):
             return len(rows)
         with patch.object(sync, "save_json"), patch.object(sync.os.path, "exists", return_value=False), \
              patch.object(sync.requests, "get", return_value=weekly), \
-             patch.object(sync, "fetch_espn_projections", return_value={sync._normalize_player_name_for_matching("Amon-Ra St. Brown"): 12.0}), \
+             patch.object(sync, "fetch_espn_projection_data", return_value=({sync._normalize_player_name_for_matching("Amon-Ra St. Brown"): 12.0}, {})), \
              patch.object(sync, "append_projection_log", side_effect=fake_append):
             sync.generate_player_baselines({"rush_yd": 0.1}, db, live_rosters, "2026", 3)
         rows = {r["player_id"]: r for r in logged["rows"]}

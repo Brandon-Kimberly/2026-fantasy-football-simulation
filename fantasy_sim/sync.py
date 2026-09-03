@@ -31,7 +31,7 @@ from fantasy_sim.storage import (
     draft_log_file, season_log_file,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
-from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as _normalize_player_name_for_matching
+from fantasy_sim.clients.espn import fetch_espn_projections, fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
 
 
 def generate_nfl_schedule(current_nfl_week=1):
@@ -428,6 +428,41 @@ def _last_logged_projections(path=PROJECTION_LOG_FILE):
     return out
 
 
+# F29 (docs/AUDIT_PLAN.md): the K/IDP source-disagreement signal is computed on the
+# category subset BOTH sources project, scored under this league's own settings.
+# idp_tkl_loss is deliberately absent: ESPN's nearest projected stat ('Stuffs', id 112)
+# measures a narrower quantity (~40% lower at slope 0.88 vs Sleeper's TFL) and scoring it
+# as TFL would build a systematic shortfall into the signal. The ESPN side of the same
+# subset lives in clients/espn.py (ESPN_IDP_BREAKDOWN_MAP + espn_*_subscore); the two
+# must stay in lockstep.
+IDP_SHARED_DISAGREEMENT_KEYS = (
+    'idp_tkl_solo', 'idp_tkl_ast', 'idp_sack', 'idp_int', 'idp_pass_def',
+    'idp_ff', 'idp_fum_rec', 'idp_def_td', 'idp_safe', 'idp_blk_kick', 'idp_qb_hit',
+)
+SUBSCORE_SLOTS = {'K', 'DL', 'LB', 'DB'}
+
+
+def _shared_subscore(stats_dict, league_scoring_settings, slot):
+    """Sleeper's side of the F29 shared sub-score. K excludes the per-yard
+    fgm_yds_over_30 bonus on both sides (ESPN projects bands, not yards; a within-band
+    yardage distribution would be an invented constant). Returns None when the stat line
+    carries nothing scoreable, so callers fall back to the positional floor."""
+    if slot == 'K':
+        fgm = float(stats_dict.get('fgm', 0.0) or 0.0)
+        fga = float(stats_dict.get('fga', 0.0) or 0.0)
+        xpm = float(stats_dict.get('xpm', 0.0) or 0.0)
+        xpa = float(stats_dict.get('xpa', 0.0) or 0.0)
+        if fgm <= 0 and xpm <= 0:
+            return None
+        return (fgm * float(league_scoring_settings.get('fgm', 0.0) or 0.0)
+                + xpm * float(league_scoring_settings.get('xpm', 0.0) or 0.0)
+                + max(0.0, fga - fgm) * float(league_scoring_settings.get('fgmiss', 0.0) or 0.0)
+                + max(0.0, xpa - xpm) * float(league_scoring_settings.get('xpmiss', 0.0) or 0.0))
+    total = sum(float(stats_dict.get(k, 0.0) or 0.0) * float(league_scoring_settings.get(k, 0.0) or 0.0)
+                for k in IDP_SHARED_DISAGREEMENT_KEYS)
+    return total if total > 0 else None
+
+
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
                               rostered_pids=None, byes=None, reserve_pids=None):
     existing_baselines = {}
@@ -468,11 +503,12 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     # Second, independent projection source (free, see fetch_espn_projections docstring). A
     # failure here must never break baseline generation -- espn_projections simply stays {}
     # and every player below falls back to Sleeper-only, exactly as before this change.
-    espn_projections = {}
+    espn_projections, espn_subscores = {}, {}
     try:
-        espn_projections = fetch_espn_projections(current_year, week)
+        espn_projections, espn_subscores = fetch_espn_projection_data(
+            current_year, week, league_scoring_settings)
     except Exception:
-        espn_projections = {}
+        espn_projections, espn_subscores = {}, {}
 
     keys = resolve_player_keys(projections.keys(), players_db, rostered_pids)
     colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}
@@ -563,6 +599,19 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # hand-picked positional error rate.
         espn_key = _normalize_player_name_for_matching(_player_name(player))  # plain name, never the "(pid)" key
         espn_weekly_mean = espn_projections.get(espn_key)
+        slot_pos = normalize_position(raw_pos)
+        # F29: K/IDP get no points-level ESPN mean (points under ESPN's scoring are not
+        # comparable for these positions -- the original, still-correct half of the old
+        # exclusion), but both sources project raw STAT LINES, so the disagreement signal
+        # comes from scoring both lines under this league's settings on the shared subset.
+        # Epistemic-only by design: ESPN projects no TFL, so a blended mean would be
+        # biased low; the mean stays Sleeper's. Sub-scores land in the F7 log for F22's
+        # eventual epistemic derivation.
+        sleeper_sub = espn_sub = None
+        if slot_pos in SUBSCORE_SLOTS:
+            espn_sub = espn_subscores.get(espn_key)
+            if espn_sub is not None:
+                sleeper_sub = _shared_subscore(stats_dict, league_scoring_settings, slot_pos)
         if name in rostered_names:
             projection_rows.append({
                 "season": str(current_year), "week": int(week), "synced_at": synced_at,
@@ -570,6 +619,8 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                 "sleeper_mean": sleeper_weekly_mean,
                 "espn_mean": (round(float(espn_weekly_mean), 2) if espn_weekly_mean is not None and espn_weekly_mean > 0 else None),
                 "fallback_season": bool(fallback_season),
+                "sleeper_sub": (round(sleeper_sub, 2) if sleeper_sub is not None else None),
+                "espn_sub": (round(float(espn_sub), 2) if espn_sub is not None else None),
             })
         source_disagreement = None
         if espn_weekly_mean is not None and espn_weekly_mean > 0:
@@ -577,6 +628,8 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             source_disagreement = abs(sleeper_weekly_mean - espn_weekly_mean)
         else:
             fresh_mean = sleeper_weekly_mean
+            if sleeper_sub is not None and espn_sub is not None:
+                source_disagreement = abs(sleeper_sub - float(espn_sub))
 
         prior = existing_by_pid.get(str(pid))
         if prior is None and not existing_by_pid and name in existing_baselines:
@@ -599,7 +652,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # Constants are keyed by the engine's slot position; Sleeper reports DE/DT/NT/CB/S/FS/
         # SS/FB. Looking up by the raw string gave all of those the anonymous default
         # (Phase 3 finding 3). The stored "pos" stays raw -- the engine normalises on read.
-        slot_pos = normalize_position(raw_pos)
+        # (slot_pos computed above, at the F29 sub-score block.)
         if slot_pos not in VOLATILITY_CONSTANTS:
             unconstrained_positions[raw_pos] = unconstrained_positions.get(raw_pos, 0) + 1
         k_val = VOLATILITY_CONSTANTS.get(slot_pos, 1.5)

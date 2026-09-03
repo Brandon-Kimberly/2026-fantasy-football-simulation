@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F29 (2026-08-30 → 09-03; see the F9–F29 section below) | 21 | 8 fixed / built | 6 measured & cleared | 7 open, tracked | 0 |
-| **grand total** | **~67 findings and tracked follow-ups** | **41 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F29 (2026-08-30 → 09-03; see the F9–F29 section below) | 21 | 9 fixed / built | 6 measured & cleared | 6 open, tracked | 0 |
+| **grand total** | **~67 findings and tracked follow-ups** | **42 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -289,8 +289,10 @@ the code was right.
   stat lines); shared subset 11/12 keys (ESPN id-100 identified as QB hits; id-112
   'Stuffs' excluded as narrower than TFL; ids 110/111 recorded as unreliable); signal
   clears the floor for 3/37 rostered K/IDP today (all LB, led by a real Brooks
-  tackle-volume dispute) — OPEN pending the adoption commit (MAJOR, sync-golden
-  deltas shown). Floors stay F22's.
+  tackle-volume dispute) — BUILT same day, tests-first: epistemic-only (143 of 888
+  fixture baselines widened, zero mean movements, zero K changes), sync-golden
+  regenerated with deltas shown on its first live exercise, engine goldens
+  byte-identical, gate inert as predicted. MAJOR. Floors stay F22's.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 
