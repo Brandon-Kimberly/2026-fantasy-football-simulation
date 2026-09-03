@@ -2739,3 +2739,74 @@ claims, phase-narrative statuses, the R1 characterisation, and counts derived fr
 phase docs — covered instead by the process rule now in CLAUDE.md: closing, resolving,
 retiring, or measuring-and-clearing a finding updates AUDIT_SUMMARY in the same commit,
 with the status keyword in the plan's F-heading so guard 3 can cross-check.
+
+### F28 — IDP and K volatility constants derived from full-NFL 2025 stats (2026-09-02)
+
+**Origin (owner's idea):** F13/F23 used Sleeper's `/stats/nfl/regular/2025/{week}`
+endpoint — league-wide NFL stats, ~2,100 players/week. The 2025 backtest league rostering
+no IDP players never blocked that route, because it never used rostered players. Target:
+`VOLATILITY_CONSTANTS` DL/LB/DB, until now 1.5/1.5/1.5 — literally the `.get(slot, 1.5)`
+unknown-position fallback, carried with no derivation.
+
+**Survey:** the league scores 12 IDP categories (solo 1.5 / ast 0.75 / TFL 2 / sack 4 /
+QB hit 1 / INT 5 / PD 1.5 / FF 3 / FR 3 / TD 6 / safety 2 / blocked kick 2); the endpoint
+carries all 12 (idp_safe absent in a sampled week is event rarity, not a missing
+category). Weekly coverage ~450–535 active IDP players.
+
+**Validation gate (run before any fit, per the owner's stop-condition):** reconstructing
+every rostered player-week of the 2025 backtest league as sum(stats × that league's own
+scoring_settings) reproduced Sleeper's recorded `players_points` on **1,891 of 1,891
+player-weeks, exact to the cent, zero mismatches**. The pipeline is exact, not
+approximate.
+
+**Population lesson, resolved by experiment:** the naive all-NFL fit (≥6 play-conditional
+weeks, F23's filter) contradicted F23 on offense (RB k 1.75 vs F23's 2.05) — it is
+dominated by low-mean part-timers the engine never simulates. Restricting to the engine's
+own floor (`BASE_STREAMER_MEANS`, mean ≥ streamer level) resolves it: **RB 2.03 vs F23's
+2.05, WR 1.97 vs 1.95** under offensive scoring verified byte-identical between the two
+leagues. The restricted population is the validated calibration frame — the same
+population `backtest_player` calibrated the engine constants on.
+
+**IDP fit (streamer-floor population, this league's scoring, F23's exact method —
+per-player play-conditional mean/sd, free log-log exponent, sqrt-constrained k):**
+
+| pos | n | k (sqrt-form) | 95% CI | exponent b | 1.5 in CI? | floor sensitivity |
+|---|---|---|---|---|---|---|
+| DL | 49 | 2.16 | [2.02, 2.30] | 0.73 ± 0.16 | no | k 1.99→2.27 over floors 5→10 |
+| LB | 72 | 1.67 | [1.58, 1.76] | 0.36 ± 0.16 | no | stable (1.70→1.65) |
+| DB | 67 | 1.58 | [1.51, 1.65] | 0.78 ± 0.23 | no | mild rise (1.53→1.68) |
+
+Not "placeholder confirmed": the fallback **understates IDP weekly variance for all
+three positions** — modestly for LB/DB, substantially for DL, whose scoring is
+big-play-dominated (sack +4 on a 1.5-tackle base). LB is the cleanest (b consistent with
+sqrt, k floor-stable). DL carries a form caveat: b = 0.73 sits above 0.5 and binned CV is
+near-flat through the startable range, so a single k is mean-range-dependent — any
+adopted DL constant documents the [1.99, 2.27] bracket.
+
+**K, an unexpected but explained finding:** the same method under current scoring gives
+**K k = 1.45 [1.37, 1.56] vs the engine's 1.57**. The only offensive scoring keys that
+differ between the 2025 backtest league and this league are kicker keys (XP 1→2, misses
+doubled, distance bonus tweaked) — a deliberate 2026 change made specifically to reduce
+kicker variance. k falling from F23's 1.69 (old rules) to 1.45 (new rules) is the
+measured confirmation the change worked; the engine's 1.57 is a stale constant calibrated
+under scoring this league no longer uses — wrong for a clearer reason than the IDP
+placeholders.
+
+**Decision (owner-approved): adopt DL 2.16, LB 1.67, DB 1.58, K 1.57→1.45** in a
+separate remediation commit — golden regeneration, backtest gate, **MAJOR pending** per
+the release policy.
+
+**What this does NOT close, stated so the item is not over-claimed:**
+- `EPISTEMIC_ERROR_RATES` DL/LB/DB is projection error and needs projections that do not
+  exist for 2025; **F22's epistemic half stays open on F7** (2026 projection-log
+  accumulation) regardless.
+- **Coverage gap (rule 2):** no test can catch a wrong IDP volatility constant — the 2025
+  backtest league rosters no IDP, so the gate is expected inert for the DL/LB/DB change
+  (it still runs; it catches collateral, and the K change CAN move it). The real
+  instrument is the 2026 quoted-vs-realized calibration (~week 5–6, F25's machinery).
+
+**Caveats:** position labels join 2025 stats to the current 2026 player cache (F24's
+caveat repeated); one season of data; exact-0.0 exclusion is a mild survivor bias for
+low-snap DL, same treatment F23 accepted; DL's sqrt-form misfit documented above.
+Scripts and raw output in the session scratchpad (`idp_survey.py`,
+`offense_validation.py`, `idp_fit.py`, `idp_fit_restricted.py`).
