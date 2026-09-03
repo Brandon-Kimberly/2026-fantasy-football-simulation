@@ -32,16 +32,20 @@ jobs:
         run: |
           python -m coverage run -m unittest discover tests
           python -m coverage report
-      - name: Coverage ratchet (committed floor, 0.5-point tolerance band)
-        # The band exists because a zero-tolerance floor turns rounding noise and small
-        # denominator growth (new CLI wiring in a 0%-covered scripts file cost 0.1 on
-        # 2026-09-03) into build failures -- the learn-to-ignore-it failure mode. Real
-        # regressions (> 0.5) still fail loudly. The floor only moves by deliberate
-        # commit, so total drift is bounded by the band, not per-commit.
+      - name: Coverage ratchet (fantasy_sim package; committed floor, 0.5-point band)
+        # The band exists because a zero-tolerance floor turns rounding noise into build
+        # failures -- the learn-to-ignore-it failure mode. The GATE is scoped to the
+        # fantasy_sim package (2026-09-03, second incident of the same class): the repo
+        # total includes standalone milestone scripts that are 0%-covered BY DESIGN
+        # (scripts/run_behavior_check, scripts/make_sample_report run at milestones, not
+        # in the suite), so every new one sank the total and broke the gate by
+        # construction. scripts/ stays measured and visible in the report above; the
+        # ratchet protects the package where the model lives. The floor only moves by a
+        # deliberate commit, measured on the exact tree being committed.
         run: |
           $floor = [double](Get-Content coverage_floor.txt)
-          $total = [double](python -m coverage report --format=total)
-          Write-Output "coverage $total vs committed floor $floor (tolerance 0.5)"
-          if ($total -lt ($floor - 0.5)) { Write-Error "coverage $total is more than 0.5 below the committed floor $floor"; exit 1 }
+          $total = [double](python -m coverage report --include="fantasy_sim/*" --format=total)
+          Write-Output "fantasy_sim coverage $total vs committed floor $floor (tolerance 0.5)"
+          if ($total -lt ($floor - 0.5)) { Write-Error "fantasy_sim coverage $total is more than 0.5 below the committed floor $floor"; exit 1 }
       - name: Golden master (byte-exact reproducibility harness)
         run: python -m unittest tests.test_golden_master

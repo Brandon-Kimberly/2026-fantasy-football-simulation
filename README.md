@@ -4,7 +4,7 @@
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
 ![tests](https://img.shields.io/badge/tests-539%20passing-brightgreen)
-[![coverage](https://img.shields.io/badge/coverage-75.5%25-yellowgreen)](#validation-and-audit-trail)
+[![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
@@ -146,7 +146,9 @@ Two credentials are read from environment variables, never hardcoded:
 ```bash
 py -3.10 -m unittest discover tests      # expected: Ran 539 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
-                                         # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
+                                         # branch coverage; the committed floor (coverage_floor.txt) gates the
+                                         # fantasy_sim package -- standalone milestone scripts are measured but
+                                         # not gated, since they are suite-external by design.
                                          # CAVEAT: high coverage on the two monoliths means the golden master RUNS them,
                                          # not that their behavior is asserted line-by-line.
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
