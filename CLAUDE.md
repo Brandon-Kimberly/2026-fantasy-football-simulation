@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 476 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 478 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)

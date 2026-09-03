@@ -2614,3 +2614,54 @@ silently winning. Revisit trigger: a real 2026 disagreement coinciding with a le
 the study script (`handcuff_study*.py`, session scratchpad) is the measurement path.
 Caveats: RB only (WR/TE volume spreads broadly and was not measured); position labels for
 2025 came from the current cache.
+
+### F25 — Team-week interval calibration: diagnosed MIXED; gate corrected; engine held (2026-09-03)
+
+**Origin, with an honest note:** the 2026-09-03 re-audit ranked "cover80 = 0.64 vs nominal
+0.80" as the largest open rigor item -- **a ranking that rested partly on a harness-inflated
+number**, as this diagnosis shows. The audit should have decomposed before ranking.
+
+**Diagnosis (240 real 2025 team-weeks, raw backtest rows):** sd(z) = 1.335 (realized
+team-week variance ~1.78x predicted); kurtosis -0.38 (uniform scale, no missing regimes);
+horizon-FLAT (acquits epistemic/drift); cross-team same-week residual correlation ~ -0.05
+(acquits any league-week common factor); league-wide, not one team. Decomposition of the
+~372 pts^2 variance gap: **~5% DEF-as-FLEX artifact** (realized per-unit DEF var 39 vs
+modeled-default 19); **~39% start/sit target mismatch** (managers' actual-vs-optimal loss:
+sd 12.0/week measured on the same season -- variance the sim never claimed to predict);
+roster churn (the backtest simulates every checkpoint from FINAL 2025 rosters)
+unquantified by choice -- era-roster reconstruction judged scope-heavy; remainder genuine.
+
+**Gate corrected (step 1):** run_points_backtest now ALSO scores a hindsight-optimal
+target (realized optimal-lineup points on each week's ACTUAL roster, the retrospective's
+Hungarian machinery; recentred coverage because the hindsight-selection premium is a mean
+offset, visible as bias_opt ~ -16). Old columns unchanged for continuity.
+
+**Re-measure (step 2) -- informative by NOT moving:** OPT-target sd(z) = 1.34, identical
+to the started-target 1.335. Removing manager noise added the selection premium's own
+variance, and the two roughly cancel (bench points and started-score shortfalls are
+anti-correlated by construction, breaking the diagnosis's independence assumption). The
+two targets therefore BRACKET rather than isolate the genuine model component: the
+under-dispersion factor r lies in roughly **[1.15, 1.34]**, best point estimate ~1.2
+(artifact-subtraction, covariance caveat stated), churn inside that band unquantified.
+
+**Decision-level consequence** (true P = Phi(Phi^-1(quoted)/r); matchup margins scale the
+same way since cross-team terms are ~0 per F16):
+
+| quoted | r=1.10 | r=1.20 | r=1.34 |
+|---|---|---|---|
+| 64.8% | 63.5% | 62.4% | 61.2% |
+| 80% | 77.8% | 75.8% | 73.5% |
+| 90% | 87.8% | 85.7% | 83.1% |
+
+A quoted ~65% is really ~62-63%: orderings and lineup decisions are unaffected, near-coin-
+flip calls barely move, but CONFIDENT quotes (80-90%) overstate by ~4-7 points at the best
+estimate. Material enough to state, not clean enough to fit: any recalibration constant
+would carry +-0.1 of harness ambiguity.
+
+**Disposition: engine UNTOUCHED.** Inflating engine variance to close a bracketed,
+artifact-contaminated gap would bake manager noise and roster anachronism into the model's
+own quantity. Closure path is 2026 data, which removes all three artifacts at once: the
+canonical predictions log stores QUOTED matchup probabilities ex ante, so from ~week 5-6 a
+direct calibration check (quoted P vs realized outcomes, Brier/reliability) needs no
+harness at all. Revisit then; the gate now reports both targets every run in the interim.
+Interim honesty: read confident win-probability quotes with the table above in mind.

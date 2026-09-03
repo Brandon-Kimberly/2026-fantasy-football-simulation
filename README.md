@@ -123,7 +123,7 @@ fantasy_sim/
 └── backtest_player.py        # player-level calibration checks; projection-error derivation (F7)
 
 scripts/                      # 17 thin CLI entry points (weekly_report is the primary one); probes/ = R1 machine-fault probes
-tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 476 tests
+tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 478 tests
 data/                         # runtime output, three buckets (see storage.py):
 ├── current/                  #   sync's snapshot of the world as of the last sync (overwritten each sync) + the manifest
 ├── weeks/week_NN/            #   one directory per simulated week: exports, charts, tiers, SoS, audit log
@@ -156,7 +156,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 476 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 478 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
 ```
 
@@ -182,7 +182,7 @@ deliberate non-fix is recorded:
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 
-Concretely: **476 tests** with every regression test written to fail before its fix; a
+Concretely: **478 tests** with every regression test written to fail before its fix; a
 **three-scenario golden master** that makes any behaviour change in the engine falsifiable
 byte-for-byte; a **real-data backtest gate** on this league's 2025 season (points bias, mean z,
 coverage, logged per commit and interpreter) that every correlation- or scoring-adjacent change

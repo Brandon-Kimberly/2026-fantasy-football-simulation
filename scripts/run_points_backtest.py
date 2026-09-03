@@ -45,6 +45,34 @@ def _git(*args):
         return None
 
 
+def real_optimal_points(bundle, player_positions):
+    """{team: {week: realized optimal-lineup points}} from the season bundle's own per-week
+    matchups -- each week's ACTUAL roster (the era roster) with realized players_points,
+    solved through the engine's Hungarian assignment on the bundle's slot list. The same
+    machinery and semantics as season_retrospective's lineup-efficiency optimal."""
+    from fantasy_sim.simulation import FantasySimulationEngine
+    roster_map = {str(k): v for k, v in (bundle.get("roster_map") or {}).items()}
+    cutoff = (bundle.get("settings") or {}).get("playoff_week_start")
+    slots = [sl for sl in (bundle.get("roster_positions") or []) if sl != "BN"]
+    out = {}
+    for wk_s, entries in (bundle.get("matchups") or {}).items():
+        wk = int(wk_s)
+        if cutoff is not None and wk >= int(cutoff):
+            continue
+        for e in entries:
+            team = roster_map.get(str(e.get("roster_id")))
+            if team is None:
+                continue
+            cands = []
+            for pid, pts in (e.get("players_points") or {}).items():
+                pos = player_positions.get(str(pid))
+                if pos:
+                    cands.append((str(pid), list(pos), float(pts)))
+            assigned, _ = FantasySimulationEngine._solve_optimal_assignment(cands, slots=slots)
+            out.setdefault(team, {})[wk] = round(sum(v for _n, v, _s in assigned), 2)
+    return out
+
+
 def score_checkpoint(raw):
     """Pure scoring of one checkpoint's raw payload -> per-(team, week) records."""
     cp = raw["checkpoint_week"]
@@ -57,10 +85,19 @@ def score_checkpoint(raw):
                 continue
             mu, sd = float(col.mean()), float(col.std(ddof=1))
             p10, p25, p75, p90 = (float(x) for x in np.percentile(col, (10, 25, 75, 90)))
+            # F25's corrected target: realized OPTIMAL-lineup points on the week's actual
+            # roster. The sim never claimed to predict managers' start/sit errors (measured
+            # var ~144 pts^2 of the coverage gap), so calibration is ALSO scored against the
+            # optimal target; the hindsight-selection premium in that target shows up as a
+            # negative bias_opt, which is why summarise() reports RECENTRED opt coverage.
+            real_opt = (raw.get("real_optimal_points") or {}).get(team, {}).get(wk)
             rows.append({
                 "checkpoint": cp, "team": team, "week": wk, "real": real, "sim_mean": mu, "sim_sd": sd,
                 "bias": mu - real, "z": (real - mu) / sd if sd > 0 else float("nan"),
                 "in80": p10 <= real <= p90, "in50": p25 <= real <= p75,
+                "p10": p10, "p25": p25, "p75": p75, "p90": p90,
+                "real_opt": real_opt,
+                "z_opt": ((real_opt - mu) / sd if (real_opt is not None and sd > 0) else None),
             })
     return rows
 
@@ -69,7 +106,7 @@ def summarise(rows):
     if not rows:
         return {"n": 0}
     bias = np.array([r["bias"] for r in rows]); z = np.array([r["z"] for r in rows]); real = np.array([r["real"] for r in rows])
-    return {
+    out = {
         "n": len(rows),
         "bias": round(float(bias.mean()), 3),
         "bias_pct": round(float(100 * bias.mean() / real.mean()), 2),
@@ -77,6 +114,23 @@ def summarise(rows):
         "cover80": round(float(np.mean([r["in80"] for r in rows])), 4),
         "cover50": round(float(np.mean([r["in50"] for r in rows])), 4),
     }
+    opt = [r for r in rows if r.get("real_opt") is not None]
+    if opt:
+        bias_opt = np.array([r["sim_mean"] - r["real_opt"] for r in opt])
+        z_opt = np.array([r["z_opt"] for r in opt if r["z_opt"] is not None])
+        shift = float(bias_opt.mean())
+        # recentre: the optimal target carries the hindsight-selection premium as a mean
+        # offset; calibration is about SPREAD, so coverage is scored after removing the
+        # mean offset (equivalently, shifting every band by the mean bias).
+        out.update({
+            "bias_opt": round(shift, 3),
+            "sd_z_opt": round(float(z_opt.std(ddof=1)), 4) if len(z_opt) > 1 else None,
+            "cover80_opt_centered": round(float(np.mean(
+                [r["p10"] - shift <= r["real_opt"] <= r["p90"] - shift for r in opt])), 4),
+            "cover50_opt_centered": round(float(np.mean(
+                [r["p25"] - shift <= r["real_opt"] <= r["p75"] - shift for r in opt])), 4),
+        })
+    return out
 
 
 def main(argv=None):
@@ -87,6 +141,23 @@ def main(argv=None):
     args = ap.parse_args(argv)
     checkpoints = [int(w) for w in args.checkpoints.split(",") if w.strip()]
 
+    # the corrected target, built once from the season bundle (F25)
+    import json as _json
+    from fantasy_sim.storage import PLAYER_CACHE_FILE, load_json, season_log_file
+    _optimal_target = {}
+    try:
+        with open(season_log_file("2025"), encoding="utf-8") as _f:
+            _bundle = _json.load(_f)
+        _pdb = load_json(PLAYER_CACHE_FILE)
+        _positions = {}
+        for _pid, _e in _pdb.items():
+            _pos = _e.get("fantasy_positions") or ([_e.get("position")] if _e.get("position") else None)
+            if _pos:
+                _positions[str(_pid)] = [x for x in _pos if x]
+        _optimal_target = real_optimal_points(_bundle, _positions)
+    except Exception as ex:
+        print(f"[NOTE] optimal target unavailable ({ex}); scoring started-lineup target only")
+
     all_rows, per_cp = [], {}
     for wk in checkpoints:
         print(f"\n{'=' * 70}\nPOINTS BACKTEST -- checkpoint week {wk}, {args.sims} sims\n{'=' * 70}")
@@ -95,12 +166,17 @@ def main(argv=None):
             print(f"[SKIP] checkpoint {wk} produced no output")
             continue
         _results, raw = out
+        raw["real_optimal_points"] = _optimal_target
         rows = score_checkpoint(raw)
         per_cp[str(wk)] = summarise(rows)
         all_rows.extend(rows)
         s = per_cp[str(wk)]
-        print(f"  cp{wk}: n={s['n']} bias {s['bias']:+.2f} pts ({s['bias_pct']:+.1f}%)  mean z {s['mean_z']:+.3f}  "
-              f"cover80 {s['cover80']:.2f}  cover50 {s['cover50']:.2f}")
+        line = (f"  cp{wk}: n={s['n']} bias {s['bias']:+.2f} pts ({s['bias_pct']:+.1f}%)  mean z {s['mean_z']:+.3f}  "
+                f"cover80 {s['cover80']:.2f}  cover50 {s['cover50']:.2f}")
+        if "sd_z_opt" in s:
+            line += (f"\n        OPT target: bias {s['bias_opt']:+.2f}  sd(z) {s['sd_z_opt']:.2f}  "
+                     f"cover80c {s['cover80_opt_centered']:.2f}  cover50c {s['cover50_opt_centered']:.2f}")
+        print(line)
 
     overall = summarise(all_rows)
     record = {
@@ -124,6 +200,10 @@ def main(argv=None):
     print(f"\n{'=' * 70}\nOVERALL ({overall.get('n', 0)} team-weeks): bias {overall.get('bias', float('nan')):+.2f} pts "
           f"({overall.get('bias_pct', float('nan')):+.1f}%)  mean z {overall.get('mean_z', float('nan')):+.3f}  "
           f"cover80 {overall.get('cover80', float('nan')):.2f}  cover50 {overall.get('cover50', float('nan')):.2f}")
+    if "sd_z_opt" in overall:
+        print(f"OPT TARGET (hindsight-optimal lineups, recentred): bias {overall['bias_opt']:+.2f}  "
+              f"sd(z) {overall['sd_z_opt']:.2f}  cover80c {overall['cover80_opt_centered']:.2f}  "
+              f"cover50c {overall['cover50_opt_centered']:.2f}")
     print(f"commit {record['git_commit']}{' (dirty)' if record['git_dirty'] else ''}  python {record['python']} "
           f"({record['python_executable']})\nlogged -> {POINTS_BACKTEST_LOG}\n{'=' * 70}")
     return record

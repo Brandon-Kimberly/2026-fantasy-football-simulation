@@ -231,6 +231,45 @@ class TestPointsBacktestScoring(unittest.TestCase):
                "real_weekly_points": {"A": {6: 1.0, 7: 1.0}}}
         self.assertEqual(sorted(r["week"] for r in score_checkpoint(raw)), [6, 7])
 
+    def test_optimal_target_columns_appear_when_supplied_and_stay_absent_otherwise(self):
+        # F25's corrected target: the sim never claimed to predict managers' start/sit
+        # errors, so the gate ALSO scores against realized optimal-lineup points. Old
+        # columns unchanged for continuity; opt columns None when the target is absent.
+        from scripts.run_points_backtest import score_checkpoint, summarise
+        sims = np.zeros((5, 14))
+        sims[:, 2] = [100.0, 110.0, 120.0, 130.0, 140.0]
+        raw = {"checkpoint_week": 3, "weekly_scores": {"A": sims},
+               "real_weekly_points": {"A": {3: 105.0}}}
+        rows = score_checkpoint(raw)
+        self.assertIsNone(rows[0]["real_opt"])
+        self.assertNotIn("cover80_opt", summarise(rows))
+
+        raw["real_optimal_points"] = {"A": {3: 125.0}}
+        rows = score_checkpoint(raw)
+        r = rows[0]
+        self.assertAlmostEqual(r["real_opt"], 125.0)
+        self.assertAlmostEqual(r["z_opt"], (125.0 - 120.0) / np.std(sims[:, 2], ddof=1), places=9)
+        s_ = summarise(rows)
+        self.assertAlmostEqual(s_["bias_opt"], -5.0, msg="sim mean minus optimal target")
+        self.assertIn("sd_z_opt", s_)
+        # recentred coverage: with one row the shift absorbs the offset exactly
+        self.assertAlmostEqual(s_["cover80_opt_centered"], 1.0)
+
+    def test_real_optimal_points_solves_each_weeks_actual_roster(self):
+        # Optimal from the season bundle's own per-week rosters (the era roster, not the
+        # frozen final one): bench 9.0 must replace the started 2.0 in the FLEX-less QB+RB
+        # slot world.
+        from scripts.run_points_backtest import real_optimal_points
+        bundle = {"roster_positions": ["QB", "RB", "BN"],
+                  "settings": {"playoff_week_start": 15},
+                  "roster_map": {"1": "A"},
+                  "matchups": {"3": [{"roster_id": 1, "matchup_id": 1, "points": 22.0,
+                                      "players": ["q1", "r1", "r2"], "starters": ["q1", "r1"],
+                                      "players_points": {"q1": 20.0, "r1": 2.0, "r2": 9.0}}]}}
+        positions = {"q1": ["QB"], "r1": ["RB"], "r2": ["RB"]}
+        out = real_optimal_points(bundle, positions)
+        self.assertAlmostEqual(out["A"][3], 29.0, msg="QB 20 + best RB 9, not the started 2")
+
 
 class _FakeResp:
     def __init__(self, payload, status_code=200):
