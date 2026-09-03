@@ -42,6 +42,23 @@ class TestDocsMatchReality(unittest.TestCase):
                 self.assertEqual(n, actual,
                                  f"{doc} claims {n} test modules; tests/ has {actual}.")
 
+    def test_badges_match_reality(self):
+        """The tests badge and the coverage badge are static Shields images; static means
+        they CAN lie, so they are guarded like every other number: the tests badge must
+        equal the discovered suite size, the coverage badge must equal the committed floor
+        (coverage_floor.txt -- the single source of truth CI ratchets on)."""
+        readme = _doc("README.md")
+        m = re.search(r"badge/tests-(\d+)%20passing", readme)
+        self.assertIsNotNone(m, "README has no tests badge")
+        actual = unittest.TestLoader().discover(HERE, top_level_dir=ROOT).countTestCases()
+        self.assertEqual(int(m.group(1)), actual,
+                         f"tests badge says {m.group(1)}; the suite has {actual}")
+        m = re.search(r"badge/coverage-([\d.]+)%25", readme)
+        self.assertIsNotNone(m, "README has no coverage badge")
+        floor = open(os.path.join(ROOT, "coverage_floor.txt"), encoding="utf-8").read().strip()
+        self.assertEqual(m.group(1), floor,
+                         f"coverage badge says {m.group(1)}; the committed floor is {floor}")
+
     def test_every_script_is_documented_in_the_readme(self):
         readme = _doc("README.md")
         missing = []
