@@ -944,10 +944,18 @@ class TestDecisionLogIngestion(unittest.TestCase):
         self.assertIsNone(pc["projection"], "no baseline for the player: projection is None, not invented")
 
     def test_a_write_failure_warns_and_never_raises(self):
+        # The path lives in a temp dir: ensure_dir_for runs with the REAL os.makedirs
+        # before the patched open fails, and a repo-relative path left a stray
+        # unwritable/ directory at the repo root on every suite run (pre-season audit,
+        # 2026-09-03; F11-adjacent -- the suite must not write outside temp).
+        import os as _os
+        import tempfile
         import fantasy_sim.sync as syncmod
-        with patch("builtins.open", side_effect=OSError("disk full")), \
+        with tempfile.TemporaryDirectory() as tmp, \
+             patch("builtins.open", side_effect=OSError("disk full")), \
              self.assertLogs(level="WARNING") as logs:
-            n = self._run({1: [self._tx("t1", 1_756_899_000_000)]}, path="unwritable/decision_log.jsonl")
+            n = self._run({1: [self._tx("t1", 1_756_899_000_000)]},
+                          path=_os.path.join(tmp, "unwritable", "decision_log.jsonl"))
         self.assertEqual(n, 0)
         self.assertTrue(any("DECISION LOG" in m for m in logs.output))
 
