@@ -17,6 +17,9 @@ byte-exact 15-test golden master and a per-commit real-data backtest gate decide
 -- and when a measurement said a suspected defect wasn't one, the claim was retired rather
 than "fixed" (F16, F23, F24).
 
+![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
+*From a real weekly report: every starter is a distribution (p10/p50/p90 and a bust probability), with the margin over the best bench alternative beside it.*
+
 A quant-grade simulation engine and weekly decision-support kit for an 8-team IDP Sleeper
 league. Every player's weekly score is a probability distribution, not a point projection;
 10,000 simulated seasons run forward from the current week through a Gaussian copula, a
