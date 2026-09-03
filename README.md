@@ -3,14 +3,14 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-502%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-504%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-73.9%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator -- 10,000 simulated seasons forward from
 the current week -- and seven decision tools for a real IDP fantasy league. Every
 projection is a distribution, every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~68 findings and tracked follow-ups
+**What makes it different:** the audit trail. **~69 findings and tracked follow-ups
 across 8 audit phases: 42 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
 fix required a test that failed first; every constant cites a source or says "unverified";
@@ -137,7 +137,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 502 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 504 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
                                          # CAVEAT: the monoliths' high % is golden-master EXECUTION, not assertion-level verification.
@@ -165,7 +165,7 @@ deliberate non-fix is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`** -- the working spec, with 30 tracked follow-ups (F1-F30), each with
+- **`docs/AUDIT_PLAN.md`** -- the working spec, with 31 tracked follow-ups (F1-F31), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 

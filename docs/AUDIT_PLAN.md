@@ -3013,3 +3013,59 @@ sub-scores since F29). Each 2026 lead absence adds one clean event; re-open when
 have accumulated (mid-season at 2025's absence pace). Scripts in the session
 scratchpad (`capture_rate_study.py`, `capture_rate_diagnostics.py`).
 No constant, golden, or gate touched: measurement only.
+
+### F31 — Simulated FAAB spending vs real: gap measured at ~3x; F14's figure was stale (2026-09-03)
+
+**Origin (owner):** the trade evaluator cannot express a FAAB transfer, and the working
+belief — from Phase 4 via F14 — was that simulated leagues spend "3–6 of 100 per season",
+making the whole in-season acquisition channel look inert. Both halves needed measuring
+before designing anything.
+
+**The stale figure, corrected first because it shaped reasoning today:** "3–6 of 100" is
+Phase 4's characterisation, taken when the deficit lookahead was A NO-OP because bye
+modelling did not exist yet (Phase 4's own text says so). Byes landed later and made
+deficit-gated bidding live; nobody re-measured. The figure has been stale ever since —
+a re-measurement trigger ("re-check after byes land") should have been attached and was
+not.
+
+**Measured now, both sides:**
+- *Real 2025* (99 completed waiver claims + 152 zero-cost adds, per-team attribution):
+  **728 of 800 league FAAB spent (91%)**; five of eight teams at/near 100; winning bids
+  mean 7.4, MEDIAN 4, max 39; spending front-loaded (385 of 728 in weeks 1–4, before a
+  single bye) and persistent all season. Per-manager spread is real signal: claims 5–19,
+  mean bid 5.3 (Canton Killers) to 12.6 (The Glutton). Caveat: two teams sum over 100
+  (Wine Drinkers 113, Clankers 106) — FAAB acquired by trade or multi-roster claim
+  attribution; headline unaffected.
+- *Current sim* (instrumented `_compute_faab_bid` over hermetic golden-fixture seasons):
+  **248 of 800 per season (~31%)** from week 1 (week06 scenario: 175) — ~60 bids per
+  league-season at mean 4.1.
+
+**Decomposition of 248 vs 728 — count x size, structural on both axes:**
+- *Count (60 vs 99, x1.65):* the sim bids ONLY on hard lineup deficits (slots that
+  cannot be filled); real managers bid speculatively and for upgrades — the real
+  league's heaviest spending is weeks 1–4, when no deficits exist.
+- *Size (mean 4.1 vs 7.4, x1.8 — but MEDIANS MATCH, 4.1 vs 4):* the entire size gap is
+  the missing conviction tail (real bids of 20–39 on premium adds); the sim's
+  U(6,22) x agg x needs/2 shape cannot produce one and its ceiling is avg_faab x 1.5.
+- *Candidates checked and cleared:* Phase 4's replacement-level cap changes what a won
+  streamer is WORTH; the bid formula never reads streamer value, so it cannot suppress
+  spending. `faab_agg` is a size multiplier on an already-small base — consistent with
+  F14's ordering-not-volume finding. Neither is the cause.
+
+**Consequence for the trade evaluator, decided and BUILT same day:** at 31% average
+spend, `remaining_faab` almost never binds, so pricing a $48 budget transfer through the
+paired simulation would systematically report ~zero — false precision claiming FAAB is
+worthless. `evaluate_trade` therefore records a `faab_a_to_b` transfer as an
+**explicitly unpriced component** (CLI `--a-faab`/`--b-faab`; the note names this entry;
+the engine's budgets are never touched — pinned by tests written failing first).
+
+**OPEN — the behavioral fix, scoped as its own arc (design before engine):** an
+upgrade-bidding channel plus a conviction tail, calibrated at the LEAGUE level from this
+measurement (728/800 total, the weekly profile, the bid-size distribution). Per the
+owner: `MANAGER_PROFILES.faab_agg` is IN scope this time — the 99 claims carry per-team
+attribution, so per-manager aggression is measurable rather than guessed (a
+better-evidenced version of how the current values were derived) — but as a
+**2025-derived PRIOR, not a fact**: labeled as such, with the design allowing in-season
+updating as 2026 claims accumulate in the decision log (already ingesting them).
+Engine-side when it lands: goldens regenerate, backtest gate applies, **MAJOR**.
+Scripts in the session scratchpad (`faab_real_2025.py` + instrumented golden runs).
