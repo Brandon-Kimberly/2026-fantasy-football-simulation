@@ -3,8 +3,8 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-514%20passing-brightgreen)
-[![coverage](https://img.shields.io/badge/coverage-73.9%25-yellowgreen)](#validation-and-audit-trail)
+![tests](https://img.shields.io/badge/tests-529%20passing-brightgreen)
+[![coverage](https://img.shields.io/badge/coverage-75.5%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
@@ -138,7 +138,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 514 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 529 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
                                          # CAVEAT: high coverage on the two monoliths means the golden master RUNS them,

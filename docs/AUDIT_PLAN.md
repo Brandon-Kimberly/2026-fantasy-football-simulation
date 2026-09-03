@@ -2705,9 +2705,14 @@ command so the number cannot be misread later.
 
 The ten sync.py entries are the priority cluster: warn-never-raise BY DESIGN, so a bug
 inside an untested handler body degrades data with nothing louder than a manifest
-warning -- quiet-by-design and never-tested compound there. TRACKED FOLLOW-UP (not
-built): exercise those ten handler bodies through the existing fake-HTTP layer; real
-work, tractable, not urgent.
+warning -- quiet-by-design and never-tested compound there. TRACKED FOLLOW-UP, since
+BUILT (2026-09-03, pre-kickoff): tests/test_sync_handlers.py exercises every sync
+handler body with an untested branch -- fifteen by then, the census's ten having grown
+with F29/F31 -- each asserting the DOCUMENTED degradation (warning substance + fallback
+state), not mere execution. One documented contract was pinned as found: a bracket
+fetch failure writes {} (empty file), not an empty-rounds payload. Coverage rose
+73.9 -> 75.5 and the committed floor advanced with it (the audit had separately
+measured 74.3 pre-handler-tests; both moves in one deliberate commit).
 
 **Built immediately rather than filed:** the week-16 semifinal fallback (simulation
 931-936) -- resolves semifinal winners from real week-15 h2h when the bracket records
