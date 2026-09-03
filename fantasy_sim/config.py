@@ -525,7 +525,15 @@ SIM_CONFIG = {
     # VACATED_VOLUME_CAPTURE_RATE (0.65, applied to all three positions) is NOT as precisely
     # grounded as the injury-rate or duration-mixture constants above -- no clean aggregate
     # statistic was found for "what fraction of a departed player's production a teammate
-    # captures." It carries over the RB value unchanged (itself not independently derived from
+    # captures" when it was set. F30 (docs/AUDIT_PLAN.md, 2026-09-02) has since MEASURED it
+    # on the 8 real 2025 lead-RB absences: mean capture +1.53 [0.87, 2.19], every event
+    # above 0.65, placebo-validated -- i.e. this value is directionally CONSERVATIVE (real
+    # committees gain more than 0.65x the lead's baseline). HELD anyway: n=8 spans
+    # 0.84-2.62 with two role-change contaminations, the measured denominator (realized
+    # pre-absence mean) is not this constant's unit (healthy projected mean), and a rate
+    # > 1.0 would change the conservation invariant's meaning -- see the F30 entry and its
+    # 2026 projection-log revisit trigger before touching this number.
+    # It carries over the RB value unchanged (itself not independently derived from
     # data) for consistency rather than a fresh derivation. Real, concrete anecdotal support it
     # isn't zero or trivial: George Pickens' target share rose from 15.3% to 24.3% (a real,
     # documented jump) after CeeDee Lamb's 2025 injury. Treat this constant as directionally

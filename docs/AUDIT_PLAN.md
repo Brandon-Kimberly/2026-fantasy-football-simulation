@@ -2960,3 +2960,56 @@ with the harness still patching the OLD seam, so the "hermetic" run silently rea
 the live ESPN client; caught by comparing against a second run, fixed, and the harness
 now trips loudly if sync ever calls the old seam name — the stale-patch failure mode is
 exactly how a stage golden's seam rots.
+
+### F30 — VACATED_VOLUME_CAPTURE_RATE measured on F24's events — MEASURED AND HELD (2026-09-02)
+
+**Origin (owner):** the 0.65 capture rate is the oldest carried-unverified constant; F24
+already identified the event class. Same data (full-NFL 2025 weekly stats), same
+snap-triple team clustering, same criteria — the reconstruction finds **the same n = 8
+lead-RB absence events** (Conner/ARI, Hubbard/CAR, Irving/TB, Hampton/LAC, Pacheco/KC,
+Skattebo/NYG, Stevenson/NE, Dobbins/DEN). Target, in the model's own unit
+(league-scored points, same-position mates only, matching `_record_vacated_volume`):
+aggregate mates' gain per week during the absence vs their pre-absence baselines,
+divided by the absent lead's pre-absence weekly mean.
+
+**Estimator validated before believing it (the owner's gate):** a placebo null — the
+identical statistic on 91 windows where the lead KEPT playing — centres at **+0.12
+(median +0.02)** in both points and carries, so the estimator is near-unbiased and the
+effect is not construction noise.
+
+**Measurement:** per-event capture 0.84 / 0.86 / 0.89 / 0.91 / 1.40 / 2.34 / 2.39 /
+2.62 — **mean +1.53, median +1.15, sd 0.79, 95% CI [0.87, 2.19]**; carries-based
+cross-check mean +1.42 (median 1.35); dropping the final pre-absence week (the partial
+injury game) from the baseline moves the mean only to +1.43. Every one of the eight
+events sits ABOVE the engine's 0.65.
+
+**Held, not refit — three reasons, each sufficient:**
+1. **The data cannot pick a number.** Events span 0.84–2.62 with the two F24
+   role-change contaminations (the Stevenson/Henderson and Hubbard/Dowdle explosions
+   are role-change-shaped) in the upper half; any refit between ~0.85 (min-event) and
+   ~1.4 (mean) is a researcher choice the sample cannot adjudicate.
+2. **Denominator mismatch with the model's unit.** The measurement divides by the
+   realized pre-absence mean; the engine multiplies the healthy PROJECTED season mean.
+   Leads sharing or playing hurt before going down depress the realized denominator —
+   the injury-game sensitivity bounds this effect as small on this sample, but it is
+   structural and unmeasurable at n = 8.
+3. **A capture rate above 1 is a model-structure question, not a constant tweak.** The
+   statistical conventions state vacated volume is conserved (total apportioned never
+   exceeds total vacated); a rate > 1.0 would recast the pool from "share of the absent
+   player's production" to "committee production exceeds the lead's solo baseline" —
+   plausible in reality (the lead's realized mean is not the ceiling of the role), but
+   adopting it silently would change an invariant's meaning. That needs its own
+   discussion if 2026 confirms the level.
+
+**What the measurement does establish:** 0.65 is **directionally conservative** — the
+model under-boosts committees during simulated absences (all 8 real events exceeded
+it) — and conservative here means understating backup upside in exactly the situations
+(handcuff value, absence-week waivers) the decision tools price.
+
+**Revisit trigger, designed to dissolve reason 2:** measure 2026 absence events with
+the denominator taken from the F7 projection log's own recorded `sleeper_mean` at
+absence onset — the model's exact unit, recorded weekly since 2026 week 1 (and
+sub-scores since F29). Each 2026 lead absence adds one clean event; re-open when ~5+
+have accumulated (mid-season at 2025's absence pace). Scripts in the session
+scratchpad (`capture_rate_study.py`, `capture_rate_diagnostics.py`).
+No constant, golden, or gate touched: measurement only.
