@@ -200,6 +200,10 @@ byte-identical or is regenerated with the deltas explained in the commit.
 
 ## Validation and audit trail
 
+**The 2026 season's success criteria were committed before any game was played** --
+calibration, points-for, and the coverage gap, with record/playoffs explicitly scored as
+neither success nor failure: [SEASON_2026_EVALUATION.md](SEASON_2026_EVALUATION.md).
+
 This is the part of the project to read first if you want to know whether the numbers can be
 trusted. The model was audited phase by phase, organised by property class (conservation,
 orientation, invariance, bounds, liveness) rather than by file, and every finding, fix and
