@@ -2665,3 +2665,42 @@ canonical predictions log stores QUOTED matchup probabilities ex ante, so from ~
 direct calibration check (quoted P vs realized outcomes, Brier/reliability) needs no
 harness at all. Revisit then; the gate now reports both targets every run in the interim.
 Interim honesty: read confident win-probability quotes with the table above in mind.
+
+### F26 — Coverage analysis: the number is 74%, the finding is the silent-failure map (2026-09-03)
+
+coverage.py (branch mode) is wired locally (.coveragerc; coverage_floor.txt) and into CI
+(the suite runs under coverage; a COMMITTED-FLOOR RATCHET fails on drops -- raising the
+floor is a deliberate commit, the docs-guard philosophy). Headline: total 73.9% at
+adoption, fantasy_sim package alone 85.1%, the difference being the thin argparse CLIs
+under scripts/ at 0%.
+
+**Read the monolith numbers correctly:** simulation.py's 97.6% is golden-master
+EXECUTION, not assertion-level verification -- the hashes catch any drift byte-exactly
+but assert nothing about pre-existing behaviour. Recorded in the README beside the
+command so the number cannot be misread later.
+
+**The valuable output is the branch map of where a silent failure could hide.**
+23 of 33 broad exception-handler bodies never execute under the suite:
+
+    decisions.py:991 | freshness.py:34, 99 | run_windows.py:78 |
+    sync.py:331, 426, 437, 456, 466, 474, 931, 958, 1074, 1104, 1211 |
+    weekly_report.py:53, 857, 862, 892 |
+    scripts/evaluate_move.py:31 | scripts/evaluate_trade.py:29 |
+    scripts/run_points_backtest.py:44, 158
+
+The ten sync.py entries are the priority cluster: warn-never-raise BY DESIGN, so a bug
+inside an untested handler body degrades data with nothing louder than a manifest
+warning -- quiet-by-design and never-tested compound there. TRACKED FOLLOW-UP (not
+built): exercise those ten handler bodies through the existing fake-HTTP layer; real
+work, tractable, not urgent.
+
+**Built immediately rather than filed:** the week-16 semifinal fallback (simulation
+931-936) -- resolves semifinal winners from real week-15 h2h when the bracket records
+none; previously never executed under any test, reachable only at current_week >= 16,
+and a bug there is a silently wrong CHAMPIONSHIP PAIRING at championship time. Now
+pinned (both comparison directions plus the loud refusal when week-15 data is absent),
+verified to execute the target lines.
+
+Also on the map, lower priority: weekly_report's FAILED-banner path (a bug there hides
+the failure report itself), freshness's live week-roll path (wrong OK/STALE verdict),
+and the untested firing of simulation.py:1602's CRITICAL FAILSAFE (loud if it works).

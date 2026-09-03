@@ -169,3 +169,43 @@ class TestSeedingFromBankedStandings(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             _run("week15", current_week=17)
         self.assertIn("complete", str(ctx.exception))
+
+class TestWeek16SemifinalFallback(unittest.TestCase):
+    """F26 coverage follow-up: simulation lines 931-936 -- the week-16 fallback that
+    resolves semifinal winners from REAL week-15 h2h results when the bracket records
+    none -- had never executed under any test. A bug there is a silently wrong
+    CHAMPIONSHIP PAIRING, reachable only at current_week >= 16: the worst possible time
+    to discover it. Pinned on a crafted week-16 state over the existing fixture
+    scaffolding (no bracket -> the fallback is the only path)."""
+
+    def _engine16(self, wk15_results):
+        files = _fixture_files()
+        files["league_state.json"] = {"current_week": 16}
+        files["playoff_bracket.json"] = {}
+        wa = copy.deepcopy(files.get("weekly_actuals.json") or {})
+        wa["week_15"] = {"team_results": wk15_results, "median_cutoff": 0}
+        files["weekly_actuals.json"] = wa
+        return _engine_with(files)
+
+    def test_both_semifinal_winners_come_from_week15_h2h(self):
+        probe = self._engine16({})
+        ranked = sorted(probe.team_names,
+                        key=lambda t: (probe.actual_h2h_wins[t] + probe.actual_median_wins[t],
+                                       probe.actual_points[t]), reverse=True)
+        s1, s2, s3, s4 = ranked[:4]
+        # semi 1: the 1-seed won; semi 2: the 3-seed won -- exercising BOTH comparison
+        # directions in won() (the a-side and b-side branches)
+        e = self._engine16({s1: {"h2h_win": 1}, s4: {"h2h_win": 0},
+                            s2: {"h2h_win": 0}, s3: {"h2h_win": 1}})
+        top4, _ranked, (w1, w2) = e._seed_from_banked_standings()
+        self.assertEqual(top4, [s1, s2, s3, s4])
+        self.assertEqual(w1, s1, "semi 1 (1v4) goes to the recorded week-15 winner")
+        self.assertEqual(w2, s3, "semi 2 (2v3) goes to the recorded week-15 winner")
+
+    def test_missing_week15_results_refuse_loudly_instead_of_guessing_a_final(self):
+        e = self._engine16({})
+        with self.assertRaises(ValueError) as ctx:
+            e._seed_from_banked_standings()
+        self.assertIn("Re-run the sync", str(ctx.exception))
+
+

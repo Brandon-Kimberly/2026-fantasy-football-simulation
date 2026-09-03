@@ -15,3 +15,5 @@ espn_api
 # reproduces it). 6.119.4 runs the five property tests cleanly. Revisit when the interpreter is
 # a later 3.10.x patch release.
 hypothesis<6.120
+# Dev/test tooling (the hypothesis precedent: test-only deps live here, pinned).
+coverage==7.16.0

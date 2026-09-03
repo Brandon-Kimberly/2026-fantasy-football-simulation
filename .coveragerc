@@ -1,0 +1,13 @@
+[run]
+branch = True
+source = fantasy_sim, scripts
+omit =
+    tests/*
+    scripts/probes/*
+    */__pycache__/*
+
+[report]
+precision = 1
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
