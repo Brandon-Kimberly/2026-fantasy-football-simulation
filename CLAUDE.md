@@ -61,8 +61,8 @@ These are non-negotiable and exist because each was learned the hard way on this
 3. **Separate characterisation from remediation.** One commit for tests that expose behaviour,
    a second for the fix. This keeps "what was wrong" reviewable independently of "what changed".
 
-4. **Do not refactor what is not covered by intent.** `run_simulation` (571 lines) and
-   `export_and_visualize` (514 lines) ARE pinned byte-exactly by the golden master (Phase 0
+4. **Do not refactor what is not covered by intent.** `run_simulation` (~585 lines) and
+   `export_and_visualize` (~485 lines, 2026-09-03; they grow) ARE pinned byte-exactly by the golden master (Phase 0
    is complete; coverage there is execution, not assertion — see F26). Decomposition is
    Phase 8, which stays blocked until the R1 hardware is replaced and Arm D passes 12/12 —
    the golden certifies refactors only on a machine that can be trusted to run it.

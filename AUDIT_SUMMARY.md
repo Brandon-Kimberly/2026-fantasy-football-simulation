@@ -1,4 +1,4 @@
-# Audit summary — Phases 0–7, bye modelling, F1–F32
+# Audit summary — Phases 0–7, bye modelling, F1–F34
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
 below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or a `docs/AUDIT_PLAN.md`
@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F32 (2026-08-30 → 09-03; see the F9–F32 section below) | 24 | 10 fixed / built | 6 measured & cleared | 8 open, tracked | 0 |
-| **grand total** | **~70 findings and tracked follow-ups** | **43 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F34 (2026-08-30 → 09-03; see the F9–F34 section below) | 26 | 10 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
+| **grand total** | **~72 findings and tracked follow-ups** | **43 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -224,13 +224,13 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | F12 | `SystemError` in `_solve_optimal_assignment`, seen once | R1-linked; does not reproduce single-process |
 | F17 | Commissioner-Exempt return timing (live data point) | event-driven — the week his status changes |
 | F18 / F19 | decision retrospective; cross-week odds trajectory | season data (~weeks 3–4); predictions log is the authoritative input (F25) |
-| F22 | IDP epistemic/volatility constants (tier caveat applied) | derive from F7's projection log after a season |
+| F22 | IDP epistemic constants (volatility half closed by F28) | derive from F7's projection log after a season |
 | F25 | team-week interval under-dispersion, bracketed r ∈ [1.15, 1.34] | quoted-vs-realized calibration from the predictions log, ~week 5–6 |
 | F15 / F26 | draft realized-value row; the ten untested sync handler bodies | season data; fake-HTTP layer respectively |
 | R1 | **machine-level fault under multi-core load — verdict: RMA.** MemTest86 clean, AV excluded, BIOS/microcode updated to 0x133 with Intel Default Settings — Arm D still fails 9/12 and 11/12, so the chip itself is degraded (Vmin Shift class). Load threshold is not safe even at 3 concurrent real engine processes (1/3 silent death, 2026-09-01, no Reliability Monitor trace). Rules: one engine process at a time; a crashed or impossible-error run is void. CI on a cloud Windows runner now provides an independent, fault-free machine certifying every commit. Re-test = Arm D 12/12 after the CPU is replaced. | AUDIT_PLAN.md R1 carries the full probe history |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
 
-## F9–F32 — follow-ups and measurements (2026-08-30 → 2026-09-03)
+## F9–F34 — follow-ups and measurements (2026-08-30 → 2026-09-03)
 
 One line each; full entries in `docs/AUDIT_PLAN.md`. The distinctive pattern of this stretch:
 five suspected defects were MEASURED and the claims retired rather than "fixed" (F13, F14,
@@ -316,6 +316,15 @@ the code was right.
   2026 claims (~January); adoption bar and constraints fixed in the entry now, before
   results exist. A zero result would be decisive too — it makes the trade evaluator's
   unpriced FAAB block permanent.
+- **F33** unsourced in-engine constants, grouped by the pre-season audit's sweep
+  (game-script multipliers, replacement depth indices, streamer decay/ladder/ceiling,
+  n_0, LEAGUE_AVG_PPG) — OPEN; derive from 2026 data or mark permanently-unverified
+  with reasoning. The anonymous-default family was centralized same-day.
+- **F34** missing churn channels: the free-add channel (152 real zero-cost adds with no
+  sim analog; churn under-modeled ~2.3x) and IR-spot economics (real rosters ran 16.9
+  of 19 active; the sim never frees the spot) — OPEN, season-scale by decision; must
+  respect the F31/F32 replacement-cap boundary. F2 gains its real calibration target:
+  11 trades in 2025 vs the sim's ~0.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 

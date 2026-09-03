@@ -326,7 +326,9 @@ Verified: the Hungarian assignment is exactly optimal (1,700 random rosters vs e
 search, 0 suboptimal, incl. dual-eligibility and FLEX); no lookahead (49,920 candidate values all
 equal the baseline mean while draws varied); streamer needs equal the assignment's unfilled
 slots every week on both fixtures. The 2-week deficit lookahead is a no-op until byes exist;
-FAAB spend is 3–6 of 100 per season (no bite).
+FAAB spend is 3–6 of 100 per season (no bite). [Stale since bye modelling landed:
+corrected by F31 (2026-09-03) — the deficit lookahead this figure was measured under
+was a no-op until byes existed. Post-F31 the calibrated figure is ~684 of 800.]
 
 Findings:
 
@@ -2043,7 +2045,7 @@ check -- it is additional evidence for an existing conclusion, not a new finding
 on Phase 8 -- can start whenever real 2025 play-by-play or box-score data is pulled for the
 measurement.
 
-### F14 — `MANAGER_PROFILES` sensitivity: measured, small -- values left as-is, CLOSED (2026-09-01)
+### F14 — `MANAGER_PROFILES` sensitivity: measured, small -- values left as-is, CLOSED (2026-09-01; faab values since REPLACED by F31, 2026-09-03)
 
 **Origin:** `MANAGER_PROFILES` (`config.py`) was self-derived from prior-season observation plus
 an external tool, with unknown validation quality, and is deliberately excluded from data-driven
@@ -2617,6 +2619,15 @@ Caveats: RB only (WR/TE volume spreads broadly and was not measured); position l
 
 ### F25 — Team-week interval calibration: diagnosed MIXED; gate corrected; engine held (2026-09-03)
 
+> **Baseline annotation (2026-09-03, pre-season audit):** the r ≈ [1.15, 1.34] bracket
+> below — and the "quoted 80% is really ~74–78%" mapping the locked
+> SEASON_2026_EVALUATION.md cites as its criterion-3 baseline — was measured on the
+> PRE-F31 engine. F31's FAAB behavioral fix then moved the same gate metrics toward
+> nominal (cover80 0.625 → 0.667; OPT-target sd(z) 1.35 → 1.23, 300-sim noise caveat).
+> The locked file stays locked — that is its point — but the January evaluation must
+> compare 2026 quoted-vs-realized against THIS annotated history, not treat the
+> bracket as a property of the engine that will actually be quoting all season.
+
 **Origin, with an honest note:** the 2026-09-03 re-audit ranked "cover80 = 0.64 vs nominal
 0.80" as the largest open rigor item -- **a ranking that rested partly on a harness-inflated
 number**, as this diagnosis shows. The audit should have decomposed before ranking.
@@ -3178,3 +3189,52 @@ evaluator's unpriced FAAB block permanent rather than provisional.
 **Status: OPEN, blocked on season data.** Unlock: ~January 2027 (season-end), alongside
 F7/F8/F22 — or earlier at ~60 contemporaneous claims if the season runs hot. Nothing to
 build until then; the logging already collects everything the measurement needs.
+
+### F33 — Unsourced in-engine constants, grouped (2026-09-03)
+
+The pre-season audit's constants sweep (every numeric literal in production code, AST-based)
+found the following prediction-affecting numbers with no source, derivation, or unverified
+label. Grouped here rather than silently annotated, so each gets a real disposition instead
+of a drive-by comment:
+
+- Game-script multipliers: ±0.06 (defensive tier), +0.15 RB / +0.10 DL at spread <= -5.5,
+  +0.10 QB/WR/TE / -0.10 RB at spread >= +5.5. Mechanism commented, magnitudes underived.
+- Replacement-level depth indices: {'QB': 10, 'RB': 24, 'WR': 24, 'TE': 12, 'K': 8,
+  'DL': 10, 'LB': 10, 'DB': 10}.
+- STREAMER_DECAY_RATE = 0.85; the streamer value ladder max(4.0, 12.0 - i*0.5); the bid
+  competitive ceiling avg_faab x 1.5 (survived F31 unexamined).
+- Bayesian prior weight n_0 = 4.0 (engine and backtest_player).
+- LEAGUE_AVG_PPG = 21.5 and the DEFAULT_FALLBACK_TOTALS flat 21.5/20.0 (now labeled
+  unverified in config with a pointer here).
+- Entry-field defaults mean=8.0 / mean=4.0 / std_aleatoric=3.0 scattered across decisions
+  and simulation; presentation-tier: the MAE < 18.0 "Calibrated & Learning" verdict label,
+  --seller-threshold 35.0, matchup --k 0.5.
+
+The ANON_VOLATILITY_K / ANON_EPISTEMIC_RATE family was centralized same-day (the audit's
+item 1; goldens and gate bit-identical, as intended for a pure centralization). The rest
+are TRACKED here. Disposition path: derive from 2026 data where a measurement exists
+(game-script multipliers and streamer decay are measurable from real play splits and
+add-retention; the depth indices from real startable-pool sizes), or mark
+permanently-unverified with reasoning where no measurement can exist. OPEN; unlock: 2026
+season data, alongside F7's family.
+
+### F34 — Missing churn channels: free-agent adds and IR-spot economics (2026-09-03)
+
+The mechanics-vs-2025 comparison (same audit) found the two remaining structural gaps in
+in-season realism, filed as SEASON-SCALE work by explicit decision, not pre-kickoff fixes:
+
+- **The free-add channel.** Real 2025: 152 zero-cost free-agent adds (61% of all adds
+  started within 2 weeks); the sim's only churn is FAAB-bid streamer claims (~110/season,
+  calibrated to the 99 real PAID claims). Total roster churn under-modeled ~2.3x. Any fix
+  must respect the F31/F32 boundary: added players' value stays replacement-capped until
+  F32's claim premium is measured, or the Phase 4 exploit reopens.
+- **IR-spot economics.** Real 2025 active rosters averaged 16.9 of 19 (IR slots in
+  routine use); the sim prices absences directly (F4-F6, well-calibrated on scoring) but
+  never frees the roster spot, so the pickup capacity an IR move creates does not exist
+  in-sim. Interacts with the free-add channel above; model them together or not at all.
+
+Everything else measured in the comparison is within noise of real behavior (lineup
+changes sim 2.14/wk vs real 2.76; waiver volume calibrated; timing modestly flat). The
+trade mechanism's 0-vs-11 inertness stays tracked under F2, now with the 2025 real rate
+(11 trades, weeks 1-11, 2-5 players, FAAB riders) recorded as its calibration target.
+OPEN; unlock: post-season (or a deliberate mid-season arc if F2 is redesigned).

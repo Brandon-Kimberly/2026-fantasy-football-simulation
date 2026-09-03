@@ -10,7 +10,7 @@
 the current week -- and seven decision tools for a real IDP fantasy league. Every
 projection is a distribution, every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~70 findings and tracked follow-ups
+**What makes it different:** the audit trail. **~72 findings and tracked follow-ups
 across 8 audit phases: 43 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
 fix required a test that failed first; every constant cites a source or says "unverified";
@@ -102,9 +102,10 @@ py -3.10 -m scripts.run_player_backtest         # variance / correlation / epist
   conserved. A rostered player with no projection but an absence status (IR / PUP /
   Commissioner Exempt) is carried at his last data-sourced mean and returns on a measured
   hazard -- never a hand-typed healthy baseline.
-- **Season mechanics:** waivers, FAAB and a live trade mechanism run stochastically
-  through the season; the 4-team playoff is simulated, or seeded from banked standings
-  when the run starts inside it.
+- **Season mechanics:** waivers and FAAB bidding run stochastically through the season
+  (calibrated to the real league's spending); an automatic trade mechanism runs too but
+  almost never completes a trade -- a tracked limitation, not a feature. The 4-team
+  playoff is simulated, or seeded from banked standings when the run starts inside it.
 - **Backtesting** (`fantasy_sim.backtest_season`, `backtest_player`,
   `scripts.run_points_backtest`): as-of-week inputs reconstructed from this league's real
   2025 season and run through the *actual, unmodified* engine; the player-level backtest
@@ -165,7 +166,7 @@ deliberate non-fix is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`** -- the working spec, with 32 tracked follow-ups (F1-F32), each with
+- **`docs/AUDIT_PLAN.md`** -- the working spec, with 34 tracked follow-ups (F1-F34), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 

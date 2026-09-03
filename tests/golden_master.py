@@ -6,7 +6,7 @@ committed fixture set and reducing everything it produces to a set of hashes.
 
 WHY THIS EXISTS
 ---------------
-`run_simulation` (~445 lines) and `export_and_visualize` (~333 lines) have no test that pins
+`run_simulation` and `export_and_visualize` (two multi-hundred-line monoliths) have no test that pins
 their aggregate behaviour. Until they do, any "this refactor preserves behaviour" claim about
 them is unfalsifiable -- which is precisely how a previous refactor widened the blast radius of
 two latent bugs before they were found. This module makes such claims falsifiable: change
