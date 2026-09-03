@@ -585,6 +585,10 @@ figcaption { font-size: .78rem; color: #666; text-align: center; padding-top: .3
 .charts { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
 .charts figure { flex: 1 1 45%; height: 460px; display: flex; flex-direction: column; }
 .charts figure img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+/* Dense reference figures (tier charts): full width, one per row, natural height --
+   these are the ones actually squinted at, so readability wins over the fixed box. */
+.charts.charts-full figure { flex: 1 1 100%; height: auto; }
+.charts.charts-full figure img { flex: none; object-fit: unset; }
 details { margin: .35rem 0; }
 summary { cursor: pointer; font-weight: 600; font-size: .9rem; padding: .35rem .6rem;
           background: #f6f6f6; border-radius: 4px; }
@@ -755,8 +759,14 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
             if t["pos"] not in positions:
                 positions.append(t["pos"])
         if positions:
-            out.append('<h3>Positional tiers for the positions above</h3><div class="charts">'
-                       + "".join(_img(tier_chart_path(p_, week), f"{p_} tiers", embed, anchor) for p_ in positions) + "</div>"
+            # Tier charts are the densest figures in the report (60+ player rows each): they
+            # get full width, one per row, inside a collapsed details block -- readable when
+            # opened beats compact, but they should not dominate the scroll when closed.
+            out.append('<h3>Positional tiers for the positions above</h3>'
+                       f'<details><summary>Tier charts ({", ".join(positions)}) -- full width, open to read</summary>'
+                       '<div class="charts charts-full">'
+                       + "".join(_img(tier_chart_path(p_, week), f"{p_} tiers", embed, anchor) for p_ in positions)
+                       + "</div></details>"
                        + '<p class="note">Full ranked tables: ' + " | ".join(_link(positional_tiers_table_path(p_, week), p_, anchor) for p_ in positions) + "</p>")
 
     tr = res.get("trades")
