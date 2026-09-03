@@ -194,6 +194,27 @@ class TestHtmlTable(unittest.TestCase):
         h = html_table(["a", "b"], [["x", 1.5], ["y", 2.5]])
         self.assertIn('data-type="text">a', h); self.assertIn('data-type="number">b', h)
 
+    def test_placeholder_dash_does_not_detype_a_numeric_column(self):
+        """The real report's numeric columns carry '-' placeholders (no bench alternative, no
+        opponent) -- under all-or-nothing typing one placeholder detyped the whole column to
+        text: left-aligned, non-tabular, lexically sorted. Written failing against that
+        behaviour: neutral cells ('-' or empty) must not decide the type, must still align
+        with the numbers (class num), and must sort to the numeric bottom."""
+        h = html_table(["player", "margin"], [["A", "+1.2"], ["B", "-"], ["C", "-0.8"]])
+        self.assertIn('data-type="number">margin', h)
+        self.assertIn('class="num" data-sort="-1e999">-<', h)   # neutral: aligned, sinks in sort
+
+    def test_signed_cols_color_only_opted_in_columns(self):
+        """Sign-carrying semantic color is OPT-IN by column header, never blanket sign-sniffing:
+        '+' cells get pos, '-' cells get neg, unsigned and zero cells stay plain, and a column
+        not named in signed_cols never gains either class even when its cells carry signs."""
+        h = html_table(["player", "margin", "sd"], [["A", "+1.2", "+3.0"], ["B", "-0.8", "2.0"], ["C", "+0.0", "1.0"]],
+                       signed_cols=("margin",))
+        self.assertIn('class="num pos" data-sort="1.2"', h)
+        self.assertIn('class="num neg" data-sort="-0.8"', h)
+        self.assertIn('class="num" data-sort="0.0"', h)         # +0.0: signed but zero, no color
+        self.assertIn('class="num" data-sort="3.0"', h)         # sd not opted in: plain num
+
 
 class TestHtmlReport(unittest.TestCase):
     def _ok_report(self):

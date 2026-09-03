@@ -477,21 +477,47 @@ def _sort_value(v):
         return t.lower()
 
 
-def html_table(headers, rows, types=None, sort_keys=None, css_class=""):
-    """A sortable table in positional_tiers' pattern: th[data-key][data-type], td[data-sort]."""
+def _is_neutral(v):
+    """Placeholder cells ('-' or empty) that must neither decide a column's type nor break
+    the alignment of the numbers around them."""
+    return str(v).strip() in ("-", "")
+
+
+def html_table(headers, rows, types=None, sort_keys=None, css_class="", signed_cols=()):
+    """A sortable table in positional_tiers' pattern: th[data-key][data-type], td[data-sort].
+
+    Type inference ignores neutral placeholder cells ('-'/empty): a numeric column with a
+    few placeholders stays numeric (right-aligned, tabular numerals), and the placeholders
+    sort to the numeric bottom. `signed_cols` is the OPT-IN list of column headers whose
+    sign-carrying cells get semantic color classes (pos/neg) -- explicit per call site,
+    never blanket sign-sniffing, so an SE column's '+-' header can never trigger it."""
     if types is None:
         types = []
         for c in range(len(headers)):
-            col = [r[c] for r in rows if c < len(r)]
+            col = [r[c] for r in rows if c < len(r) and not _is_neutral(r[c])]
             types.append("number" if col and all(_is_number(v) for v in col) else "text")
+    signed_idx = {c for c, h in enumerate(headers) if str(h) in signed_cols}
     head = "".join(f'<th data-key="{escape(str(h))}" data-type="{types[c]}">{escape(str(h))}</th>'
                    for c, h in enumerate(headers))
     body = []
     for ri, r in enumerate(rows):
         cells = []
         for c, v in enumerate(r):
-            key = sort_keys[ri][c] if sort_keys else _sort_value(v)
-            cls = ' class="num"' if types[c] == "number" else ""
+            if types[c] == "number" and _is_neutral(v):
+                key = "-1e999"          # parseFloat -> -Infinity: placeholders sink in sorts
+            else:
+                key = sort_keys[ri][c] if sort_keys else _sort_value(v)
+            cls = ""
+            if types[c] == "number":
+                cls = "num"
+                if c in signed_idx and not _is_neutral(v):
+                    try:
+                        signed_val = float(str(v).replace("%", ""))
+                        if str(v).lstrip().startswith(("+", "-")) and signed_val != 0:
+                            cls += " pos" if signed_val > 0 else " neg"
+                    except ValueError:
+                        pass
+            cls = f' class="{cls}"' if cls else ""
             cells.append(f'<td{cls} data-sort="{escape(str(key))}">{escape(str(v))}</td>')
         body.append("<tr>" + "".join(cells) + "</tr>")
     return f'<table class="{css_class}"><thead><tr>{head}</tr></thead><tbody>{"".join(body)}</tbody></table>'
@@ -537,20 +563,36 @@ def _digest_name(week, stamp, ext, failed=False, embed=False, window=None):
 
 
 _REPORT_CSS = _TABLE_CSS + """
-body { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; }
-h2 { margin-top: 2.2rem; border-bottom: 1px solid #ccc; padding-bottom: .2rem; }
+body { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; font-size: 15px; line-height: 1.45; }
+h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2.4rem; margin-bottom: .5rem;
+     border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+h3 { font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
+     color: #666; margin: 1.5rem 0 .4rem; }
+.toc { font-size: .85rem; color: #999; margin: .3rem 0 1.4rem; }
+.toc a { color: #2c5f8a; text-decoration: none; }
+.toc a:hover { text-decoration: underline; }
 .banner { background: #fde2e2; border: 2px solid #c0392b; padding: 1rem; margin: 1rem 0; }
-.degraded { background: #fff4d6; border: 2px solid #d68910; padding: .8rem 1rem; margin: 1rem 0; }
+.degraded { background: #fdf6e6; border-left: 4px solid #d68910; padding: .6rem 1rem; margin: 1rem 0; }
+.degraded h2 { border: none; margin: 0 0 .3rem; font-size: .95rem; color: #8a5d00; }
 .degraded li { font-family: monospace; font-size: .85rem; }
 .missing { color: #999; font-style: italic; }
-figure { display: inline-block; margin: .6rem .6rem .6rem 0; vertical-align: top; max-width: 100%; }
-figure img { max-width: 100%; height: auto; border: 1px solid #ddd; }
-figcaption { font-size: .8rem; color: #555; }
-.charts { display: flex; flex-wrap: wrap; gap: .5rem; }
+td.pos { color: #1a7a3a; }
+td.neg { color: #b3372f; }
+figure { display: inline-block; margin: .6rem .6rem .6rem 0; vertical-align: top; max-width: 100%;
+         background: #fff; border: 1px solid #e2e2e2; border-radius: 4px; padding: .5rem .5rem .25rem; }
+figure img { max-width: 100%; height: auto; display: block; }
+figcaption { font-size: .72rem; color: #777; text-transform: uppercase; letter-spacing: .05em;
+             text-align: center; padding-top: .35rem; }
+.charts { display: flex; flex-wrap: wrap; gap: .6rem; }
 .charts figure { flex: 1 1 45%; }
-details { margin: .4rem 0; } summary { cursor: pointer; font-weight: bold; }
+details { margin: .35rem 0; }
+summary { cursor: pointer; font-weight: 600; font-size: .9rem; padding: .35rem .6rem;
+          background: #f6f6f6; border-radius: 4px; }
+summary:hover { background: #ededed; }
+details[open] summary { border-radius: 4px 4px 0 0; }
+details table { margin-top: 0; }
 pre { background: #f4f4f4; padding: .6rem; overflow-x: auto; font-size: .8rem; }
-.note { color: #555; font-size: .9rem; }
+.note { color: #555; font-size: .9rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
 """
 
 
@@ -649,7 +691,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         out.append(html_table(["slot", "player", "pos", "exp", "p10", "p50", "p90", "zero", "margin", "alternative"],
                               [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
                                 f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
-                               for r in lu["lineup"]]))
+                               for r in lu["lineup"]], signed_cols=("margin",)))
         if lu.get("bench"):
             bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
             out.append(f"<p>Bench: {T(bench)}</p>")
@@ -699,7 +741,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         _wv_cols = ["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"]
         main_wv = [t for t in wv["targets"] if t["fills"] != "depth"]
         depth_wv = [t for t in wv["targets"] if t["fills"] == "depth"]
-        out.append(html_table(_wv_cols, [_wv_row(t) for t in main_wv]))
+        out.append(html_table(_wv_cols, [_wv_row(t) for t in main_wv], signed_cols=("VORP",)))
         out.append(f'<p class="note">* bid = UNVERIFIED value heuristic. P(beats incumbent): {T(wv.get("caveat", ""))}</p>')
         if depth_wv:
             out.append("<h3>Depth upgrades</h3>"
@@ -707,7 +749,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                        "natural drop), or fills an EMPTY bench behind a lone starter with positive "
                        "VORP. Separated from the starter-facing ranking above; capped at three per "
                        "position.</p>")
-            out.append(html_table(_wv_cols, [_wv_row(t) for t in depth_wv]))
+            out.append(html_table(_wv_cols, [_wv_row(t) for t in depth_wv], signed_cols=("VORP",)))
         positions = []
         for t in wv["targets"]:
             if t["pos"] not in positions:
@@ -729,13 +771,14 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                                 ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
                                 (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
                                     ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
-                                   for b in tr.get("buy", [])]))
+                                   for b in tr.get("buy", [])], signed_cols=("my +", "their +")))
         if tr.get("sell"):
             out.append("<h3>Sell side</h3>")
             out.append(html_table(["from", "target", "I give", "I get", "my +", "their +"],
                                   [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
                                     ", ".join(x["they_want"]), ", ".join(x["they_give"]),
-                                    f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]))
+                                    f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]],
+                                  signed_cols=("my +", "their +")))
 
     dl = report.get("decision_log")
     if dl and dl["rows"]:
@@ -755,6 +798,16 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                    + "".join(f"<li>logged trade {escape(str(t['transaction_id']))} (week {escape(str(t.get('week')))}) has no paired "
                              f"evaluation -- run: <code>py -3.10 -m scripts.evaluate_trade --log-tx {escape(str(t['transaction_id']))}</code></li>"
                              for t in hk["unevaluated_trades"]) + "</ul>")
+    # Compact table of contents from the section anchors actually rendered (sections are
+    # conditional, so this is derived from the built page, not a hardcoded list), inserted
+    # under the h1. Presentation only -- the FAILED path returns above and gets no TOC.
+    _TOC_LABELS = (("league", "League"), ("outlook", "Season outlook"), ("grades", "Roster grade"),
+                   ("lineup", "Lineup"), ("matchup", "Matchup"), ("waivers", "Waivers"),
+                   ("trades", "Trades"), ("decision-log", "Decision log"), ("housekeeping", "Housekeeping"))
+    page = "".join(out)
+    links = [f'<a href="#{i}">{label}</a>' for i, label in _TOC_LABELS if f'<h2 id="{i}"' in page]
+    if links:
+        out.insert(3, '<p class="toc">' + " &middot; ".join(links) + "</p>")
     out.append(f"<script>{_TABLE_JS}</script></body></html>")
     return "".join(out)
 

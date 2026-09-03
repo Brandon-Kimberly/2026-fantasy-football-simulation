@@ -275,14 +275,18 @@ def render_tier_summary_chart(pos, players, caption, week):
 
 _TABLE_CSS = """
 body { font-family: -apple-system, Segoe UI, Roboto, sans-serif; margin: 1.5rem; color: #1a1a1a; }
-h1 { font-size: 1.3rem; margin-bottom: 0.25rem; }
+h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
 p.caption { color: #555; margin-top: 0; margin-bottom: 1rem; }
-table { border-collapse: collapse; width: 100%; max-width: 900px; }
-th, td { padding: 0.4rem 0.7rem; text-align: left; border-bottom: 1px solid #ddd; }
-th { cursor: pointer; user-select: none; background: #f4f4f4; position: sticky; top: 0; }
+table { border-collapse: collapse; width: auto; max-width: 100%; margin: .5rem 0 .8rem; }
+th, td { padding: 0.45rem 0.8rem; text-align: left; border-bottom: 1px solid #e4e4e4; white-space: nowrap; }
+td { border-bottom-color: #ececec; }
+th { cursor: pointer; user-select: none; background: #f7f7f7; position: sticky; top: 0;
+     font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+th[data-type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
 th.sort-asc::after { content: " \\25B2"; }
 th.sort-desc::after { content: " \\25BC"; }
-tbody tr:hover { filter: brightness(0.94); }
+tbody tr:nth-child(even) { background: #fafafa; }
+tbody tr:hover { background: #f0f4f8; }
 td.num { text-align: right; font-variant-numeric: tabular-nums; }
 """
 
