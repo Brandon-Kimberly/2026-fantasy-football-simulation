@@ -23,8 +23,29 @@ import re
 from datetime import datetime, timezone
 
 from fantasy_sim.freshness import check as freshness_check
-from fantasy_sim.run_windows import PT, compute_windows, load_kickoffs, parse_canonical_digest
+from fantasy_sim.run_windows import PT, compute_windows, load_kickoffs, parse_canonical_digest, release_advice
 from fantasy_sim.storage import NFL_SCHEDULE_FILE, decisions_week_path, load_json
+
+
+def _release_advice_live(week):
+    """Thin git wiring for run_windows.release_advice: latest local tag and whether the
+    golden fixtures changed since it. Degrades to the fetch-tags hint when git or tags
+    are unavailable."""
+    import subprocess
+
+    def git(*args):
+        try:
+            out = subprocess.run(["git", *args], capture_output=True, text=True, timeout=10)
+            return out.stdout.strip() if out.returncode == 0 else None
+        except Exception:
+            return None
+
+    tag = git("describe", "--tags", "--abbrev=0")
+    changed = False
+    if tag:
+        log = git("log", "--oneline", f"{tag}..HEAD", "--", "tests/fixtures/golden/expected")
+        changed = bool(log)
+    return release_advice(tag, changed, week)
 
 
 def _canonical_stamps(week):
@@ -86,6 +107,8 @@ def main(argv=None):
               + ", ".join(r["outside_windows"]))
     for f in r["flags"]:
         print(f"  FLAG: {f}")
+    for m in _release_advice_live(r["target_week"]):
+        print(f"  RELEASE: {m}")
     if any(w["status"] == "MISSED" for w in r["windows"]):
         print("  >> a window was MISSED -- run `py -3.10 -m scripts.weekly_report --canonical` "
               "at the next opportunity")

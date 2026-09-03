@@ -6,7 +6,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
-from fantasy_sim.run_windows import compute_windows, parse_canonical_digest
+from fantasy_sim.run_windows import compute_windows, parse_canonical_digest, release_advice
 
 PT = ZoneInfo("America/Los_Angeles")
 UTC = timezone.utc
@@ -104,6 +104,38 @@ class TestParseCanonicalDigest(unittest.TestCase):
         self.assertIsNone(parse_canonical_digest("weekly_report_week1_20260909T001000Z_FAILED.md", 1))
         self.assertIsNone(parse_canonical_digest("weekly_report_week2_20260909T001000Z.md", 1))
         self.assertIsNone(parse_canonical_digest("lineup_20260909T001000Z_week1.json", 1))
+
+
+class TestReleaseAdvice(unittest.TestCase):
+    """The release policy's reminder (CLAUDE.md): pure advice from (latest local tag,
+    goldens-changed-since-tag, current week). Small and fires where the owner already
+    looks (the run_windows status line), never a commit-time gate -- tagging is a
+    release-time act. Written before release_advice existed."""
+
+    def test_no_local_tags_says_fetch_rather_than_untagged(self):
+        # The exact live state this was built in: v1.0.0 existed on GitHub (UI-created,
+        # server-side tag) while the clone saw nothing. Silently reporting "untagged"
+        # would be wrong twice.
+        msgs = release_advice(None, False, 3)
+        self.assertEqual(len(msgs), 1)
+        self.assertIn("git fetch --tags", msgs[0])
+
+    def test_goldens_regenerated_since_tag_flags_a_pending_major(self):
+        msgs = release_advice("v1.0.0", True, 3)
+        self.assertTrue(any("MAJOR" in m and "v1.0.0" in m for m in msgs))
+        self.assertEqual(release_advice("v1.0.0", False, 3), [], "quiet when nothing is due")
+
+    def test_milestone_weeks_fire_in_their_window_and_go_quiet_after(self):
+        self.assertTrue(any("F25" in m for m in release_advice("v1.0.0", False, 5)))
+        self.assertTrue(any("F25" in m for m in release_advice("v1.0.0", False, 6)))
+        self.assertEqual(release_advice("v1.0.0", False, 8), [], "week 8: no nagging")
+        self.assertTrue(any("deadline" in m for m in release_advice("v1.0.0", False, 11)))
+        self.assertTrue(any("playoff" in m.lower() for m in release_advice("v1.0.0", False, 15)))
+        self.assertTrue(any("season end" in m.lower() for m in release_advice("v1.0.0", False, 17)))
+
+    def test_no_remaining_windows_reads_as_season_end(self):
+        msgs = release_advice("v1.0.0", False, None)
+        self.assertTrue(any("season end" in m.lower() for m in msgs))
 
 
 if __name__ == "__main__":

@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 484 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 488 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
@@ -61,7 +61,7 @@ These are non-negotiable and exist because each was learned the hard way on this
    a second for the fix. This keeps "what was wrong" reviewable independently of "what changed".
 
 4. **Do not refactor what is not covered by intent.** `run_simulation` (571 lines) and
-   `export_and_visualize` (484 lines) ARE pinned byte-exactly by the golden master (Phase 0
+   `export_and_visualize` (488 lines) ARE pinned byte-exactly by the golden master (Phase 0
    is complete; coverage there is execution, not assertion — see F26). Decomposition is
    Phase 8, which stays blocked until the R1 hardware is replaced and Arm D passes 12/12 —
    the golden certifies refactors only on a machine that can be trusted to run it.
@@ -112,6 +112,46 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   elsewhere in the model.
 - `FantasySimulationEngine` is deliberately one class. Its methods share substantial state;
   splitting it is a real architectural change, not a tidy-up.
+
+## Release policy
+
+Semantic versions, tied to what this repo already enforces (baseline: v1.0.0, tagged at
+the F27 commit, 2026-09-03):
+
+- **MAJOR** -- the model's predictions change materially. Operationally: **any intended
+  golden-master regeneration** (the copula pre-warp would have been one had it landed
+  post-v1; F8's drift model and any constant recalibration will be). The regeneration IS
+  the definition; a commit that regenerates goldens for an intended change says "MAJOR
+  pending" in its message, and the tag lands with the release notes, not the commit.
+- **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
+  coverage).
+- **PATCH** -- fixes and docs that move neither.
+- **Season milestones, regardless of code**: cut a tag (at least PATCH) at week 5-6
+  (F25's quoted-vs-realized calibration first measurable), week 11 (trade deadline),
+  week 15 (playoffs), and season end (F7/F8/F18/F19 unblock together) -- an addressable
+  snapshot at each evidence milestone is what makes "the model said X at the deadline"
+  checkable later.
+
+The reminder lives in `scripts.run_windows` (the scheduled read-only status tool), not in
+a test: a commit-time gate on a release-time act would fail every commit between a golden
+regeneration and its tag and teach itself to be ignored. It flags a pending MAJOR
+(goldens changed since the latest tag), arrived milestone weeks (two-week window, then
+quiet), and -- because GitHub's release UI tags server-side -- says `git fetch --tags`
+when the clone sees no tags rather than misreporting "untagged".
+
+**Release-note template** (v1.0.0 is the baseline; it folds sections 3-5 into one "not
+done" block, which is acceptable -- the split below is preferred because "blocked on X"
+and "not blocked but not done" are different honesty claims):
+
+1. **What's in it** -- user-visible changes only; MAJOR/MINOR items named.
+2. **What the audit found** -- counts copied from AUDIT_SUMMARY.md's grand-total row (the
+   guarded single source; tests/test_docs ties the README to the same row).
+3. **Blocked on hardware** -- R1 state, verbatim from its AUDIT_PLAN entry.
+4. **Blocked on season data** -- the F-numbers and their unlock weeks.
+5. **Not blocked, not done** -- the honest backlog.
+6. **What this tag does not claim** -- standing caveats (IDP constants underived,
+   the interval-dispersion bracket, coverage = execution on the monoliths, and whatever
+   else is true at tag time).
 
 ## Statistical conventions
 

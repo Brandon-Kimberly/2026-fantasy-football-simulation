@@ -80,6 +80,43 @@ def load_kickoffs():
     return out, "live ESPN fetch (run a sync to persist kickoffs)"
 
 
+RELEASE_MILESTONES = (
+    (5, 6, "week 5-6: F25's quoted-vs-realized calibration is first measurable"),
+    (11, 12, "week 11: trade deadline"),
+    (15, 16, "week 15: playoffs"),
+    (17, 99, "season end: F7/F8/F18/F19 unblock together"),
+)
+
+
+def release_advice(latest_tag, goldens_changed_since_tag, week):
+    """Release-policy reminders (CLAUDE.md), pure and small: fires in the status tool the
+    owner already reads, never as a commit-time gate -- tagging is a release-time act and
+    a suite failure between an intended golden regeneration and its tag would only teach
+    people to ignore the guard. Three signals:
+      - no LOCAL tag: say 'git fetch --tags' rather than 'untagged' (GitHub's release UI
+        tags server-side; the clone is blind until a fetch -- the exact state this shipped in);
+      - goldens regenerated since the latest tag: an intended behaviour change is riding
+        untagged -> MAJOR pending;
+      - a season milestone week has arrived (two-week window, then quiet -- no nagging).
+    week None means compute_windows found no remaining windows: the season is over."""
+    msgs = []
+    if latest_tag is None:
+        return ["no local tags; if a release exists on GitHub, run `git fetch --tags` "
+                "(server-side tags are invisible to this clone until then)"]
+    if goldens_changed_since_tag:
+        msgs.append(f"MAJOR tag pending: golden master regenerated since {latest_tag} -- "
+                    f"an intended behaviour change is riding untagged (release policy, CLAUDE.md)")
+    if week is None:
+        msgs.append("season end: F7/F8/F18/F19 unblock together -- tag the season-end "
+                    "snapshot per the release policy")
+        return msgs
+    for lo, hi, label in RELEASE_MILESTONES:
+        if lo <= week <= hi:
+            msgs.append(f"milestone reached ({label}) -- cut at least a PATCH tag so the "
+                        f"checkpoint is addressable (release policy, CLAUDE.md)")
+    return msgs
+
+
 def _pt(dt):
     return dt.astimezone(PT)
 
