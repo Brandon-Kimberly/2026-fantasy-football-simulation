@@ -564,10 +564,10 @@ def _digest_name(week, stamp, ext, failed=False, embed=False, window=None):
 
 _REPORT_CSS = _TABLE_CSS + """
 body { max-width: 1400px; margin: 1.5rem auto; padding: 0 1rem; font-size: 15px; line-height: 1.45; }
-h2 { font-size: 1.15rem; font-weight: 600; margin-top: 2.4rem; margin-bottom: .5rem;
+h1 { font-size: 1.7rem; }
+h2 { font-size: 1.35rem; font-weight: 700; margin-top: 2.4rem; margin-bottom: .5rem;
      border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
-h3 { font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .06em;
-     color: #666; margin: 1.5rem 0 .4rem; }
+h3 { font-size: 1.05rem; font-weight: 700; color: #333; margin: 1.5rem 0 .4rem; }
 .toc { font-size: .85rem; color: #999; margin: .3rem 0 1.4rem; }
 .toc a { color: #2c5f8a; text-decoration: none; }
 .toc a:hover { text-decoration: underline; }
@@ -578,13 +578,13 @@ h3 { font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spac
 .missing { color: #999; font-style: italic; }
 td.pos { color: #1a7a3a; }
 td.neg { color: #b3372f; }
-figure { display: inline-block; margin: .6rem .6rem .6rem 0; vertical-align: top; max-width: 100%;
+figure { margin: .6rem .6rem .6rem 0; max-width: 100%;
          background: #fff; border: 1px solid #e2e2e2; border-radius: 4px; padding: .5rem .5rem .25rem; }
-figure img { max-width: 100%; height: auto; display: block; }
-figcaption { font-size: .72rem; color: #777; text-transform: uppercase; letter-spacing: .05em;
-             text-align: center; padding-top: .35rem; }
-.charts { display: flex; flex-wrap: wrap; gap: .6rem; }
-.charts figure { flex: 1 1 45%; }
+figure img { max-width: 100%; display: block; margin: 0 auto; }
+figcaption { font-size: .78rem; color: #666; text-align: center; padding-top: .35rem; }
+.charts { display: flex; flex-wrap: wrap; gap: .6rem; align-items: stretch; }
+.charts figure { flex: 1 1 45%; height: 460px; display: flex; flex-direction: column; }
+.charts figure img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
 details { margin: .35rem 0; }
 summary { cursor: pointer; font-weight: 600; font-size: .9rem; padding: .35rem .6rem;
           background: #f6f6f6; border-radius: 4px; }

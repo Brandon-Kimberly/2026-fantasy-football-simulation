@@ -280,8 +280,8 @@ p.caption { color: #555; margin-top: 0; margin-bottom: 1rem; }
 table { border-collapse: collapse; width: auto; max-width: 100%; margin: .5rem 0 .8rem; }
 th, td { padding: 0.45rem 0.8rem; text-align: left; border-bottom: 1px solid #e4e4e4; white-space: nowrap; }
 td { border-bottom-color: #ececec; }
-th { cursor: pointer; user-select: none; background: #f7f7f7; position: sticky; top: 0;
-     font-size: 0.78rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+th { cursor: pointer; user-select: none; background: #f4f4f4; position: sticky; top: 0;
+     font-weight: 600; color: #222; }
 th[data-type="number"] { text-align: right; font-variant-numeric: tabular-nums; }
 th.sort-asc::after { content: " \\25B2"; }
 th.sort-desc::after { content: " \\25BC"; }
