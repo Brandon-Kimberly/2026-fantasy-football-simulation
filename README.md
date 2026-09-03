@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-536%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-539%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-75.5%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
@@ -26,6 +26,11 @@ AI-generated code trustworthy. The audit trail above is the evidence either way.
 
 ![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
 *From a real weekly report: every starter is a distribution (p10/p50/p90 and a bust probability), with the margin over the best bench alternative beside it.*
+
+**[View a full sanitized sample report](https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html)** --
+fictional team names, real NFL players and projections, regenerated from live data
+(`scripts.make_sample_report`, which refuses to publish unless a leak check for every
+real team name, username and league ID comes back clean).
 
 ## Weekly use -- one command
 
@@ -139,7 +144,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 536 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 539 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
                                          # CAVEAT: high coverage on the two monoliths means the golden master RUNS them,
