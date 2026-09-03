@@ -18,14 +18,20 @@ a byte-exact 15-test golden master and a per-commit real-data backtest gate deci
 ships -- and when a measurement said a suspected defect wasn't one, the claim was retired
 rather than "fixed" (F13, F14, F16, F20, F23, F24).
 
+**How it was built:** with Claude Code. The audit methodology, the accept/reject decision
+on every finding, and the domain judgment are mine; the code is largely AI-generated, and
+the verification apparatus -- test-first fixes, the byte-exact golden master, the
+real-data backtest gates -- is the experiment: whether disciplined verification can make
+AI-generated code trustworthy. The audit trail above is the evidence either way.
+
 ![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
 *From a real weekly report: every starter is a distribution (p10/p50/p90 and a bust probability), with the margin over the best bench alternative beside it.*
 
-A quant-grade simulation engine and weekly decision-support kit for an 8-team IDP Sleeper
+A Monte Carlo simulation engine and weekly decision-support kit for an 8-team IDP Sleeper
 league. Every player's weekly score is a probability distribution, not a point projection;
 10,000 simulated seasons run forward from the current week through a Gaussian copula, a
 two-variance (aleatoric + epistemic) model, an empirical absence model, and the league's real
-schedule, producing calibrated playoff and championship odds -- and, on top of that, seven
+schedule, producing playoff and championship odds with stated uncertainty -- and, on top of that, seven
 tools that turn the same machinery into answers to the questions a manager actually has each
 week. The model was validated by a documented, phase-by-phase audit (see
 [Validation and audit trail](#validation-and-audit-trail)); the constants are measured, not
@@ -204,7 +210,7 @@ deliberate non-fix is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`AUDIT_PLAN.md`** -- the working spec, with the tracked follow-ups **F1-F17** (each with
+- **`docs/AUDIT_PLAN.md`** -- the working spec, with 27 tracked follow-ups (F1-F27), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 
@@ -215,7 +221,7 @@ coverage, logged per commit and interpreter) that every correlation- or scoring-
 must pass; constants measured on real player-week data (variance, epistemic error,
 copula correlations re-confirmed league-wide on 391 players / 714 pooled pair-weeks); and the
 disagreements with an external audit recorded as measured, resolved findings rather than
-opinions (F13: tail dependence and game-script correlation, measured and not adopted; the
+opinions -- tail dependence and game-script correlation were measured and deliberately not adopted (F13); the
 80-point cap, re-measured on playoff equity and kept).
 
 ## Adapting this to your own league

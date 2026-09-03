@@ -165,7 +165,7 @@ and "not blocked but not done" are different honesty claims):
 
 ## The audit
 
-`AUDIT_PLAN.md` is the working spec. Phases are organised by property class (conservation,
+`docs/AUDIT_PLAN.md` is the working spec. Phases are organised by property class (conservation,
 orientation, invariance, bounds, liveness) rather than by file, because every defect found so far
 came from asking a property question rather than reading code linearly.
 

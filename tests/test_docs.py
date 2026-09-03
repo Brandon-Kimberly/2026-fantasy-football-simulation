@@ -64,7 +64,7 @@ class TestDocsMatchReality(unittest.TestCase):
         reaching AUDIT_SUMMARY.md -- the document whose purpose is being the trustworthy
         overview. Guard the class: every F-heading in the plan must be mentioned in the
         summary."""
-        plan_fs = set(re.findall(r"^### F(\d+)\b", _doc("AUDIT_PLAN.md"), re.M))
+        plan_fs = set(re.findall(r"^### F(\d+)\b", _doc("docs/AUDIT_PLAN.md"), re.M))
         summary = _doc("AUDIT_SUMMARY.md")
         missing = sorted((int(n) for n in plan_fs
                           if not re.search(rf"\bF{n}\b", summary)))
@@ -94,7 +94,7 @@ class TestDocsMatchReality(unittest.TestCase):
         """The plan's F-headings carry status keywords (CLEARED/CLOSED/RESOLVED -- the
         convention CLAUDE.md's process rule codifies). Anything so marked must not sit in
         the summary's open-items table."""
-        plan = _doc("AUDIT_PLAN.md")
+        plan = _doc("docs/AUDIT_PLAN.md")
         closed = [m.group(1) for m in re.finditer(
             r"^### F(\d+)\b[^\n]*(?:CLEARED|CLOSED|RESOLVED)", plan, re.M)]
         summary = _doc("AUDIT_SUMMARY.md")

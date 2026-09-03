@@ -1,7 +1,7 @@
 # Audit summary — Phases 0–7, bye modelling, F1–F27
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
-below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or an `AUDIT_PLAN.md`
+below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or a `docs/AUDIT_PLAN.md`
 entry; this file is the map, not the territory. Process throughout: characterise (a failing test
 committed first), fix, re-golden with deltas shown, full suite before and after with the count
 reported, every constant sourced or marked unverified, one branch per phase from `main`, merged by
@@ -232,7 +232,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 
 ## F9–F27 — follow-ups and measurements (2026-08-30 → 2026-09-03)
 
-One line each; full entries in `AUDIT_PLAN.md`. The distinctive pattern of this stretch:
+One line each; full entries in `docs/AUDIT_PLAN.md`. The distinctive pattern of this stretch:
 five suspected defects were MEASURED and the claims retired rather than "fixed" (F13, F14,
 F16, F20, F23, F24 — six, counting both weighting suspicions), because the measurement said
 the code was right.
