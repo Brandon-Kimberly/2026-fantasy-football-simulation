@@ -917,12 +917,16 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
 
 
 # ============================================================== SINGLE-ROSTER MOVES
-def apply_add_drop(engine, team, adds, drops):
+def apply_add_drop(engine, team, adds, drops, enforce_limit=True):
     """A deep copy of `engine` with a single-roster move applied: `adds` come from the
     free-agent pool (each must be in the baseline pool and on no roster -- a player Sleeper
     never projected is a loud error, never an invented baseline), `drops` are released to it.
     The original engine is untouched. Raises on an unknown team, an add already rostered
-    anywhere, a drop not on the roster, or a roster left above ACTIVE_ROSTER_LIMIT."""
+    anywhere, a drop not on the roster, or -- for PROSPECTIVE moves -- a roster left above
+    ACTIVE_ROSTER_LIMIT. `enforce_limit=False` is the post-execution reversal path's escape
+    hatch: reconstructing "the world where the drop never happened" after the vacated spot
+    was refilled legitimately holds one extra player (a counterfactual, not a proposal --
+    the limit is a league rule on real moves, not an engine constraint)."""
     if team not in engine.rosters:
         raise KeyError(f"unknown team {team!r}")
     if not adds and not drops:
@@ -943,18 +947,19 @@ def apply_add_drop(engine, team, adds, drops):
         e2.rosters[team].append(n)
         e2.meta[team][n] = {'pos': _entry(engine, n).get('pos', 'FLEX'),
                             'team': _entry(engine, n).get('team', 'FA')}
-    if _active_count(e2, team) > ACTIVE_ROSTER_LIMIT:
+    if enforce_limit and _active_count(e2, team) > ACTIVE_ROSTER_LIMIT:
         raise ValueError(f"{team} would carry {_active_count(e2, team)} active players "
                          f"(limit {ACTIVE_ROSTER_LIMIT}); a drop is needed")
     return e2
 
 
-def evaluate_add_drop(engine, team, adds, drops, batches=10, sims=300, faab_bid=None):
+def evaluate_add_drop(engine, team, adds, drops, batches=10, sims=300, faab_bid=None,
+                      enforce_limit=True):
     """Paired evaluation of a single-roster move (free-agent add/drop, or a waiver claim when
     faab_bid is given): the same machinery as evaluate_trade, with one roster changing and no
     counterparty -- one 'team' side, seven bystanders. Champ deltas still sum to zero across
     the league (one champion per sim regardless of what changed)."""
-    with_engine = apply_add_drop(engine, team, adds, drops)
+    with_engine = apply_add_drop(engine, team, adds, drops, enforce_limit=enforce_limit)
     teams = _paired_evaluation(engine, with_engine, batches, sims)
     for t, d in teams.items():
         d["side"] = "team" if t == team else "bystander"
@@ -1143,7 +1148,11 @@ def _evaluate_logged_move(engine, tx, batches, sims, log_path):
         r = evaluate_add_drop(engine, team, added, dropped, batches=batches, sims=sims, faab_bid=bid)
         reversed_eval = False
     elif on_team(added) and in_pool(dropped):
-        r = evaluate_add_drop(engine, team, dropped, added, batches=batches, sims=sims, faab_bid=bid)
+        # Reversal reconstructs a counterfactual roster; if the vacated spot was refilled
+        # since the move, the keep-arm sits one above the limit -- allowed here, never for
+        # a proposal (see apply_add_drop's docstring; live case: tx 1401228656092672000).
+        r = evaluate_add_drop(engine, team, dropped, added, batches=batches, sims=sims, faab_bid=bid,
+                              enforce_limit=False)
         for d in r["teams"].values():
             for k in ("champ_pct", "playoff_pct", "expected_wins"):
                 d[k]["delta"] = -d[k]["delta"]

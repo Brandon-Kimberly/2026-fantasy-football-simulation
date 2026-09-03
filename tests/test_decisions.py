@@ -904,6 +904,36 @@ class TestEvaluateLoggedTransaction(_EngineCase):
         self.assertIn("revers", r["note"].lower())
         self.assertEqual(r["move"]["adds"], ["FA_WR_healthy"], "terms reported as the ORIGINAL move")
 
+    def test_reversing_a_drop_after_the_spot_was_refilled_is_not_rejected_by_the_limit(self):
+        """Live failure (2026-09-03, tx 1401228656092672000): a drop-only move evaluated
+        after the team refilled the vacated spot reconstructs a 'kept him' arm one player
+        above ACTIVE_ROSTER_LIMIT. That arm is a COUNTERFACTUAL, not a proposal -- the
+        legality check must not reject it. Written failing: apply_add_drop raised
+        'would carry N active players (limit ...)'. The limit still binds for proposals."""
+        import json, tempfile
+        # executed drop-only: QB_1 sits in the pool; the roster is AT the (patched) limit
+        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
+        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d, adds=[], drops=["QB_1"])
+            with patch('fantasy_sim.decisions.ACTIVE_ROSTER_LIMIT', 1), \
+                 patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+                r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
+            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+        self.assertTrue(rows[1]["post_execution_reversed"])
+        self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": [], "drops": ["QB_1"]})
+
+    def test_apply_add_drop_enforces_the_limit_only_for_proposals(self):
+        """The limit check protects prospective moves (never propose an illegal one);
+        enforce_limit=False is the reversal path's escape hatch for counterfactual
+        reconstruction and must be explicit, never the default."""
+        with patch('fantasy_sim.decisions.ACTIVE_ROSTER_LIMIT', 1):
+            with self.assertRaises(ValueError):
+                apply_add_drop(self.engine, "Legion of Coom", ["FA_WR_healthy"], [])
+            e2 = apply_add_drop(self.engine, "Legion of Coom", ["FA_WR_healthy"], [],
+                                enforce_limit=False)
+        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
+
     def test_dropped_player_on_another_roster_is_drift(self):
         import tempfile
         self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
