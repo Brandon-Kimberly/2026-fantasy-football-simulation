@@ -357,7 +357,16 @@ FAAB_PROFILE_PRIOR_WEIGHT = 12
 # guessed 0.10, measured 0.96 with the second-highest total spend). trade_will remains
 # guessed and remains excluded from data-driven calibration (F2 untouched).
 MANAGER_PROFILES = {
-    'Legion of Coom': {'faab_agg': 1.36, 'faab_activity': 0.81, 'trade_will': 0.05, 'style': 'The Fortress'},
+    # Legion of Coom: OWNER'S DECLARED 2026 STRATEGY, not the measured 2025 prior
+    # (which was agg 1.36 / act 0.81 -- few, big bids). Declared intent: active bidder,
+    # large only when needed, FAAB deliberately held back for the playoff weeks. The
+    # model has no explicit reserve knob, so the reserve is encoded via expected spend:
+    # act 1.25 ~ 15-16 claims/season, agg 0.65 keeps the lognormal tail (p95 ~ 17,
+    # occasional 25+) while expected spend ~ 75 leaves ~25 into the playoffs. Not
+    # model-derived: the owner's own grid search came back null (the sim is flat in
+    # these parameters by design -- replacement-capped streamers). The decision-log
+    # blend will show whether 2026 behavior matches the declaration.
+    'Legion of Coom': {'faab_agg': 0.65, 'faab_activity': 1.25, 'trade_will': 0.05, 'style': 'The Fortress'},
     'Femboy Cats': {'faab_agg': 0.82, 'faab_activity': 0.81, 'trade_will': 0.85, 'style': 'High-risk trader'},
     'Year of Jarvis': {'faab_agg': 1.17, 'faab_activity': 0.81, 'trade_will': 0.80, 'style': 'Rule exploiter'},
     'Drunk Cats': {'faab_agg': 0.85, 'faab_activity': 1.29, 'trade_will': 0.60, 'style': 'Measured active'},

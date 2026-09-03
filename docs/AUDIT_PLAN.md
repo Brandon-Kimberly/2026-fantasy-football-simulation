@@ -3113,6 +3113,16 @@ inside a "hermetic" sandbox, which would have made the engine goldens change wit
 logged transaction (F11's contamination class). The sandbox now patches
 `read_faab_observations` to {} with a load-bearing comment.
 
+**Owner strategy declaration (2026-09-03, after closure):** Legion of Coom's profile
+is the one deliberate exception to measured-priors -- the owner declared a 2026 strategy
+(active bidder, large only when needed, FAAB reserved into the playoffs) and it is
+encoded as act 1.25 / agg 0.65 with the translation arithmetic and the no-reserve-knob
+limitation in the config comment. The owner's own optimization request was answered with
+a null first: a 30-point grid's best cell (+5.7 +-2.6 dChamp) collapsed to +0.7 +-1.7 at
+3x power -- winner's curse on a landscape the F31 design deliberately flattened
+(replacement-capped streamers), so the declared values are a strategy statement, not a
+fit. The decision-log blend will show whether 2026 behavior matches the declaration.
+
 **Re-measurement trigger (attached at closure, per the F14 lesson this entry records):**
 re-measure simulated-vs-real spend AND the blended profiles once 2026 accumulates
 ~100 attributed claims league-wide (the prior weight then carries ~50% — roughly weeks

@@ -73,13 +73,18 @@ class TestProfileBlend(unittest.TestCase):
 
 class TestDerivedProfileValues(unittest.TestCase):
     def test_profiles_carry_both_2025_derived_parameters(self):
-        """Every team carries faab_agg AND faab_activity, both ~1.0-centered (the 2025
-        league means); the old guessed 0-1 faab_agg scale is gone."""
-        aggs = [p["faab_agg"] for p in MANAGER_PROFILES.values()]
-        acts = [p["faab_activity"] for p in MANAGER_PROFILES.values()]
-        self.assertEqual(len(aggs), 8)
-        self.assertAlmostEqual(sum(acts) / 8, 1.0, delta=0.05)
-        self.assertAlmostEqual(sum(aggs) / 8, 1.0, delta=0.15)
+        """Every team carries faab_agg AND faab_activity. The seven MEASURED profiles are
+        ~1.0-centered (the 2025 league means); Legion of Coom is exempt from the centering
+        check because it carries the owner's DECLARED 2026 strategy, not the measured
+        prior (see the config comment). The old guessed 0-1 faab_agg scale is gone."""
+        self.assertEqual(len(MANAGER_PROFILES), 8)
+        measured = {t: p for t, p in MANAGER_PROFILES.items() if t != "Legion of Coom"}
+        aggs = [p["faab_agg"] for p in measured.values()]
+        acts = [p["faab_activity"] for p in measured.values()]
+        self.assertAlmostEqual(sum(acts) / len(acts), 1.0, delta=0.06)
+        self.assertAlmostEqual(sum(aggs) / len(aggs), 1.0, delta=0.15)
+        for key in ("faab_agg", "faab_activity"):
+            self.assertIn(key, MANAGER_PROFILES["Legion of Coom"])
         # the measured extremes, as derived from the 99 attributed claims
         self.assertGreater(MANAGER_PROFILES["The Glutton"]["faab_agg"], 1.5)
         self.assertLess(MANAGER_PROFILES["The Glutton"]["faab_activity"], 0.5)
