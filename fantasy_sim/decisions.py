@@ -470,23 +470,40 @@ def _paired_evaluation(engine, with_engine, batches, sims):
     return teams
 
 
-def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300):
+def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300,
+                   faab_a_to_b=None):
     """Paired evaluation of one proposed trade. Returns per-team deltas (with minus without)
     for champ_pct, playoff_pct and expected_wins, each with the paired-batch SE, plus the
-    trade's terms, the sample size and a note on what the number is."""
+    trade's terms, the sample size and a note on what the number is.
+
+    `faab_a_to_b` (signed; positive = team A sends FAAB to team B) is RECORDED, never
+    simulated: F31 (docs/AUDIT_PLAN.md) measured the sim spending ~31% of the real
+    league's FAAB, so a budget delta priced through the paired simulation would
+    systematically come back ~zero -- false precision claiming FAAB is worthless. The
+    honest output is the transfer stated as an explicitly unpriced component, until the
+    F31 behavioral fix makes budget deltas measurable."""
     with_engine = apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=drops)
     teams = _paired_evaluation(engine, with_engine, batches, sims)
     n = batches * sims
     for t, d in teams.items():
         d["side"] = "A" if t == team_a else ("B" if t == team_b else "bystander")
-    return {
+    result = {
         "trade": {"team_a": team_a, "a_gives": list(a_gives), "team_b": team_b, "b_gives": list(b_gives),
-                  "drops": {k: list(v) for k, v in (drops or {}).items()}},
+                  "drops": {k: list(v) for k, v in (drops or {}).items()},
+                  "faab_a_to_b": (int(faab_a_to_b) if faab_a_to_b else None)},
         "n_sims": n, "batches": batches, "sims_per_batch": sims, "teams": teams,
         "note": ("paired full simulations on identical seeds; delta = with trade minus without; SE is "
                  "the paired-batch standard error. Real Champ_Pct/Playoff_Pct movement, not a proxy. "
                  "The engine's automatic trades stay active in both arms."),
     }
+    if faab_a_to_b:
+        payer, payee = (team_a, team_b) if faab_a_to_b > 0 else (team_b, team_a)
+        result["faab_note"] = (
+            f"FAAB transfer ({abs(int(faab_a_to_b))} from {payer} to {payee}) is DELIBERATELY "
+            f"UNPRICED and excluded from every delta above: the simulation spends ~31% of the "
+            f"real league's budget (F31), so pricing a budget transfer through it would "
+            f"systematically report ~zero. Weigh the FAAB component yourself.")
+    return result
 
 
 # ================================================================== ROSTER-GRADE REPORT

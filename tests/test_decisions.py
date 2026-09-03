@@ -327,6 +327,28 @@ class TestTradeEvaluator(_EngineCase):
         self.assertEqual(r["trade"]["a_gives"], ["QB_1"])
         self.assertIn("independent", r["note"].lower() + " independent")  # note exists
 
+    def test_faab_transfer_is_recorded_and_explicitly_unpriced(self):
+        """F31: the sim spends ~31% of real FAAB, so pricing a budget transfer through the
+        paired simulation would systematically report ~zero -- false precision claiming FAAB
+        is worthless. The honest design: the transfer is RECORDED and labeled unpriced, and
+        the engine's budgets are never touched by it."""
+        before = dict(self.engine.current_faab)
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"],
+                               batches=2, sims=15, faab_a_to_b=48)
+        self.assertEqual(r["trade"]["faab_a_to_b"], 48)
+        self.assertIn("unpriced", r["faab_note"].lower())
+        self.assertIn("F31", r["faab_note"])
+        self.assertEqual(self.engine.current_faab, before,
+                         "the unpriced block must never mutate simulated budgets")
+
+    def test_no_faab_transfer_yields_no_note_and_a_null_field(self):
+        with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
+            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"],
+                               batches=2, sims=15)
+        self.assertIsNone(r["trade"]["faab_a_to_b"])
+        self.assertNotIn("faab_note", r)
+
 
 class TestRosterGrades(_EngineCase):
     """Roster-grade report: every rostered player's tier and VORP, rolled up per position and

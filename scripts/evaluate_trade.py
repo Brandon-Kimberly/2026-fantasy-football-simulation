@@ -50,6 +50,8 @@ def main(argv=None):
     ap.add_argument("--team-a", default=None); ap.add_argument("--a-gives", default="")
     ap.add_argument("--team-b", default=None); ap.add_argument("--b-gives", default="")
     ap.add_argument("--a-drops", default=""); ap.add_argument("--b-drops", default="")
+    ap.add_argument("--a-faab", type=int, default=0, help="FAAB team A sends to team B (recorded, unpriced -- F31)")
+    ap.add_argument("--b-faab", type=int, default=0, help="FAAB team B sends to team A (recorded, unpriced -- F31)")
     ap.add_argument("--batches", type=int, default=10); ap.add_argument("--sims", type=int, default=300)
     args = ap.parse_args(argv)
 
@@ -91,8 +93,9 @@ def main(argv=None):
 
     print(f"\nTRADE: {args.team_a} gives {a_gives or 'nothing'}  <->  {args.team_b} gives {b_gives or 'nothing'}"
           + (f"   drops {drops}" if drops else "") + f"\n  {args.batches} x {args.sims} = {args.batches * args.sims} paired seasons per arm ...")
+    faab_net = int(args.a_faab) - int(args.b_faab)
     r = evaluate_trade(engine, args.team_a, a_gives, args.team_b, b_gives, drops=drops or None,
-                       batches=args.batches, sims=args.sims)
+                       batches=args.batches, sims=args.sims, faab_a_to_b=faab_net or None)
 
     print(f"\n  {'team':18s} {'side':9s} | {'Champ%':>7s} {'delta':>7s} {'+-SE':>5s} | {'Playoff%':>8s} {'delta':>7s} {'+-SE':>5s} | {'ExpW':>5s} {'delta':>6s} {'+-SE':>5s}")
     order = sorted(r["teams"], key=lambda t: {"A": 0, "B": 1}.get(r["teams"][t]["side"], 2))
@@ -101,6 +104,8 @@ def main(argv=None):
         print(f"  {t:18s} {d['side']:9s} | {c['without']:7.2f} {c['delta']:+7.2f} {c['se']:5.2f} | "
               f"{p['without']:8.2f} {p['delta']:+7.2f} {p['se']:5.2f} | {w['without']:5.2f} {w['delta']:+6.3f} {w['se']:5.3f}")
     print(f"  {r['note']}")
+    if r.get("faab_note"):
+        print(f"\n  FAAB (unpriced): {r['faab_note']}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     record = {"timestamp_utc": stamp, "tool": "evaluate_trade", "git_commit": _git("rev-parse", "HEAD"),
