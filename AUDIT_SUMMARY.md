@@ -280,8 +280,9 @@ the code was right.
   DB 1.58 replacing the 1.5 placeholder, K 1.45 replacing a 1.57 calibrated under
   retired 2025 kicker scoring. Gate passed (bias delta 0.002); goldens byte-identical —
   the constants act at sync time, upstream of what the golden pins, a blind spot now
-  stated in the release policy itself; a sync-stage golden that would close it is
-  surveyed in the entry and deferred to before the next sync-time recalibration.
+  stated in the release policy itself; the sync-stage golden that closes it was BUILT
+  2026-09-02 as F29 pre-work (3 tests, sensitivity verified against the exact F28
+  change the engine golden missed; ESPN parsing outside, stated).
   F22's epistemic half stays on F7.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)

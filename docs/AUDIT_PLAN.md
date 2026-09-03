@@ -2855,3 +2855,11 @@ hash `player_baselines.json`)? Surveyed, not built:
   recalibration** (F8's drift model, or F22's epistemic derivation when F7 data lands
   season-end) — that is when the blind spot next bites, and building the golden first
   means that recalibration ships with its deltas visible instead of on trust.
+- *BUILT 2026-09-02*, ahead of schedule, as commit A of the F29 sequence (the ESPN
+  stat-line change is exactly the recalibration the deferral named):
+  `tests/golden_sync.py` + `tests/test_golden_sync.py` (3 tests), fixtures under
+  `tests/fixtures/golden_sync/` (~2 MB, the pruned players cache dominating). Two runs
+  reproduce byte-identically; sensitivity verified by reverting
+  `VOLATILITY_CONSTANTS['DL']` to 1.5 in-memory — the exact F28 change the engine golden
+  could not see — which changes the hash. Coverage limit stated in the harness
+  docstring: ESPN client parsing sits outside (snapshot at the fetch boundary).
