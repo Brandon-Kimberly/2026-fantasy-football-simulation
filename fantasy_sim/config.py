@@ -199,7 +199,19 @@ PRESEASON_DEFENSIVE_PRIOR = {
 # against real historical player data, and the conversation history for the calibration
 # rounds these current values were derived from.
 # ==============================================================================
-VOLATILITY_CONSTANTS = {'QB': 1.65, 'RB': 1.98, 'WR': 1.8, 'TE': 2.0, 'K': 1.57, 'DL': 1.5, 'LB': 1.5, 'DB': 1.5}
+# Aleatoric weekly scale: std_aleatoric = k * sqrt(mean). QB/RB/WR/TE calibrated by
+# backtest_player on real 2025 player-weeks and independently corroborated by F23's
+# sd-vs-mean fit. K and the IDP trio derived by F28 (docs/AUDIT_PLAN.md, 2026-09-02):
+# full-NFL 2025 stats scored through THIS league's settings (pipeline validated
+# 1,891/1,891 player-weeks to the cent), streamer-floor population, sqrt-constrained
+# fit, 95% CIs --
+#   K  1.45 [1.37, 1.56] n=35 -- replaces 1.57, which was calibrated under the 2025
+#      kicker scoring (XP 1, miss -1) this league deliberately retired to cut K variance;
+#   DL 2.16 [2.02, 2.30] n=49 -- fit exponent b = 0.73 +- 0.16 sits above sqrt, so a
+#      single k is mean-range-dependent: k spans [1.99, 2.27] across mean-floors 5->10;
+#   LB 1.67 [1.58, 1.76] n=72 -- floor-stable, exponent consistent with sqrt;
+#   DB 1.58 [1.51, 1.65] n=67 -- mild floor sensitivity (1.53 -> 1.68).
+VOLATILITY_CONSTANTS = {'QB': 1.65, 'RB': 1.98, 'WR': 1.8, 'TE': 2.0, 'K': 1.45, 'DL': 2.16, 'LB': 1.67, 'DB': 1.58}
 EPISTEMIC_ERROR_RATES = {
     'QB': 0.30, 'RB': 0.63, 'WR': 0.55, 'TE': 0.50,
     'K': 0.40, 'DL': 0.15, 'LB': 0.15, 'DB': 0.15, 'FLEX': 0.18

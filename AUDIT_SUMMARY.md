@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F28 (2026-08-30 → 09-03; see the F9–F28 section below) | 20 | 7 fixed / built | 6 measured & cleared | 7 open, tracked | 0 |
-| **grand total** | **~66 findings and tracked follow-ups** | **40 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F28 (2026-08-30 → 09-03; see the F9–F28 section below) | 20 | 8 fixed / built | 6 measured & cleared | 6 open, tracked | 0 |
+| **grand total** | **~66 findings and tracked follow-ups** | **41 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -276,9 +276,11 @@ the code was right.
   closed-not-open cross-checks); the named repeatable mistake: *checking a derived number
   against its stale origin*.
 - **F28** IDP + K volatility constants measured on full-NFL 2025 stats (pipeline
-  validated 1,891/1,891 player-weeks to the cent): DL 2.16 / LB 1.67 / DB 1.58 vs the
-  1.5 placeholder, K 1.45 vs a 1.57 calibrated under retired 2025 kicker scoring —
-  OPEN pending the adoption commit (MAJOR); F22's epistemic half stays on F7.
+  validated 1,891/1,891 player-weeks to the cent) and ADOPTED: DL 2.16 / LB 1.67 /
+  DB 1.58 replacing the 1.5 placeholder, K 1.45 replacing a 1.57 calibrated under
+  retired 2025 kicker scoring. Gate passed (bias delta 0.002); goldens byte-identical —
+  the constants act at sync time, upstream of what the golden pins, a documented blind
+  spot in the MAJOR-equals-regeneration proxy. F22's epistemic half stays on F7.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 

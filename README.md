@@ -11,7 +11,7 @@ the current week -- and seven decision tools for a real IDP fantasy league. Ever
 projection is a distribution, every probability carries a standard error.
 
 **What makes it different:** the audit trail. **~66 findings and tracked follow-ups
-across 8 audit phases: 40 fixed or built, six suspected defects measured-and-cleared, 5
+across 8 audit phases: 41 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
 fix required a test that failed first; every constant cites a source or says "unverified";
 a byte-exact 15-test golden master and a per-commit real-data backtest gate decide what

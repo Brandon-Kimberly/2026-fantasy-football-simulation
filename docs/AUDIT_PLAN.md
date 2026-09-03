@@ -2740,7 +2740,7 @@ phase docs — covered instead by the process rule now in CLAUDE.md: closing, re
 retiring, or measuring-and-clearing a finding updates AUDIT_SUMMARY in the same commit,
 with the status keyword in the plan's F-heading so guard 3 can cross-check.
 
-### F28 — IDP and K volatility constants derived from full-NFL 2025 stats (2026-09-02)
+### F28 — IDP and K volatility constants derived from full-NFL 2025 stats — RESOLVED (2026-09-02)
 
 **Origin (owner's idea):** F13/F23 used Sleeper's `/stats/nfl/regular/2025/{week}`
 endpoint — league-wide NFL stats, ~2,100 players/week. The 2025 backtest league rostering
@@ -2810,3 +2810,27 @@ caveat repeated); one season of data; exact-0.0 exclusion is a mild survivor bia
 low-snap DL, same treatment F23 accepted; DL's sqrt-form misfit documented above.
 Scripts and raw output in the session scratchpad (`idp_survey.py`,
 `offense_validation.py`, `idp_fit.py`, `idp_fit_restricted.py`).
+
+**Adoption (same day, second commit):** DL 2.16 / LB 1.67 / DB 1.58 / K 1.45 in
+`config.py`, each with the study's n, CI, and caveats in the sourcing comment (DL carries
+the [1.99, 2.27] floor-sensitivity bracket; K carries the retired-scoring note).
+
+**Golden deltas: NONE — and that finding matters more than the regeneration would have.**
+`--regenerate` produced byte-identical fixtures for all three scenarios. Root cause: the
+engine never reads `VOLATILITY_CONSTANTS` — it consumes the `std_aleatoric` values baked
+into `player_baselines.json` at SYNC time (sync.py), and the golden fixtures pin
+post-sync inputs. The goldens certify the engine, not the sync: **a sync-time constant
+change is a materially prediction-changing change that regenerates nothing**, so the
+release policy's operational MAJOR definition ("any intended golden regeneration") has a
+documented blind spot here. The next live sync recomputes every K/DL/LB/DB
+std_aleatoric; the owner's MAJOR designation stands on the policy's first line (the
+model's predictions change materially), not on its operational proxy.
+
+**Gate result (logged, label "F28 K+IDP volatility adoption"): PASS.** Overall bias
+-0.813 -> -0.811 (delta 0.002 pts vs the 0.5 criterion); mean z +0.0379 -> +0.0432
+(delta 0.005 vs the 0.05 criterion); cover80 0.6375 -> 0.625. The small movement is the
+K change (kickers are rostered in the 2025 backtest league); IDP is inert exactly as
+predicted above — the pass is evidence of no collateral damage, NOT evidence the IDP
+values are right. That instrument remains the 2026 quoted-vs-realized calibration
+(~week 5–6). Suite 489 OK before and after; golden 15 OK (trivially — fixtures
+unchanged).
