@@ -3,19 +3,20 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-481%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-484%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-73.9%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real IDP
 fantasy league -- every projection is a distribution, every probability carries a standard
 error.
 
-**What makes it different:** the audit trail. **~46 findings across 8 phases, 33 fixed, 5
-reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every fix
-required a test that failed first; every constant cites a source or says "unverified"; a
-byte-exact 15-test golden master and a per-commit real-data backtest gate decide what ships
--- and when a measurement said a suspected defect wasn't one, the claim was retired rather
-than "fixed" (F16, F23, F24).
+**What makes it different:** the audit trail. **~65 findings and tracked follow-ups
+across 8 audit phases: 40 fixed or built, six suspected defects measured-and-cleared, 5
+fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
+fix required a test that failed first; every constant cites a source or says "unverified";
+a byte-exact 15-test golden master and a per-commit real-data backtest gate decide what
+ships -- and when a measurement said a suspected defect wasn't one, the claim was retired
+rather than "fixed" (F13, F14, F16, F20, F23, F24).
 
 ![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
 *From a real weekly report: every starter is a distribution (p10/p50/p90 and a bust probability), with the margin over the best bench alternative beside it.*
@@ -143,7 +144,7 @@ fantasy_sim/
 └── backtest_player.py        # player-level calibration checks; projection-error derivation (F7)
 
 scripts/                      # 17 thin CLI entry points (weekly_report is the primary one); probes/ = R1 machine-fault probes
-tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 481 tests
+tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 484 tests
 data/                         # runtime output, three buckets (see storage.py):
 ├── current/                  #   sync's snapshot of the world as of the last sync (overwritten each sync) + the manifest
 ├── weeks/week_NN/            #   one directory per simulated week: exports, charts, tiers, SoS, audit log
@@ -176,7 +177,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 481 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 484 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage (floor committed in coverage_floor.txt; CI ratchets on it).
                                          # CAVEAT: simulation.py's ~98% is golden-master EXECUTION, not assertion-level
@@ -207,7 +208,7 @@ deliberate non-fix is recorded:
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 
-Concretely: **481 tests** with every regression test written to fail before its fix; a
+Concretely: **484 tests** with every regression test written to fail before its fix; a
 **three-scenario golden master** that makes any behaviour change in the engine falsifiable
 byte-for-byte; a **real-data backtest gate** on this league's 2025 season (points bias, mean z,
 coverage, logged per commit and interpreter) that every correlation- or scoring-adjacent change

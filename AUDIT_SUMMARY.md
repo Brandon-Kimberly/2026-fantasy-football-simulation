@@ -1,4 +1,4 @@
-# Audit summary — Phases 0–7, bye modelling, F1–F8
+# Audit summary — Phases 0–7, bye modelling, F1–F27
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
 below is backed by a phase findings document (`AUDIT_PHASE_*_FINDINGS.md`) or an `AUDIT_PLAN.md`
@@ -9,9 +9,12 @@ fast-forward only after the suite passed on `main` standalone. Anything touching
 computation additionally had to move the paired, seeded, points-level backtest on the real 2025
 season in the direction it predicted.
 
-**Suite:** 72 tests at the start (2026-08-27) → **232** now, `OK (skipped=1, expected failures=4)`.
-The four expected failures are deliberate red characterisations of open items (Phase 2 finding 4
-×2, Phase 4 finding 1 / F2, the Phase 7 rate/form record). **Golden master:** three scenarios
+**Suite:** 72 tests at the start (2026-08-27) → **481** at this summary's last update
+(2026-09-03; the live count is stated and guarded in the README), `OK (skipped=1, expected
+failures=3)`. The three expected failures are deliberate red characterisations of open items
+(Phase 2 finding 4 ×2, the Phase 7 rate/form record); a fourth — the dead trade mechanism,
+Phase 4 finding 1 / F2 — flipped from red characterisation to a guard when F2 commit 1
+landed (2026-09-01). **Golden master:** three scenarios
 (`week01`, `week06`, `week15`), 27 hashed outputs each, three stages so failures localise.
 
 ## Running defect count
@@ -28,7 +31,9 @@ The four expected failures are deliberate red characterisations of open items (P
 | F4 / F5 / F6 (absence chain) | 4 | 4 | 0 | 0 | 0 |
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
-| **total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
+| **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
+| F9–F27 (2026-08-30 → 09-03; see the F9–F27 section below) | 19 | 7 fixed / built | 6 measured & cleared | 6 open, tracked | 0 |
+| **grand total** | **~65 findings and tracked follow-ups** | **40 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -68,7 +73,9 @@ absence chain below and is now fixed. **Reported only:** finding 8, a label/cont
 **Found 8, fixed 4.** The environment multiplier was not mean-preserving (+2.8% mean, +17%
 variance; a hardcoded 22.0 vs the schedule mean); `shared_z` injected +0.32 correlation into every
 pass-catcher pair for 44% of team-weeks; the PSD repair was not renormalised; QB–receiver
-correlation was non-monotone in rank. **Deliberately open:** finding 3 (copula targets calibrated
+correlation was non-monotone in rank. **Closed since (2026-09-03):** finding 3 was fixed by the copula pre-warp — realized
+QB-WR1 correlation 0.284 → 0.40, points-backtest bias −0.98 → −0.81, goldens regenerated as
+an intended change. Original text: **Deliberately open:** finding 3 (copula targets calibrated
 on scores, applied on z: 12–14% attenuation — it partially offsets finding 2 and is to be fixed
 only after 2 is validated out of sample); finding 4 (the posterior is not conjugate — see Phase 7).
 **Reverted on evidence:** finding 5 (skip zero-score weeks) raised real-2025 bias +4.3% because,
@@ -212,18 +219,71 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | F1 | rekey players by Sleeper `player_id` | engineering-shaped; pairs with Phase 8 |
 | F2 | make trades live (≥1.0 completed/season on week01) | design question is Phase 7-adjacent |
 | F8 | within-season drift of the true mean (random-walk prior) | after F7 has a season; blocks Phase 2 finding 4 |
-| Phase 2 finding 3 | copula targets on z | after finding 2 validated out of sample |
 | Phase 2 finding 4 | conjugate posterior | F7 + F8 |
-| Phase 0 | closed-form `Playoff_SE` | implemented 2026-08-31 |
 | Phase 7 rate/form record | `test_calibration.py`, red by design | resolves with F7/F8 |
-| R1 | **machine-level fault under multi-core load, not software**: concurrent pure-Python (stdlib-only) processes crash or return unsorted `sorted()` output on both Python 3.8 and 3.10; single processes never failed. Migration to Python 3.10 done on its own merits (EOL 3.8 stack; goldens byte-identical) but does not cure it. Rules: run jobs one at a time; a crashed or "impossible-error" run is void. Re-test = `scripts/probes` Arm D 6/6 on both interpreters after the hardware is addressed (memtest / XMP / thermals / AV hook). | re-run, never count as green; compare faulthandler frames |
+| F12 | `SystemError` in `_solve_optimal_assignment`, seen once | R1-linked; does not reproduce single-process |
+| F17 | Commissioner-Exempt return timing (live data point) | event-driven — the week his status changes |
+| F18 / F19 | decision retrospective; cross-week odds trajectory | season data (~weeks 3–4); predictions log is the authoritative input (F25) |
+| F22 | IDP epistemic/volatility constants (tier caveat applied) | derive from F7's projection log after a season |
+| F25 | team-week interval under-dispersion, bracketed r ∈ [1.15, 1.34] | quoted-vs-realized calibration from the predictions log, ~week 5–6 |
+| F15 / F26 | draft realized-value row; the ten untested sync handler bodies | season data; fake-HTTP layer respectively |
+| R1 | **machine-level fault under multi-core load — verdict: RMA.** MemTest86 clean, AV excluded, BIOS/microcode updated to 0x133 with Intel Default Settings — Arm D still fails 9/12 and 11/12, so the chip itself is degraded (Vmin Shift class). Load threshold is not safe even at 3 concurrent real engine processes (1/3 silent death, 2026-09-01, no Reliability Monitor trace). Rules: one engine process at a time; a crashed or impossible-error run is void. CI on a cloud Windows runner now provides an independent, fault-free machine certifying every commit. Re-test = Arm D 12/12 after the CPU is replaced. | AUDIT_PLAN.md R1 carries the full probe history |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
+
+## F9–F27 — follow-ups and measurements (2026-08-30 → 2026-09-03)
+
+One line each; full entries in `AUDIT_PLAN.md`. The distinctive pattern of this stretch:
+five suspected defects were MEASURED and the claims retired rather than "fixed" (F13, F14,
+F16, F20, F23, F24 — six, counting both weighting suspicions), because the measurement said
+the code was right.
+
+- **F9** data/ directory structure, season-long retention — DONE.
+- **F10** audit-log / warnings retention — DONE (2026-08-31).
+- **F11** test suite silently truncated real production data since the initial commit —
+  FIXED; the data/logs integrity guard now proves every suite run leaves the logs
+  byte-identical.
+- **F12** one-time `SystemError` in the assignment solver — OPEN, R1-linked, never
+  reproduces single-process.
+- **F13** game-script / tail-asymmetric correlation — measured, NOT adopted; CLOSED.
+- **F14** `MANAGER_PROFILES` sensitivity — measured, outcome-inert; CLOSED.
+- **F15** draft retrospective — ingestion, at-draft analysis and report BUILT (2025 grade
+  flagged as hindsight); realized-value row OPEN on season data.
+- **F16** cross-roster same-game correlation — measured at n=20,000: sub-percent; CLOSED
+  as inert, nothing built.
+- **F17** Commissioner-Exempt return timing — OPEN, event-driven.
+- **F18 / F19** decision retrospective; cross-week odds trajectory — OPEN, season-gated;
+  the predictions log (canonical rows win) is the authoritative forecast record.
+- **F20** paired-evaluation magnitude gap — decomposed into named channels; RESOLVED, no
+  defect; SEs proven honest.
+- **F21** 2025 season retrospective — BUILT; also delivered the historical all-play
+  computation `schedule_luck_index` documents as missing.
+- **F22** IDP constants sensitivity — measured: outcome channels inert, tier boundaries
+  material; caveat applied; OPEN pending F7-data derivation. The standing concern (IDP
+  volatility = the unknown-position fallback; epistemic 0.15 implies IDP projections 3×
+  more trustworthy than RB) stands regardless.
+- **F23** variance form — k·√mean MEASURED AND CLEARED on 2025 data; fitted k reproduces
+  the calibrated constants on 4 of 5 positions; WR flagged for a 2026 re-check.
+- **F24** handcuff mean-weighting — MEASURED CORRECT (the audit's oldest suspicion,
+  retired); depth watchdog built.
+- **F25** team-week interval calibration — diagnosed MIXED (~44%+ harness artifact);
+  gate corrected with an optimal-lineup target; engine held; OPEN on 2026
+  quoted-vs-realized calibration.
+- **F26** coverage — BUILT (74% total / 85% package, committed-floor ratchet in CI); the
+  real finding is the silent-failure map: 23 of 33 broad handler bodies never execute;
+  the ten sync handlers are the tracked follow-up. The week-16 semifinal fallback was
+  tested immediately.
+- **F27** this document's own drift — REPAIRED and guarded (F-coverage, README↔totals,
+  closed-not-open cross-checks); the named repeatable mistake: *checking a derived number
+  against its stale origin*.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 
 `MEDIAN_SCORING_ENABLED = False` in the 2025 backtest (that season was pure H2H); ESPN blending
 excludes K and IDP (scoring cannot be matched); `VACATED_VOLUME_CAPTURE_RATE` 0.65 carried over
-unverified; mean-weighted vacated-volume apportionment known backwards for handcuffs (fix =
-`depth_chart_order`, not weights by feel); `MANAGER_PROFILES` excluded from data-driven
+unverified; mean-weighted vacated-volume apportionment — long suspected backwards for
+handcuffs — was MEASURED CORRECT by F24 (2026-09-03: ties depth weighting on 8 real 2025
+absence events, and in the one live chart-vs-mean disagreement the chart was the wrong
+signal), so the suspicion is retired and a sync watchdog surfaces live disagreements
+instead; `MANAGER_PROFILES` excluded from data-driven
 calibration; the engine is one class by choice; and no constant in this audit was tuned to close
 a gap attributed to a different mechanism.

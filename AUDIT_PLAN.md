@@ -2217,7 +2217,7 @@ HINDSIGHT (who holds up on a board 13 months later), not draft-day decision qual
 2026 table is the one fit for reading as decision quality; the 2025 table is fit only for
 curiosity until the realised-value row exists.
 
-### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine
+### F16 — Cross-fantasy-roster same-NFL-team correlation is zero in the engine — MEASURED AND CLOSED as inert (2026-09-03)
 
 **MEASURED AND CLOSED as inert (2026-09-03), F14/F22/F23-style.** Cross-roster vs
 independent copula on the four real week-1 matchups (the tools' own cross=True/False
@@ -2381,7 +2381,7 @@ overstates whatever it connects. Only week_01 exists today.
 
 **When:** around real week 3-4 of 2026, once three or more week directories exist.
 
-### F20 — Tuipulotu magnitude gap: +1.07 expected wins where mean-swap arithmetic supports ~+0.3
+### F20 — Tuipulotu magnitude gap: +1.07 expected wins where mean-swap arithmetic supports ~+0.3 — RESOLVED (2026-09-01): no defect
 
 **Origin:** 2026-09-01, the first real `--log-tx` evaluations (`a72c47d`/`fdec5cd`). The paired
 evaluation of the logged Tuipulotu-for-Hunter move (10 x 300 paired seasons, reversed on
@@ -2666,7 +2666,7 @@ direct calibration check (quoted P vs realized outcomes, Brier/reliability) need
 harness at all. Revisit then; the gate now reports both targets every run in the interim.
 Interim honesty: read confident win-probability quotes with the table above in mind.
 
-### F26 — Coverage analysis: the number is 74%, the finding is the silent-failure map (2026-09-03)
+### F26 — Coverage analysis: the number is 74%, the finding is the silent-failure map — BUILT (2026-09-03)
 
 coverage.py (branch mode) is wired locally (.coveragerc; coverage_floor.txt) and into CI
 (the suite runs under coverage; a COMMITTED-FLOOR RATCHET fails on drops -- raising the
@@ -2704,3 +2704,34 @@ verified to execute the target lines.
 Also on the map, lower priority: weekly_report's FAILED-banner path (a bug there hides
 the failure report itself), freshness's live week-roll path (wrong OK/STALE verdict),
 and the untested firing of simulation.py:1602's CRITICAL FAILSAFE (loud if it works).
+
+### F27 — Audit-doc drift: AUDIT_SUMMARY went stale on the second half of the audit — REPAIRED, guarded (2026-09-03)
+
+**What happened.** AUDIT_PLAN was updated continuously; AUDIT_SUMMARY was not. Eight
+distinct drifts accumulated: F9-F26 entirely absent (the title still scoped the document
+to F1-F8); the open-items table listed Phase 2 finding 3 as open after the copula
+pre-warp fixed it, listed the Phase 0 Playoff_SE row as open while describing itself as
+implemented, and carried an R1 characterisation predating the RMA verdict; the
+"deliberately not done" list still asserted mean-weighting "known backwards for
+handcuffs" after F24 measured that claim false; the header stats said 232 tests /
+4 expected failures (reality 481 / 3); the Phase 2 narrative still called finding 3
+deliberately open; and the README's bold audit line inherited the stale totals.
+
+**The named repeatable mistake:** the README line was verified against the summary's
+totals row while BOTH were stale together — *checking a derived number against its stale
+origin*. Guard #2 below exists specifically to close that: the two can now only move in
+the same commit.
+
+**Repairs:** all eight corrected; the summary gains an F9-F27 section with one-line
+dispositions and a grand-total row; totals recounted honestly (the numbers moved, and
+accuracy beat flattery per the owner's instruction).
+
+**Guards (tests/test_docs, all written first; G1 failed naming all 18 missing
+F-numbers, G2 failed on the absent grand-total row):** (1) every plan F-heading must
+appear in the summary; (2) the README bold line's findings/fixed numbers must match the
+summary's grand-total row; (3) any F-heading carrying CLEARED/CLOSED/RESOLVED must not
+sit in the summary's open-items table. **Not mechanizable, stated plainly:** prose
+claims, phase-narrative statuses, the R1 characterisation, and counts derived from prose
+phase docs — covered instead by the process rule now in CLAUDE.md: closing, resolving,
+retiring, or measuring-and-clearing a finding updates AUDIT_SUMMARY in the same commit,
+with the status keyword in the plan's F-heading so guard 3 can cross-check.

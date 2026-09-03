@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 481 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 484 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
@@ -26,6 +26,10 @@ py -3.10 -m scripts.run_simulation       # run the engine
 py -3.10 -m scripts.run_season_backtest  # backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest  # points-level backtest gate (bias / mean z / coverage), logged per commit
 py -3.10 -m scripts.run_player_backtest  # calibrate constants vs real player data
+py -3.10 -m scripts.run_windows          # canonical-run windows: open / covered / missed (read-only)
+py -3.10 -m scripts.evaluate_move        # paired evaluation of add/drop/waiver; --log-tx; --evaluate-unevaluated
+py -3.10 -m scripts.draft_review         # at-draft value review (--season; proxy caveat on the page)
+py -3.10 -m scripts.season_retrospective # a completed season in four measurements, no combined verdict
 ```
 
 The seven decision tools (`scripts/compare_players`, `optimize_lineup`, `matchup_lineup`,
@@ -56,9 +60,11 @@ These are non-negotiable and exist because each was learned the hard way on this
 3. **Separate characterisation from remediation.** One commit for tests that expose behaviour,
    a second for the fix. This keeps "what was wrong" reviewable independently of "what changed".
 
-4. **Do not refactor what is not covered.** `run_simulation` (~445 lines) and
-   `export_and_visualize` (~333 lines) have no golden-master test. Until Phase 0 of
-   `AUDIT_PLAN.md` is complete, any behaviour-preserving claim about them is unfalsifiable.
+4. **Do not refactor what is not covered by intent.** `run_simulation` (571 lines) and
+   `export_and_visualize` (484 lines) ARE pinned byte-exactly by the golden master (Phase 0
+   is complete; coverage there is execution, not assertion — see F26). Decomposition is
+   Phase 8, which stays blocked until the R1 hardware is replaced and Arm D passes 12/12 —
+   the golden certifies refactors only on a machine that can be trusted to run it.
 
 5. **Every constant cites a source or is marked unverified.** Numbers in `config.py` carry
    comments explaining their derivation. Preserve that. A new constant with no sourcing comment
@@ -71,7 +77,13 @@ These are non-negotiable and exist because each was learned the hard way on this
    cause before editing either side. Loosening an assertion to make a suite green is a
    regression in disguise.
 
-8. **Every phase branches from `main`, never from another phase's branch.** After a phase
+8. **Closing a finding closes it everywhere, in the same commit.** Resolving,
+   retiring, or measuring-and-clearing any finding updates `AUDIT_SUMMARY.md` alongside
+   `AUDIT_PLAN.md`, and the status keyword (CLEARED / CLOSED / RESOLVED / BUILT) goes in
+   the plan's F-heading so `tests/test_docs` can cross-check. F27 exists because this rule
+   did not: the summary went stale on eighteen findings while the plan stayed current.
+
+9. **Every phase branches from `main`, never from another phase's branch.** After a phase
    merges, delete its branch. If `git log <new-branch> --oneline` shows commits from a
    different `audit/phase-N-*` branch, the branch point was wrong — stop and re-branch from
    `main` before doing any work.

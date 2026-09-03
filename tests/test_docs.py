@@ -59,6 +59,52 @@ class TestDocsMatchReality(unittest.TestCase):
         self.assertEqual(m.group(1), floor,
                          f"coverage badge says {m.group(1)}; the committed floor is {floor}")
 
+    def test_every_audit_plan_f_number_appears_in_the_summary(self):
+        """F27: eighteen F-entries (F9-F26) accumulated in AUDIT_PLAN.md without ever
+        reaching AUDIT_SUMMARY.md -- the document whose purpose is being the trustworthy
+        overview. Guard the class: every F-heading in the plan must be mentioned in the
+        summary."""
+        plan_fs = set(re.findall(r"^### F(\d+)\b", _doc("AUDIT_PLAN.md"), re.M))
+        summary = _doc("AUDIT_SUMMARY.md")
+        missing = sorted((int(n) for n in plan_fs
+                          if not re.search(rf"\bF{n}\b", summary)))
+        self.assertEqual(missing, [],
+                         "AUDIT_PLAN F-entries absent from AUDIT_SUMMARY: "
+                         + ", ".join(f"F{n}" for n in missing))
+
+    def test_readme_headline_numbers_match_the_summary_totals(self):
+        """F27's named repeatable mistake: 'checked a derived number against its stale
+        origin' -- the README's bold audit line was verified against the summary's totals
+        row while BOTH were stale together. This guard ties them so they can only move in
+        the same commit; the summary totals row is the single source the README derives
+        from."""
+        m = re.search(r"\|\s*\*\*grand total\*\*\s*\|\s*\*\*~(\d+)[^|]*\|\s*\*\*(\d+) fixed",
+                      _doc("AUDIT_SUMMARY.md"))
+        self.assertIsNotNone(m, "AUDIT_SUMMARY has no parseable grand-total row")
+        found, fixed = m.group(1), m.group(2)
+        readme = _doc("README.md")
+        line = re.search(r"\*\*What makes it different:.*?AUDIT_SUMMARY\.md", readme, re.S)
+        self.assertIsNotNone(line, "README has no bold audit line")
+        self.assertIn(f"~{found} findings", line.group(0),
+                      f"README audit line does not carry the summary's ~{found} findings")
+        self.assertIn(f"{fixed} fixed", line.group(0),
+                      f"README audit line does not carry the summary's {fixed} fixed")
+
+    def test_findings_cleared_in_the_plan_are_not_listed_open_in_the_summary(self):
+        """The plan's F-headings carry status keywords (CLEARED/CLOSED/RESOLVED -- the
+        convention CLAUDE.md's process rule codifies). Anything so marked must not sit in
+        the summary's open-items table."""
+        plan = _doc("AUDIT_PLAN.md")
+        closed = [m.group(1) for m in re.finditer(
+            r"^### F(\d+)\b[^\n]*(?:CLEARED|CLOSED|RESOLVED)", plan, re.M)]
+        summary = _doc("AUDIT_SUMMARY.md")
+        m = re.search(r"## Open items.*?(?=\n## )", summary, re.S)
+        self.assertIsNotNone(m, "AUDIT_SUMMARY has no open-items section")
+        stale = [f"F{n}" for n in closed if re.search(rf"\|\s*F{n}\b", m.group(0))]
+        self.assertEqual(stale, [],
+                         "cleared/closed in AUDIT_PLAN but still open in the summary: "
+                         + ", ".join(stale))
+
     def test_every_script_is_documented_in_the_readme(self):
         readme = _doc("README.md")
         missing = []
