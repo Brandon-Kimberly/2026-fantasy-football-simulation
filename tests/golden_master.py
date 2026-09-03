@@ -245,7 +245,13 @@ def _sandbox(scenario, batches, sims_per_batch):
     try:
         with patch("fantasy_sim.simulation.load_json", side_effect=fixture_load), \
              patch("fantasy_sim.simulation.save_json", side_effect=capture_save), \
-             patch("fantasy_sim.simulation.save_chart"):
+             patch("fantasy_sim.simulation.save_chart"), \
+             patch("fantasy_sim.simulation.read_faab_observations", return_value={}):
+            # The observations patch is load-bearing hermeticity, not tidiness: F31's
+            # profile updater reads the decision log via open(), which the fixture_load
+            # seam does not intercept -- without this, a "hermetic" golden run silently
+            # reads the LIVE, growing decision log and the goldens change with every
+            # logged transaction (F11's contamination class, caught before it shipped).
             yield saved
     finally:
         SIM_CONFIG["NUM_BATCHES"] = orig_batches

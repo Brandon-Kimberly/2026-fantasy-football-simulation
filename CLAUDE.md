@@ -17,7 +17,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 504 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 512 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
@@ -62,7 +62,7 @@ These are non-negotiable and exist because each was learned the hard way on this
    a second for the fix. This keeps "what was wrong" reviewable independently of "what changed".
 
 4. **Do not refactor what is not covered by intent.** `run_simulation` (571 lines) and
-   `export_and_visualize` (504 lines) ARE pinned byte-exactly by the golden master (Phase 0
+   `export_and_visualize` (512 lines) ARE pinned byte-exactly by the golden master (Phase 0
    is complete; coverage there is execution, not assertion — see F26). Decomposition is
    Phase 8, which stays blocked until the R1 hardware is replaced and Arm D passes 12/12 —
    the golden certifies refactors only on a machine that can be trusted to run it.
@@ -113,9 +113,15 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   disagreements for human judgment.
 - `INJURY_RATES` for TE/QB/DL/LB/DB are less rigorously sourced than RB/WR. This is documented
   in `config.py`. Improving them requires real position-specific data, not interpolation.
-- `MANAGER_PROFILES` are deliberately excluded from data-driven calibration — per-manager sample
-  size is far too small, and letting an optimiser tune them would let it compensate for errors
-  elsewhere in the model.
+- `MANAGER_PROFILES`: `trade_will` remains deliberately excluded from data-driven
+  calibration — per-manager sample size is far too small, and an optimiser tuning it would
+  compensate for errors elsewhere. That reasoning originally covered the whole dict and was
+  right when per-manager data was guesswork; F31 (2026-09-03) changed the evidentiary
+  situation for the FAAB half specifically: `faab_agg`/`faab_activity` are DERIVED from the
+  99 attributed 2025 claims (several old guesses were contradicted outright — Legion of
+  Coom guessed 0.15, measured 1.36), labeled 2025-derived PRIORS, and blended with this
+  season's decision-log claims at engine init with a decaying prior weight. Still never
+  optimiser-tuned: measured directly or not at all.
 - `FantasySimulationEngine` is deliberately one class. Its methods share substantial state;
   splitting it is a real architectural change, not a tidy-up.
 

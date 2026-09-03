@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F31 (2026-08-30 → 09-03; see the F9–F31 section below) | 23 | 9 fixed / built | 6 measured & cleared | 8 open, tracked | 0 |
-| **grand total** | **~69 findings and tracked follow-ups** | **42 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F31 (2026-08-30 → 09-03; see the F9–F31 section below) | 23 | 10 fixed / built | 6 measured & cleared | 7 open, tracked | 0 |
+| **grand total** | **~69 findings and tracked follow-ups** | **43 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -299,12 +299,16 @@ the code was right.
   but n=8 spans 0.84–2.62 with two role-change contaminations, the denominator is not
   the model's unit, and >1.0 would change the conservation invariant's meaning. OPEN
   on the 2026 projection-log denominator (~5 events, mid-season).
-- **F31** simulated FAAB spending measured at ~31% of real (248 vs 728 of 800; count
-  x1.65 from deficit-only bidding, size x1.8 from a missing conviction tail — medians
-  match). F14's "3–6 of 100" was pre-bye and stale ever since; corrected. Trade
-  evaluator now records FAAB transfers as explicitly UNPRICED (pricing through a 31%
-  sim would report ~zero). OPEN on the behavioral fix (upgrade channel + conviction
-  tail + per-manager 2025-prior faab_agg, design-first, MAJOR when it lands).
+- **F31** simulated FAAB spending measured at ~31% of real (248 vs 728 of 800);
+  F14's "3–6 of 100" was pre-bye and stale ever since — corrected. BUILT same day,
+  tests-first: fitted lognormal bid curve (conviction tail included), upgrade channel
+  at residual rates, two-parameter 2025-prior manager model blending from the decision
+  log; deflation removed on evidence. Acceptance 684/800 in the [650, 800] band
+  (aggregate calibration, not per-manager prediction); gate PASS with cover80
+  IMPROVED (0.625 → 0.667); engine goldens regenerated, MAJOR. Trade evaluator
+  records FAAB transfers as explicitly unpriced. Re-measure at ~100 attributed 2026
+  claims (~weeks 8–10). A third stage-golden seam caught: the sandbox now blocks the
+  updater's live-log read.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 

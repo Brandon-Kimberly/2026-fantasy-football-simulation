@@ -115,9 +115,9 @@ class ByeLeague(object):
             me.recipients.append((wk, dict(out)))
             return out
 
-        def faab(remaining, raw, agg, needs, defl, avg):
-            me.bids.append((me.next_week(), needs))
-            return real_faab(remaining, raw, agg, needs, defl, avg)
+        def faab(remaining, *rest):
+            me.bids.append((me.next_week(), 1))
+            return real_faab(remaining, *rest)
 
         def export(engine, *a):
             me.args.update(zip(STAGE_A_ARG_NAMES, a))

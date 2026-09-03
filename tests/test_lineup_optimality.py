@@ -149,8 +149,15 @@ class _FixtureRun(object):
 
         def export(engine, *a):
             self.args.update(zip(STAGE_A_ARG_NAMES, a))
+        # This file's properties are about the DEFICIT channel (bids == unfilled slots);
+        # F31's upgrade channel is neutralized here (activity 0) so those counts stay
+        # sharp. The upgrade channel has its own tests (test_faab_behavior) and its
+        # aggregate calibration lives in the F31 entry.
+        from fantasy_sim.config import MANAGER_PROFILES as _mp
+        neutral_profiles = {t: dict(p, faab_activity=0.0) for t, p in _mp.items()}
         with _sandbox(scenario, batches, sims):
-            with patch.object(FantasySimulationEngine, "_solve_optimal_assignment", staticmethod(solve)), \
+            with patch("fantasy_sim.simulation.MANAGER_PROFILES", neutral_profiles), \
+                 patch.object(FantasySimulationEngine, "_solve_optimal_assignment", staticmethod(solve)), \
                  patch.object(FantasySimulationEngine, "_compute_faab_bid", staticmethod(faab)), \
                  patch.object(FantasySimulationEngine, "_apportion_vacated_volume", apportion), \
                  patch.object(FantasySimulationEngine, "export_and_visualize", export):

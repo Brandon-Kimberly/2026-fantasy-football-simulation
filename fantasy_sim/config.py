@@ -327,15 +327,44 @@ DUAL_ELIGIBILITY = {
 # for by default. One source of truth: the scripts read this rather than each carrying its own.
 MY_TEAM = "Legion of Coom"
 
+# F31 (docs/AUDIT_PLAN.md, 2026-09-03): FAAB behavior measured on the 99 attributed
+# real 2025 waiver claims. League-level bid-size distribution: a single lognormal
+# reproduces the whole shape including the conviction tail (fitted median 4.15 vs
+# real 4.0, mean 7.77 vs 7.35, p95 26 vs 21, real max 39).
+FAAB_BID_LOGNORMAL_MU = 1.423
+FAAB_BID_LOGNORMAL_SIGMA = 1.120
+# Anchor for translating an observed mean bid into an aggression multiplier when the
+# in-season updater blends 2026 claims into the 2025 priors below.
+FAAB_LEAGUE_MEAN_BID_2025 = 7.35
+# Upgrade-bidding channel (F31): the RESIDUAL claim rate per team-week beyond the
+# deficit-driven bids the engine already makes (real totals: 1.22 early / 0.68 late
+# claims per team-week; the sim's deficit channel supplies roughly half). Calibrated
+# once against F31's aggregate acceptance band (league spend in [650, 800] per
+# simulated season, real 728) -- an AGGREGATE calibration, not a per-manager
+# prediction; the tuning iteration is recorded in the F31 entry.
+FAAB_UPGRADE_RATES = {'early_weeks': 4, 'early': 0.75, 'late': 0.32}
+# The 2025 prior is worth about one season of evidence: league mean 12.4 claims per
+# team, rounded. The blend weight decays as this season's attributed claims accumulate
+# in the decision log.
+FAAB_PROFILE_PRIOR_WEIGHT = 12
+
+# faab_agg / faab_activity are 2025-DERIVED PRIORS, not facts (F31): aggression =
+# manager's mean winning bid / league mean (7.35); activity = manager's claim count /
+# league mean (12.4). Managers change between seasons -- the engine blends these with
+# 2026 claims from the decision log at init (simulation.blend_faab_profiles). The old
+# guessed 0-1 faab_agg values were CONTRADICTED by the attributed data (Legion of Coom
+# guessed 0.15, measured the league's most aggressive bidder at 1.36; Wine Drinkers
+# guessed 0.10, measured 0.96 with the second-highest total spend). trade_will remains
+# guessed and remains excluded from data-driven calibration (F2 untouched).
 MANAGER_PROFILES = {
-    'Legion of Coom': {'faab_agg': 0.15, 'trade_will': 0.05, 'style': 'The Fortress'},
-    'Femboy Cats': {'faab_agg': 0.85, 'trade_will': 0.85, 'style': 'High-risk trader'},
-    'Year of Jarvis': {'faab_agg': 0.80, 'trade_will': 0.80, 'style': 'Rule exploiter'},
-    'Drunk Cats': {'faab_agg': 0.70, 'trade_will': 0.60, 'style': 'Measured active'},
-    'The Glutton': {'faab_agg': 0.50, 'trade_will': 0.40, 'style': 'Average'},
-    'Canton Killers': {'faab_agg': 0.40, 'trade_will': 0.30, 'style': 'Casual'},
-    'Clankers': {'faab_agg': 0.15, 'trade_will': 0.10, 'style': 'Passive / Autopilot'},
-    'Wine Drinkers': {'faab_agg': 0.10, 'trade_will': 0.05, 'style': 'Autodraft'},
+    'Legion of Coom': {'faab_agg': 1.36, 'faab_activity': 0.81, 'trade_will': 0.05, 'style': 'The Fortress'},
+    'Femboy Cats': {'faab_agg': 0.82, 'faab_activity': 0.81, 'trade_will': 0.85, 'style': 'High-risk trader'},
+    'Year of Jarvis': {'faab_agg': 1.17, 'faab_activity': 0.81, 'trade_will': 0.80, 'style': 'Rule exploiter'},
+    'Drunk Cats': {'faab_agg': 0.85, 'faab_activity': 1.29, 'trade_will': 0.60, 'style': 'Measured active'},
+    'The Glutton': {'faab_agg': 1.71, 'faab_activity': 0.40, 'trade_will': 0.40, 'style': 'Average'},
+    'Canton Killers': {'faab_agg': 0.72, 'faab_activity': 1.54, 'trade_will': 0.30, 'style': 'Casual'},
+    'Clankers': {'faab_agg': 1.11, 'faab_activity': 1.05, 'trade_will': 0.10, 'style': 'Passive / Autopilot'},
+    'Wine Drinkers': {'faab_agg': 0.96, 'faab_activity': 1.29, 'trade_will': 0.05, 'style': 'Autodraft'},
 }
 
 # ==============================================================================

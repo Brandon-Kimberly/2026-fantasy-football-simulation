@@ -181,7 +181,12 @@ class TestComparePlayers(_EngineCase):
         self.assertGreater(r['p_a'], 0.8)
 
     def test_reduced_simulation_populates_the_current_week_column_only_from_current_week(self):
-        with patch('fantasy_sim.simulation.save_chart'), patch('fantasy_sim.simulation.save_json'):
+        # Injuries zeroed so "a healthy starter" is guaranteed by construction, not by
+        # the accident of where injury draws land in this seed's stream (F31's engine
+        # change shifted the RNG stream and exposed that this test had relied on luck).
+        no_injuries = {k: 0.0 for k in SIM_CONFIG['INJURY_RATES']}
+        with patch('fantasy_sim.simulation.save_chart'), patch('fantasy_sim.simulation.save_json'), \
+             patch.dict(SIM_CONFIG['INJURY_RATES'], no_injuries):
             scores = run_reduced_simulation(self.engine, sims=10)
         col = scores["QB_1"][:, 0]
         self.assertEqual(col.shape, (10,))

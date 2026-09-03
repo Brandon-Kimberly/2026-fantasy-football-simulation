@@ -191,10 +191,10 @@ class ScenarioRun(object):
                 rec["apportion_overshoots"] += 1
             return out
 
-        def faab_bid(remaining, raw_draw, aggression, needs, deflation, avg_league_faab):
+        def faab_bid(remaining, *rest):
             rec["faab_calls"] += 1
             rec["faab_remaining_min"] = min(rec["faab_remaining_min"], remaining)
-            return real_faab(remaining, raw_draw, aggression, needs, deflation, avg_league_faab)
+            return real_faab(remaining, *rest)
 
         captured = {}
 
@@ -778,21 +778,17 @@ class TestFaabBidProperties(unittest.TestCase):
     @given(
         remaining=st.floats(min_value=0.0, max_value=100.0,
                             allow_nan=False, allow_infinity=False),
-        raw_draw=st.floats(min_value=6.0, max_value=22.0,
+        raw_draw=st.floats(min_value=-5.0, max_value=5.0,
                            allow_nan=False, allow_infinity=False),
-        aggression=st.floats(min_value=0.0, max_value=1.0,
+        aggression=st.floats(min_value=0.0, max_value=2.0,
                              allow_nan=False, allow_infinity=False),
-        needs=st.integers(min_value=0, max_value=13),
-        deflation=st.floats(min_value=0.0, max_value=1.5,
-                            allow_nan=False, allow_infinity=False),
         avg_faab=st.floats(min_value=0.0, max_value=100.0,
                            allow_nan=False, allow_infinity=False),
     )
     def test_bid_is_bounded_by_budget_and_never_negative(self, remaining, raw_draw,
-                                                         aggression, needs, deflation,
-                                                         avg_faab):
+                                                         aggression, avg_faab):
         bid = FantasySimulationEngine._compute_faab_bid(
-            remaining, raw_draw, aggression, needs, deflation, avg_faab)
+            remaining, raw_draw, aggression, avg_faab)
         self.assertGreaterEqual(bid, 0.0)
         self.assertLessEqual(bid, remaining + 1e-9)
         self.assertLessEqual(bid, max(1.0, avg_faab * 1.5) + 1e-9)

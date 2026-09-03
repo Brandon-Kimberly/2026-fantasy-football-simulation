@@ -269,7 +269,7 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
     tier_of = {p['name']: p['tier'] for plist in compute_tiers(engine.baselines).values() for p in plist}
     remaining = float(engine.current_faab.get(team, 100.0))
     league_avg = float(np.mean(list(engine.current_faab.values()))) if engine.current_faab else 100.0
-    agg = MANAGER_PROFILES.get(team, {}).get('faab_agg', 0.5)
+    agg = MANAGER_PROFILES.get(team, {}).get('faab_agg', 1.0)
 
     starter_names = {nm for lst in starters.values() for nm, _v in lst}
     bench_by_pos = {}
@@ -341,7 +341,7 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
         t["bid"] = {
             "suggested": suggest_bid(t["vorp"], t["fills"], remaining, league_avg),
             "typical_manager_model": round(float(engine._compute_faab_bid(
-                remaining, 14.0, agg, weeks_of_need, deflation, league_avg)), 1),
+                remaining, 0.0, agg, league_avg)), 1),
             "remaining_faab": remaining,
             "basis": "UNVERIFIED value heuristic (see suggest_bid); the model bid is what a typical "
                      "manager is simulated to pay, not advice.",

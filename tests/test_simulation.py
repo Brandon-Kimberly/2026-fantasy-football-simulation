@@ -888,8 +888,8 @@ class TestFantasySimulation(unittest.TestCase):
         even for a maximally aggressive manager with high raw demand."""
         sim = FantasySimulationEngine()
         bid = sim._compute_faab_bid(
-            remaining_faab=3.0, raw_uniform_draw=22.0, aggression=1.0,
-            needs=6, deflation=1.0, avg_league_faab=100.0
+            remaining_faab=3.0, raw_normal_draw=4.0, aggression=2.0,
+            avg_league_faab=100.0
         )
         self.assertLessEqual(bid, 3.0)
 
@@ -898,33 +898,30 @@ class TestFantasySimulation(unittest.TestCase):
         league-wide competitive ceiling (avg_league_faab * 1.5) on a single streamer bid."""
         sim = FantasySimulationEngine()
         bid = sim._compute_faab_bid(
-            remaining_faab=100.0, raw_uniform_draw=22.0, aggression=1.0,
-            needs=10, deflation=1.0, avg_league_faab=20.0
+            remaining_faab=100.0, raw_normal_draw=4.0, aggression=2.0,
+            avg_league_faab=20.0
         )
         self.assertLessEqual(bid, 30.0)  # 1.5 * avg_league_faab
 
-    def test_faab_bid_scales_with_aggression_and_need(self):
-        """A more aggressive manager, or a team with a larger positional deficit, should be
-        modeled as bidding strictly more, all else equal."""
+    def test_faab_bid_scales_with_aggression(self):
+        """A more aggressive manager bids strictly more, all else equal. (The old ad-hoc
+        `needs` multiplier is gone in the F31 rewrite: real 2025 bid sizes are explained by
+        the lognormal x aggression shape, and need now drives the COUNT of bids, not their
+        size.)"""
         sim = FantasySimulationEngine()
-        common_kwargs = dict(remaining_faab=100.0, raw_uniform_draw=14.0, deflation=1.0, avg_league_faab=100.0)
+        common_kwargs = dict(remaining_faab=100.0, raw_normal_draw=0.0, avg_league_faab=100.0)
 
-        passive_bid = sim._compute_faab_bid(aggression=0.1, needs=1, **common_kwargs)
-        aggressive_bid = sim._compute_faab_bid(aggression=0.9, needs=1, **common_kwargs)
+        passive_bid = sim._compute_faab_bid(aggression=0.5, **common_kwargs)
+        aggressive_bid = sim._compute_faab_bid(aggression=1.5, **common_kwargs)
         self.assertLess(passive_bid, aggressive_bid)
 
-        low_need_bid = sim._compute_faab_bid(aggression=0.5, needs=1, **common_kwargs)
-        high_need_bid = sim._compute_faab_bid(aggression=0.5, needs=4, **common_kwargs)
-        self.assertLess(low_need_bid, high_need_bid)
-
-    def test_faab_bid_zero_deflation_yields_zero_bid(self):
-        """When the league-wide FAAB pool is fully exhausted (deflation == 0, an edge case that
-        occurs once every team has spent its full budget), no team should be able to bid anything,
-        regardless of aggression or need."""
+    def test_faab_bid_exhausted_budget_yields_zero_bid(self):
+        """A team with nothing left bids nothing -- solvency comes from the remaining-budget
+        cap, which replaced the old league-wide deflation multiplier (F31: real 2025 shows
+        no proportional cooling; spending persists until budgets empty)."""
         sim = FantasySimulationEngine()
         bid = sim._compute_faab_bid(
-            remaining_faab=50.0, raw_uniform_draw=22.0, aggression=1.0,
-            needs=10, deflation=0.0, avg_league_faab=50.0
+            remaining_faab=0.0, raw_normal_draw=4.0, aggression=2.0, avg_league_faab=50.0
         )
         self.assertEqual(bid, 0.0)
 

@@ -17,6 +17,7 @@ FantasySimulationEngine directly.
 import collections
 import copy
 import logging
+import math
 import os
 
 import matplotlib.pyplot as plt
@@ -30,7 +31,10 @@ from fantasy_sim.config import (
     SIM_CONFIG, MANAGER_PROFILES, DUAL_ELIGIBILITY, NFL_TEAMS, BASE_STREAMER_MEANS,
     REGULAR_SEASON_WEEKS,
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
+    FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA, FAAB_LEAGUE_MEAN_BID_2025,
+    FAAB_UPGRADE_RATES, FAAB_PROFILE_PRIOR_WEIGHT,
 )
+from fantasy_sim.storage import DECISION_LOG_FILE
 from fantasy_sim.storage import (
     load_json, save_json, save_chart, ensure_dir_for, simulation_audit_log_path, SYNDICATE_WARNINGS_LOG_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
@@ -110,6 +114,63 @@ logging.basicConfig(
 # positional-constant lookups (Phase 3 finding 3). Re-exported here: every existing caller
 # imports it from this module.
 from fantasy_sim.config import normalize_position  # noqa: E402
+
+def _upgrade_claim_rate(week_num, activity):
+    """F31 upgrade-bidding channel: the residual per-team-week claim rate (beyond
+    deficit-driven bids), front-loaded to match the real 2025 profile and scaled by the
+    manager's activity parameter. Zero activity means no speculative bidding at all --
+    the conservative default for teams with no profile."""
+    base = FAAB_UPGRADE_RATES['early'] if week_num <= FAAB_UPGRADE_RATES['early_weeks'] \
+        else FAAB_UPGRADE_RATES['late']
+    return base * max(0.0, float(activity))
+
+
+def read_faab_observations(log_path=DECISION_LOG_FILE):
+    """This season's attributed winning bids from the decision log (already ingested by
+    sync): {team: [bids]}. Missing or unreadable log returns {} -- tests and golden
+    sandboxes then run on the 2025 priors exactly."""
+    import json as _json
+    obs = {}
+    try:
+        with open(log_path, encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                r = _json.loads(line)
+                if (r.get("record_type") is None and r.get("type") == "waiver"
+                        and r.get("faab_bid") is not None):
+                    team = (r.get("teams") or [None])[0]
+                    if team:
+                        obs.setdefault(team, []).append(float(r["faab_bid"]))
+    except (FileNotFoundError, OSError, ValueError):
+        return {}
+    return obs
+
+
+def blend_faab_profiles(priors, observed, prior_weight=FAAB_PROFILE_PRIOR_WEIGHT):
+    """F31: the 2025-derived (aggression, activity) priors, updated by this season's
+    attributed claims with a decaying prior weight -- the prior is worth ~one season of
+    evidence (prior_weight ~ the 2025 league-mean claims per team). Aggression blends
+    per team on that team's own claim count; activity blends on the league-mean count,
+    since activity is defined relative to the league. Priors pass through untouched when
+    there are no observations."""
+    ns = {t: len(observed.get(t) or []) for t in priors}
+    league_mean_n = (sum(ns.values()) / len(priors)) if priors else 0.0
+    out = {}
+    for team, p in priors.items():
+        agg = float(p.get("faab_agg", 1.0))
+        act = float(p.get("faab_activity", 0.0))
+        n = ns.get(team, 0)
+        if n:
+            obs_agg = (sum(observed[team]) / n) / FAAB_LEAGUE_MEAN_BID_2025
+            agg = (prior_weight * agg + n * obs_agg) / (prior_weight + n)
+        if league_mean_n > 0:
+            obs_act = n / league_mean_n
+            act = (prior_weight * act + league_mean_n * obs_act) / (prior_weight + league_mean_n)
+        out[team] = {"faab_agg": agg, "faab_activity": act}
+    return out
+
+
 
 class FantasySimulationEngine:
     def __init__(self):
@@ -194,6 +255,13 @@ class FantasySimulationEngine:
         self.actual_median_wins = {t: 0 for t in self.team_names}
         self.actual_points = {t: 0.0 for t in self.team_names}
         self.current_faab = {t: self.standings.get(t, {}).get('remaining_faab', 100.0) for t in self.team_names}
+        # F31: two-parameter FAAB behavior (aggression x activity) -- 2025-derived priors
+        # blended with this season's attributed claims from the decision log. An absent or
+        # unreadable log (tests, golden sandboxes) degrades to the priors exactly.
+        try:
+            self.faab_profiles = blend_faab_profiles(MANAGER_PROFILES, read_faab_observations())
+        except Exception:
+            self.faab_profiles = {t: dict(p) for t, p in MANAGER_PROFILES.items()}
 
         self.replacement_levels = self._calc_replacement_levels()
         self.pass_catchers_meta = self._build_pass_catcher_hierarchy()
@@ -674,22 +742,29 @@ class FantasySimulationEngine:
         return offers
 
     @staticmethod
-    def _compute_faab_bid(remaining_faab, raw_uniform_draw, aggression, needs, deflation, avg_league_faab):
+    def _compute_faab_bid(remaining_faab, raw_normal_draw, aggression, avg_league_faab):
         """
-        Pure bid-sizing function, extracted from the streamer-acquisition loop so it can be
-        unit tested directly. `raw_uniform_draw` is the externally-sampled np.random.uniform(6, 22)
-        draw, passed in rather than sampled here, so the RNG call count/order inside
-        run_simulation() is unchanged and this function stays fully deterministic for tests.
+        Pure bid-sizing function (F31 rewrite). `raw_normal_draw` is an externally-sampled
+        standard-normal draw, passed in rather than sampled here so the function stays
+        fully deterministic for tests. The size is lognormal(mu=1.423, sigma=1.120),
+        FITTED to the 99 attributed real 2025 winning bids (median 4.15 vs real 4.0, mean
+        7.77 vs 7.35, p95 26 vs 21) -- the old U(6,22) x agg x needs/2 shape could not
+        produce the real conviction tail (bids of 20-39) at any parameter setting, and
+        its needs multiplier was ad hoc. Aggression is the manager's 2025-derived
+        multiplier (~1.0-centered). The old deflation multiplier (proportional cooling
+        as league budgets deplete) is REMOVED: real 2025 spending persisted late-season
+        until budgets emptied (weeks 10-15 still moved 15-52 per week), and pricing it
+        back in suppressed simulated spend to 469/800 vs the 728 real -- solvency is
+        already enforced by the remaining-budget cap.
 
-        Invariants this function must uphold:
-          - A bid can never exceed the team's remaining FAAB (can't spend money you don't have).
-          - A bid can never exceed the league-wide competitive ceiling (avg_league_faab * 1.5),
-            which caps how much even a maximally aggressive manager can be modeled as bidding.
-          - A bid scales up with both manager aggression and unmet roster need.
+        Invariants preserved from the original:
+          - A bid can never exceed the team's remaining FAAB.
+          - A bid can never exceed the league-wide competitive ceiling (avg_league_faab * 1.5).
+          - A bid scales linearly with manager aggression.
         """
-        base_bid = raw_uniform_draw * aggression * (needs / 2.0)
+        base_bid = math.exp(FAAB_BID_LOGNORMAL_MU + FAAB_BID_LOGNORMAL_SIGMA * raw_normal_draw)
         comp_ceiling = max(1.0, avg_league_faab * 1.5)
-        return min(remaining_faab, base_bid * deflation, comp_ceiling)
+        return max(0.0, min(remaining_faab, base_bid * aggression, comp_ceiling))
 
     def build_covariance_matrix(self, players_list, team_meta):
         n = len(players_list)
@@ -1179,19 +1254,32 @@ class FantasySimulationEngine:
                         # A streamer already held from last week covers a hole without a bid.
                         streamer_needs[t_name] = max(0, max_deficits - len(carried_streamers[t_name]))
 
-                    total_faab = sum(faab.values())
-                    avg_faab = total_faab / len(self.team_names)
-                    deflation = total_faab / (len(self.team_names) * 100.0) if total_faab > 0 else 0
+                    avg_faab = sum(faab.values()) / len(self.team_names)
 
                     bids = []
                     for t_name, needs in streamer_needs.items():
                         for _ in range(needs):
-                            agg = MANAGER_PROFILES.get(t_name, {}).get('faab_agg', 0.5)
-                            raw_draw = np.random.uniform(6, 22)
-                            bid_amt = self._compute_faab_bid(faab[t_name], raw_draw, agg, needs, deflation, avg_faab)
+                            agg = self.faab_profiles.get(t_name, {}).get('faab_agg', 1.0)
+                            raw_draw = np.random.normal()
+                            bid_amt = self._compute_faab_bid(faab[t_name], raw_draw, agg, avg_faab)
+                            bids.append((bid_amt, t_name))
+                    # F31 upgrade channel: real managers bid speculatively, not only on holes
+                    # (the real league's heaviest spending is weeks 1-4, before any bye). The
+                    # residual claim rate is front-loaded and activity-scaled; won upgrade
+                    # streamers stay capped at replacement level, so this spends budget at
+                    # realistic rates WITHOUT re-opening Phase 4's won-streamer value distortion
+                    # -- budget realism decoupled from value realism, deliberately.
+                    for t_name in self.team_names:
+                        activity = self.faab_profiles.get(t_name, {}).get('faab_activity', 0.0)
+                        up_rate = _upgrade_claim_rate(week_num, activity)
+                        if up_rate <= 0:
+                            continue
+                        for _ in range(int(np.random.poisson(up_rate))):
+                            agg = self.faab_profiles.get(t_name, {}).get('faab_agg', 1.0)
+                            bid_amt = self._compute_faab_bid(faab[t_name], np.random.normal(), agg, avg_faab)
                             bids.append((bid_amt, t_name))
 
-                    bids.sort(key=lambda x: (x[0], MANAGER_PROFILES.get(x[1], {}).get('faab_agg', 0.5)), reverse=True)
+                    bids.sort(key=lambda x: (x[0], self.faab_profiles.get(x[1], {}).get('faab_agg', 1.0)), reverse=True)
                     available_streamers = [max(4.0, 12.0 - (i * 0.5)) for i in range(max(40, len(bids)))]
                     # Start from what was carried in from last week, then add this week's wins.
                     won_streamers = {t: list(carried_streamers[t]) for t in self.team_names}

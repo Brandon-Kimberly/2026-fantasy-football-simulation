@@ -3014,7 +3014,7 @@ have accumulated (mid-season at 2025's absence pace). Scripts in the session
 scratchpad (`capture_rate_study.py`, `capture_rate_diagnostics.py`).
 No constant, golden, or gate touched: measurement only.
 
-### F31 — Simulated FAAB spending vs real: gap measured at ~3x; F14's figure was stale (2026-09-03)
+### F31 — Simulated FAAB spending vs real: gap measured at ~3x; F14's figure was stale — BUILT (2026-09-03)
 
 **Origin (owner):** the trade evaluator cannot express a FAAB transfer, and the working
 belief — from Phase 4 via F14 — was that simulated leagues spend "3–6 of 100 per season",
@@ -3069,3 +3069,52 @@ better-evidenced version of how the current values were derived) — but as a
 updating as 2026 claims accumulate in the decision log (already ingesting them).
 Engine-side when it lands: goldens regenerate, backtest gate applies, **MAJOR**.
 Scripts in the session scratchpad (`faab_real_2025.py` + instrumented golden runs).
+
+**BUILT (same day, tests-first — 8 new tests confirmed failing before the seams
+existed).** The implementation, owner-approved design with both judgment calls standing:
+- *Bid curve:* lognormal(mu = 1.423, sigma = 1.120) fitted to the 99 bids (median 4.15
+  vs real 4.0, mean 7.77 vs 7.35, p95 26 vs 21) x per-manager aggression, capped by
+  remaining budget and the competitive ceiling. The ad-hoc `needs/2` multiplier is gone
+  (need now drives bid COUNT, not size); the **deflation multiplier is removed** — real
+  2025 shows no proportional league-wide cooling (weeks 10–15 still moved 15–52/week),
+  and keeping it suppressed simulated spend to 469/800. Solvency comes from the
+  remaining-budget cap.
+- *Upgrade channel:* residual claim rate per team-week, front-loaded (weeks 1–4 vs 5+),
+  scaled by per-manager activity; won upgrade streamers stay CAPPED at replacement level
+  — budget realism deliberately decoupled from value realism, so Phase 4's
+  won-streamer-value fix is not re-opened.
+- *Two-parameter manager model* (owner's call): `faab_agg` (mean bid / league mean) and
+  `faab_activity` (claims / league mean) derived per manager from attributed claims —
+  visibly separate dimensions (The Glutton 0.40 activity / 1.71 aggression; Canton
+  Killers 1.54 / 0.72). Several old guesses were contradicted outright (Legion of Coom
+  guessed 0.15, measured the league's most aggressive at 1.36; Wine Drinkers guessed
+  0.10, measured 0.96). **2025-derived PRIORS, not facts**: blended at engine init with
+  this season's decision-log claims, prior worth ~one season (weight 12), decaying as
+  2026 accumulates.
+
+**Acceptance (aggregate, not individual — owner's note: hitting the band calibrates the
+LEAGUE aggregate, it predicts no individual manager):** league spend **684/800 per
+simulated season, inside the [650, 800] band** (real 728); ~110.6 claims/season (real
+99 — modestly over, compensating for cap-trimmed sizes); sizes mean 6.18 / median 3.28
+/ p95 22.8 (real 7.4 / 4 / 21). **One tuning iteration, recorded:** initial residual
+rates 0.60/0.25 landed at 605 after the deflation removal; final 0.75/0.32.
+
+**Gate: PASS, and informative** — bias −0.811 → −1.15 (delta 0.34 vs the 0.5
+criterion), mean z +0.043 → +0.057 (delta 0.013 vs 0.05); cover80 IMPROVED 0.625 →
+0.667 and the OPT-target sd(z) fell 1.35 → 1.23 — realistic waiver churn adds realistic
+variance, closing part of F25's under-dispersion gap (300-sim noise caveat applies).
+Engine goldens regenerated (all three scenarios; the RNG stream changes by
+construction). MAJOR.
+
+**A third seam instance, caught before it shipped (F28/F29's pattern):** the profile
+updater reads the decision log via open(), which the golden sandbox's fixture_load seam
+does not intercept — the first instrumented runs silently read the LIVE decision log
+inside a "hermetic" sandbox, which would have made the engine goldens change with every
+logged transaction (F11's contamination class). The sandbox now patches
+`read_faab_observations` to {} with a load-bearing comment.
+
+**Re-measurement trigger (attached at closure, per the F14 lesson this entry records):**
+re-measure simulated-vs-real spend AND the blended profiles once 2026 accumulates
+~100 attributed claims league-wide (the prior weight then carries ~50% — roughly weeks
+8–10 at 2025's pace). If the blend has drifted the aggregate out of the band, that is
+the recalibration point — not before.
