@@ -2863,3 +2863,74 @@ hash `player_baselines.json`)? Surveyed, not built:
   `VOLATILITY_CONSTANTS['DL']` to 1.5 in-memory — the exact F28 change the engine golden
   could not see — which changes the hash. Coverage limit stated in the harness
   docstring: ESPN client parsing sits outside (snapshot at the fetch boundary).
+
+### F29 — K/IDP epistemic disagreement from ESPN raw stat lines (2026-09-02)
+
+**Origin (owner's question, answered sideways):** asked whether a THIRD source's raw stat
+lines could be scored under this league's settings for IDP. Survey answer: the SECOND
+source already carries them. `espn_api`'s `projected_breakdown` exposes raw projected
+stat lines for every position — the K/IDP exclusion (`ESPN_BLEND_ELIGIBLE_POSITIONS`)
+was reasoned from *points under mismatched scoring*, which was correct; at the *stat
+level* the mismatch dissolves, because F28's validated sum(stats x settings) machinery
+scores any stat line under this league's rules exactly. A true third source was surveyed
+and skipped: FantasySharks' legacy JSON is dead, and the viable candidates are either
+keyed/scrape-encumbered or aggregators (FantasyPros folds in ESPN — correlated
+dispersion understates uncertainty, defeating the purpose). Recorded so it is not
+re-litigated.
+
+**Stat-key identification (cross-source, on 748 name-matched IDP projections):**
+- 10 of the league's 12 IDP keys map to named ESPN breakdown keys;
+  `defensiveFumbles` = fumble recoveries, settled by ESPN's own scoring metadata
+  (id 96, "FR — Each Fumble Recovered").
+- **ESPN's unnamed id 100 = QB hits**, on three signatures: slope +0.97 at matched scale
+  against Sleeper's projected `idp_qb_hit` (r = +0.79); the positional fingerprint
+  (DE 0.55 > DT 0.27 > LB 0.14 >> S 0.04 > CB 0.02 — pass rushers, DBs near zero); and
+  sack collinearity at the wrong scale (slope 0.42) ruling out "half-sacks".
+- **Negative results, recorded for the next reader of ESPN breakdowns:** id 112 ("STF —
+  Stuffs" per ESPN's scoring metadata) is TFL-family but a NARROWER quantity — slope
+  0.88 vs `idp_tkl_loss` at ~40% lower level (run stuffs, not all TFL) — so it is
+  EXCLUDED from the comparable subset rather than papering over a systematic shortfall.
+  Ids 110/111 are unreliable: 110 loosely tracks tackles (integer-valued, display-stat
+  shaped), 111 correlates with nothing (r ~ 0 against every candidate). Do not score
+  from them.
+- Sleeper projects all 12 keys (TFL on 405/425 IDP players, QB hit on 328/425), so the
+  **shared subset is 11 of 12** — everything but TFL.
+- K shared subset: fgm x3, xpm x2, misses x(-2) on both sides; the per-yard
+  `fgm_yds_over_30` bonus (~15% of K scoring) is excluded from BOTH sub-scores — ESPN
+  projects bands, not yards, and a within-band yardage distribution would be an invented
+  constant.
+
+**Design (adoption commit): epistemic-only, no mean blend.** Both sources' stat lines
+are scored under THIS league's multipliers on the shared subset; the disagreement
+`|sub_sleeper - sub_espn| / 2` joins the existing `max(floor, spread/2)` rule exactly as
+offense does. The MEAN stays Sleeper-only for K/IDP: ESPN's missing TFL would bias a
+blended mean downward, and the sub-score understatement is conservative in the epistemic
+direction but wrong in the mean direction. `ESPN_BLEND_ELIGIBLE_POSITIONS` keeps
+governing the points-level mean blend, unchanged.
+
+**Study (pre-season week-1 projections, all 37 rostered K/DL/LB/DB matched):** the
+signal clears the floor for **3 of 37** players today — all LB: Brooks (|D|/2 = 3.74 vs
+floor 1.05; ESPN sub-score 14.16 vs Sleeper 6.69 — a genuine tackle-volume dispute the
+model is currently blind to), Warner (1.88 vs 1.50), Sherwood (1.67 vs 1.38). K sources
+agree tightly (median signal 0.24 vs floor ~4.45; the 0.40 K floor is generous against
+observed source-spread, noted for F22, not changed here). This is a floor-era,
+pre-season snapshot: news-driven weeks widen disagreement, and the mechanism is a
+lower bound by construction. What this is NOT: a recalibration of
+`EPISTEMIC_ERROR_RATES` — the floors stay F22's, blocked on F7 season data, unchanged.
+
+**The seam pattern, named (owner's instruction):** this is the second verification
+instrument in two days found certifying less than assumed — F28's engine golden sits
+downstream of sync-time constants; the sync golden built as this change's pre-work
+snapshots ESPN at the `fetch_espn_projections` boundary, so **ESPN client parsing sits
+outside it** (unit tests cover it instead). Each golden certifies a stage; the seams
+between stages are where changes ship unverified. Any new stage golden must state its
+seams in its docstring, as `tests/golden_sync.py` does.
+
+**Consequences at adoption:** baselines change (3 players' `std_epistemic` today, the
+mechanism live for every future sync) — the sync-stage golden regenerates WITH DELTAS
+SHOWN (its first live regeneration), engine goldens expected byte-identical, backtest
+gate run (expected inert: the backtest builds baselines from historical means, not
+through this path), **MAJOR** under the release policy's sync-time clause, and the
+CLAUDE.md "Deliberate decisions" entry for the ESPN exclusion is REWRITTEN (not
+deleted), F24-style: right about points, wrong about stat lines, dated, citing this
+entry.

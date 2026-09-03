@@ -1,4 +1,4 @@
-# Audit summary — Phases 0–7, bye modelling, F1–F28
+# Audit summary — Phases 0–7, bye modelling, F1–F29
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
 below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or a `docs/AUDIT_PLAN.md`
@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F28 (2026-08-30 → 09-03; see the F9–F28 section below) | 20 | 8 fixed / built | 6 measured & cleared | 6 open, tracked | 0 |
-| **grand total** | **~66 findings and tracked follow-ups** | **41 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F29 (2026-08-30 → 09-03; see the F9–F29 section below) | 21 | 8 fixed / built | 6 measured & cleared | 7 open, tracked | 0 |
+| **grand total** | **~67 findings and tracked follow-ups** | **41 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker, never silently dropped.
 Fixed defects were each verified by a test that failed against the old behaviour; where a fix
@@ -230,7 +230,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | R1 | **machine-level fault under multi-core load — verdict: RMA.** MemTest86 clean, AV excluded, BIOS/microcode updated to 0x133 with Intel Default Settings — Arm D still fails 9/12 and 11/12, so the chip itself is degraded (Vmin Shift class). Load threshold is not safe even at 3 concurrent real engine processes (1/3 silent death, 2026-09-01, no Reliability Monitor trace). Rules: one engine process at a time; a crashed or impossible-error run is void. CI on a cloud Windows runner now provides an independent, fault-free machine certifying every commit. Re-test = Arm D 12/12 after the CPU is replaced. | AUDIT_PLAN.md R1 carries the full probe history |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
 
-## F9–F28 — follow-ups and measurements (2026-08-30 → 2026-09-03)
+## F9–F29 — follow-ups and measurements (2026-08-30 → 2026-09-03)
 
 One line each; full entries in `docs/AUDIT_PLAN.md`. The distinctive pattern of this stretch:
 five suspected defects were MEASURED and the claims retired rather than "fixed" (F13, F14,
@@ -284,6 +284,13 @@ the code was right.
   2026-09-02 as F29 pre-work (3 tests, sensitivity verified against the exact F28
   change the engine golden missed; ESPN parsing outside, stated).
   F22's epistemic half stays on F7.
+- **F29** K/IDP epistemic disagreement from ESPN raw stat lines — the second source
+  already carries them (the points-level exclusion was right about points, wrong about
+  stat lines); shared subset 11/12 keys (ESPN id-100 identified as QB hits; id-112
+  'Stuffs' excluded as narrower than TFL; ids 110/111 recorded as unreliable); signal
+  clears the floor for 3/37 rostered K/IDP today (all LB, led by a real Brooks
+  tackle-volume dispute) — OPEN pending the adoption commit (MAJOR, sync-golden
+  deltas shown). Floors stay F22's.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 
