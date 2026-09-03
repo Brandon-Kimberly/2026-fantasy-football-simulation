@@ -71,6 +71,7 @@ import numpy as np
 import requests
 
 from fantasy_sim import sync
+import fantasy_sim.config as _cfg
 from fantasy_sim import simulation as simmod
 from fantasy_sim import storage
 import logging
@@ -219,8 +220,8 @@ def build_blank_slate_baselines(live_rosters_payload, byes=None):
             pos = simmod.normalize_position(p["pos"])
             nfl_team = p.get("team", "FA")
             mean = simmod.BASE_STREAMER_MEANS.get(pos, 8.0)
-            k_val = sync.VOLATILITY_CONSTANTS.get(pos, 1.5)
-            err = sync.EPISTEMIC_ERROR_RATES.get(pos, 0.18)
+            k_val = sync.VOLATILITY_CONSTANTS.get(pos, _cfg.ANON_VOLATILITY_K)
+            err = sync.EPISTEMIC_ERROR_RATES.get(pos, _cfg.ANON_EPISTEMIC_RATE)
             baselines[name] = {
                 "pos": pos,
                 "mean": mean,

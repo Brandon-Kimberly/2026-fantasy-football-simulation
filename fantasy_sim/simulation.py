@@ -32,6 +32,7 @@ from fantasy_sim.config import (
     REGULAR_SEASON_WEEKS,
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
     FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA, FAAB_LEAGUE_MEAN_BID_2025,
+    ANON_EPISTEMIC_RATE,
     FAAB_UPGRADE_RATES, FAAB_PROFILE_PRIOR_WEIGHT,
 )
 from fantasy_sim.storage import DECISION_LOG_FILE
@@ -1128,7 +1129,7 @@ class FantasySimulationEngine:
                 sim_season_means = {}
                 for p_name, p_info in self.baselines.items():
                     mu_0 = p_info.get('mean', 8.0)
-                    sig_epistemic = p_info.get('std_epistemic', mu_0 * 0.18)
+                    sig_epistemic = p_info.get('std_epistemic', mu_0 * ANON_EPISTEMIC_RATE)
                     
                     if mu_0 <= 0.01:
                         sim_season_means[p_name] = 0.0
@@ -1462,7 +1463,9 @@ class FantasySimulationEngine:
                                 # freely available player. Uncapped, a rank-1 streamer (12.0)
                                 # out-projected the replacement level at every position but
                                 # QB and 105 of 156 rostered players, so a roster hole at
-                                # DB/DL/TE/K was an UPGRADE for a ~3.5 FAAB bid.
+                                # DB/DL/TE/K was an UPGRADE for a small bid (~3.5 under
+                                # the pre-F31 curve; F31's lognormal bids differently but
+                                # the hole-is-an-upgrade point stands).
                                 # AUDIT_PHASE_4_FINDINGS.md finding 3. The cap applies only
                                 # where the replacement level was computed from real players
                                 # (see _calc_replacement_levels); a position absent from the

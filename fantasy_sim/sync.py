@@ -21,6 +21,7 @@ from fantasy_sim.config import (
     BASE_URL, LEAGUE_ID, TEAM_NAME_MAP, ODDS_API_KEY, LEAGUE_AVG_PPG, DEF_RATING_SHRINKAGE_N0,
     PRESEASON_DEFENSIVE_PRIOR, NFL_TEAM_ABBREVIATIONS, OUTDOOR_STADIUMS, WEEK_1_VERIFIED_VEGAS,
     DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
+    ANON_VOLATILITY_K, ANON_EPISTEMIC_RATE,
     derive_bye_weeks,
 )
 from fantasy_sim.storage import (
@@ -566,8 +567,8 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                     slot = normalize_position(raw_pos)
                     baselines[name] = {
                         "pos": raw_pos, "mean": carried_mean,
-                        "std_aleatoric": float(prior_sd[0] if prior_sd[0] else round(VOLATILITY_CONSTANTS.get(slot, 1.5) * math.sqrt(max(0.5, carried_mean)), 2)),
-                        "std_epistemic": float(prior_sd[1] if prior_sd[1] else round(EPISTEMIC_ERROR_RATES.get(slot, 0.18) * carried_mean, 2)),
+                        "std_aleatoric": float(prior_sd[0] if prior_sd[0] else round(VOLATILITY_CONSTANTS.get(slot, ANON_VOLATILITY_K) * math.sqrt(max(0.5, carried_mean)), 2)),
+                        "std_epistemic": float(prior_sd[1] if prior_sd[1] else round(EPISTEMIC_ERROR_RATES.get(slot, ANON_EPISTEMIC_RATE) * carried_mean, 2)),
                         "bye": (byes or {}).get(team, 0), "team": team, "player_id": str(pid),
                         "injury_status": player.get("injury_status"),
                         "on_ir": str(pid) in (reserve_pids or ()),
@@ -655,8 +656,8 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # (slot_pos computed above, at the F29 sub-score block.)
         if slot_pos not in VOLATILITY_CONSTANTS:
             unconstrained_positions[raw_pos] = unconstrained_positions.get(raw_pos, 0) + 1
-        k_val = VOLATILITY_CONSTANTS.get(slot_pos, 1.5)
-        error_margin = EPISTEMIC_ERROR_RATES.get(slot_pos, 0.18)
+        k_val = VOLATILITY_CONSTANTS.get(slot_pos, ANON_VOLATILITY_K)
+        error_margin = EPISTEMIC_ERROR_RATES.get(slot_pos, ANON_EPISTEMIC_RATE)
 
         std_aleatoric = round(k_val * math.sqrt(max(0.5, final_mean)), 2)
         std_epistemic_floor = error_margin * final_mean
@@ -687,7 +688,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # Team DEF entities (32) and the odd unmapped position land here every sync; one line,
         # not one per player.
         logging.warning("BASELINES: %d entries have positions with no calibrated constants and use "
-                        "the anonymous defaults (k=1.5, rate=0.18): %s",
+                        f"the anonymous defaults (k={ANON_VOLATILITY_K}, rate={ANON_EPISTEMIC_RATE}): %s",
                         sum(unconstrained_positions.values()), dict(sorted(unconstrained_positions.items())))
     save_json(BASELINES_FILE, baselines)
     append_projection_log(projection_rows)

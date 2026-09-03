@@ -35,6 +35,7 @@ import math
 import numpy as np
 
 from fantasy_sim import sync
+from fantasy_sim.config import ANON_VOLATILITY_K, ANON_EPISTEMIC_RATE
 from fantasy_sim import simulation as simmod
 from fantasy_sim import backtest_season as bt
 
@@ -260,7 +261,7 @@ def compute_calibration_z(prior_mean, prior_std_epistemic, before_scores, after_
     if post_std <= 0 or n_after == 0:
         return None
 
-    aleatoric_std_at_post_mean = sync.VOLATILITY_CONSTANTS.get(pos, 1.5) * math.sqrt(max(0.5, post_mean))
+    aleatoric_std_at_post_mean = sync.VOLATILITY_CONSTANTS.get(pos, ANON_VOLATILITY_K) * math.sqrt(max(0.5, post_mean))
     future_mean_sampling_var = (aleatoric_std_at_post_mean ** 2) / n_after
     total_std = math.sqrt(post_std ** 2 + future_mean_sampling_var)
 
@@ -323,7 +324,7 @@ def analyze_epistemic_calibration(player_data, checkpoint_week, min_future_weeks
         if len(peer_means) < min_peers:
             continue
         prior_mean = float(np.mean(peer_means))
-        prior_std_epistemic = sync.EPISTEMIC_ERROR_RATES.get(pos, 0.18) * prior_mean
+        prior_std_epistemic = sync.EPISTEMIC_ERROR_RATES.get(pos, ANON_EPISTEMIC_RATE) * prior_mean
 
         result = compute_calibration_z(prior_mean, prior_std_epistemic, before, after, pos)
         if result is None:
@@ -374,7 +375,7 @@ def suggest_epistemic_rate_multiplier(player_data, checkpoint_week, min_future_w
 
     results = {}
     for pos in set(d['pos'] for d in player_data.values()):
-        base_rate = sync.EPISTEMIC_ERROR_RATES.get(pos, 0.18)
+        base_rate = sync.EPISTEMIC_ERROR_RATES.get(pos, ANON_EPISTEMIC_RATE)
         best_mult, best_diff, best_std_z = None, None, None
         for mult in candidate_multipliers:
             zs = []

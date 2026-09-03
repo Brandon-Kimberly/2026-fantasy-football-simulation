@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from fantasy_sim.config import normalize_position, SIM_CONFIG
+from fantasy_sim.config import normalize_position, SIM_CONFIG, ANON_EPISTEMIC_RATE
 from fantasy_sim.simulation import FantasySimulationEngine
 
 
@@ -71,7 +71,7 @@ def sample_week_scores(engine, name, week, n, seed=None, starter=True):
         return out
 
     mu_0 = float(p.get('mean', 8.0))
-    sig_e = float(p.get('std_epistemic', mu_0 * 0.18))
+    sig_e = float(p.get('std_epistemic', mu_0 * ANON_EPISTEMIC_RATE))
     std_a = float(p.get('std_aleatoric', 3.0))
     veg = engine._compute_week_environment(week, team)
     env_ratio = veg['total'] / engine._compute_environment_normaliser()
@@ -708,7 +708,7 @@ def sample_week_matrix(engine, groups, week, n, seed=None, cross=True, starter_e
             clocks = np.array([engine._initial_absence_clock(status, on_ir) for _ in range(n)])
             absent = clocks >= weeks_ahead
         onset = np.random.rand(n) < SIM_CONFIG['INJURY_RATES'].get(pos, 0.025) * exposure
-        mu_0 = float(e.get('mean', 8.0)); sig_e = float(e.get('std_epistemic', mu_0 * 0.18)); std_a = float(e.get('std_aleatoric', 3.0))
+        mu_0 = float(e.get('mean', 8.0)); sig_e = float(e.get('std_epistemic', mu_0 * ANON_EPISTEMIC_RATE)); std_a = float(e.get('std_aleatoric', 3.0))
         if mu_0 <= 0.01:
             season = np.zeros(n)
         else:

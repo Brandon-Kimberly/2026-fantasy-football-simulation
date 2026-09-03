@@ -143,9 +143,15 @@ WEEK_1_VERIFIED_VEGAS = {
     "FA": {"total": 20.0, "spread": 0.0, "opponent": "FA", "wind_mph": 0.0, "precip_prob": 0.0},
 }
 
+# The 21.5 flat total is LEAGUE_AVG_PPG's value and shares its UNVERIFIED status (F33);
+# the sync manifest and freshness check both shout when these fallbacks are in use.
 DEFAULT_FALLBACK_TOTALS = {team: {"total": 21.5, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"} for team in NFL_TEAM_ABBREVIATIONS.values()}
 DEFAULT_FALLBACK_TOTALS["FA"] = {"total": 20.0, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}
 
+# UNVERIFIED, carried from the original build (flagged by the 2026-09-03 pre-season
+# audit): approximates an average NFL team's per-game points (Vegas team totals
+# typically span ~17-28, league mean low-20s). Used only as the fallback when a team
+# has no defensive rating or no line -- never when real data exists. Tracked in F33.
 LEAGUE_AVG_PPG = 21.5
 
 # ==============================================================================
@@ -195,7 +201,7 @@ PRESEASON_DEFENSIVE_PRIOR = {
 }
 
 # ==============================================================================
-# PLAYER BASELINE MODEL -- see player_level_backtest.py for how these are calibrated
+# PLAYER BASELINE MODEL -- see backtest_player.py for how these are calibrated
 # against real historical player data, and the conversation history for the calibration
 # rounds these current values were derived from.
 # ==============================================================================
@@ -217,6 +223,16 @@ EPISTEMIC_ERROR_RATES = {
     'K': 0.40, 'DL': 0.15, 'LB': 0.15, 'DB': 0.15, 'FLEX': 0.18
 }
 BASE_STREAMER_MEANS = {'QB': 14.0, 'RB': 9.0, 'WR': 9.0, 'TE': 7.5, 'K': 8.0, 'DL': 7.5, 'LB': 8.0, 'DB': 8.0, 'FLEX': 8.5}
+
+# Anonymous defaults for a position OUTSIDE the calibrated tables (team-DEF units and
+# unmapped raw positions; sync warns once per run naming them). Deliberately NOT any
+# calibrated position's value -- F28 moved DL/LB/DB off 1.5, and these two numbers had
+# stayed behind as scattered literals across five files, silently restating what used to
+# be the fallback (pre-season audit, 2026-09-03). UNVERIFIED, carried; every consumer
+# now reads these names instead of re-typing the numbers, so a future recalibration
+# cannot leave stragglers.
+ANON_VOLATILITY_K = 1.5
+ANON_EPISTEMIC_RATE = 0.18
 
 # ==============================================================================
 # SEASON STRUCTURE
@@ -242,7 +258,7 @@ def normalize_position(raw_pos):
     position (DL, DB, RB, ...). Lives here, not in simulation.py, because sync must apply the
     SAME mapping before looking up VOLATILITY_CONSTANTS / EPISTEMIC_ERROR_RATES: those are
     keyed by slot position, and looking them up by the raw string handed every DE/DT/CB/S/FB
-    the anonymous default (k=1.5, rate 0.18) -- Phase 3 finding 3."""
+    the anonymous defaults (ANON_VOLATILITY_K / ANON_EPISTEMIC_RATE) -- Phase 3 finding 3."""
     pos = str(raw_pos).upper().strip()
     if pos in ['RB', 'FB']: return 'RB'
     if pos in ['WR']: return 'WR'
