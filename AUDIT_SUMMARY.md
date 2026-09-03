@@ -1,7 +1,7 @@
 # Audit summary — Phases 0–7, bye modelling, F1–F27
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
-below is backed by a phase findings document (`AUDIT_PHASE_*_FINDINGS.md`) or an `AUDIT_PLAN.md`
+below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or an `AUDIT_PLAN.md`
 entry; this file is the map, not the territory. Process throughout: characterise (a failing test
 committed first), fix, re-golden with deltas shown, full suite before and after with the count
 reported, every constant sourced or marked unverified, one branch per phase from `main`, merged by

@@ -95,7 +95,7 @@ yield in this codebase and property testing is built exactly for it.
 
 **Deliverable:** `tests/test_invariants.py`.
 
-**Status: complete.** See `AUDIT_PHASE_1_FINDINGS.md`. 26 tests added (84 → 110), suite green.
+**Status: complete.** See `docs/audit/AUDIT_PHASE_1_FINDINGS.md`. 26 tests added (84 → 110), suite green.
 Every invariant listed above holds except the bye-week one, which could not be tested at all
 because no player has a bye (finding 7).
 
@@ -209,7 +209,7 @@ week 1 now, so they were caught latent.
 
 **Deliverable:** `tests/test_distributions.py` plus a short written finding on variance budget.
 
-**Status: complete except deliberate deferrals.** See `AUDIT_PHASE_2_FINDINGS.md`. Findings 1, 2, 6, 7 fixed; 5 fixed then reverted (see below); 3 left in place (partially offsets 2 — fix it after 2 has been validated out of sample); 4 deferred to Phase 3 jointly with `DEF_RATING_SHRINKAGE_N0`, which uses the identical `n_0` construct. Suite: 124 tests, `OK (expected failures=3)` — findings 4 and 5 stay characterised-red under `expectedFailure` with their dependencies recorded.
+**Status: complete except deliberate deferrals.** See `docs/audit/AUDIT_PHASE_2_FINDINGS.md`. Findings 1, 2, 6, 7 fixed; 5 fixed then reverted (see below); 3 left in place (partially offsets 2 — fix it after 2 has been validated out of sample); 4 deferred to Phase 3 jointly with `DEF_RATING_SHRINKAGE_N0`, which uses the identical `n_0` construct. Suite: 124 tests, `OK (expected failures=3)` — findings 4 and 5 stay characterised-red under `expectedFailure` with their dependencies recorded.
 14 tests added (110 → 124); 7 lock verified properties, 7 characterised defects, 4 of which now pass as regression guards.
 
 Verified and locked: lognormal `E[X] = mean` (engine-level), the `env_var` variance model,
@@ -266,7 +266,7 @@ Eight findings:
 
 **Deliverable:** a fallback inventory table + assertions on ESPN match rate.
 
-**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_3_FINDINGS.md`.
+**Status: characterisation complete, awaiting triage.** See `docs/audit/AUDIT_PHASE_3_FINDINGS.md`.
 20 tests added (124 → 144); 5 lock verified behaviour, 14 characterise defects, 1 live ESPN
 match-rate check behind `RUN_LIVE_INGESTION_TESTS=1`. Nothing fixed. Fallback inventory: 27 sites
 classified. ESPN match rate measured live at 97% (rostered) / 99% (all eligible).
@@ -319,7 +319,7 @@ Phase 7 re-derivation of `EPISTEMIC_ERROR_RATES`; acceptance target ≈0.49 on t
 
 **Deliverable:** `tests/test_lineup_optimality.py` with brute-force cross-checks.
 
-**Status: characterisation complete, awaiting triage.** See `AUDIT_PHASE_4_FINDINGS.md`.
+**Status: characterisation complete, awaiting triage.** See `docs/audit/AUDIT_PHASE_4_FINDINGS.md`.
 7 tests added (154 → 161); 4 lock verified properties, 3 characterise defects. Nothing fixed.
 
 Verified: the Hungarian assignment is exactly optimal (1,700 random rosters vs exhaustive
@@ -358,7 +358,7 @@ Findings:
 **Deliverable:** rule-conformance tests.
 
 **Status (Phases 5 + 6 together): characterisation complete, awaiting triage.** See
-`AUDIT_PHASE_5_6_FINDINGS.md`. 12 tests in `tests/test_season_mechanics.py` (161 → 173); 9 lock
+`docs/audit/AUDIT_PHASE_5_6_FINDINGS.md`. 12 tests in `tests/test_season_mechanics.py` (161 → 173); 9 lock
 verified rules and export consistency, 3 characterise defects. Nothing fixed.
 
 Rules confirmed against Sleeper's live settings: 8 teams, 4 playoff teams, playoffs start week
@@ -400,7 +400,7 @@ Findings:
 **Deliverable:** export round-trip tests.
 
 **Status:** done together with Phase 5 — see the Phase 5 status block above and
-`AUDIT_PHASE_5_6_FINDINGS.md`. Every `to_dict` / reindex / `.loc` in `export_and_visualize` is
+`docs/audit/AUDIT_PHASE_5_6_FINDINGS.md`. Every `to_dict` / reindex / `.loc` in `export_and_visualize` is
 covered by the export-equals-computation tests; percentiles, seed probabilities, the H2H matrix
 and the forecast record are recomputed directly. The stale `Week_1_Scoring_Density_KDE.png` is
 confirmed an orphan (finding 7).
@@ -409,7 +409,7 @@ confirmed an orphan (finding 7).
 
 ## Phase 7 — Backtest and calibration validity
 
-**Status (2026-08-29): IN PROGRESS on `audit/phase-7-calibration`; findings in `AUDIT_PHASE_7_FINDINGS.md`.**
+**Status (2026-08-29): IN PROGRESS on `audit/phase-7-calibration`; findings in `docs/audit/AUDIT_PHASE_7_FINDINGS.md`.**
 Order fixed before starting: (1) per-position `INJURY_RATES` — DONE: redefined as the all-cause weekly
 absence-onset hazard; WR 0.040 → 0.081 (n = 38) and QB 0.025 → 0.054 (n = 8) by the rule "move only
 where the config lies outside the real 2025 Wilson interval"; RB/TE/K/IDP unchanged with reasons.
@@ -1860,7 +1860,7 @@ upside with the QB specifically in games the team is behind in).
 
 **Correction to the record.** The audit did not know, and could not be expected to know, that
 this project already had a game-script-dependent correlation mechanism once: the `shared_z` gate,
-added early and removed in Phase 2 (`AUDIT_PHASE_2_FINDINGS.md` finding 2; recapped above in this
+added early and removed in Phase 2 (`docs/audit/AUDIT_PHASE_2_FINDINGS.md` finding 2; recapped above in this
 document's Phase 2 status write-up, finding 2). It fired whenever `(opponent implied total +
 spread) > 23` -- open in 44% of team-weeks -- and on every fire it blended 0.6 of one shared
 per-game z-score into every same-team QB/WR/TE draw, which silently overrode every calibrated
@@ -2004,7 +2004,7 @@ correlation- or scoring-adjacent change in this document.
 `MAX_REALISTIC_WEEKLY_SCORE = 80` "arbitrary." It is not: it is grounded in real NFL single-game
 scoring records, and Phase 2 already measured its actual cost directly on this engine's own
 output -- max exceedance 4.3e-3, mean loss <= 0.06 pts/week (Phase 2 status write-up above;
-`AUDIT_PHASE_2_FINDINGS.md`). Revisited specifically because of this external critique, against
+`docs/audit/AUDIT_PHASE_2_FINDINGS.md`). Revisited specifically because of this external critique, against
 that existing measurement: the conclusion is unchanged, and no action was taken. Recorded here,
 and cross-referenced from the Phase 2 write-up itself, so this does not get re-litigated blind
 the next time an external critique raises it without engaging with the number already measured.

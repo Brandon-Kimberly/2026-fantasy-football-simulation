@@ -201,7 +201,7 @@ deliberate non-fix is recorded:
 
 - **`AUDIT_SUMMARY.md`** -- the whole arc on one page: Phases 0-7, what was found, fixed, and left
   open, with the numbers.
-- **`AUDIT_PHASE_0_FINDINGS.md` … `AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
+- **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
 - **`AUDIT_PLAN.md`** -- the working spec, with the tracked follow-ups **F1-F17** (each with
