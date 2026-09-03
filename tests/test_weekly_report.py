@@ -438,7 +438,7 @@ class TestTradeAndMatchupRendering(unittest.TestCase):
         html = render_html(report, team="Legion of Coom", week=3)
         self.assertNotIn("Sell side: Drunk Cats wants", md, "prose paragraph replaced")
         self.assertIn("| Drunk Cats | Fred Warner | Fred Warner | Bijan Robinson | +3.2 | +1.1 |", md)
-        for col in ("from", "target", "I give", "I get", "my +", "their +"):
+        for col in ("From", "Target", "I give", "I get", "My gain", "Their gain"):
             self.assertIn(f'data-key="{col}"', html)
         self.assertIn("Drunk Cats", html)
 
@@ -521,7 +521,7 @@ class TestDecisionLogSection(unittest.TestCase):
             self.assertIn("scripts.evaluate_move --log-tx t2", out)
             self.assertIn("never a record of what the model thought at decision time", out)
             self.assertIn("1 of my", out)                    # computed split, not hardcoded
-        self.assertIn('data-key="in"', html, "sortable")
+        self.assertIn('data-key="Added"', html, "sortable")
 
 
 class TestPredictionsCanonicality(unittest.TestCase):

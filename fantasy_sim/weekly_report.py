@@ -321,17 +321,17 @@ def render_digest(report, team, week):
     if sim and sim.get("season_outcomes"):
         rows = sorted(sim["season_outcomes"], key=lambda r: -r["Playoff_Pct"])
         md += ["## Season outlook", ""]
-        md += [_table(["team", "Playoff%", "Champ%", "Exp W", "Exp Pts"],
+        md += [_table(["Team", "Playoff%", "Champ%", "Expected wins", "Expected points"],
                       [[("**%s**" % r["Team"]) if r["Team"] == team else r["Team"], f"{r['Playoff_Pct']:.1f}",
                         f"{r['Champ_Pct']:.1f}", f"{r['Expected_Wins']:.1f}", f"{r['Expected_Points']:.0f}"] for r in rows]), ""]
 
     lg = res.get("league")
     if lg:
         md += [f"## League this week -- all matchups (n={lg.get('n')}, {'cross-roster copula' if lg.get('cross') else 'per-roster copula'})", ""]
-        md += [_table(["matchup", "P(A wins)", "P(B wins)", "+-", "A exp", "B exp", "margin sd"],
+        md += [_table(["Matchup", "P(A wins)", "P(B wins)", "± SE", "A expected", "B expected", "Margin std dev"],
                       [[f"{m['a']} v {m['b']}", f"{100 * m['p_a']:.1f}%", f"{100 * m['p_b']:.1f}%", f"{100 * m['se']:.1f}",
                         f"{m['a_expected']:.1f}", f"{m['b_expected']:.1f}", f"{m['margin_sd']:.1f}"] for m in lg["matchups"]]), ""]
-        md += [_table(["team", "opponent", "P(>= median)", "expected", "sd"],
+        md += [_table(["Team", "Opponent", "P(>= median)", "Expected", "Std dev"],
                       [[("**%s**" % t) if t == team else t, d.get("opponent") or "-", f"{100 * d['p_beat_median']:.1f}%",
                         f"{d['expected_total']:.1f}", f"{d['sd_total']:.1f}"]
                        for t, d in sorted(lg["teams"].items(), key=lambda kv: -kv[1]["p_beat_median"])]), ""]
@@ -343,13 +343,13 @@ def render_digest(report, team, week):
     if rg:
         md += ["## Roster grade", ""]
         lt = rg.get("league", {}).get("teams", [])
-        md += [_table(["#", "team", "lineup VORP", "depth VORP", "opt score", "holes", "T1 starters", "starters < rep"],
+        md += [_table(["#", "Team", "Lineup VORP", "Depth VORP", "Optimal score", "Holes", "Tier-1 starters", "Starters below replacement"],
                       [[t["rank"], ("**%s**" % t["team"]) if t["team"] == team else t["team"], f"{t['lineup_vorp']:.1f}",
                         f"{t['depth_vorp']:.1f}", f"{t['optimal_score']:.1f}", t["holes"], t["tier1_starters"],
                         t["starters_below_replacement"]] for t in lt]), ""]
         bp = (rg.get("team_detail") or {}).get("by_position", {})
         if bp:
-            md += [_table(["pos", "starters", "bench", "start VORP", "depth VORP", "best free agent"],
+            md += [_table(["Position", "Starters", "Bench", "Starter VORP", "Depth VORP", "Best free agent"],
                           [[p, b["n_starters"], b["n_bench"], f"{b['starters_vorp']:.1f}", f"{b['depth_vorp']:.1f}",
                             (f"{b['best_free_agent']['name']} ({b['best_free_agent']['vorp']:+.1f})" if b.get("best_free_agent") else "-")]
                            for p, b in sorted(bp.items())]), ""]
@@ -357,7 +357,7 @@ def render_digest(report, team, week):
     lu = res.get("lineup")
     if lu:
         md += [f"## Lineup -- expected total {lu['expected_total']:.1f}" + (f", UNFILLED: {lu['unfilled']}" if lu.get("unfilled") else ""), ""]
-        md += [_table(["slot", "player", "pos", "exp", "p10", "p50", "p90", "zero", "margin", "alternative"],
+        md += [_table(["Slot", "Player", "Position", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
                       [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
                         f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
                        for r in lu["lineup"]]), ""]
@@ -369,11 +369,11 @@ def render_digest(report, team, week):
         c = mu["constructions"]
         md += [f"## Matchup -- vs {mu['opponent']} ({'favoured' if mu.get('favoured_by_max_mean') else 'underdog'} on the engine's lineup; "
                f"n={mu.get('n')}, {'cross-roster copula' if mu.get('cross') else 'per-roster copula'})", ""]
-        md += [_table(["construction", "mean", "sd", "P(beat opp)", "+-", "P(>= median)", "margin", "margin sd"],
+        md += [_table(["Construction", "Mean", "Std dev", "P(beats opponent)", "± SE", "P(>= median)", "Margin", "Margin std dev"],
                       [[k, f"{c[k]['mean']:.1f}", f"{c[k]['sd']:.1f}", f"{100 * c[k]['p_beat_opponent']:.1f}%", f"{100 * c[k]['se']:.1f}",
                         f"{100 * c[k]['p_beat_median']:.1f}%", f"{c[k]['margin_mean']:+.1f}", f"{c[k]['margin_sd']:.1f}"]
                        for k in mu["ranking_by_p_beat_opponent"]]), ""]
-        md += ["_P(beat opp) is computed on this section's own joint sample, independent of the League "
+        md += ["_P(beats opponent) is computed on this section's own joint sample, independent of the League "
                "table's matchup row; the two estimates differ by sampling noise (SE ~ +-0.7 points), "
                "not signal._", ""]
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
@@ -397,11 +397,11 @@ def render_digest(report, team, week):
                     f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
                     (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else
                      (t.get("incumbent") or "-"))]
-        _wv_cols = ["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"]
+        _wv_cols = ["Player", "Position", "Tier", "Season mean", "VORP", "Week mean", "p10", "p50", "p90", "Fills", "Suggested bid*", "Incumbent / P(beats)"]
         main_wv = [t for t in wv["targets"] if t["fills"] != "depth"]
         depth_wv = [t for t in wv["targets"] if t["fills"] == "depth"]
         md += [_table(_wv_cols, [_wv_row(t) for t in main_wv]), "",
-               "\\* bid = UNVERIFIED value heuristic. P(beats incumbent): " + wv.get("caveat", ""), ""]
+               "\\* Suggested bid = UNVERIFIED value heuristic. P(beats incumbent): " + wv.get("caveat", ""), ""]
         if depth_wv:
             md += ["### Depth upgrades", "",
                    "_Beats your worst bench player at the position (named as the natural drop), or "
@@ -415,7 +415,7 @@ def render_digest(report, team, week):
         if not tr.get("buy"):
             md += ["No trades to propose: no buy-side candidates met both sides' acceptance rule this week.", ""]
         else:
-            md += [_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
+            md += [_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My gain", "Their gain", "Acceptable", "Playoff%", "Seller", "Willingness"],
                       [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
                         ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
                         (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
@@ -423,7 +423,7 @@ def render_digest(report, team, week):
                            for b in tr.get("buy", [])]), ""]
         if tr.get("sell"):
             md += ["Sell side:", ""]
-            md += [_table(["from", "target", "I give", "I get", "my +", "their +"],
+            md += [_table(["From", "Target", "I give", "I get", "My gain", "Their gain"],
                           [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
                             ", ".join(x["they_want"]), ", ".join(x["they_give"]),
                             f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]]), ""]
@@ -431,7 +431,7 @@ def render_digest(report, team, week):
     dl = report.get("decision_log")
     if dl and dl["rows"]:
         md += [f"## Decision log -- week {dl['week']} ({len(dl['rows'])} transaction(s))", ""]
-        md += [_table(["date", "team", "type", "in", "out", "bid", "mine", "snapshot", "evaluation"],
+        md += [_table(["Date", "Team", "Type", "Added", "Dropped", "Bid", "Mine", "Snapshot", "Evaluation"],
                       [[(r["created"] or "")[:10], r["team"], r["type"], *_declog_cells(r)]
                        for r in dl["rows"]]), ""]
         md += ["_" + _declog_caveat(dl) + "_", ""]
@@ -595,8 +595,18 @@ summary { cursor: pointer; font-weight: 600; font-size: .9rem; padding: .35rem .
 summary:hover { background: #ededed; }
 details[open] summary { border-radius: 4px 4px 0 0; }
 details table { margin-top: 0; }
-pre { background: #f4f4f4; padding: .6rem; overflow-x: auto; font-size: .8rem; }
+pre { background: #efece5; padding: .6rem; overflow-x: auto; font-size: .8rem; }
 .note { color: #555; font-size: .9rem; font-weight: 400; text-transform: none; letter-spacing: 0; }
+/* Section color (owner's pick): variant C's solid slate header bands on variant A's warm
+   off-white paper; tables and figures sit as white cards so they lift off the page. */
+body { background: #f7f5f1; }
+h2 { background: #3d5a73; color: #fff; border-bottom: none; padding: .45rem .75rem; border-radius: 4px; }
+h2 .note { color: #c9d6e2; }
+table { background: #fff; box-shadow: 0 0 0 1px #e6e1d6; }
+tbody tr:nth-child(even) { background: #faf9f6; }
+th { background: #eef1f4; }
+summary { background: #eef1f4; }
+summary:hover { background: #e2e7ec; }
 """
 
 
@@ -640,18 +650,18 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if lg:
         cop = "cross-roster copula" if lg.get("cross") else "per-roster copula"
         out.append(f'<h2 id="league">League this week -- all matchups <span class="note">(n={T(lg.get("n"))}, {cop})</span></h2>')
-        out.append(html_table(["matchup", "P(A wins)", "P(B wins)", "+-", "A expected", "B expected", "margin sd"],
+        out.append(html_table(["Matchup", "P(A wins)", "P(B wins)", "± SE", "A expected", "B expected", "Margin std dev"],
                               [[f"{m['a']} v {m['b']}", f"{100 * m['p_a']:.1f}%", f"{100 * m['p_b']:.1f}%", f"{100 * m['se']:.1f}",
                                 f"{m['a_expected']:.1f}", f"{m['b_expected']:.1f}", f"{m['margin_sd']:.1f}"] for m in lg["matchups"]]))
-        out.append(html_table(["team", "opponent", "P(>= median)", "expected", "sd"],
+        out.append(html_table(["Team", "Opponent", "P(>= median)", "Expected", "Std dev"],
                               [[t, d.get("opponent") or "-", f"{100 * d['p_beat_median']:.1f}%", f"{d['expected_total']:.1f}", f"{d['sd_total']:.1f}"]
                                for t, d in sorted(lg["teams"].items(), key=lambda kv: -kv[1]["p_beat_median"])]))
         out.append("<h3>Assumed optimal lineups (max-expectation, the engine's rule)</h3>")
         for t, d in sorted(lg["teams"].items(), key=lambda kv: (kv[0] != team, kv[0])):
             opened = " open" if t == team else ""
-            out.append(f'<details{opened}><summary>{T(t)} -- expected {d["expected_total"]:.1f}, sd {d["sd_total"]:.1f}, '
+            out.append(f'<details{opened}><summary>{T(t)} -- expected {d["expected_total"]:.1f}, std dev {d["sd_total"]:.1f}, '
                        f'vs {T(d.get("opponent") or "-")}</summary>'
-                       + html_table(["slot", "player", "NFL", "expected", "sd"],
+                       + html_table(["Slot", "Player", "NFL", "Expected", "Std dev"],
                                     [[x["slot"], x["name"], x.get("nfl_team") or "-", f"{x['expected']:.1f}", f"{x['sd']:.1f}"] for x in d["lineup"]])
                        + "</details>")
         out.append(f'<p class="note">{T(lg.get("note", ""))}</p>')
@@ -660,7 +670,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if sim and sim.get("season_outcomes"):
         rows = sorted(sim["season_outcomes"], key=lambda r: -r["Playoff_Pct"])
         out.append('<h2 id="outlook">Season outlook</h2>')
-        out.append(html_table(["team", "Playoff%", "Champ%", "Exp W", "Exp Pts"],
+        out.append(html_table(["Team", "Playoff%", "Champ%", "Expected wins", "Expected points"],
                               [[r["Team"], f"{r['Playoff_Pct']:.1f}", f"{r['Champ_Pct']:.1f}", f"{r['Expected_Wins']:.1f}", f"{r['Expected_Points']:.0f}"]
                                for r in rows]))
         charts = ((season_outcomes_chart_path(week), "Season outcomes"),
@@ -677,13 +687,13 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if rg:
         out.append('<h2 id="grades">Roster grade</h2>')
         lt = rg.get("league", {}).get("teams", [])
-        out.append(html_table(["#", "team", "lineup VORP", "depth VORP", "opt score", "holes", "T1 starters", "starters < rep"],
+        out.append(html_table(["#", "Team", "Lineup VORP", "Depth VORP", "Optimal score", "Holes", "Tier-1 starters", "Starters below replacement"],
                               [[t["rank"], t["team"], f"{t['lineup_vorp']:.1f}", f"{t['depth_vorp']:.1f}", f"{t['optimal_score']:.1f}",
                                 t["holes"], t["tier1_starters"], t["starters_below_replacement"]] for t in lt]))
         bp = (rg.get("team_detail") or {}).get("by_position", {})
         if bp:
             out.append(f"<h3>{T(team)} by position</h3>" + html_table(
-                ["pos", "starters", "bench", "start VORP", "depth VORP", "best free agent"],
+                ["Position", "Starters", "Bench", "Starter VORP", "Depth VORP", "Best free agent"],
                 [[p_, b["n_starters"], b["n_bench"], f"{b['starters_vorp']:.1f}", f"{b['depth_vorp']:.1f}",
                   (f"{b['best_free_agent']['name']} ({b['best_free_agent']['vorp']:+.1f})" if b.get("best_free_agent") else "-")]
                  for p_, b in sorted(bp.items())]))
@@ -692,10 +702,10 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if lu:
         unfilled = f' <span class="note">UNFILLED: {T(lu["unfilled"])}</span>' if lu.get("unfilled") else ""
         out.append(f'<h2 id="lineup">Lineup -- expected total {lu["expected_total"]:.1f}{unfilled}</h2>')
-        out.append(html_table(["slot", "player", "pos", "exp", "p10", "p50", "p90", "zero", "margin", "alternative"],
+        out.append(html_table(["Slot", "Player", "Position", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
                               [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
                                 f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
-                               for r in lu["lineup"]], signed_cols=("margin",)))
+                               for r in lu["lineup"]], signed_cols=("Margin",)))
         if lu.get("bench"):
             bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
             out.append(f"<p>Bench: {T(bench)}</p>")
@@ -709,11 +719,11 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         cop = "cross-roster copula" if mu.get("cross") else "per-roster copula"
         out.append(f'<h2 id="matchup">Matchup -- vs {T(mu["opponent"])} <span class="note">({fav} on the engine\'s lineup; '
                    f'n={T(mu.get("n"))}, {cop})</span></h2>')
-        out.append(html_table(["construction", "mean", "sd", "P(beat opp)", "+-", "P(>= median)", "margin", "margin sd"],
+        out.append(html_table(["Construction", "Mean", "Std dev", "P(beats opponent)", "± SE", "P(>= median)", "Margin", "Margin std dev"],
                               [[k, f"{c[k]['mean']:.1f}", f"{c[k]['sd']:.1f}", f"{100 * c[k]['p_beat_opponent']:.1f}%", f"{100 * c[k]['se']:.1f}",
                                 f"{100 * c[k]['p_beat_median']:.1f}%", f"{c[k]['margin_mean']:+.1f}", f"{c[k]['margin_sd']:.1f}"]
                                for k in mu["ranking_by_p_beat_opponent"]]))
-        out.append("<p class=\"note\">P(beat opp) is computed on this section's own joint sample, "
+        out.append("<p class=\"note\">P(beats opponent) is computed on this section's own joint sample, "
                    "independent of the League table's matchup row; the two estimates differ by "
                    "sampling noise (SE ~ +-0.7 points), not signal.</p>")
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
@@ -728,7 +738,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
             out.append(f"<p>Best by P(beat opponent): <b>{T(best)}</b>{changes}</p>")
         assumed = "assumed" if mu.get("opponent_lineup_assumed") else "supplied"
         out.append(f"<details><summary>Opponent lineup ({assumed})</summary>"
-                   + html_table(["slot", "player", "expected"], [[x["slot"], x["name"], f"{x['expected']:.1f}"] for x in mu.get("opponent_lineup", [])])
+                   + html_table(["Slot", "Player", "Expected"], [[x["slot"], x["name"], f"{x['expected']:.1f}"] for x in mu.get("opponent_lineup", [])])
                    + "</details>")
         out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed, anchor)
                    + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed, anchor) + "</div>")
@@ -742,11 +752,11 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                     f"{t['week']['p10']:.1f}", f"{t['week']['p50']:.1f}", f"{t['week']['p90']:.1f}", t["fills"], t["bid"]["suggested"],
                     (f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%" if t.get("p_beats_incumbent") else
                      (t.get("incumbent") or "-"))]
-        _wv_cols = ["player", "pos", "tier", "season", "VORP", "wk mean", "p10", "p50", "p90", "fills", "bid*", "incumbent / P(beats)"]
+        _wv_cols = ["Player", "Position", "Tier", "Season mean", "VORP", "Week mean", "p10", "p50", "p90", "Fills", "Suggested bid*", "Incumbent / P(beats)"]
         main_wv = [t for t in wv["targets"] if t["fills"] != "depth"]
         depth_wv = [t for t in wv["targets"] if t["fills"] == "depth"]
         out.append(html_table(_wv_cols, [_wv_row(t) for t in main_wv], signed_cols=("VORP",)))
-        out.append(f'<p class="note">* bid = UNVERIFIED value heuristic. P(beats incumbent): {T(wv.get("caveat", ""))}</p>')
+        out.append(f'<p class="note">* Suggested bid = UNVERIFIED value heuristic. P(beats incumbent): {T(wv.get("caveat", ""))}</p>')
         if depth_wv:
             out.append("<h3>Depth upgrades</h3>"
                        '<p class="note">Beats your worst bench player at the position (named as the '
@@ -776,25 +786,25 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
             out.append("<p class=\"note\">No trades to propose: no buy-side candidates met both "
                        "sides' acceptance rule this week.</p>")
         else:
-            out.append(html_table(["from", "target", "behind", "slot", "I give", "I get", "my +", "their +", "ok", "PO%", "seller", "will"],
+            out.append(html_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My gain", "Their gain", "Acceptable", "Playoff%", "Seller", "Willingness"],
                               [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
                                 ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
                                 (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
                                     ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
-                                   for b in tr.get("buy", [])], signed_cols=("my +", "their +")))
+                                   for b in tr.get("buy", [])], signed_cols=("My gain", "Their gain")))
         if tr.get("sell"):
             out.append("<h3>Sell side</h3>")
-            out.append(html_table(["from", "target", "I give", "I get", "my +", "their +"],
+            out.append(html_table(["From", "Target", "I give", "I get", "My gain", "Their gain"],
                                   [[x["buyer"], x["they_want"][0] if x["they_want"] else "-",
                                     ", ".join(x["they_want"]), ", ".join(x["they_give"]),
                                     f"{x['my_gain']:+.1f}", f"{x['their_gain']:+.1f}"] for x in tr["sell"]],
-                                  signed_cols=("my +", "their +")))
+                                  signed_cols=("My gain", "Their gain")))
 
     dl = report.get("decision_log")
     if dl and dl["rows"]:
         out.append(f'<h2 id="decision-log">Decision log <span class="note">week {dl["week"]}, '
                    f'{len(dl["rows"])} transaction(s)</span></h2>')
-        out.append(html_table(["date", "team", "type", "in", "out", "bid", "mine", "snapshot", "evaluation"],
+        out.append(html_table(["Date", "Team", "Type", "Added", "Dropped", "Bid", "Mine", "Snapshot", "Evaluation"],
                               [[(r["created"] or "")[:10], r["team"], r["type"], *_declog_cells(r)]
                                for r in dl["rows"]]))
         out.append(f'<p class="note">{T(_declog_caveat(dl))}</p>')
