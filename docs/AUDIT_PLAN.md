@@ -2834,3 +2834,24 @@ predicted above — the pass is evidence of no collateral damage, NOT evidence t
 values are right. That instrument remains the 2026 quoted-vs-realized calibration
 (~week 5–6). Suite 489 OK before and after; golden 15 OK (trivially — fixtures
 unchanged).
+
+**The blind-spot question, asked before closing (owner's instruction).** The release
+policy's MAJOR proxy now states the limitation in CLAUDE.md itself. Is the blind spot
+worth CLOSING with a sync-stage golden (pin pre-sync inputs, run baseline generation,
+hash `player_baselines.json`)? Surveyed, not built:
+
+- *What it would pin:* `VOLATILITY_CONSTANTS`, `EPISTEMIC_ERROR_RATES`,
+  `BASE_STREAMER_MEANS`, the Sleeper/ESPN blend and its EMA prior, the absence-carry
+  logic — the entire sync-time constant surface, byte-exactly.
+- *The cost, honestly:* `_sync_body` has ~20 network call sites; the narrower
+  `generate_player_baselines` target still makes 3 internal fetches (weekly projections,
+  season fallback, ESPN) and reads two prior-state files (the EMA prior in
+  `BASELINES_FILE`, the F7 log). A hermetic golden needs those captured as committed
+  fixtures, `synced_at` (utcnow, written into every entry) frozen or excluded from the
+  hash, and a regen path + CI wiring. The mocking pattern exists (`test_sync.py` already
+  fakes `requests.get`); the work is fixture capture and hash normalization — roughly a
+  session, not an afternoon.
+- *Verdict:* worth doing, not now. Natural slot: **before the next intended sync-time
+  recalibration** (F8's drift model, or F22's epistemic derivation when F7 data lands
+  season-end) — that is when the blind spot next bites, and building the golden first
+  means that recalibration ships with its deltas visible instead of on trust.

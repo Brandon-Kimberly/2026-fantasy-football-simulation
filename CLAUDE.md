@@ -119,10 +119,13 @@ Semantic versions, tied to what this repo already enforces (baseline: v1.0.0, ta
 the F27 commit, 2026-09-03):
 
 - **MAJOR** -- the model's predictions change materially. Operationally: **any intended
-  golden-master regeneration** (the copula pre-warp would have been one had it landed
-  post-v1; F8's drift model and any constant recalibration will be). The regeneration IS
-  the definition; a commit that regenerates goldens for an intended change says "MAJOR
-  pending" in its message, and the tag lands with the release notes, not the commit.
+  golden-master regeneration, OR any change to sync-time constants that alter
+  `player_baselines.json`** (`VOLATILITY_CONSTANTS`, `EPISTEMIC_ERROR_RATES`,
+  `BASE_STREAMER_MEANS`, the blend weights) -- **which the goldens cannot detect**: the
+  engine consumes `std_aleatoric` baked in at sync time, so a sync-time recalibration
+  regenerates nothing while changing every prediction (learned from F28, whose golden
+  deltas were byte-identical). A commit doing either says "MAJOR pending" in its
+  message, and the tag lands with the release notes, not the commit.
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
   coverage).
 - **PATCH** -- fixes and docs that move neither.

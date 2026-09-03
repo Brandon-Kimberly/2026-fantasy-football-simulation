@@ -279,8 +279,10 @@ the code was right.
   validated 1,891/1,891 player-weeks to the cent) and ADOPTED: DL 2.16 / LB 1.67 /
   DB 1.58 replacing the 1.5 placeholder, K 1.45 replacing a 1.57 calibrated under
   retired 2025 kicker scoring. Gate passed (bias delta 0.002); goldens byte-identical —
-  the constants act at sync time, upstream of what the golden pins, a documented blind
-  spot in the MAJOR-equals-regeneration proxy. F22's epistemic half stays on F7.
+  the constants act at sync time, upstream of what the golden pins, a blind spot now
+  stated in the release policy itself; a sync-stage golden that would close it is
+  surveyed in the entry and deferred to before the next sync-time recalibration.
+  F22's epistemic half stays on F7.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 
