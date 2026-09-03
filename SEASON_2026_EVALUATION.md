@@ -1,5 +1,14 @@
 # Season 2026 evaluation criteria
 
+> **Tamper-evidence:** this file's SHA-256 is recorded in
+> [`SEASON_2026_EVALUATION.sha256`](SEASON_2026_EVALUATION.sha256) and asserted by the
+> test suite (`tests/test_docs.py`), so any post-hoc edit fails CI on an independent
+> machine and shows in both files' git history. Verify yourself:
+> `certutil -hashfile SEASON_2026_EVALUATION.md SHA256` (or `sha256sum -c` the sidecar).
+> Created at commit `e2d573dcf20b595012252203d6e2ebf2de8ea1eb` (2026-09-02); this lock
+> header was added the same pre-season evening. Git is not immutable -- this makes any
+> revision provable and loud, which is the honest claim.
+
 **Written and committed 2026-09-02, seven days before the first 2026 kickoff
 (2026-09-09, 5:20 PM PT).** No 2026 game has been played. This document exists so the
 model is judged against a standard set in advance, not one retrofitted to the outcome —

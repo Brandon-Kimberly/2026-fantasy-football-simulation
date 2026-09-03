@@ -105,6 +105,19 @@ class TestDocsMatchReality(unittest.TestCase):
                          "cleared/closed in AUDIT_PLAN but still open in the summary: "
                          + ", ".join(stale))
 
+    def test_season_evaluation_is_tamper_evident(self):
+        """SEASON_2026_EVALUATION.md's value is that it predates the results it will judge.
+        Git is not immutable, so the lock is loudness: the file must hash to the recorded
+        sidecar, any edit fails CI on an independent machine, and both files' histories
+        show when anything changed."""
+        import hashlib
+        content = open(os.path.join(ROOT, "SEASON_2026_EVALUATION.md"), "rb").read()
+        recorded = open(os.path.join(ROOT, "SEASON_2026_EVALUATION.sha256"),
+                        encoding="utf-8").read().split()[0]
+        self.assertEqual(hashlib.sha256(content).hexdigest(), recorded,
+                         "SEASON_2026_EVALUATION.md no longer matches its recorded hash -- "
+                         "the pre-commitment has been edited after the fact")
+
     def test_every_script_is_documented_in_the_readme(self):
         readme = _doc("README.md")
         missing = []

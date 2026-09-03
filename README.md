@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-488%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-489%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-73.9%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real IDP
@@ -150,7 +150,7 @@ fantasy_sim/
 └── backtest_player.py        # player-level calibration checks; projection-error derivation (F7)
 
 scripts/                      # 17 thin CLI entry points (weekly_report is the primary one); probes/ = R1 machine-fault probes
-tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 488 tests
+tests/                        # 27 test modules + golden_master.py (the reproducibility harness); 489 tests
 data/                         # runtime output, three buckets (see storage.py):
 ├── current/                  #   sync's snapshot of the world as of the last sync (overwritten each sync) + the manifest
 ├── weeks/week_NN/            #   one directory per simulated week: exports, charts, tiers, SoS, audit log
@@ -183,7 +183,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 488 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 489 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage (floor committed in coverage_floor.txt; CI ratchets on it).
                                          # CAVEAT: simulation.py's ~98% is golden-master EXECUTION, not assertion-level
@@ -218,7 +218,7 @@ deliberate non-fix is recorded:
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 
-Concretely: **488 tests** with every regression test written to fail before its fix; a
+Concretely: **489 tests** with every regression test written to fail before its fix; a
 **three-scenario golden master** that makes any behaviour change in the engine falsifiable
 byte-for-byte; a **real-data backtest gate** on this league's 2025 season (points bias, mean z,
 coverage, logged per commit and interpreter) that every correlation- or scoring-adjacent change
