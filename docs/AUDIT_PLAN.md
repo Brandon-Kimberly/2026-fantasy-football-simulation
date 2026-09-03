@@ -3243,3 +3243,36 @@ changes sim 2.14/wk vs real 2.76; waiver volume calibrated; timing modestly flat
 trade mechanism's 0-vs-11 inertness stays tracked under F2, now with the 2025 real rate
 (11 trades, weeks 1-11, 2-5 players, FAAB riders) recorded as its calibration target.
 OPEN; unlock: post-season (or a deliberate mid-season arc if F2 is redesigned).
+
+### F35 — Behavioral-plausibility harness — BUILT (2026-09-03)
+
+The 2026-09-03 re-audit's verdict on the verification apparatus: it covered
+correctness-given-the-model, not behavioral plausibility — F31 (spending at 31% of
+real) and the trade inertness (0 vs 11) were both found by MANUAL measurement whose
+instruments lived in a session scratchpad. This makes that measurement permanent:
+`fantasy_sim/behavior_check.py` + `scripts.run_behavior_check`.
+
+**Design (owner-decided): standalone at milestones, two comparisons with different
+semantics.** Versus REAL 2025 (the readiness audit's measured rates, committed with
+derivations): report-only, three-way IN-BAND / UNDER / OVER, with filed gaps carrying
+their F-numbers in the verdict — trades read "UNDER (filed: F2/F34)", never a false
+alarm, because a check that fails every run on a known gap becomes wallpaper. Versus a
+COMMITTED BASELINE of the sim's own accepted rates: a real drift check — the
+instrumented run is deterministic on the seeded golden fixtures (regeneration refuses
+to write unless two runs match exactly), so any movement means engine behavior moved;
+drift exits nonzero and the fix is a deliberate regeneration commit with deltas
+explained, the golden-master discipline applied to rates.
+
+**First measurement, on the shipped engine:** 8 of 9 mechanics IN-BAND (spend 665.6 of
+the [650, 800] band — the owner's strategy declaration lowered it from the audit's 684,
+which the harness correctly reflects; claims 110.5; bid median 3.0, p95 22.8; early
+share 0.25, at the band floor per the known timing flatness; lineup churn 2.14/wk);
+trades UNDER as filed. Baseline committed at these values.
+
+**Hermeticity, closed structurally:** the harness runs through the golden sandbox,
+which severs the F31 profile updater's live decision-log read — and that seam is now
+PINNED by a regression test (a sentinel reader installed outside the sandbox must never
+fire inside it), so the twice-in-one-day hole class cannot be silently reintroduced.
+
+Run before any MAJOR and at milestone tags. Unit tests cover the classification and
+drift logic; the engine-measuring path is exercised by the script itself, by design.

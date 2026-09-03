@@ -3,15 +3,15 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-529%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-536%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-75.5%25-yellowgreen)](#validation-and-audit-trail)
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution, every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~72 findings and tracked follow-ups
-across 8 audit phases: 43 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~73 findings and tracked follow-ups
+across 8 audit phases: 44 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence -- see [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).** Every
 fix required a test that failed first; every constant cites a source or says "unverified";
 a byte-exact 15-test golden master and a per-commit real-data backtest gate decide what
@@ -81,6 +81,7 @@ py -3.10 -m scripts.season_retrospective        # a completed season in four mea
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
+py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs the real 2025 league + drift vs the committed baseline
 ```
 
 ## How the model works
@@ -138,7 +139,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 529 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 536 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; floor committed in coverage_floor.txt, CI ratchets on it.
                                          # CAVEAT: high coverage on the two monoliths means the golden master RUNS them,
@@ -167,7 +168,7 @@ deliberate non-fix is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`** -- seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`** -- the working spec, with 34 tracked follow-ups (F1-F34), each with
+- **`docs/AUDIT_PLAN.md`** -- the working spec, with 35 tracked follow-ups (F1-F35), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed) and the R1
   machine-fault investigation.
 

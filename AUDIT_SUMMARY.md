@@ -1,4 +1,4 @@
-# Audit summary — Phases 0–7, bye modelling, F1–F34
+# Audit summary — Phases 0–7, bye modelling, F1–F35
 
 Written 2026-08-29 at `main` = `17cfb69`, for someone who was not in the sessions. Every claim
 below is backed by a phase findings document (`docs/audit/AUDIT_PHASE_*_FINDINGS.md`) or a `docs/AUDIT_PLAN.md`
@@ -32,8 +32,8 @@ landed (2026-09-01). **Golden master:** three scenarios
 | Phase 7 | 2 | 1 | 0 | 1 | 0 |
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
-| F9–F34 (2026-08-30 → 09-03; see the F9–F34 section below) | 26 | 10 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~72 findings and tracked follow-ups** | **43 fixed or built** | — | open set enumerated in the table below | — |
+| F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
+| **grand total** | **~73 findings and tracked follow-ups** | **44 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -230,7 +230,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | R1 | **machine-level fault under multi-core load — verdict: RMA.** MemTest86 clean, AV excluded, BIOS/microcode updated to 0x133 with Intel Default Settings — Arm D still fails 9/12 and 11/12, so the chip itself is degraded (Vmin Shift class). Load threshold is not safe even at 3 concurrent real engine processes (1/3 silent death, 2026-09-01, no Reliability Monitor trace). Rules: one engine process at a time; a crashed or impossible-error run is void. CI on a cloud Windows runner now provides an independent, fault-free machine certifying every commit. Re-test = Arm D 12/12 after the CPU is replaced. | AUDIT_PLAN.md R1 carries the full probe history |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
 
-## F9–F34 — follow-ups and measurements (2026-08-30 → 2026-09-03)
+## F9–F35 — follow-ups and measurements (2026-08-30 → 2026-09-03)
 
 One line each; full entries in `docs/AUDIT_PLAN.md`. Six suspected defects in this
 stretch (F13, F14, F16, F20, F23, F24) were measured and the claims retired rather
@@ -324,6 +324,11 @@ than "fixed": the measurement said the code was right.
   of 19 active; the sim never frees the spot) — OPEN, season-scale by decision; must
   respect the F31/F32 replacement-cap boundary. F2 gains its real calibration target:
   11 trades in 2025 vs the sim's ~0.
+- **F35** the behavioral-plausibility harness — BUILT: sim mechanic rates measured
+  against the real 2025 league (report-only, filed gaps annotated, never wallpaper)
+  plus a deterministic committed baseline whose drift fails — the F31-class discovery
+  method made permanent. First run: 8 of 9 mechanics in-band; trades under, as filed.
+  The sandbox's live-log severance is now pinned by a regression test.
 
 ## What was deliberately not done, and why (see `CLAUDE.md` for the full list)
 

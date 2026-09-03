@@ -1,0 +1,14 @@
+{
+  "bid_mean": 6.025,
+  "bid_median": 3.015,
+  "bid_p95": 22.778,
+  "early_claim_share": 0.2511,
+  "faab_spent": 665.6,
+  "lineup_changes_mean": 2.136,
+  "lineup_zero_share": 0.0872,
+  "n_sims": 30,
+  "scenario": "week01",
+  "trade_completions": 0.0,
+  "trade_offer_events": 5.17,
+  "waiver_claims": 110.47
+}
