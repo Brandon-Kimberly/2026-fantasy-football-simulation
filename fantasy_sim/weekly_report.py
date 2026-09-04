@@ -28,7 +28,7 @@ from html import escape
 from fantasy_sim.freshness import read_manifest, read_export_mtime   # module attrs: patchable in tests
 from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS       # the sortable-table pattern, reused as-is
 from fantasy_sim.storage import (
-    SYNC_MANIFEST_FILE, load_json, predictions_log_file, decisions_adhoc_path, decisions_week_path,
+    SYNC_MANIFEST_FILE, VEGAS_FILE, load_json, predictions_log_file, decisions_adhoc_path, decisions_week_path,
     ensure_dir_for, decisions_path, season_outcomes_chart_path, all_teams_trajectories_chart_path,
     win_trajectory_chart_path, expected_wins_chart_path, power_rankings_chart_path, h2h_heatmap_chart_path,
     seeding_distribution_path, weekly_scoring_density_path, boom_bust_chart_path, floor_ceiling_chart_path,
@@ -145,6 +145,16 @@ def commit_and_push_logs(week, git=_run_git):
         result["warning"] = f"logs push errored: {ex}"
         logging.warning("LOGS PUSH: %s", result["warning"])
         return result
+
+
+def run_provenance(manifest, vegas_meta):
+    """F36's DEGRADED-judgment mitigation, made durable (2026-09-04): the sync state a
+    prediction row was quoted under. The manifest is untracked and overwritten every
+    sync, so the row's provenance is the only record of it that survives."""
+    import os as _os
+    return {"vegas_source": (vegas_meta or {}).get("source"),
+            "degraded": len((manifest or {}).get("degraded") or []),
+            "runner": bool(_os.environ.get("GITHUB_ACTIONS"))}
 
 
 def _decision_log_summary(week, log_path=None):
@@ -945,9 +955,15 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
         return r
 
     def step_predictions_log():
+        try:
+            vegas_meta = (load_json(VEGAS_FILE) or {}).get("_meta")
+        except FileNotFoundError:
+            vegas_meta = None
+        prov = run_provenance(load_json(SYNC_MANIFEST_FILE), vegas_meta)
         n = append_predictions_log(state["week"], state["season_outcomes"], state["league_outlook"],
-                                   commit=_git_head(), canonical=state["canonical"])
-        return {"appended": n}
+                                   commit=_git_head(), canonical=state["canonical"],
+                                   provenance=prov)
+        return {"appended": n, "provenance": prov}
 
     def step_roster_grades():
         from scripts.roster_grades import main as m

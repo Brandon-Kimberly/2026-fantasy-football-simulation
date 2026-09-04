@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~74 findings and tracked follow-ups** | **44 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~74 findings and tracked follow-ups** | **45 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,13 +329,16 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
-- **F36** canonical runs on GitHub Actions (tier 2) — designed follow-up, OPEN: the
-  2026-09-04 survey's findings filed so the later assessment starts from evidence
-  (statelessness verified via the tracked-log carry; runner trust via CI's goldens;
-  union-merge + read-side dedupe verified per log). The preserved objection is
-  DEGRADED judgment: an unattended run quotes predictions on degraded syncs. Assess
-  after real weeks of tier 1.5 (the scheduled credential-free log capture, built same
-  day alongside the tier-1 issue-based window watcher).
+- **F36** canonical runs on GitHub Actions (tier 2) — BUILT: scheduled canonical runs
+  gated mechanically (ABORT / REPORT_ONLY-with-artifact / CANONICAL_OK by explicit
+  allowlists; unrecognized blocks conservatively), every failure opening an issue whose
+  remediation gives the verbatim command, and the canonical row carrying durable
+  provenance (vegas source, degraded count, runner flag). The owner-required replay
+  against all 8 recorded real sync states caught a false blocker (the whitelisted-
+  Tyson warning) and a gate-by-construction abort (the export criterion) before either
+  could ship; live post-fix verdict CANONICAL_OK. Also surfaced: silent ESPN-failure
+  fixed. Retention: 90-day artifacts + milestone release assets, no orphan branch.
+  Reliability review after real weeks of runner evidence stays on.
 - **F35** the behavioral-plausibility harness — BUILT: sim mechanic rates measured
   against the real 2025 league (report-only, filed gaps annotated, never wallpaper)
   plus a deterministic committed baseline whose drift fails — the F31-class discovery

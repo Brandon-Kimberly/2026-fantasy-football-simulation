@@ -1,0 +1,139 @@
+# F36 tier 2 (2026-09-04): the automated canonical run. Fires twice per window
+# (primary + retry); every firing first asks windows_watch whether a window is OPEN and
+# uncovered -- if not, it exits quietly, which makes retries and local/runner
+# coexistence free (a local canonical run means the runner does nothing).
+#
+# The DEGRADED-judgment caveat (F36's real objection) is mechanical here:
+#   ABORT         (sync-stage STALE)  -> fail loud, remediation issue, nothing written
+#   REPORT_ONLY   (forecast-affecting degradation, or unrecognized -- conservative)
+#                 -> report runs, uploads as an ARTIFACT, no canonical row committed
+#   CANONICAL_OK  (only known benign residents) -> weekly_report --canonical; its own
+#                 logs_push step commits and pushes the canonical predictions row
+# In every branch the tracked logs are committed right after the sync (the tier-1.5
+# capture duty), so the irreplaceable data lands before anything can fail downstream.
+#
+# windows-latest on purpose: the platform every audited number was produced on; CI
+# already proves the suite and byte-exact goldens there. Fire times sit hours inside
+# each window in BOTH DST regimes (width over offsets, as everywhere else):
+#   Sunday   12:30 + 14:30 UTC  vs deadline 17:00 (PDT) / 18:00 (PST) -- worst case
+#            (1h cron lag + ~35 min run) still leaves ~2.5h spare
+#   Thursday 13:00 + 17:30 UTC  vs the usual ~00:20 Friday UTC kickoff
+#   Tuesday  15:00 + 20:00 UTC  vs Wednesday 07:00/08:00 UTC waiver clear
+name: canonical-run
+on:
+  schedule:
+    - cron: "0 13 * * 4"
+    - cron: "30 17 * * 4"
+    - cron: "30 12 * * 0"
+    - cron: "30 14 * * 0"
+    - cron: "0 15 * * 2"
+    - cron: "0 20 * * 2"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  canonical:
+    runs-on: windows-latest
+    timeout-minutes: 90
+    env:
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      ESPN_S2: ${{ secrets.ESPN_S2 }}
+      ESPN_SWID: ${{ secrets.ESPN_SWID }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+
+      - name: Is a window open and uncovered?
+        id: watch
+        shell: bash
+        run: |
+          python -m scripts.windows_watch > watch.json
+          cat watch.json
+          n=$(jq '.actionable | length' watch.json)
+          if [ "$n" = "0" ]; then
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            echo "No open uncovered window -- nothing to do."
+          else
+            echo "proceed=true" >> "$GITHUB_OUTPUT"
+            jq -c '.actionable[0]' watch.json > window.json
+            echo "window=$(cat window.json)" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync
+        if: steps.watch.outputs.proceed == 'true'
+        run: python -m scripts.run_sync
+
+      - name: Capture the tracked logs first (tier-1.5 duty, before anything can fail)
+        if: steps.watch.outputs.proceed == 'true'
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/logs
+          if ! git diff --cached --quiet -- data/logs; then
+            git commit -m "Logs: canonical-run sync capture (actions)" -- data/logs
+            git pull --rebase origin main
+            git push origin main || { git pull --rebase origin main && git push origin main; }
+          fi
+
+      - name: Canonical gate
+        if: steps.watch.outputs.proceed == 'true'
+        id: gate
+        shell: bash
+        run: |
+          python -m scripts.canonical_gate > gate.json
+          cat gate.json
+          echo "verdict=$(jq -r '.verdict' gate.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Weekly report (canonical -- commits its own predictions row)
+        if: steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict == 'CANONICAL_OK'
+        run: python -m scripts.weekly_report --canonical --skip-sync --embed
+
+      - name: Weekly report (report-only -- artifact for the human, no canonical row)
+        if: steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict == 'REPORT_ONLY'
+        run: python -m scripts.weekly_report --skip-sync --embed
+
+      - name: Upload the report artifact
+        if: always() && steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict != 'ABORT'
+        uses: actions/upload-artifact@v4
+        with:
+          name: weekly-report-${{ github.run_id }}
+          path: data/decisions/**
+          if-no-files-found: ignore
+          retention-days: 90
+
+      - name: Open or close the remediation issue
+        if: always() && steps.watch.outputs.proceed == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          verdict=$(jq -r '.verdict' gate.json 2>/dev/null || echo UNKNOWN)
+          week=$(jq -r '.target_week' watch.json)
+          wname=$(jq -r '.name' window.json)
+          title="Canonical run needs you: week ${week} ${wname}"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ "$verdict" = "CANONICAL_OK" ]; then
+            [ -n "$num" ] && gh issue close "$num" --comment "Resolved: a later run quoted canonically for this window."
+            exit 0
+          fi
+          python -m scripts.canonical_gate --compose-issue gate.json window.json > issue_body.md
+          if [ -n "$num" ]; then
+            gh issue edit "$num" --body-file issue_body.md
+          else
+            gh issue create --title "$title" --body-file issue_body.md
+          fi
+          if [ "$verdict" = "ABORT" ] || [ "$verdict" = "UNKNOWN" ]; then
+            echo "gate verdict $verdict -- failing loud as designed"
+            exit 1
+          fi

@@ -18,6 +18,7 @@ import numpy as np
 import requests
 
 from fantasy_sim.config import (
+    SIM_CONFIG,
     BASE_URL, LEAGUE_ID, TEAM_NAME_MAP, ODDS_API_KEY, LEAGUE_AVG_PPG, DEF_RATING_SHRINKAGE_N0,
     PRESEASON_DEFENSIVE_PRIOR, NFL_TEAM_ABBREVIATIONS, OUTDOOR_STADIUMS, WEEK_1_VERIFIED_VEGAS,
     DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
@@ -509,8 +510,13 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     try:
         espn_projections, espn_subscores = fetch_espn_projection_data(
             current_year, week, league_scoring_settings)
-    except Exception:
+    except Exception as ex:
         espn_projections, espn_subscores = {}, {}
+        # Visible on purpose (F36 gate, 2026-09-04): this used to fail SILENTLY, so a
+        # Sleeper-only sync was indistinguishable from a blended one in the manifest.
+        # The degraded channel exists for exactly this class of tolerated failure.
+        logging.warning("ESPN BLEND: fetch failed (%s); all players fall back to "
+                        "Sleeper-only this sync.", type(ex).__name__)
 
     keys = resolve_player_keys(projections.keys(), players_db, rostered_pids)
     colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}
@@ -587,11 +593,22 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                 # No prior either: the engine aborts on him unless KNOWN_MISSING_ASSETS carries
                 # a hand-typed entry. That used to happen silently, and the only signal was
                 # the crash one stage later (Phase 3 finding 6 / inventory P5).
-                logging.warning(
-                    "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper projection "
-                    "and is NOT in baselines. The engine will abort on him unless "
-                    "SIM_CONFIG['KNOWN_MISSING_ASSETS'] carries an entry (team must match: %s).",
-                    name, raw_pos, team, team)
+                # The warning SPLITS on whether the whitelist covers him (2026-09-04, found
+                # by F36's gate replay): the covered case fired the same alarming text for
+                # a week after Tyson's entry landed, and the canonical gate read every one
+                # of the week's syncs as blocked on a case the engine handles cleanly.
+                wl = (SIM_CONFIG.get("KNOWN_MISSING_ASSETS") or {}).get(name)
+                if wl is not None and wl.get("team") == team:
+                    logging.warning(
+                        "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper "
+                        "projection; covered by KNOWN_MISSING_ASSETS -- the engine imputes "
+                        "the whitelisted baseline.", name, raw_pos, team)
+                else:
+                    logging.warning(
+                        "BASELINES: rostered player %r (%s, %s) has a zero/empty Sleeper projection "
+                        "and is NOT in baselines. The engine will abort on him unless "
+                        "SIM_CONFIG['KNOWN_MISSING_ASSETS'] carries an entry (team must match: %s).",
+                        name, raw_pos, team, team)
             continue
 
         # Multi-source blend: if ESPN has an independent projection for this player this week,

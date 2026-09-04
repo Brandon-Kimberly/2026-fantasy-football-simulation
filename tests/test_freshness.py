@@ -85,5 +85,20 @@ class TestLogsGitState(unittest.TestCase):
 
 
 
+class TestSyncStageAssessment(unittest.TestCase):
+    def test_check_export_false_ignores_the_export_criterion_only(self):
+        """The F36 gate runs AFTER sync and BEFORE the report, when the simulation
+        export always predates the sync -- gating on full freshness would abort every
+        run by construction (found live, 2026-09-04). check_export=False assesses the
+        SYNC's health alone; every other criterion still applies."""
+        status, _ = assess(MANIFEST, T_SYNC, FILES, 2, export_mtime=None, nfl_week=2,
+                           check_export=False)
+        self.assertEqual(status, OK)
+        status, reasons = assess(MANIFEST, T_SYNC, FILES, 3, export_mtime=None, nfl_week=2,
+                                 check_export=False)
+        self.assertEqual(status, STALE, "a vegas week mismatch must still be stale")
+
+
+
 if __name__ == "__main__":
     unittest.main()

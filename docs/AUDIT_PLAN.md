@@ -3324,7 +3324,7 @@ sized at >= 400 seasons. MAJOR when built.
 OPEN; unlock: the F32 unlock — one arc, volume + value + roster fidelity together
 (owner disposition, 2026-09-04). The trade half stays tracked under F2.
 
-### F36 — Canonical runs on GitHub Actions (tier 2) — designed follow-up (2026-09-04)
+### F36 — Canonical runs on GitHub Actions (tier 2) — BUILT (2026-09-04)
 
 **Origin (owner):** 48 canonical windows across 16 weeks on human memory is brittle, and
 a missed window is a permanent hole in the F18/F19/F25 quoted-predictions record. The
@@ -3363,6 +3363,54 @@ with a retry, and the DST shift (2026-11-01) handled by width, not offsets.
 **Decision rule (owner):** assess after a few real weeks of tier 1.5 running, when the
 runner path's reliability in practice is known — not before. OPEN; unlock: operational
 evidence from tier 1.5 (~week 3-4 of the 2026 season).
+
+**BUILT (2026-09-04, owner-approved same day)** — `.github/workflows/canonical-run.yml`
++ `scripts/canonical_gate.py`, tests first (11 new confirmed failing).
+
+*The gate, mechanical:* ABORT on sync-stage STALE (fail loud, remediation issue,
+nothing written); REPORT_ONLY on any forecast-affecting degradation (report uploads as
+a 90-day artifact, no canonical row commits); CANONICAL_OK otherwise (the run's own
+logs_push commits the row, with `run_provenance` — vegas source, tolerated-failure
+count, runner flag — durable in the row, since the manifest is overwritten).
+Classification is explicit allowlists in the gate script; UNRECOGNIZED ENTRIES BLOCK,
+conservatively. Every blocking key maps to a remediation block (what happened / verbatim
+command / commit-push? / verify / safe-to-skip), composed into the issue with the
+window deadline first.
+
+*The replay (owner-required validation) earned its keep twice:*
+1. All 8 recorded real sync states from the week gated REPORT_ONLY — every one on a
+   FALSE blocker: the NOT-in-baselines warning fired unconditionally even after Jordyn
+   Tyson's KNOWN_MISSING_ASSETS entry covered him (engine imputes cleanly). Unfixed,
+   tier 2 was a notifier with extra steps. The warning now SPLITS on whitelist coverage
+   (covered → "covered by KNOWN_MISSING_ASSETS", benign; uncovered → "will abort",
+   blocking), pinned by tests. Live post-fix verdict: **CANONICAL_OK, 8 benign, 0
+   blocking.**
+2. The gate ABORTed by construction at first: full freshness demands a simulation
+   export NEWER than the sync, which can never hold between sync and report. `assess`
+   gained `check_export=False` (sync-stage assessment; every other criterion intact).
+
+Also fixed en route: an ESPN fetch failure was SILENT (`except: pass`) — invisible to
+the gate and the human DEGRADED list alike; it now logs `ESPN BLEND: fetch failed`,
+test-pinned.
+
+*Schedule:* two fires per window (Thu 13:00/17:30, Sun 12:30/14:30, Tue 15:00/20:00
+UTC), each exiting quietly unless a window is open and uncovered — retries and
+local/runner coexistence are free. Sunday worst case (1h cron lag + ~35 min windows
+runner) lands ~2.5h before the deadline in both DST regimes. windows-latest for
+platform consistency with everything CI proves.
+
+*Retention (owner delegated, decided):* NO orphan branch — ~800 MB/season of embed
+HTML would enter every future clone. Instead: 90-day artifacts cover the in-season
+horizon, the tracked predictions rows are the permanent model record, and the current
+embed digest gets attached as a RELEASE ASSET at each milestone tag (weeks 5-6, 11, 15,
+season end — the release policy already cuts these; assets are permanent and never
+bloat clones).
+
+*Remaining operator step:* `ODDS_API_KEY` (and ESPN cookies if ever needed) as repo
+Actions secrets — until set, post-gate runner attempts land in REPORT_ONLY with the
+odds remediation block, which is the correct degraded behavior. The DEGRADED-judgment
+caveat's mitigation is therefore: gate + provenance + the issue channel saying exactly
+when a human should re-run. Reliability review after real weeks stays on.
 
 ### F35 — Behavioral-plausibility harness — BUILT (2026-09-03)
 

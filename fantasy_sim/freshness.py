@@ -35,7 +35,7 @@ def parse_stamp(text):
         return None
 
 
-def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week):
+def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week, check_export=True):
     """Pure. manifest: dict or None; sync_start: epoch seconds of manifest.started_at or None;
     file_mtimes: {basename: mtime or None} for the sync outputs; vegas_week: the week stamped in
     vegas_totals._meta (or None); export_mtime: mtime of the current week's simulation export
@@ -51,10 +51,14 @@ def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week
             reasons.append(f"partial: {name} is older than the sync (rewritten or never written)")
     if vegas_week != week:
         reasons.append(f"vegas_totals.json is stamped for week {vegas_week}, sync is for week {week}")
-    if export_mtime is None:
-        reasons.append(f"simulation export for week {week} is missing -- run scripts.run_simulation")
-    elif export_mtime < sync_start:
-        reasons.append(f"simulation export for week {week} predates the sync -- re-run scripts.run_simulation")
+    # check_export=False: the F36 gate assesses the SYNC alone, after sync and before
+    # the report -- at that moment the export ALWAYS predates the sync, and gating on it
+    # would abort every unattended run by construction (found live, 2026-09-04).
+    if check_export:
+        if export_mtime is None:
+            reasons.append(f"simulation export for week {week} is missing -- run scripts.run_simulation")
+        elif export_mtime < sync_start:
+            reasons.append(f"simulation export for week {week} predates the sync -- re-run scripts.run_simulation")
     if nfl_week is not None and nfl_week != week:
         reasons.append(f"week rolled: sync is for week {week}, Sleeper reports week {nfl_week} -- re-run the sync")
     degraded = list(manifest.get("degraded") or [])

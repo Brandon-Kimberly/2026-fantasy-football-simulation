@@ -114,7 +114,10 @@ class TestVegasHandlers(unittest.TestCase):
         self.assertEqual(payload["DET"]["wind_mph"], 0.0, "no weather, not no line")
 
 
-class TestBaselineFetchHandlers(unittest.TestCase):
+class _BaselineFixtures:
+    """Fixtures + the patched-run helper, shared without sharing test methods --
+    a TestCase subclass re-runs every inherited test (found when the suite count
+    jumped by 8 phantom re-runs, 2026-09-04)."""
     DB = {"77": {"first_name": "Test", "last_name": "Backer", "position": "LB",
                  "team": "DET", "team_bye": 5}}
     ROSTERS = {"SomeTeam": [{"name": "Test Backer", "pos": "LB", "team": "DET"}]}
@@ -132,6 +135,8 @@ class TestBaselineFetchHandlers(unittest.TestCase):
                                                  current_year="2026", week=1)
         return out
 
+
+class TestBaselineFetchHandlers(_BaselineFixtures, unittest.TestCase):
     def test_unreadable_prior_baselines_degrade_to_fresh_projections(self):
         def get(url, timeout=None):
             if "/projections/nfl/regular/2026/1" in url:
@@ -236,3 +241,51 @@ class TestIngestionHandlers(unittest.TestCase):
         payload = saved.call_args_list[0].args[1]
         self.assertEqual(payload, {}, "documented contract: an EMPTY bracket file, so the "
                                       "engine seeds from banked standings only")
+
+
+class TestEspnFailureIsVisible(_BaselineFixtures, unittest.TestCase):
+    def test_a_failed_espn_fetch_lands_in_the_degraded_channel_not_silence(self):
+        """Found designing F36's gate (2026-09-04): fetch_espn_projection_data failure
+        was swallowed with no warning, so a Sleeper-only sync looked identical to a
+        blended one in the manifest -- invisible to the canonical gate and to the human
+        DEGRADED list alike. The degraded channel exists for exactly this. (_gen patches
+        the ESPN seam to raise, so every run here IS an ESPN failure.)"""
+        def get(url, timeout=None):
+            if "/projections/nfl/regular/2026/1" in url:
+                return _resp({"77": {"stats": {"idp_tkl_solo": 4}}})
+            return _resp({}, status=404)
+        with self.assertLogs(level="WARNING") as logs:
+            self._gen(get)
+        self.assertTrue(any("ESPN BLEND" in m for m in logs.output),
+                        "an ESPN fetch failure must announce itself in the sync warnings")
+
+
+class TestMissingBaselineWarningTellsTheTruth(_BaselineFixtures, unittest.TestCase):
+    """Found by F36's gate REPLAY against the week's real syncs (2026-09-04): the
+    NOT-in-baselines warning fired unconditionally, whitelist or no whitelist -- so every
+    recorded sync state read as blocked on Jordyn Tyson even though his
+    KNOWN_MISSING_ASSETS entry has covered him (engine imputes cleanly) since 09-02.
+    The warning must say which case it is; the canonical gate classifies on it."""
+
+    def _zero_proj_get(self, url, timeout=None):
+        if "/projections/nfl/regular/2026/1" in url:
+            return _resp({"77": {"stats": {}}})
+        return _resp({}, status=404)
+
+    def test_uncovered_player_still_warns_engine_will_abort(self):
+        with self.assertLogs(level="WARNING") as logs:
+            self._gen(self._zero_proj_get)
+        self.assertTrue(any("is NOT in baselines" in m and "will abort" in m
+                            for m in logs.output))
+
+    def test_covered_player_warns_covered_not_abort(self):
+        entry = {"Test Backer": {"mean": 6.0, "std_aleatoric": 3.0, "std_epistemic": 1.0,
+                                 "pos": "LB", "team": "DET", "bye": 0}}
+        with patch.dict(sync.SIM_CONFIG, {"KNOWN_MISSING_ASSETS": entry}):
+            with self.assertLogs(level="WARNING") as logs:
+                self._gen(self._zero_proj_get)
+        joined = " || ".join(logs.output)
+        self.assertIn("covered by KNOWN_MISSING_ASSETS", joined)
+        self.assertNotIn("will abort", joined)
+
+

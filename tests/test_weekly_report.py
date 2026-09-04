@@ -749,5 +749,25 @@ class TestCanonicalLogsPush(unittest.TestCase):
 
 
 
+class TestCanonicalRowProvenance(unittest.TestCase):
+    def test_run_provenance_carries_vegas_source_degraded_count_and_runner_flag(self):
+        """F36's mitigation, made durable: the canonical row must record the sync state
+        it was quoted under (vegas source, tolerated-failure count, whether a runner
+        produced it) -- the manifest is untracked and overwritten, so the row's
+        provenance is the only record that survives."""
+        import os
+        from unittest.mock import patch as _patch
+        from fantasy_sim.weekly_report import run_provenance
+        manifest = {"degraded": ["a", "b"], "current_week": 3}
+        vegas_meta = {"source": "odds_api", "week": 3}
+        with _patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+            p = run_provenance(manifest, vegas_meta)
+        self.assertEqual(p, {"vegas_source": "odds_api", "degraded": 2, "runner": True})
+        with _patch.dict(os.environ, {}, clear=True):
+            p = run_provenance(manifest, vegas_meta)
+        self.assertFalse(p["runner"])
+
+
+
 if __name__ == "__main__":
     unittest.main()

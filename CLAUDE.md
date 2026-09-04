@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 558 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 576 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -147,6 +147,10 @@ the F27 commit, 2026-09-03):
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
   coverage).
 - **PATCH** -- fixes and docs that move neither.
+- **Milestone tags also carry the week's embed digest as a release asset** (F36's
+  retention decision, 2026-09-04): workflow artifacts expire at 90 days, the orphan-
+  branch alternative bloats every clone, and release assets are permanent -- attach
+  the current `_embed.html` when cutting each milestone release.
 - **Season milestones, regardless of code**: cut a tag (at least PATCH) at week 5-6
   (F25's quoted-vs-realized calibration first measurable), week 11 (trade deadline),
   week 15 (playoffs), and season end (F7/F8/F18/F19 unblock together) -- an addressable
