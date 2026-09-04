@@ -24,8 +24,10 @@ The verification apparatus is the experiment: test-first fixes, a byte-exact gol
 master, and real-data backtest gates, asking whether disciplined verification can make
 AI-generated code trustworthy. The audit trail above is the evidence either way.
 
-![The weekly report's lineup section: per-player p10/p50/p90, bust probability, margin over the best bench alternative](docs/weekly_report_lineup.png)
-*From a real weekly report: every starter is a distribution (p10/p50/p90 and a bust probability), with the margin over the best bench alternative beside it.*
+![Per-player simulated weekly-score distributions: one violin per starter, colored by position, with quartile lines and the bust tail visible](docs/sample_boom_bust.png)
+*From the sanitized sample report (fictional team names, real NFL players): every player's
+week as a full simulated distribution -- the boom, the bust tail, and the quartiles in one
+look, which is the whole point of simulating instead of projecting.*
 
 **[View a full sanitized sample report](https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html)** --
 fictional team names, real NFL players and projections, regenerated from live data
