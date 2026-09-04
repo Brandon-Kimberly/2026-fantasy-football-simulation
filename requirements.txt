@@ -8,7 +8,7 @@ scipy==1.15.3
 pandas==2.3.3
 matplotlib==3.10.9
 seaborn==0.13.2
-requests>=2.31
+requests>=2.34.2
 espn_api
 # hypothesis 6.165 fails inside its own engine on Python 3.10.0 ('TreeNode' object has no
 # attribute 'is_exhausted'); verified NOT to be the example database (a fresh .hypothesis
