@@ -18,7 +18,10 @@ on:
   pull_request:
 
 jobs:
-  suite:
+  # Named 'ci' because the main-branch ruleset requires a status check with exactly this
+  # name (2026-09-04: the old name 'suite' made the required check unsatisfiable and
+  # blocked every merge, admin included -- the ruleset has no bypass list).
+  ci:
     runs-on: windows-latest
     timeout-minutes: 25
     steps:
