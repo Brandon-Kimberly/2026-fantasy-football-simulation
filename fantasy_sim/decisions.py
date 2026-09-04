@@ -336,8 +336,6 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
     for i, t in enumerate(targets):
         s = sample_week_scores(engine, t["name"], week, sims, seed=None if seed is None else seed + i)
         t["week"] = summarise_scores(s)
-        weeks_of_need = 1 + (1 if t["need_next_week"] else 0)
-        deflation = league_avg / 100.0 if league_avg > 0 else 0.0
         t["bid"] = {
             "suggested": suggest_bid(t["vorp"], t["fills"], remaining, league_avg),
             "typical_manager_model": round(float(engine._compute_faab_bid(

@@ -6,13 +6,13 @@ embedded directly in 2026_sleeper_simulation_adv.py.
 """
 import logging
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 import matplotlib.pyplot as plt
 
 from fantasy_sim.simulation import (
-    FantasySimulationEngine, normalize_position, load_json, SIM_CONFIG, DUAL_ELIGIBILITY,
+    FantasySimulationEngine, normalize_position, SIM_CONFIG, DUAL_ELIGIBILITY,
 )
 from fantasy_sim.storage import (
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
@@ -829,7 +829,6 @@ class TestFantasySimulation(unittest.TestCase):
         sim = FantasySimulationEngine()
         # Hunter's DUAL_ELIGIBILITY entry (WR/DB) is already defined at module level for the
         # real Travis Hunter; reuse that exact mechanism by aliasing this test roster onto it.
-        original_dual_elig = DUAL_ELIGIBILITY.get("Travis Hunter")
         DUAL_ELIGIBILITY["Hunter"] = ["WR", "DB"]
         try:
             score = sim.get_optimal_score(["Hunter", "DB_backup", "WR_A"])

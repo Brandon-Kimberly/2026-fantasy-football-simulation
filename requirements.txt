@@ -17,3 +17,7 @@ espn_api
 hypothesis<6.120
 # Dev/test tooling (the hypothesis precedent: test-only deps live here, pinned).
 coverage==7.16.0
+# ruff runs correctness rules only (F401/F841/F821/B006/E722) -- unused imports and
+# variables, undefined names, mutable defaults, bare excepts. Deliberately NOT a style
+# gate: no line-length, formatting, or import-sorting rules (2026-09-04 hygiene pass).
+ruff==0.16.6

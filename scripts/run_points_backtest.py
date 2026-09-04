@@ -25,7 +25,6 @@ Usage:
 import argparse
 import datetime as _dt
 import json
-import os
 import platform
 import subprocess
 import sys

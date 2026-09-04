@@ -42,7 +42,6 @@ def season_retrospective(bundle, player_positions):
     teams = list(dict.fromkeys(roster_map.values()))
     weeks = _regular_season_weeks(bundle)
     slots = [sl for sl in (bundle.get("roster_positions") or []) if sl != "BN"]
-    n = len(teams)
 
     exp_wins = {t: 0.0 for t in teams}
     act_wins = {t: 0.0 for t in teams}

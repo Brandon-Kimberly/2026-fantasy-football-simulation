@@ -13,8 +13,7 @@ Written BEFORE the implementation (rule 1). The design under test:
 import math
 import unittest
 
-from fantasy_sim.config import (FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA,
-                                FAAB_LEAGUE_MEAN_BID_2025, MANAGER_PROFILES)
+from fantasy_sim.config import (FAAB_BID_LOGNORMAL_MU, FAAB_LEAGUE_MEAN_BID_2025, MANAGER_PROFILES)
 from fantasy_sim.simulation import (FantasySimulationEngine, blend_faab_profiles,
                                     _upgrade_claim_rate)
 

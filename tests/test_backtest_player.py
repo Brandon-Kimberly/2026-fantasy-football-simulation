@@ -6,7 +6,7 @@ unittest.TestCase embedded directly in player_level_backtest.py.
 """
 import math
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch
 
 import numpy as np
 

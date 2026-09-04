@@ -8,7 +8,6 @@ ESPN's 'Stuffs' measures a narrower quantity; K excludes the per-yard bonus ESPN
 compute from bands); the disagreement joins max(floor, spread/2); the MEAN stays
 Sleeper-only for K/IDP (ESPN's missing TFL would bias a blend low).
 """
-import math
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 

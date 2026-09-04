@@ -61,7 +61,6 @@ just as importantly, what it does NOT.
   run_backtest_checkpoint's docstring for the full reasoning.
 ========================================================================================
 """
-import json
 import math
 import os
 import shutil
@@ -111,27 +110,6 @@ def compute_crps(samples, actual):
 # ============================================================================
 # Real historical data fetching (network calls -- cannot be verified without a live run)
 # ============================================================================
-
-def fetch_league_chain(league_id):
-    """Walks Sleeper's previous_league_id chain. Returns a list of season descriptors, most
-    recent first, stopping at the first missing/unreachable link."""
-    chain = []
-    seen = set()
-    lid = league_id
-    while lid and lid not in seen:
-        seen.add(lid)
-        resp = requests.get(f"{BASE_URL}/league/{lid}")
-        if resp.status_code != 200:
-            break
-        data = resp.json()
-        chain.append({
-            "league_id": lid,
-            "season": data.get("season"),
-            "previous_league_id": data.get("previous_league_id"),
-        })
-        lid = data.get("previous_league_id")
-    return chain
-
 
 def fetch_season_matchups(league_id, max_week=18):
     """Fetches every week's real matchup data for a historical league_id. Returns

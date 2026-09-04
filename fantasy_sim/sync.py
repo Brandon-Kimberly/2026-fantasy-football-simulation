@@ -32,7 +32,8 @@ from fantasy_sim.storage import (
     draft_log_file, season_log_file,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
-from fantasy_sim.clients.espn import fetch_espn_projections, fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
+from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
+from fantasy_sim.clients.espn import fetch_espn_projections  # noqa: F401 -- deliberate re-export: tests import this from fantasy_sim.sync
 
 
 def generate_nfl_schedule(current_nfl_week=1):

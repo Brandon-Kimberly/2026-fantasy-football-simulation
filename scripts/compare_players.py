@@ -16,7 +16,6 @@ season exports.
 """
 import argparse
 import datetime as _dt
-import json
 import re
 
 from fantasy_sim.decisions import compare_players

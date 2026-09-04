@@ -6,7 +6,6 @@ embedded directly in 2026_sleeper_sync.py.
 """
 import math
 import json
-import sys
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 
@@ -15,7 +14,7 @@ from fantasy_sim.sync import (
     fetch_espn_projections, generate_player_baselines, _extract_weekly_h2h_results,
     _extract_weekly_player_scores, _build_roster_player_entry, _normalize_player_name_for_matching,
     LEAGUE_AVG_PPG, NFL_TEAM_ABBREVIATIONS, PRESEASON_DEFENSIVE_PRIOR, VOLATILITY_CONSTANTS,
-    EPISTEMIC_ERROR_RATES, WEEK_1_VERIFIED_VEGAS,
+    EPISTEMIC_ERROR_RATES,
 )
 
 
@@ -60,7 +59,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
              patch('requests.get', side_effect=fake_get), \
              patch('fantasy_sim.sync.fetch_espn_projection_data', return_value=({}, {})), \
              patch('builtins.open', mock_open()), \
-             patch('json.dump') as mock_json_dump:
+             patch('json.dump'):
             result = generate_player_baselines(scoring_settings, players_db, live_rosters, current_year="2026", week=1)
 
         self.assertIn("Test Player", result)
@@ -328,7 +327,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         """Verifies fetch_espn_projections correctly pulls stats[week]['projected_points'] --
         the real, confirmed-live shape espn_api returns -- for an eligible offensive position."""
         try:
-            import espn_api.football
+            import espn_api.football  # noqa: F401 -- availability probe: ImportError -> skipTest
         except ImportError:
             self.skipTest("espn_api not installed in this environment")
 
@@ -347,7 +346,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         scoring couldn't be matched exactly between Sleeper and ESPN, so those positions must
         never be blended even when ESPN has real data for them -- Sleeper-only for K/DL/LB/DB."""
         try:
-            import espn_api.football
+            import espn_api.football  # noqa: F401 -- availability probe: ImportError -> skipTest
         except ImportError:
             self.skipTest("espn_api not installed in this environment")
 
@@ -373,7 +372,7 @@ class TestSleeperSyncPipeline(unittest.TestCase):
         issue, etc.), fetch_espn_projections must return {} rather than raise -- callers depend
         on this to fall back to Sleeper-only data."""
         try:
-            import espn_api.football
+            import espn_api.football  # noqa: F401 -- availability probe: ImportError -> skipTest
         except ImportError:
             self.skipTest("espn_api not installed in this environment")
 
@@ -636,7 +635,6 @@ class TestDepthMeanWatchdog(unittest.TestCase):
         self.assertIn("Satellite Back", msg)
 
     def test_agreement_and_missing_depth_data_stay_silent(self):
-        import logging
         import fantasy_sim.sync as syncmod
         n = syncmod.warn_depth_mean_disagreements(self._baselines(7.0, 4.0), self._players_db())
         self.assertEqual(n, 0, "means agree with the chart: silence")
@@ -892,7 +890,8 @@ class TestDecisionLogIngestion(unittest.TestCase):
                                                                adds={"111": 2}, drops={"222": 2}),
                                self._tx("t3", fresh, status="failed")]}, path)
             self.assertEqual(n, 2, "two completed transactions; the failed one is skipped")
-            rows = [_json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [_json.loads(l) for l in f]
         r1 = next(r for r in rows if r["transaction_id"] == "t1")
         self.assertEqual(r1["type"], "waiver"); self.assertEqual(r1["week"], 1)
         self.assertTrue(r1["is_mine"]); self.assertEqual(r1["faab_bid"], 3)
@@ -927,7 +926,8 @@ class TestDecisionLogIngestion(unittest.TestCase):
             txs = {1: [self._tx("t1", 1_756_899_000_000)]}
             self.assertEqual(self._run(txs, path), 1)
             self.assertEqual(self._run(txs, path), 0, "already-ingested transaction must not append again")
-            self.assertEqual(sum(1 for _ in open(path, encoding="utf-8")), 1)
+            with open(path, encoding="utf-8") as f:
+                self.assertEqual(sum(1 for _ in f), 1)
 
     def test_trade_records_both_sides_and_a_player_missing_from_baselines_is_noted(self):
         import json as _json, tempfile, os as _os
@@ -936,7 +936,8 @@ class TestDecisionLogIngestion(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             path = _os.path.join(d, "decision_log.jsonl")
             self._run({1: [tx]}, path)
-            r = _json.loads(open(path, encoding="utf-8").read())
+            with open(path, encoding="utf-8") as f:
+                r = _json.loads(f.read())
         self.assertEqual(r["type"], "trade"); self.assertTrue(r["is_mine"])
         self.assertEqual({(a["name"], a["to_team"]) for a in r["adds"]},
                          {("Player A", "Femboy Cats"), ("Player C", "Legion of Coom")})
@@ -950,7 +951,6 @@ class TestDecisionLogIngestion(unittest.TestCase):
         # 2026-09-03; F11-adjacent -- the suite must not write outside temp).
         import os as _os
         import tempfile
-        import fantasy_sim.sync as syncmod
         with tempfile.TemporaryDirectory() as tmp, \
              patch("builtins.open", side_effect=OSError("disk full")), \
              self.assertLogs(level="WARNING") as logs:

@@ -9,14 +9,13 @@ import os
 import unittest
 
 import numpy as np
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 from fantasy_sim import sync
 from fantasy_sim import simulation as simmod
 from fantasy_sim.backtest_season import (
     compute_crps, build_blank_slate_baselines, build_asof_standings,
     build_full_season_league_schedule, run_backtest_checkpoint, BACKTEST_WORKDIR,
-    REGULAR_SEASON_WEEKS,
 )
 
 
@@ -168,7 +167,7 @@ class TestBacktestHarness(unittest.TestCase):
              patch.object(sync, 'TEAM_NAME_MAP', fake_team_name_map), \
              patch('requests.get', side_effect=fake_get), \
              patch('fantasy_sim.simulation.save_chart'), \
-             self.assertLogs(level="WARNING") as logs:   # the fake HTTP layer 404s ESPN: byes must degrade loudly
+             self.assertLogs(level="WARNING"):   # the fake HTTP layer 404s ESPN: byes must degrade loudly
             simmod.SIM_CONFIG['NUM_BATCHES'] = 1
             simmod.SIM_CONFIG['SIMS_PER_BATCH'] = 20
             # F2 commit 2 (criterion c): return_raw=True also hands back the simulated weekly

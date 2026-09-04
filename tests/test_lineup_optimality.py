@@ -37,7 +37,7 @@ from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import (
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
-    NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE,
+    NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, load_json,
 )
 from tests.golden_master import STAGE_A_ARG_NAMES, _sandbox
 from tests.test_distributions import controlled_season
@@ -198,12 +198,11 @@ class TestStreamerNeedsMatchRealHoles(unittest.TestCase):
 
     @staticmethod
     def _rostered_bye_weeks(scenario):
-        import json
         here = os.path.dirname(os.path.abspath(__file__))
         fx = os.path.join(here, "fixtures", "golden", scenario)
-        rosters = json.load(open(os.path.join(fx, "live_rosters.json")))
-        base = json.load(open(os.path.join(fx, "player_baselines.json")))
-        state = json.load(open(os.path.join(fx, "league_state.json")))
+        rosters = load_json(os.path.join(fx, "live_rosters.json"))
+        base = load_json(os.path.join(fx, "player_baselines.json"))
+        state = load_json(os.path.join(fx, "league_state.json"))
         byes = {base[p["name"]].get("bye", 0) for t in rosters.values() for p in t if p["name"] in base}
         return byes - {0}, int(state["current_week"])
 

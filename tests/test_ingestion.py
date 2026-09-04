@@ -31,13 +31,12 @@ from unittest.mock import MagicMock, patch
 
 from fantasy_sim import sync
 from fantasy_sim.config import (
-    DEFAULT_FALLBACK_TOTALS, WEEK_1_VERIFIED_VEGAS, EPISTEMIC_ERROR_RATES, VOLATILITY_CONSTANTS,
-    LEAGUE_AVG_PPG, PRESEASON_DEFENSIVE_PRIOR, DEF_RATING_SHRINKAGE_N0, SIM_CONFIG,
+    DEFAULT_FALLBACK_TOTALS, WEEK_1_VERIFIED_VEGAS, EPISTEMIC_ERROR_RATES, LEAGUE_AVG_PPG, PRESEASON_DEFENSIVE_PRIOR, DEF_RATING_SHRINKAGE_N0, SIM_CONFIG,
 )
 from fantasy_sim.storage import (
     VEGAS_FILE, NFL_SCHEDULE_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE,
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, LIVE_ROSTERS_FILE, DEFENSIVE_TIERS_FILE,
-    LEAGUE_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYER_CACHE_FILE,
+    LEAGUE_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYER_CACHE_FILE, load_json,
 )
 
 
@@ -487,12 +486,11 @@ class TestBaselineIngestion(_BaselineHarness):
         position group and the pass-catcher ranking. Jordyn Tyson's entry said 'FA' while
         both files said NO; corrected. This test makes the next drift a red test, not a
         manual audit."""
-        import json
         from fantasy_sim.simulation import normalize_position
         if not os.path.exists(PLAYER_CACHE_FILE) or not os.path.exists(LIVE_ROSTERS_FILE):
             self.skipTest("committed data files not present")
-        cache = json.load(open(PLAYER_CACHE_FILE))
-        rosters = json.load(open(LIVE_ROSTERS_FILE))
+        cache = load_json(PLAYER_CACHE_FILE)
+        rosters = load_json(LIVE_ROSTERS_FILE)
         rostered = {p["name"]: p for team in rosters.values() for p in team}
         checked = 0
         for name, entry in SIM_CONFIG["KNOWN_MISSING_ASSETS"].items():
@@ -575,7 +573,7 @@ class TestPlayerCacheFreshness(unittest.TestCase):
              patch.object(sleeper, "load_json", return_value={"1": {"first_name": "stale"}}), \
              patch.object(sleeper, "save_json", side_effect=lambda p, d: fetched.append(d)), \
              patch.object(sleeper.requests, "get", return_value=r):
-            out = sleeper.update_player_cache()
+            sleeper.update_player_cache()
         self.assertTrue(fetched, "a two-month-old cache was served without any refresh")
 
 
@@ -670,8 +668,7 @@ class TestByeWeekDerivation(unittest.TestCase):
         from fantasy_sim.config import NFL_TEAMS, derive_bye_weeks
         if not os.path.exists(NFL_SCHEDULE_FILE):
             self.skipTest("no synced schedule on disk")
-        import json
-        sched = json.load(open(NFL_SCHEDULE_FILE))
+        sched = load_json(NFL_SCHEDULE_FILE)
         byes = derive_bye_weeks(sched, sched.get("_meta", {}).get("failed_weeks", []))
         self.assertEqual(sorted(byes), sorted(NFL_TEAMS))
         self.assertTrue(all(5 <= w <= 14 for w in byes.values()), byes)
@@ -720,11 +717,10 @@ class TestLiveIngestion(unittest.TestCase):
     def test_espn_match_rate_for_rostered_eligible_players(self):
         """Measured 97% (116/119) on 2026-08-28; the three misses were players ESPN had no
         week-1 projection for at all, not normalisation failures."""
-        import json
         from fantasy_sim.clients.espn import fetch_espn_projections, normalize_player_name_for_matching as norm
         from fantasy_sim.config import ESPN_BLEND_ELIGIBLE_POSITIONS
         from fantasy_sim.simulation import normalize_position
-        rosters = json.load(open(LIVE_ROSTERS_FILE))
+        rosters = load_json(LIVE_ROSTERS_FILE)
         espn = fetch_espn_projections(2026, 1)
         elig = [p["name"] for t in rosters.values() for p in t
                 if normalize_position(p["pos"]) in ESPN_BLEND_ELIGIBLE_POSITIONS]

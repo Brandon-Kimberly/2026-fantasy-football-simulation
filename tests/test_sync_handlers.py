@@ -9,7 +9,6 @@ the body ran. Built pre-kickoff (2026-09-03) because weekly live syncs are when 
 paths become real.
 """
 import datetime as _real_dt
-import json
 import os
 import tempfile
 import unittest
@@ -127,7 +126,7 @@ class TestBaselineFetchHandlers(unittest.TestCase):
              patch.object(sync, "load_json", loader), \
              patch.object(sync.requests, "get", side_effect=fake_get), \
              patch.object(sync, "fetch_espn_projection_data", side_effect=OSError("espn down")), \
-             patch.object(sync, "save_json") as saved, \
+             patch.object(sync, "save_json"), \
              patch.object(sync, "append_projection_log", return_value=0):
             out = sync.generate_player_baselines(self.SCORING, self.DB, self.ROSTERS,
                                                  current_year="2026", week=1)

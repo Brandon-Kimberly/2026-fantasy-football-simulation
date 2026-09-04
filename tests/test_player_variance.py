@@ -115,7 +115,6 @@ class TestRenderSmoke(unittest.TestCase):
         ]
         fig = render_floor_ceiling_chart('Team A', entries, week=1)
         ax = fig.axes[0]
-        hatches = {bar.get_label(): bar.get_hatch() for bar in ax.patches}
         # matplotlib bar labels default to '_nolegend_'; identify by y-tick order instead.
         self.assertEqual(len(ax.patches), 2)
         hatch_by_position = [bar.get_hatch() for bar in ax.patches]

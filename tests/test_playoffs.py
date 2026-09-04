@@ -22,14 +22,14 @@ from unittest.mock import patch
 
 import numpy as np
 
-from fantasy_sim.config import SIM_CONFIG, REGULAR_SEASON_WEEKS
 from fantasy_sim.simulation import FantasySimulationEngine
+from fantasy_sim.storage import load_json
 
 FIXTURE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "golden", "week06")
 
 
 def _fixture_files():
-    return {n: json.load(open(os.path.join(FIXTURE, n))) for n in os.listdir(FIXTURE) if n.endswith(".json")}
+    return {n: load_json(os.path.join(FIXTURE, n)) for n in os.listdir(FIXTURE) if n.endswith(".json")}
 
 
 def _engine_with(files):

@@ -3,7 +3,7 @@ unattended engine runs unsafe). All cases hand-computed against America/Los_Ange
 week 1 opens WEDNESDAY 2026-09-09 17:20 PDT (2026-09-10T00:20Z, the real opener), so the
 shifted-first-kickoff case is the live one. Written before fantasy_sim.run_windows existed."""
 import unittest
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from fantasy_sim.run_windows import compute_windows, parse_canonical_digest, release_advice

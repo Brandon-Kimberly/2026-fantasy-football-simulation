@@ -5,6 +5,13 @@
 #
 # One-time setup per clone (documented in README):  git config core.hooksPath hooks
 # CLAUDE.md's rule stands: do not bypass with --no-verify; fix the drift instead.
+echo "pre-commit: ruff (correctness rules only)..."
+py -3.10 -m ruff check --select F401,F841,F821,B006,E722 fantasy_sim scripts tests
+if [ $? -ne 0 ]; then
+  echo "pre-commit BLOCKED: ruff found an unused import/variable, undefined name,"
+  echo "mutable default, or bare except. Fix it (or noqa WITH a reason) and commit again."
+  exit 1
+fi
 echo "pre-commit: docs guards (tests.test_docs)..."
 out=$(py -3.10 -m unittest tests.test_docs 2>&1)
 status=$?

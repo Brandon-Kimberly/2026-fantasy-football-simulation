@@ -3,7 +3,7 @@ work (scipy linear_sum_assignment through the real _solve_optimal_assignment, pl
 exhaustive brute force) interleaved with REAL matplotlib/seaborn rendering (Agg backend,
 kdeplot + fill_between + savefig to a temp file, figures closed) and pandas frames, under
 faulthandler, for a fixed number of rounds. usage: probe_mixed.py ROUNDS"""
-import faulthandler, itertools, os, sys, tempfile, time
+import faulthandler, os, sys, tempfile, time
 faulthandler.enable()
 import numpy as np, pandas as pd
 import matplotlib; matplotlib.use("Agg")

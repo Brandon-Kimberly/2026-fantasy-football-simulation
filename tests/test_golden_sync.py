@@ -12,7 +12,6 @@ An intended behaviour change regenerates with `py -3.10 -m tests.golden_sync
 explains the deltas.
 """
 import json
-import os
 import unittest
 
 from tests.golden_sync import EXPECTED, run_golden_sync

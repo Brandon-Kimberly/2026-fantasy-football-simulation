@@ -18,10 +18,8 @@ import collections
 import copy
 import logging
 import math
-import os
 
 import matplotlib.pyplot as plt
-import matplotlib.ticker as mtick
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -1418,7 +1416,7 @@ class FantasySimulationEngine:
                             std_val = std_aleatoric
 
                             veg = team_environments.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
-                            v_tot, v_spr, v_opp = veg['total'], veg['spread'], veg['opponent']
+                            v_tot = veg['total']
 
                             eff_z = z_corr[idx]
                             script_mult = self._script_multiplier(p_pos, veg)

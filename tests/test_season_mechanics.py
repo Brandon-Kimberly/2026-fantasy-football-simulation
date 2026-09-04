@@ -26,7 +26,6 @@ WHAT IS NOT COVERED
    PNGs themselves are not compared (see golden_master.py for why).
 """
 import copy
-import json
 import logging
 import os
 import unittest
@@ -36,6 +35,7 @@ import numpy as np
 
 from fantasy_sim.config import SIM_CONFIG, REGULAR_SEASON_WEEKS
 from fantasy_sim.simulation import FantasySimulationEngine
+from fantasy_sim.storage import load_json
 from tests.golden_master import STAGE_A_ARG_NAMES
 from tests.test_invariants import ScenarioRun
 
@@ -135,7 +135,7 @@ class TestWeekIndexingEntryPoints(unittest.TestCase):
 
     def _run_at(self, current_week):
         d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "golden", "week06")
-        files = {n: json.load(open(os.path.join(d, n))) for n in os.listdir(d) if n.endswith(".json")}
+        files = {n: load_json(os.path.join(d, n)) for n in os.listdir(d) if n.endswith(".json")}
         files["league_state.json"] = {"current_week": current_week}
         captured = {}
 
@@ -231,7 +231,7 @@ class TestExportsMatchComputation(unittest.TestCase):
 class TestForecastRecordConsistency(unittest.TestCase):
     def _forecast_with_tie(self):
         d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures", "golden", "week06")
-        files = {n: json.load(open(os.path.join(d, n))) for n in os.listdir(d) if n.endswith(".json")}
+        files = {n: load_json(os.path.join(d, n)) for n in os.listdir(d) if n.endswith(".json")}
         wa = files["weekly_actuals.json"]
         wk = sorted(wa)[0]
         team = sorted(wa[wk]["team_results"])[0]

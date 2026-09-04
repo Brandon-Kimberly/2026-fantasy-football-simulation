@@ -55,7 +55,8 @@ class TestDocsMatchReality(unittest.TestCase):
                          f"tests badge says {m.group(1)}; the suite has {actual}")
         m = re.search(r"badge/coverage-([\d.]+)%25", readme)
         self.assertIsNotNone(m, "README has no coverage badge")
-        floor = open(os.path.join(ROOT, "coverage_floor.txt"), encoding="utf-8").read().strip()
+        with open(os.path.join(ROOT, "coverage_floor.txt"), encoding="utf-8") as f:
+            floor = f.read().strip()
         self.assertEqual(m.group(1), floor,
                          f"coverage badge says {m.group(1)}; the committed floor is {floor}")
 
@@ -111,9 +112,10 @@ class TestDocsMatchReality(unittest.TestCase):
         sidecar, any edit fails CI on an independent machine, and both files' histories
         show when anything changed."""
         import hashlib
-        content = open(os.path.join(ROOT, "SEASON_2026_EVALUATION.md"), "rb").read()
-        recorded = open(os.path.join(ROOT, "SEASON_2026_EVALUATION.sha256"),
-                        encoding="utf-8").read().split()[0]
+        with open(os.path.join(ROOT, "SEASON_2026_EVALUATION.md"), "rb") as f:
+            content = f.read()
+        with open(os.path.join(ROOT, "SEASON_2026_EVALUATION.sha256"), encoding="utf-8") as f:
+            recorded = f.read().split()[0]
         self.assertEqual(hashlib.sha256(content).hexdigest(), recorded,
                          "SEASON_2026_EVALUATION.md no longer matches its recorded hash -- "
                          "the pre-commitment has been edited after the fact")

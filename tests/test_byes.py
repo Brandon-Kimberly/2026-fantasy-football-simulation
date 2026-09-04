@@ -20,7 +20,6 @@ import logging
 import unittest
 from unittest.mock import patch
 
-import numpy as np
 
 from fantasy_sim.config import SIM_CONFIG, REGULAR_SEASON_WEEKS, NFL_TEAMS
 from fantasy_sim.simulation import FantasySimulationEngine

@@ -301,7 +301,8 @@ class TestPredictionsLog(unittest.TestCase):
             n = append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
                                        manifest=self.MANIFEST, commit="abc123")
             self.assertEqual(n, 1)
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         r = rows[0]
         self.assertEqual(r["record_type"], "week_predictions")
         self.assertEqual((r["season"], r["week"]), ("2026", 1))
@@ -327,7 +328,8 @@ class TestPredictionsLog(unittest.TestCase):
                                    manifest=self.MANIFEST, commit="abc123")
             append_predictions_log(1, self.OUTCOMES, self.OUTLOOK, path=path,
                                    manifest=self.MANIFEST, commit="def456")
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertEqual(len(rows), 2, "append-only; consumers keep the last row per (season, week)")
         self.assertEqual([r["commit"] for r in rows], ["abc123", "def456"])
 
@@ -545,7 +547,8 @@ class TestPredictionsCanonicality(unittest.TestCase):
             path = os.path.join(d, "predictions_2026.jsonl")
             self._append(path, "a")                       # default: exploratory
             self._append(path, "b", canonical=True)
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertFalse(rows[0]["canonical"])
         self.assertTrue(rows[1]["canonical"])
 

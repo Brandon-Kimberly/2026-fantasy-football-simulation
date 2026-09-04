@@ -19,12 +19,11 @@ Coverage = a canonical weekly digest in data/decisions/week_NN/ stamped inside t
 import argparse
 import json
 import os
-import re
 from datetime import datetime, timezone
 
 from fantasy_sim.freshness import check as freshness_check
 from fantasy_sim.run_windows import PT, compute_windows, load_kickoffs, parse_canonical_digest, release_advice
-from fantasy_sim.storage import NFL_SCHEDULE_FILE, decisions_week_path, load_json
+from fantasy_sim.storage import decisions_week_path
 
 
 def _release_advice_live(week):

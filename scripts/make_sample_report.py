@@ -144,7 +144,8 @@ def main(argv=None):
         if not embeds:
             raise SystemExit("the sanitized run FAILED -- no publishable report was produced; "
                              "see the FAILED digest in " + archive)
-        html = open(os.path.join(archive, embeds[-1]), encoding="utf-8").read()
+        with open(os.path.join(archive, embeds[-1]), encoding="utf-8") as f:
+            html = f.read()
     finally:
         os.chdir(cwd)
 

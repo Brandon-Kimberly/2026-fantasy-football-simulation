@@ -749,7 +749,8 @@ class TestEvaluateLoggedTrade(_EngineCase):
             self.assertEqual(r["trade"]["team_a"], "Legion of Coom")
             self.assertEqual(r["trade"]["a_gives"], ["QB_1"])   # QB_1's to_team is Femboy: Legion gave him
             self.assertEqual(r["trade"]["b_gives"], ["QB_2"])
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertEqual(len(rows), 2)
         ev = rows[1]
         self.assertEqual(ev["record_type"], "evaluation")
@@ -765,7 +766,8 @@ class TestEvaluateLoggedTrade(_EngineCase):
                 f.write(json.dumps({"record_type": "evaluation", "transaction_id": "tr9"}) + chr(10))
             r = evaluate_logged_trade(self.engine, "tr9", batches=2, sims=10, log_path=path)
             self.assertEqual(r["skipped"], "already evaluated")
-            self.assertEqual(sum(1 for _ in open(path, encoding="utf-8")), 2, "nothing appended")
+            with open(path, encoding="utf-8") as f:
+                self.assertEqual(sum(1 for _ in f), 2, "nothing appended")
 
     def test_missing_or_non_trade_transaction_is_a_clear_error(self):
         import tempfile
@@ -885,7 +887,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
             self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         ev = rows[1]
         self.assertEqual(ev["record_type"], "evaluation"); self.assertEqual(ev["transaction_id"], "fa1")
         self.assertFalse(ev["post_execution_reversed"])
@@ -899,7 +902,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertTrue(rows[1]["post_execution_reversed"])
         self.assertIn("revers", r["note"].lower())
         self.assertEqual(r["move"]["adds"], ["FA_WR_healthy"], "terms reported as the ORIGINAL move")
@@ -919,7 +923,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             with patch('fantasy_sim.decisions.ACTIVE_ROSTER_LIMIT', 1), \
                  patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertTrue(rows[1]["post_execution_reversed"])
         self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": [], "drops": ["QB_1"]})
 
@@ -953,7 +958,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "wv1", batches=2, sims=10, log_path=path)
             self.assertEqual(r["move"]["faab_bid"], 7)
-            rows = [json.loads(l) for l in open(path, encoding="utf-8")]
+            with open(path, encoding="utf-8") as f:
+                rows = [json.loads(l) for l in f]
         self.assertEqual(rows[1]["transaction_id"], "wv1")
 
 
@@ -1025,7 +1031,6 @@ class TestFaabContext(_EngineCase):
         import json, tempfile
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, n_claims=2)
-            import os
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps({
                     "transaction_id": "wv9", "type": "waiver", "week": 1, "is_mine": True,
