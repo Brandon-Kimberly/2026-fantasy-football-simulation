@@ -109,5 +109,49 @@ class TestRemediation(unittest.TestCase):
         self.assertIn("week", md.lower())
 
 
+class TestProjectionPoolFloor(unittest.TestCase):
+    """The unrostered-pool gap (owner, 2026-09-04): a partial projection fetch that
+    silently drops FREE-AGENT players thins the pool, shifts replacement levels, and
+    moves every VORP number downstream -- with no warning firing, because every existing
+    detector watches rostered players. The floor is one-sided (thinning is the failure
+    mode; the pool legitimately GREW and shrank ~8% through roster cutdowns) and derived
+    from observed history, not picked: see PROJECTION_POOL_FLOOR's comment."""
+
+    def test_a_thinned_pool_blocks_with_its_key(self):
+        g = canonical_gate("OK", [], "odds_api", baselines_count=400)
+        self.assertEqual(g["verdict"], REPORT_ONLY)
+        self.assertIn("thin_projections", [b["key"] for b in g["blocking"]])
+
+    def test_the_observed_history_and_normal_churn_never_trip_it(self):
+        for n in (888, 964, 800):   # both recorded populations and a -10% churn case
+            g = canonical_gate("OK", [], "odds_api", baselines_count=n)
+            self.assertEqual(g["verdict"], CANONICAL_OK, n)
+
+    def test_unknown_count_skips_the_check_rather_than_guessing(self):
+        g = canonical_gate("OK", [], "odds_api", baselines_count=None)
+        self.assertEqual(g["verdict"], CANONICAL_OK)
+
+    def test_the_thin_pool_block_names_the_consequence_and_the_check(self):
+        from scripts.canonical_gate import REMEDIATIONS
+        md = REMEDIATIONS["thin_projections"]
+        for needle in ("replacement", "VORP", "scripts.run_sync", "player_baselines.json"):
+            self.assertIn(needle, md, needle)
+
+
+class TestEspnBlockWording(unittest.TestCase):
+    def test_the_espn_block_says_credentials_are_not_normally_needed(self):
+        """The league is PUBLIC and the blend works with no cookies (verified live:
+        115/152 espn means without credentials). The remediation must lead with that,
+        not send the reader hunting for cookies they never had (owner, 2026-09-04)."""
+        from scripts.canonical_gate import REMEDIATIONS
+        md = REMEDIATIONS["espn"]
+        self.assertIn("public", md.lower())
+        self.assertIn("no credentials", md.lower())
+        self.assertLess(md.lower().index("public"), md.lower().index("espn_s2"),
+                        "the no-credentials-needed statement must come BEFORE the "
+                        "only-if-private cookie instructions")
+
+
+
 if __name__ == "__main__":
     unittest.main()

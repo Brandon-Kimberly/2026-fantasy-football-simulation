@@ -3406,6 +3406,20 @@ embed digest gets attached as a RELEASE ASSET at each milestone tag (weeks 5-6, 
 season end — the release policy already cuts these; assets are permanent and never
 bloat clones).
 
+*Projection-pool floor (2026-09-04, owner-directed):* the replay review named the one
+untrustworthy condition nothing detected -- a partial fetch silently thinning the
+FREE-AGENT pool (rostered players all look fine; replacement levels and every VORP
+number shift downstream). The gate now blocks (`thin_projections`) when
+`player_baselines.json` has fewer than **PROJECTION_POOL_FLOOR = 700** entries.
+DERIVED, not picked: recorded populations are 964 (late-Aug golden fixtures) and 888
+(the 09-02 sync-golden regeneration AND the 09-04 live sync) -- the pool legitimately
+moved ~8% through roster cutdowns, so the check is one-sided with the floor >21% below
+the smallest observation. REVISIT if the pool changes structurally; the constant's
+comment carries the derivation. The ESPN remediation also now leads with "the league
+is public, no credentials needed" (verified live) before the only-if-private cookie
+path -- both changes test-pinned, and `ODDS_API_KEY` is set as a repo secret (owner,
+2026-09-04 19:54Z).
+
 *Remaining operator step:* `ODDS_API_KEY` (and ESPN cookies if ever needed) as repo
 Actions secrets — until set, post-gate runner attempts land in REPORT_ONLY with the
 odds remediation block, which is the correct degraded behavior. The DEGRADED-judgment

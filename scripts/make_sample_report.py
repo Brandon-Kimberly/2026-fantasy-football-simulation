@@ -68,9 +68,14 @@ def renderer_fingerprint(repo):
     a sample refresh on every MAJOR whether or not the report changed."""
     import hashlib
     h = hashlib.sha256()
+    CRLF, LF = bytes([13, 10]), bytes([10])
     for rel in RENDERER_SOURCES:
         with open(os.path.join(repo, rel), "rb") as f:
-            h.update(f.read())
+            # Normalized line endings: a rebase or fresh checkout re-materializes these
+            # files through autocrlf, flipping raw bytes CRLF<->LF with no content
+            # change -- hashing raw bytes made the freshness guard cry wolf on an
+            # untouched renderer (2026-09-04). Hash logical content instead.
+            h.update(f.read().replace(CRLF, LF))
     return h.hexdigest()
 
 

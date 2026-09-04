@@ -46,6 +46,18 @@ BLOCKING_MARKERS = (
 
 VEGAS_REAL_SOURCES = ("odds_api", "week1_verified_table")
 
+# The unrostered-pool floor (2026-09-04): a partial projection fetch that silently drops
+# FREE-AGENT players thins the pool, shifts replacement levels, and moves every VORP
+# number downstream -- and nothing else fires, because every other detector watches
+# rostered players. DERIVED FROM OBSERVED HISTORY, not picked: the recorded populations
+# are 964 (the late-August golden fixtures) and 888 (the 2026-09-02 sync-golden
+# regeneration AND the 2026-09-04 live sync) -- the pool legitimately moved ~8% through
+# roster cutdowns, so the check is ONE-SIDED (thinning is the failure mode) with the
+# floor >21% below the smallest observation: a halved fetch trips decisively, normal
+# churn never does. REVISIT if the pool changes structurally (Sleeper serving a
+# different population, new positions, a different league format).
+PROJECTION_POOL_FLOOR = 700
+
 
 def classify_degraded_entry(entry):
     """'benign' or 'blocking:<key>'. Unrecognized -> 'blocking:unrecognized'."""
@@ -58,8 +70,9 @@ def classify_degraded_entry(entry):
     return "blocking:unrecognized"
 
 
-def canonical_gate(freshness_status, degraded, vegas_source):
-    """Pure. Returns {verdict, blocking: [{key, entry}], benign_count, reasons}."""
+def canonical_gate(freshness_status, degraded, vegas_source, baselines_count=None):
+    """Pure. Returns {verdict, blocking: [{key, entry}], benign_count, reasons}.
+    baselines_count: total player_baselines.json entries (None = not checked)."""
     if freshness_status == "STALE":
         return {"verdict": ABORT, "blocking": [{"key": "stale", "entry": "freshness STALE"}],
                 "benign_count": 0}
@@ -73,6 +86,10 @@ def canonical_gate(freshness_status, degraded, vegas_source):
     if vegas_source not in VEGAS_REAL_SOURCES:
         blocking.append({"key": "odds",
                          "entry": f"vegas source is '{vegas_source}' (not a real-lines source)"})
+    if baselines_count is not None and baselines_count < PROJECTION_POOL_FLOOR:
+        blocking.append({"key": "thin_projections",
+                         "entry": f"projection pool has {baselines_count} entries, below the "
+                                  f"observed-history floor {PROJECTION_POOL_FLOOR} -- partial fetch?"})
     return {"verdict": CANONICAL_OK if not blocking else REPORT_ONLY,
             "blocking": blocking, "benign_count": benign}
 
@@ -102,15 +119,19 @@ this issue closes at the next watch tick.
 **Safe to skip?** No for a canonical row -- but the report artifact on this run is still
 readable if you need to make lineup decisions from a matchup-blind forecast.""",
 
-    "espn": """### ESPN projections unreachable (or credentials expired)
+    "espn": """### ESPN projections unreachable
 **What happened:** the ESPN fetch failed, so every player fell back to Sleeper-only --
 the blend and the disagreement-driven epistemic term are missing this sync.
 
+**First, know this:** the dedicated ESPN league is PUBLIC and **no credentials are
+needed** in normal operation (verified live: the blend matches without any cookies).
+This warning means the fetch itself failed -- almost always ESPN being down or slow.
+
 **Run this:**
-1. If ESPN was just down, do nothing -- the retry run may succeed on its own.
-2. If the dedicated ESPN league was made private, two cookies are needed: log into
-   espn.com in a browser, open DevTools -> Application -> Cookies -> espn.com, and copy
-   `espn_s2` and `SWID`. Then:
+1. Most likely: do nothing -- the retry run succeeds on its own once ESPN responds.
+2. ONLY if the league was actually made private (you would know: it is your league on
+   espn.com), two cookies become needed: log into espn.com, DevTools -> Application ->
+   Cookies -> espn.com, copy `espn_s2` and `SWID`. Then:
    - locally: `setx ESPN_S2 <value>` and `setx ESPN_SWID <value>`, then a **NEW terminal**.
    - for the runner: repo **Settings -> Secrets and variables -> Actions**, add both
      (or `gh secret set ESPN_S2` / `gh secret set ESPN_SWID`).
@@ -184,6 +205,26 @@ quotes canonically. If it affects the forecast, fix the underlying issue first.
 gate JSON in the run log shows the entry as benign.
 **Safe to skip?** The report artifact is still produced and readable either way.""",
 
+    "thin_projections": """### The projection pool came back thin (partial fetch?)
+**What happened:** the sync wrote far fewer player baselines than the pool has ever
+had (the count and floor are in the entry below). A partial Sleeper fetch silently
+thins the FREE-AGENT pool, which shifts replacement levels and every VORP number
+downstream -- rostered players all look fine, which is why only this check catches it.
+
+**Run this:** re-run the sync once Sleeper looks healthy:
+    py -3.10 -m scripts.run_sync
+then check the count:
+    py -3.10 -m scripts.canonical_gate
+(the JSON shows the pool count; data/current/player_baselines.json is the file).
+
+**Commit & push:** no.
+**Verify:** the gate JSON reports the count back above the floor, and the verdict is
+no longer blocked on thin_projections.
+**If it persists:** the pool may have changed STRUCTURALLY (Sleeper serving a smaller
+population). If the smaller count is genuinely the new normal, re-derive
+PROJECTION_POOL_FLOOR in scripts/canonical_gate.py from the new observations -- its
+comment records the current derivation -- and commit that with the reasoning.""",
+
     "push_conflict": """### The log push conflicted
 **What happened:** the runner (or your machine) could not push data/logs -- usually a
 race between a local push and a scheduled capture.
@@ -256,7 +297,14 @@ def main(argv=None):
         vegas_source = (load_json(VEGAS_FILE).get("_meta") or {}).get("source")
     except FileNotFoundError:
         vegas_source = None
-    g = canonical_gate(status, manifest.get("degraded") or [], vegas_source)
+    try:
+        from fantasy_sim.storage import BASELINES_FILE
+        baselines_count = len(load_json(BASELINES_FILE))
+    except FileNotFoundError:
+        baselines_count = None
+    g = canonical_gate(status, manifest.get("degraded") or [], vegas_source,
+                       baselines_count=baselines_count)
+    g["baselines_count"] = baselines_count
     g["freshness"] = {"status": status, "reasons": reasons}
     g["vegas_source"] = vegas_source
     print(json.dumps(g, indent=1, sort_keys=True))

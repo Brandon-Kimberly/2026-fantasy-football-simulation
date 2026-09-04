@@ -193,5 +193,25 @@ class TestSampleReportFreshness(unittest.TestCase):
                          "generated -- regenerate and commit the sample in this sitting")
 
 
+class TestFingerprintIsNewlineInsensitive(unittest.TestCase):
+    def test_crlf_and_lf_copies_of_the_renderer_hash_identically(self):
+        """A rebase or fresh checkout re-materializes the renderer sources through
+        autocrlf, flipping their raw bytes CRLF<->LF with no content change -- which
+        made the freshness guard fire a false alarm on an untouched renderer
+        (2026-09-04, found after the F36 rebase). The fingerprint must hash logical
+        content, not checkout-dependent bytes."""
+        import tempfile
+        from scripts.make_sample_report import RENDERER_SOURCES, renderer_fingerprint
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            for repo, nl in ((a, b"\n"), (b, b"\r\n")):
+                for rel in RENDERER_SOURCES:
+                    path = os.path.join(repo, *rel.split("/"))
+                    os.makedirs(os.path.dirname(path), exist_ok=True)
+                    with open(path, "wb") as f:
+                        f.write(nl.join([b"line one", b"line two", b""]))
+            self.assertEqual(renderer_fingerprint(a), renderer_fingerprint(b))
+
+
+
 if __name__ == "__main__":
     unittest.main()

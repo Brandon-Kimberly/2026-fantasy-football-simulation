@@ -337,7 +337,9 @@ than "fixed": the measurement said the code was right.
   against all 8 recorded real sync states caught a false blocker (the whitelisted-
   Tyson warning) and a gate-by-construction abort (the export criterion) before either
   could ship; live post-fix verdict CANONICAL_OK. Also surfaced: silent ESPN-failure
-  fixed. Retention: 90-day artifacts + milestone release assets, no orphan branch.
+  fixed. The gate also carries a projection-pool floor (700, derived from the two
+  recorded populations 888/964, one-sided) for the partial-fetch case nothing else
+  detects. Retention: 90-day artifacts + milestone release assets, no orphan branch.
   Reliability review after real weeks of runner evidence stays on.
 - **F35** the behavioral-plausibility harness — BUILT: sim mechanic rates measured
   against the real 2025 league (report-only, filed gaps annotated, never wallpaper)
