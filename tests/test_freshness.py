@@ -58,5 +58,32 @@ class TestAssess(unittest.TestCase):
         self.assertEqual(status, STALE); self.assertGreaterEqual(len(reasons), 2)
 
 
+class TestLogsGitState(unittest.TestCase):
+    """The mechanical half of the log-push discipline (owner, 2026-09-04): the
+    irreplaceable logs are git-tracked to survive a machine loss (R1), but nothing
+    surfaced "appended locally, never pushed". logs_git_state is pure over two git
+    outputs; check_freshness prints its verdict as an ACTION line."""
+
+    def test_clean_and_pushed_is_all_clear(self):
+        from fantasy_sim.freshness import logs_git_state
+        uncommitted, ahead = logs_git_state("", "0")
+        self.assertEqual(uncommitted, []); self.assertEqual(ahead, 0)
+
+    def test_modified_and_new_log_files_both_count_as_uncommitted(self):
+        from fantasy_sim.freshness import logs_git_state
+        porcelain = (" M data/logs/projection_log.jsonl\n"
+                     "?? data/logs/predictions_2027.jsonl\n")
+        uncommitted, _ = logs_git_state(porcelain, "0")
+        self.assertEqual(uncommitted, ["data/logs/predictions_2027.jsonl",
+                                       "data/logs/projection_log.jsonl"])
+
+    def test_ahead_count_parses_and_no_upstream_reads_as_unknown(self):
+        from fantasy_sim.freshness import logs_git_state
+        self.assertEqual(logs_git_state("", "3")[1], 3)
+        self.assertIsNone(logs_git_state("", None)[1])
+        self.assertIsNone(logs_git_state("", "not-a-number")[1])
+
+
+
 if __name__ == "__main__":
     unittest.main()

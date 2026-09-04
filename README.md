@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-542%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-549%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -146,6 +146,11 @@ py -3.10 -m pip install -r requirements.txt
 git config core.hooksPath hooks    # one-time: the docs guards run at pre-commit (~2s)
 ```
 
+Optional: schedule `hooks/windows_check.ps1` daily (Task Scheduler, hidden). It logs
+the canonical-window report to `data/windows_check.log` and pops a message box only
+when a window needs action. Canonical runs commit and push `data/logs/` themselves;
+`scripts.check_freshness` prints an ACTION line whenever log data is unpushed.
+
 (Plain `python` resolves to a broken end-of-life 3.8 on the original machine; use
 `py -3.10`. See `docs/AUDIT_PLAN.md` R1.)
 
@@ -159,7 +164,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 542 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 549 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

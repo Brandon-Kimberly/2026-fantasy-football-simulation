@@ -112,3 +112,42 @@ def check(offline=False):
         reasons = list(reasons) + ["(Sleeper unreachable: week roll not checked)"]
     details = {"manifest": manifest, "week": week, "nfl_week": nfl_week, "offline": offline}
     return status, reasons, details
+
+
+# ------------------------------------------------------------------- log-push state
+def logs_git_state(porcelain, ahead_text):
+    """Pure. The irreplaceable logs under data/logs are git-tracked so a machine loss
+    (AUDIT_PLAN.md R1) cannot destroy them -- but only if appends actually get committed
+    and pushed. porcelain: `git status --porcelain -- data/logs` output (modified tracked
+    files AND new files matching the .gitignore exceptions, e.g. a new season's
+    predictions log, both count). ahead_text: `git rev-list --count @{u}..HEAD --
+    data/logs` output, or None when there is no upstream. Returns (sorted uncommitted
+    paths, unpushed commit count or None for unknown)."""
+    uncommitted = []
+    for line in (porcelain or "").splitlines():
+        if len(line) > 3 and line[:2].strip():
+            uncommitted.append(line[3:].strip())
+    try:
+        ahead = int((ahead_text or "").strip()) if ahead_text is not None else None
+    except ValueError:
+        ahead = None
+    return sorted(uncommitted), ahead
+
+
+def read_logs_git_state():
+    """Reader for logs_git_state. Never raises: git absent or not a repo reads as
+    (unknown, unknown) rather than breaking a freshness check."""
+    import subprocess
+
+    def git(args):
+        try:
+            out = subprocess.run(["git", *args], capture_output=True, text=True, timeout=15)
+            return (out.stdout if out.returncode == 0 else None)
+        except Exception:
+            return None
+
+    porcelain = git(["status", "--porcelain", "--", "data/logs"])
+    ahead = git(["rev-list", "--count", "@{u}..HEAD", "--", "data/logs"])
+    if porcelain is None:
+        return None, None
+    return logs_git_state(porcelain, ahead)

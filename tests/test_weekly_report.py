@@ -674,5 +674,66 @@ class TestDepthWaiverRendering(unittest.TestCase):
         self.assertNotIn("Depth upgrades", md2, "no depth rows: no empty section")
 
 
+class TestCanonicalLogsPush(unittest.TestCase):
+    """--canonical runs end by committing and pushing the tracked data/logs files
+    (owner, 2026-09-04): the logs are the only unrecoverable season data, and the
+    canonical run is the natural moment durability becomes mechanical. The step is
+    warn-never-fail BY DESIGN, a documented divergence from the orchestrator's
+    fail-loud contract: a push failure (network down) does not invalidate the report,
+    and it still surfaces in the digest housekeeping and in check_freshness."""
+
+    def test_canonical_appends_the_logs_push_step_last_and_plain_runs_lack_it(self):
+        from fantasy_sim.weekly_report import build_steps
+        names = [n for n, _ in build_steps("Legion of Coom", canonical=True)[0]]
+        self.assertEqual(names[-1], "logs_push")
+        names = [n for n, _ in build_steps("Legion of Coom")[0]]
+        self.assertNotIn("logs_push", names)
+
+    def test_nothing_staged_means_no_commit_and_no_push_attempt_when_not_ahead(self):
+        from fantasy_sim.weekly_report import commit_and_push_logs
+        calls = []
+        def git(args):
+            calls.append(args[0])
+            if args[0] == "diff":
+                return 0, ""          # --cached --quiet: exit 0 = nothing staged
+            if args[0] == "rev-list":
+                return 0, "0"         # nothing unpushed either
+            return 0, ""
+        out = commit_and_push_logs(3, git=git)
+        self.assertEqual(out["committed"], 0)
+        self.assertNotIn("commit", calls)
+        self.assertNotIn("push", calls)
+
+    def test_staged_changes_commit_scoped_to_the_logs_and_push(self):
+        from fantasy_sim.weekly_report import commit_and_push_logs
+        calls = []
+        def git(args):
+            calls.append(args)
+            if args[0] == "diff":
+                return 1, ""          # staged changes under data/logs
+            return 0, ""
+        out = commit_and_push_logs(3, git=git)
+        self.assertEqual(out["committed"], 1); self.assertTrue(out["pushed"])
+        commit = next(a for a in calls if a[0] == "commit")
+        self.assertEqual(commit[-2:], ["--", "data/logs"],
+                         "the commit must be scoped to data/logs so a user's unrelated "
+                         "staged work is never swept into an automated commit")
+        self.assertIn("week 03", " ".join(commit))
+        self.assertIn(["push"], calls)
+
+    def test_push_failure_warns_and_never_raises(self):
+        from fantasy_sim.weekly_report import commit_and_push_logs
+        def git(args):
+            if args[0] == "diff":
+                return 1, ""
+            if args[0] == "push":
+                return 1, "fatal: unable to access remote"
+            return 0, ""
+        out = commit_and_push_logs(3, git=git)
+        self.assertEqual(out["committed"], 1); self.assertFalse(out["pushed"])
+        self.assertIn("warning", out)
+
+
+
 if __name__ == "__main__":
     unittest.main()

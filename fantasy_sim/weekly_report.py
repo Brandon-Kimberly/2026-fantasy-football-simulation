@@ -17,6 +17,7 @@ A manifest with `degraded` entries is not a failure (those are tolerated by desi
 rendered at the top of the digest so it is never invisible.
 """
 import datetime as _dt
+import logging
 import os
 import time
 import traceback
@@ -93,6 +94,57 @@ def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=N
     with open(path, "a", encoding="utf-8") as handle:
         handle.write(_json.dumps(record, sort_keys=True) + "\n")
     return 1
+
+
+def _run_git(args):
+    """subprocess seam for commit_and_push_logs; returns (returncode, combined output)."""
+    import subprocess
+    out = subprocess.run(["git", *args], capture_output=True, text=True, timeout=120)
+    return out.returncode, (out.stdout or "") + (out.stderr or "")
+
+
+def commit_and_push_logs(week, git=_run_git):
+    """The canonical run's durability step (owner, 2026-09-04): commit the git-tracked
+    data/logs files if anything changed, scoped with an explicit pathspec so a user's
+    unrelated staged work is never swept into an automated commit, then push. The logs
+    are the season's only unrecoverable data (Sleeper serves projections for the current
+    week only); the push is what survives a machine loss (AUDIT_PLAN.md R1).
+
+    Warn-never-fail, a DOCUMENTED divergence from the orchestrator's fail-loud contract:
+    a push failure (network down, remote refusing) does not invalidate the report the run
+    just produced, and the failure still surfaces twice -- in the digest's housekeeping
+    line and as check_freshness's ACTION line -- so it cannot rot silently."""
+    result = {"committed": 0, "pushed": False}
+    try:
+        rc, out = git(["add", "--", "data/logs"])
+        if rc != 0:
+            result["warning"] = f"git add failed: {out.strip()}"
+            logging.warning("LOGS PUSH: %s", result["warning"])
+            return result
+        rc, _ = git(["diff", "--cached", "--quiet", "--", "data/logs"])
+        if rc != 0:   # exit 1 = staged changes under data/logs
+            rc, out = git(["commit", "-m", f"Logs: week {int(week):02d} canonical capture",
+                           "--", "data/logs"])
+            if rc != 0:
+                result["warning"] = f"git commit failed: {out.strip()}"
+                logging.warning("LOGS PUSH: %s", result["warning"])
+                return result
+            result["committed"] = 1
+        else:
+            rc, out = git(["rev-list", "--count", "@{u}..HEAD", "--", "data/logs"])
+            if rc == 0 and (out or "").strip() == "0":
+                return result   # nothing new locally and nothing unpushed
+        rc, out = git(["push"])
+        if rc != 0:
+            result["warning"] = f"git push failed (committed locally): {out.strip()}"
+            logging.warning("LOGS PUSH: %s", result["warning"])
+            return result
+        result["pushed"] = True
+        return result
+    except Exception as ex:
+        result["warning"] = f"logs push errored: {ex}"
+        logging.warning("LOGS PUSH: %s", result["warning"])
+        return result
 
 
 def _decision_log_summary(week, log_path=None):
@@ -908,6 +960,9 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
         from scripts.find_trades import main as m
         return m(["--team", team, "--week", str(state["week"]), "--evaluate", str(evaluate)] + state["tool_extra_argv"])
 
+    def step_logs_push():
+        return commit_and_push_logs(state["week"])
+
     steps = [("freshness", step_freshness)] if skip_sync else [("sync", step_sync)]
     steps += [("simulation", step_simulation), ("positional_tiers", step_positional_tiers),
               ("strength_of_schedule", step_strength_of_schedule), ("win_trajectory", step_win_trajectory),
@@ -916,6 +971,10 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
               ("matchup", step_matchup), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))
+    if canonical:
+        # Last on purpose: durability must never delay or fail the report itself
+        # (commit_and_push_logs is warn-never-fail; see its docstring).
+        steps.append(("logs_push", step_logs_push))
     return steps, state
 
 
