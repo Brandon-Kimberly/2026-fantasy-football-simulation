@@ -1,0 +1,18 @@
+#!/bin/sh
+# Pre-commit: run the docs guards locally so a stale count or badge fails HERE,
+# in ~2 seconds, instead of 11 minutes later in CI (2026-09-04). The guard family
+# has caught 8+ real drifts; this moves the catch to before the commit exists.
+#
+# One-time setup per clone (documented in README):  git config core.hooksPath hooks
+# CLAUDE.md's rule stands: do not bypass with --no-verify; fix the drift instead.
+echo "pre-commit: docs guards (tests.test_docs)..."
+out=$(py -3.10 -m unittest tests.test_docs 2>&1)
+status=$?
+echo "$out" | tail -2
+if [ $status -ne 0 ]; then
+  echo ""
+  echo "pre-commit BLOCKED: a docs guard failed -- a stated count, badge, or audit"
+  echo "number no longer matches reality. Fix the drift (usually a count bump in"
+  echo "README.md/CLAUDE.md or an AUDIT_SUMMARY row) and commit again."
+  exit 1
+fi

@@ -131,6 +131,7 @@ Runtime is **Python 3.10** with the exact pins in `requirements.txt`:
 
 ```bash
 py -3.10 -m pip install -r requirements.txt
+git config core.hooksPath hooks    # one-time: the docs guards run at pre-commit (~2s)
 ```
 
 (Plain `python` resolves to a broken end-of-life 3.8 on the original machine; use
