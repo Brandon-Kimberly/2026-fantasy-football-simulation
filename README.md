@@ -88,6 +88,7 @@ py -3.10 -m scripts.season_retrospective        # a completed season in four mea
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
+py -3.10 -m scripts.free_add_study              # F34: committed 2025 churn derivation (adds/timing/retention/drops/occupancy)
 py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs the real 2025 league + drift vs the committed baseline
 ```
 

@@ -1,0 +1,161 @@
+{
+  "generated_at": "2026-09-04T04:20:28Z",
+  "league_id": "1253869352399142913",
+  "season": "2025",
+  "weeks_covered": 18,
+  "format_caveat": "2025 ran a NON-IDP format (QB/2RB/2WR/TE/3FLEX/K/DEF, 16 active + 2 reserve); 31 of the 122 free adds were DEF streamers, a channel absent from the 2026 IDP league. Behavioral rates (activity, timing, retention, drop selection) transfer as priors; the position mix does NOT transfer directly.",
+  "slots": {
+    "active_slots": 16,
+    "reserve_slots": 2,
+    "starting_slots": 11
+  },
+  "totals": {
+    "waiver_claims": 99,
+    "free_agent_txs": 152,
+    "trades": 11,
+    "faab_spent": 728,
+    "free_adds": 122,
+    "free_drop_only_txs": 30,
+    "failed_waiver_claims": 25
+  },
+  "self_check_mismatches": {},
+  "per_team_free_adds": {
+    "Canton Killers": 42,
+    "Drunk Cats": 21,
+    "Femboy Cats": 19,
+    "Wine Drinkers": 12,
+    "Legion of Coom": 8,
+    "Year of Jarvis": 7,
+    "The Glutton": 7,
+    "Clankers": 6
+  },
+  "timing_free_by_week": {
+    "1": 9,
+    "2": 4,
+    "3": 6,
+    "4": 1,
+    "5": 12,
+    "6": 6,
+    "7": 5,
+    "8": 9,
+    "9": 7,
+    "10": 5,
+    "11": 8,
+    "12": 13,
+    "13": 2,
+    "14": 7,
+    "15": 11,
+    "16": 17,
+    "17": 0,
+    "18": 0
+  },
+  "timing_paid_by_week": {
+    "1": 8,
+    "2": 5,
+    "3": 13,
+    "4": 13,
+    "5": 6,
+    "6": 9,
+    "7": 3,
+    "8": 2,
+    "9": 6,
+    "10": 7,
+    "11": 4,
+    "12": 5,
+    "13": 7,
+    "14": 6,
+    "15": 5,
+    "16": 0,
+    "17": 0,
+    "18": 0
+  },
+  "free_weeks_1_4_share": 0.164,
+  "position_mix_free": {
+    "DEF": 31,
+    "RB": 25,
+    "WR": 22,
+    "K": 16,
+    "QB": 16,
+    "TE": 12
+  },
+  "position_mix_paid": {
+    "RB": 29,
+    "DEF": 24,
+    "WR": 21,
+    "QB": 9,
+    "TE": 8,
+    "K": 8
+  },
+  "retention": {
+    "all_adds": {
+      "within_1w": {
+        "started": 84,
+        "eligible": 221,
+        "rate": 0.38
+      },
+      "within_2w": {
+        "started": 135,
+        "eligible": 221,
+        "rate": 0.611
+      },
+      "within_3w": {
+        "started": 146,
+        "eligible": 221,
+        "rate": 0.661
+      }
+    },
+    "free_adds": {
+      "within_1w": {
+        "started": 70,
+        "eligible": 122,
+        "rate": 0.574
+      },
+      "within_2w": {
+        "started": 78,
+        "eligible": 122,
+        "rate": 0.639
+      },
+      "within_3w": {
+        "started": 80,
+        "eligible": 122,
+        "rate": 0.656
+      }
+    },
+    "paid_adds": {
+      "within_1w": {
+        "started": 14,
+        "eligible": 99,
+        "rate": 0.141
+      },
+      "within_2w": {
+        "started": 57,
+        "eligible": 99,
+        "rate": 0.576
+      },
+      "within_3w": {
+        "started": 66,
+        "eligible": 99,
+        "rate": 0.667
+      }
+    },
+    "definition": "started = appeared in the adding roster's starters in any of the add week + (h-1) following weeks"
+  },
+  "drop_selection": {
+    "adds_with_a_drop": 186,
+    "adds_total": 221,
+    "drop_share": 0.842,
+    "pos_match_share": 0.618,
+    "started_prior_2w_share": 0.511,
+    "trailing_rank_measured_n": 133,
+    "bottom_quartile_share": 0.368,
+    "median_trailing_rank_pctile": 0.353
+  },
+  "occupancy": {
+    "team_weeks": 144,
+    "active_capacity_observed": 18,
+    "mean_active": 16.85,
+    "share_at_full_active": 0.243,
+    "share_2plus_below": 0.396,
+    "note": "sizes are the matchup 'players' list, which the observed max (18 = 16 active + 2 reserve) shows INCLUDES reserve slots. share_at_full_active is the fraction of team-weeks where an add required a cut."
+  }
+}

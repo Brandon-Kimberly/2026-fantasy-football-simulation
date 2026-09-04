@@ -3256,6 +3256,74 @@ trade mechanism's 0-vs-11 inertness stays tracked under F2, now with the 2025 re
 (11 trades, weeks 1-11, 2-5 players, FAAB riders) recorded as its calibration target.
 OPEN; unlock: post-season (or a deliberate mid-season arc if F2 is redesigned).
 
+**Addendum (2026-09-04) — disposition set, measurement committed, criteria fixed.**
+
+*Disposition (owner):* one build arc at the F32 unlock (~January 2027, or earlier at
+~60 contemporaneous claims), delivering volume fidelity (real add rates), value
+fidelity (F32's measured claim premium), and roster fidelity (adds enter sim_rosters,
+drops, IR frees the spot) TOGETHER — one golden regeneration instead of two. Now:
+measurement only, F30's pattern. The 2026 decision log is already recording
+`free_agent` adds with contemporaneous snapshots; it is the binding calibration
+source, with 2025 as the blended prior (F31's exact pattern).
+
+*Reframing, so no future reader rediscovers it:* an unmetered zero-cost channel
+ALREADY EXISTS at simulation.py:~1476 — a lineup hole with no won streamer gets a free
+synthetic player at max(replacement x 0.8, decayed base mean). It is hole-only,
+one-week, never counted as churn, and roster-inert. F34 is therefore not "add a
+missing mechanism" but "the implicit mechanism is unmetered and has no roster
+consequence" — and the build must reconcile that patch with the new channel so holes
+are not double-served.
+
+*Design constraint, recorded up front:* a free channel that fills deficits FIRST
+starves the paid deficit channel and drops league spend out of F31's [650, 800] band —
+the specific way a naive implementation silently undoes that calibration. Channel
+ordering/partitioning is a design decision (free adds model speculative/depth churn;
+deficits still bid), verified by the harness but never discovered by it.
+
+*Corrections from the committed re-pull* (`scripts.free_add_study`, artifact
+`data/logs/free_add_study_2025.json`, self-checked against F31's aggregates,
+deterministic across runs): the audit's "152 zero-cost adds" was the count of
+free_agent TRANSACTIONS — **122 add a player; 30 are drop-only** roster management.
+The 61% figure reproduces exactly on the corrected base (135 of 221 adds started
+within 2 weeks), confirming 122. Churn under-modeling is **~2.0x** (221 real adds vs
+~110 sim), not 2.3x. And the roster figure was "16.9 of 19": actual capacity was
+**18** (16 active + 2 reserve; the matchup players list includes reserve), mean 16.85.
+**Format caveat:** 2025 ran a NON-IDP format (QB/2RB/2WR/TE/3FLEX/K/DEF) — 31 of the
+122 free adds were DEF streamers, a channel absent from the 2026 IDP league.
+Behavioral rates transfer as priors; the position mix does not.
+
+*What the measurement pinned* (full detail in the artifact): per-team free adds 6-42
+(Canton Killers 42, Legion of Coom 8 — activity is real per-manager signal); timing is
+NOT front-loaded (weeks 1-4 carry 16% of free adds vs 39% of paid claims — free adds
+are steady in-season churn, the opposite profile); retention: free adds start
+immediately (57% within 1 week, 64% within 2) while paid claims start the FOLLOWING
+week (14% -> 58%); drops: 84% of adds carried a drop, 62% position-matched, and the
+cut player's median trailing-ppg rank is the 35th percentile of his roster — managers
+cut from the bottom-middle, not strictly the worst (bottom quartile only 37%);
+occupancy: teams sat at full capacity in 24% of team-weeks (an add required a cut) and
+had 2+ open spots in 40%. Also pinned: 25 FAILED waiver claims — bid competition is
+real and observable.
+
+*Acceptance criteria, F2-style, fixed now while the analysis is fresh:*
+(a) simulated zero-cost adds per league-season within +-25% of the 2026-measured real
+count (the decision log at build time; 2025 cross-format prior: 122);
+(b) the double-count guard, measured not assumed: `faab_spent` stays in [650, 800] AND
+`waiver_claims` stays in [74, 124] on the harness;
+(c) total churn (paid + free) within +-25% of the 2026 real total (2025 prior: 221);
+(d) conservation, tests written failing first: active roster never exceeds capacity;
+every add is balanced by a drop or an open/IR-freed slot; the FA pool conserves (a
+player one team adds leaves it for the others);
+(e) value cap: every added player's usable mean <= replacement level until F32's
+premium adopts (then <= replacement + drawn premium, the constant carrying n and CI);
+(f) the points gate moves <= 0.5 pts in mean bias and <= 0.05 in mean z vs the commit
+immediately before (F2 criterion c, same run-to-run-noise argument);
+(g) all nine existing harness metrics stay in-band, the new free-add metrics land
+in-band, the baseline regenerates deliberately with deltas explained, and effects are
+sized at >= 400 seasons. MAJOR when built.
+
+OPEN; unlock: the F32 unlock — one arc, volume + value + roster fidelity together
+(owner disposition, 2026-09-04). The trade half stays tracked under F2.
+
 ### F35 — Behavioral-plausibility harness — BUILT (2026-09-03)
 
 The 2026-09-03 re-audit's verdict on the verification apparatus: it covered

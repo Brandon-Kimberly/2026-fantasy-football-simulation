@@ -319,11 +319,16 @@ than "fixed": the measurement said the code was right.
   (game-script multipliers, replacement depth indices, streamer decay/ladder/ceiling,
   n_0, LEAGUE_AVG_PPG) — OPEN; derive from 2026 data or mark permanently-unverified
   with reasoning. The anonymous-default family was centralized same-day.
-- **F34** missing churn channels: the free-add channel (152 real zero-cost adds with no
-  sim analog; churn under-modeled ~2.3x) and IR-spot economics (real rosters ran 16.9
-  of 19 active; the sim never frees the spot) — OPEN, season-scale by decision; must
-  respect the F31/F32 replacement-cap boundary. F2 gains its real calibration target:
-  11 trades in 2025 vs the sim's ~0.
+- **F34** missing churn channels: the free-add channel (122 real zero-cost adds — the
+  audit's 152 counted transactions, 30 were drop-only; churn under-modeled ~2.0x) and
+  IR-spot economics (rosters averaged 16.9 of 18 spots; the sim never frees one) —
+  OPEN; owner disposition 2026-09-04: one build arc at the F32 unlock (volume + value
+  + roster fidelity together, MAJOR), acceptance criteria fixed in the plan entry.
+  The 2025 derivation is committed (`scripts.free_add_study` + its artifact) with a
+  format caveat: 2025 was non-IDP, so rates transfer as priors, the position mix does
+  not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
+  finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
+  its real calibration target: 11 trades in 2025 vs the sim's ~0.
 - **F35** the behavioral-plausibility harness — BUILT: sim mechanic rates measured
   against the real 2025 league (report-only, filed gaps annotated, never wallpaper)
   plus a deterministic committed baseline whose drift fails — the F31-class discovery

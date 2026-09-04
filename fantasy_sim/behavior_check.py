@@ -40,7 +40,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 BASELINE_DIR = os.path.join(os.path.dirname(HERE), "tests", "fixtures", "behavior")
 
 # Real 2025 rates, measured 2026-09-03 from the 2025 league's complete Sleeper history
-# (99 completed waiver claims, 152 free-agent adds, 11 trades, weeks 1-17 transactions;
+# (99 completed waiver claims, 152 free-agent transactions (122 add a player -- see
+# scripts.free_add_study's committed correction), 11 trades, weeks 1-17 transactions;
 # lineup changes from 128 consecutive team-week starter diffs). League totals are per
 # season for the whole 8-team league.
 REAL_2025 = {
