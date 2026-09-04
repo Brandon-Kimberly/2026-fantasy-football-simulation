@@ -220,7 +220,7 @@ def _sandbox(scenario, batches, sims_per_batch):
     scenario_dir = os.path.join(FIXTURE_ROOT, scenario)
     cache = {}
     for name in FIXTURE_INPUTS:
-        with open(os.path.join(scenario_dir, name)) as f:
+        with open(os.path.join(scenario_dir, name), encoding="utf-8") as f:
             cache[name] = json.load(f)
 
     def fixture_load(path):
@@ -299,7 +299,7 @@ def expected_path(scenario):
 
 
 def load_expected(scenario):
-    with open(expected_path(scenario)) as f:
+    with open(expected_path(scenario), encoding="utf-8") as f:
         return json.load(f)
 
 
@@ -317,7 +317,7 @@ def regenerate():
             "note": "Regenerate only when a change to the numbers is INTENDED. "
                     "See tests/golden_master.py.",
         }
-        with open(expected_path(scenario), "w") as f:
+        with open(expected_path(scenario), "w", encoding="utf-8") as f:
             json.dump(record, f, indent=2, sort_keys=True)
         count = sum(len(v) for k, v in record.items() if k.startswith("stage"))
         print("[OK] " + scenario + ": " + str(count) + " hashed outputs -> "

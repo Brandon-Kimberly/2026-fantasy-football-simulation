@@ -362,6 +362,11 @@ def win_trajectory_chart_path(week):
 
 # ==============================================================================
 # JSON I/O helpers
+#
+# Encoding is explicit on both sides: Windows' locale default is cp1252, so without it
+# the first non-ASCII player name in a UTF-8 file would decode as mojibake with no
+# error raised. All current files are pure ASCII (json.dump's ensure_ascii), which is
+# why adding this changed no bytes -- the goldens are the proof (2026-09-04).
 # ==============================================================================
 def load_json(path):
     """Reads and parses a JSON file. Raises FileNotFoundError with a clear message pointing at
@@ -369,14 +374,14 @@ def load_json(path):
     embedded directly in FantasySimulationEngine's module scope."""
     if not os.path.exists(path):
         raise FileNotFoundError(f"Missing required file: '{path}'. Run `python -m fantasy_sim.sync` first.")
-    with open(path, 'r') as f:
+    with open(path, 'r', encoding='utf-8') as f:
         return json.load(f)
 
 
 def save_json(path, data, indent=2):
     """Writes data as JSON to path, creating its directory first if needed."""
     ensure_dir_for(path)
-    with open(path, 'w') as f:
+    with open(path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=indent)
 
 
