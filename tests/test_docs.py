@@ -155,6 +155,24 @@ class TestVersionMatchesTag(unittest.TestCase):
                          "pyproject version does not match the latest git tag -- bump it "
                          "in the tag's sitting (release policy)")
 
+    def test_changelog_lists_the_latest_git_tag(self):
+        """Every release gets a CHANGELOG entry (owner's rule, 2026-09-04, made
+        mechanical): the latest reachable tag must appear as a linked heading. Same skip
+        semantics as the version guard -- the enforcement point is the local pre-commit
+        hook, where tags exist. On failure: add the headline entry (release policy)."""
+        import subprocess
+        try:
+            tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
+                                 capture_output=True, text=True, timeout=10, cwd=ROOT)
+        except Exception as ex:
+            self.skipTest(f"git unavailable ({ex}); changelog-tag guard runs locally")
+        if tag.returncode != 0 or not tag.stdout.strip():
+            self.skipTest("no tags visible (shallow checkout?); changelog-tag guard runs locally")
+        latest = tag.stdout.strip()
+        self.assertIn(f"[{latest}]", _doc("CHANGELOG.md"),
+                      f"CHANGELOG.md has no entry for the latest tag {latest} -- every "
+                      "release gets a headline entry in the same sitting (release policy)")
+
 
 class TestSampleReportFreshness(unittest.TestCase):
     def test_published_sample_was_generated_by_the_current_renderer(self):
