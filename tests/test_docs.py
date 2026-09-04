@@ -132,5 +132,29 @@ class TestDocsMatchReality(unittest.TestCase):
                          "scripts.<name>): " + ", ".join(missing))
 
 
+class TestVersionMatchesTag(unittest.TestCase):
+    def test_pyproject_version_matches_the_latest_git_tag(self):
+        """Same pattern as the count and script-coverage guards: a stated number must
+        match its source of truth. pyproject sat at 1.0.0 through three MAJOR releases
+        before anyone noticed (2026-09-04); this pins it to the latest reachable tag.
+        Skips (loudly, with the reason) where git or tags are unavailable -- CI's shallow
+        checkout may not fetch tags -- because the enforcement point that matters is the
+        local pre-commit hook, which runs where tags exist."""
+        import re
+        import subprocess
+        m = re.search(r'^version = "([^"]+)"', _doc("pyproject.toml"), re.M)
+        self.assertIsNotNone(m, "pyproject.toml has no version line")
+        try:
+            tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
+                                 capture_output=True, text=True, timeout=10, cwd=ROOT)
+        except Exception as ex:
+            self.skipTest(f"git unavailable ({ex}); version-tag guard runs locally")
+        if tag.returncode != 0 or not tag.stdout.strip():
+            self.skipTest("no tags visible (shallow checkout?); version-tag guard runs locally")
+        self.assertEqual("v" + m.group(1), tag.stdout.strip(),
+                         "pyproject version does not match the latest git tag -- bump it "
+                         "in the tag's sitting (release policy)")
+
+
 if __name__ == "__main__":
     unittest.main()

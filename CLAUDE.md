@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 539 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 540 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -140,7 +140,8 @@ the F27 commit, 2026-09-03):
   regenerates nothing while changing every prediction (learned from F28, whose golden
   deltas were byte-identical). A commit doing either says "MAJOR pending" in its
   message, and the tag lands with the release notes, not the commit. Every tag also
-  gets a headline entry in CHANGELOG.md in the same sitting -- the changelog exists so
+  gets a headline entry in CHANGELOG.md and the pyproject.toml version bump in the
+  same sitting (a docs guard pins pyproject to the latest tag) -- the changelog exists so
   the release history is visible from the file list, and an unlisted tag is exactly the
   staleness class this repo keeps re-learning.
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
