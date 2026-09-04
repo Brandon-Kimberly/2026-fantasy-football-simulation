@@ -127,7 +127,8 @@ py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs th
 
 ## Setup
 
-Runtime is **Python 3.10** with the exact pins in `requirements.txt`:
+Runtime is **Python 3.10** with the pins in `requirements.txt` (exact for the
+numeric stack the goldens are byte-locked to; ranges for plumbing like `requests`):
 
 ```bash
 py -3.10 -m pip install -r requirements.txt

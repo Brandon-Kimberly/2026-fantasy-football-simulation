@@ -11,7 +11,8 @@ quantitative modelling project, not a CRUD app: the correctness bar is statistic
 
 ## Commands
 
-Runtime is **Python 3.10** with the exact pins in `requirements.txt` (`py -3.10 -m pip install -r
+Runtime is **Python 3.10** with the pins in `requirements.txt` (exact for the
+numeric stack the goldens are byte-locked to; ranges for plumbing like `requests`) (`py -3.10 -m pip install -r
 requirements.txt`). On this machine plain `python` resolves to the retired Windows Store Python
 3.8 -- do not use it: it is pinned to end-of-life numpy/scipy and produced an intermittent native
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
