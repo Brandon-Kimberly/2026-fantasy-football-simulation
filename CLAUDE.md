@@ -138,7 +138,10 @@ the F27 commit, 2026-09-03):
   engine consumes `std_aleatoric` baked in at sync time, so a sync-time recalibration
   regenerates nothing while changing every prediction (learned from F28, whose golden
   deltas were byte-identical). A commit doing either says "MAJOR pending" in its
-  message, and the tag lands with the release notes, not the commit.
+  message, and the tag lands with the release notes, not the commit. Every tag also
+  gets a headline entry in CHANGELOG.md in the same sitting -- the changelog exists so
+  the release history is visible from the file list, and an unlisted tag is exactly the
+  staleness class this repo keeps re-learning.
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
   coverage).
 - **PATCH** -- fixes and docs that move neither.
