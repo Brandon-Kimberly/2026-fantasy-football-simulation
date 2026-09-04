@@ -138,5 +138,75 @@ class TestReleaseAdvice(unittest.TestCase):
         self.assertTrue(any("season end" in m.lower() for m in msgs))
 
 
+class TestStampsFromPredictionsRows(unittest.TestCase):
+    """Coverage detection for GitHub Actions (tier 1, 2026-09-04): a runner has no
+    data/decisions (untracked), so coverage comes from the COMMITTED predictions log's
+    canonical rows -- pushed at canonical time by weekly_report's logs_push step."""
+
+    ROWS = [
+        {"record_type": "week_predictions", "week": 1, "canonical": True,
+         "logged_at": "2026-09-09T18:00:00Z"},
+        {"record_type": "week_predictions", "week": 1, "canonical": False,
+         "logged_at": "2026-09-09T19:00:00Z"},          # ad-hoc run: not a stamp
+        {"record_type": "week_predictions", "week": 2, "canonical": True,
+         "logged_at": "2026-09-16T18:00:00Z"},          # other week
+        {"record_type": "week_predictions", "week": 1, "canonical": True,
+         "logged_at": "not-a-time"},                    # malformed: skipped, not fatal
+    ]
+
+    def test_only_canonical_rows_for_the_week_become_stamps(self):
+        from fantasy_sim.run_windows import stamps_from_predictions_rows
+        stamps = stamps_from_predictions_rows(self.ROWS, 1)
+        self.assertEqual(len(stamps), 1)
+        name, dt = stamps[0]
+        self.assertIn("2026-09-09T18:00:00Z", name)
+        self.assertEqual(dt, u("2026-09-09T18:00:00"))
+
+    def test_stamps_cover_a_window_through_compute_windows(self):
+        from fantasy_sim.run_windows import stamps_from_predictions_rows
+        stamps = stamps_from_predictions_rows(self.ROWS, 1)
+        r = compute_windows(u("2026-09-09T20:00:00"), KICKS, stamps)
+        by = {w["name"]: w for w in r["windows"]}
+        self.assertIsNotNone(by["run1_pre_kickoff"]["covered_by"])
+
+
+class TestWatchVerdict(unittest.TestCase):
+    """The pure decision the Actions watcher makes: which windows need a human NOW.
+    Issues open for OPEN-uncovered windows inside the horizon and for MISSED windows;
+    quiet otherwise -- a check that fires three times a week on nothing trains itself
+    to be ignored (the repo's wallpaper principle)."""
+
+    def _result(self, now):
+        return compute_windows(now, KICKS, [])
+
+    def test_open_window_inside_the_horizon_is_actionable(self):
+        from fantasy_sim.run_windows import watch_verdict
+        now = u("2026-09-09T20:00:00")   # run1 deadline 09-10T00:20Z: ~4.3h away
+        v = watch_verdict(self._result(now), now, horizon_hours=24.0)
+        self.assertEqual([a["name"] for a in v["actionable"]], ["run1_pre_kickoff"])
+        self.assertAlmostEqual(v["actionable"][0]["hours_left"], 4.3, places=1)
+
+    def test_open_window_beyond_the_horizon_is_quiet(self):
+        from fantasy_sim.run_windows import watch_verdict
+        now = u("2026-09-07T00:00:00")   # run1 open but ~3 days out
+        v = watch_verdict(self._result(now), now, horizon_hours=24.0)
+        self.assertEqual(v["actionable"], []); self.assertEqual(v["missed"], [])
+
+    def test_covered_window_is_quiet_and_missed_window_is_reported(self):
+        from fantasy_sim.run_windows import stamps_from_predictions_rows, watch_verdict
+        rows = [{"record_type": "week_predictions", "week": 1, "canonical": True,
+                 "logged_at": "2026-09-09T18:00:00Z"}]
+        now = u("2026-09-13T12:00:00")   # run1 covered+past, run2 (sun 17:00Z) not yet open? deadline 17:00Z
+        r = compute_windows(now, KICKS, stamps_from_predictions_rows(rows, 1))
+        v = watch_verdict(r, now, horizon_hours=24.0)
+        self.assertNotIn("run1_pre_kickoff", [a["name"] for a in v["actionable"]])
+        self.assertNotIn("run1_pre_kickoff", [m["name"] for m in v["missed"]])
+        now2 = u("2026-09-14T12:00:00")  # sunday window gone, uncovered -> MISSED
+        r2 = compute_windows(now2, KICKS, stamps_from_predictions_rows(rows, 1))
+        v2 = watch_verdict(r2, now2, horizon_hours=24.0)
+        self.assertIn("run2_sunday", [m["name"] for m in v2["missed"]])
+
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -87,3 +87,19 @@ class TestDerivedProfileValues(unittest.TestCase):
         # the measured extremes, as derived from the 99 attributed claims
         self.assertGreater(MANAGER_PROFILES["The Glutton"]["faab_agg"], 1.5)
         self.assertLess(MANAGER_PROFILES["The Glutton"]["faab_activity"], 0.5)
+
+
+class TestReadObservationsDuplicateTolerance(unittest.TestCase):
+    def test_a_duplicated_waiver_row_counts_one_bid_not_two(self):
+        """First-row-wins on transaction_id (tier 1.5 union-merge tolerance,
+        2026-09-04): a double-counted claim would shift the F31 blend at engine init."""
+        import json, os, tempfile
+        from fantasy_sim.simulation import read_faab_observations
+        tx = {"transaction_id": "w1", "type": "waiver", "week": 1,
+              "teams": ["Legion of Coom"], "faab_bid": 9.0}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "decision_log.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(tx) + chr(10)); f.write(json.dumps(tx) + chr(10))
+            obs = read_faab_observations(log_path=path)
+        self.assertEqual(obs, {"Legion of Coom": [9.0]})

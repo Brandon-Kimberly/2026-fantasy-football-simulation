@@ -3324,6 +3324,46 @@ sized at >= 400 seasons. MAJOR when built.
 OPEN; unlock: the F32 unlock — one arc, volume + value + roster fidelity together
 (owner disposition, 2026-09-04). The trade half stays tracked under F2.
 
+### F36 — Canonical runs on GitHub Actions (tier 2) — designed follow-up (2026-09-04)
+
+**Origin (owner):** 48 canonical windows across 16 weeks on human memory is brittle, and
+a missed window is a permanent hole in the F18/F19/F25 quoted-predictions record. The
+2026-09-04 survey assessed three tiers; tiers 1 (issue-based window watcher) and 1.5
+(scheduled credential-free sync committing the tracked logs) were BUILT the same day.
+This entry files tier 2 — the full sync + report as a scheduled Actions run whose
+canonical rows are first-class — with the survey's findings, so the later assessment
+starts from evidence instead of re-surveying.
+
+**What the survey established (all verified in code, not assumed):**
+- *Statelessness:* the one feared local dependency — the zero-projection carry for
+  players like the Jacobs/Charbonnet cases — already falls back from the untracked
+  baselines file to the TRACKED projection log (`carried_log`), so a fresh runner
+  recovers priors; `actions/cache` on `data/current/` removes even the residual loss of
+  carried std terms. Players cache re-fetches; kickoffs/vegas/defense/actuals are live.
+- *Runner trust:* CI already runs the full suite and byte-exact goldens on the same
+  runner class; R1 does not apply there. Predictions rows carry commit + sync
+  timestamps for provenance.
+- *Mechanics:* GITHUB_TOKEN pushes do not trigger other workflows (no recursion);
+  merge=union + read-side dedupe (verified per log) absorbs local/runner races;
+  `ODDS_API_KEY` becomes a repo Secret (masked, never printed, not exposed to forks on
+  scheduled runs). data/weeks and data/decisions stay untracked; digests upload as
+  workflow artifacts (90-day cap; an orphan branch is the escape hatch if permanence is
+  ever wanted). Public-repo run logs print sync warnings (team names) — the same
+  exposure class as the committed config, nothing new.
+
+**The real objection, preserved so it cannot get lost: DEGRADED judgment.** A runner
+quotes predictions even when the sync tolerated failures (odds down, ESPN down) — the
+moment where a human would look, judge, and maybe re-run is exactly what an unattended
+canonical run removes. Any adoption must: fail loudly on STALE, record the DEGRADED
+state in the predictions row's provenance, and surface "canonical run was DEGRADED —
+consider re-running locally" through the tier-1 issue channel. Secondary: GH cron can
+lag, and the Sunday 10:00 PT deadline is hard — the run must fire early (~05:30 PT)
+with a retry, and the DST shift (2026-11-01) handled by width, not offsets.
+
+**Decision rule (owner):** assess after a few real weeks of tier 1.5 running, when the
+runner path's reliability in practice is known — not before. OPEN; unlock: operational
+evidence from tier 1.5 (~week 3-4 of the 2026 season).
+
 ### F35 — Behavioral-plausibility harness — BUILT (2026-09-03)
 
 The 2026-09-03 re-audit's verdict on the verification apparatus: it covered

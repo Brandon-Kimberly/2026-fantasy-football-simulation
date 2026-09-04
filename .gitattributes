@@ -2,3 +2,16 @@
 # checkout would rewrite LF->CRLF and trip it as a false alarm. Pin them binary-stable.
 SEASON_2026_EVALUATION.md -text
 SEASON_2026_EVALUATION.sha256 -text
+
+# Append-only jsonl logs: merge=union instead of conflicts when a local sync and the
+# scheduled Actions capture race. Verified safe PER LOG, not assumed (2026-09-04):
+#   projection_log      -- readers keep the last row per (season, week, player_id);
+#                          concurrent same-key rows are both-valid captures minutes apart
+#   predictions_*.jsonl -- readers keep the last (canonical-preferred) row per (season, week)
+#   decision_log        -- ingestion dedupes on transaction_id AND every reader dedupes
+#                          first-row-wins (added for exactly this; pinned by tests)
+#   points_backtest     -- append-only per-run records, compared line-by-line
+data/logs/projection_log.jsonl merge=union
+data/logs/decision_log.jsonl merge=union
+data/logs/predictions_*.jsonl merge=union
+data/logs/points_backtest.jsonl merge=union

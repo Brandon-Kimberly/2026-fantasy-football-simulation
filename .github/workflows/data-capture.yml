@@ -1,0 +1,59 @@
+# Tier 1.5 (2026-09-04): scheduled capture of the irreplaceable season data. Runs the
+# sync on a GitHub runner and commits the tracked logs back to main, so the data that
+# CANNOT be re-fetched (Sleeper serves only the current week's projections; at-claim
+# snapshots exist only when taken) accumulates even if every local window is missed.
+#
+# Deliberately credential-free: no ODDS_API_KEY secret, so the sync's vegas step falls
+# back and the manifest reads DEGRADED -- expected and harmless here, because vegas
+# lines are not part of the capture target (projection rows and decision snapshots do
+# not depend on them). Local runs remain the source of vegas-informed forecasts.
+#
+# Statelessness was verified before this existed (the 2026-09-04 survey, filed on F36):
+# the zero-projection carry falls back from the untracked baselines file to the TRACKED
+# projection log (sync's carried_log path), the players cache re-fetches when missing,
+# and everything else is a live pull or a tracked file. Concurrent local syncs are safe:
+# the jsonl logs merge=union (.gitattributes) and every reader dedupes -- verified per
+# log, not assumed. Pushes made with GITHUB_TOKEN do not trigger other workflows, so
+# this cannot recurse or burn CI minutes.
+#
+# Daily 13:43 UTC: after Wednesday's 00:00 PT waiver clear in both DST regimes, early
+# enough that transaction snapshots stay contemporaneous (<1 day lag). A failed run
+# emails through the normal workflow-failure channel -- a capture failure IS actionable.
+name: data-capture
+on:
+  schedule:
+    - cron: "43 13 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+      - name: Sync (credential-free; vegas DEGRADED is expected here)
+        run: python -m scripts.run_sync
+      - name: Commit and push the tracked logs
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/logs
+          if git diff --cached --quiet -- data/logs; then
+            echo "no new log rows this run"
+            exit 0
+          fi
+          git commit -m "Logs: scheduled capture (actions)" -- data/logs
+          # Union-merge absorbs a race with a local push (see .gitattributes); retry once.
+          git pull --rebase origin main
+          git push origin main || { git pull --rebase origin main && git push origin main; }

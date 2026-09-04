@@ -211,3 +211,46 @@ def compute_windows(now_utc, kickoffs_by_week, canonical_stamps, state_week=None
             "windows": windows,
             "outside_windows": [n for n, _dt in canonical_stamps if n not in claimed],
             "flags": flags}
+
+
+# ----------------------------------------------------------- Actions watcher (tier 1)
+def stamps_from_predictions_rows(rows, week):
+    """Pure: canonical predictions-log rows -> compute_windows stamps (2026-09-04).
+    A GitHub Actions runner has no data/decisions (untracked), so coverage there comes
+    from the COMMITTED predictions log: weekly_report's logs_push step pushes at
+    canonical time, so a canonical row's logged_at inside a window means that window
+    was covered by a durable record -- which is exactly the thing worth verifying.
+    Malformed rows are skipped, never fatal: this feeds a reminder, not a gate."""
+    out = []
+    for r in rows or []:
+        if r.get("record_type") != "week_predictions" or not r.get("canonical"):
+            continue
+        try:
+            if int(r.get("week", -1)) != int(week):
+                continue
+            dt = datetime.strptime(r["logged_at"], "%Y-%m-%dT%H:%M:%SZ").replace(
+                tzinfo=ZoneInfo("UTC"))
+        except (KeyError, TypeError, ValueError):
+            continue
+        out.append((f"predictions@{r['logged_at']}", dt))
+    return out
+
+
+def watch_verdict(result, now_utc, horizon_hours=24.0):
+    """Pure: which windows need a human NOW. actionable = OPEN, uncovered, deadline
+    inside the horizon; missed = past deadline, uncovered. Quiet otherwise -- a
+    reminder that fires three times a week on nothing trains itself to be ignored."""
+    actionable, missed = [], []
+    for w in result.get("windows") or []:
+        if w.get("covered_by"):
+            continue
+        if w.get("status") == "OPEN":
+            hours = (w["deadline"] - now_utc).total_seconds() / 3600.0
+            if hours <= horizon_hours:
+                actionable.append({"name": w["name"], "hours_left": round(hours, 1),
+                                   "deadline": w["deadline"].strftime("%Y-%m-%dT%H:%M:%SZ")})
+        elif w.get("status") == "MISSED":
+            missed.append({"name": w["name"],
+                           "deadline": w["deadline"].strftime("%Y-%m-%dT%H:%M:%SZ")})
+    return {"target_week": result.get("target_week"),
+            "actionable": actionable, "missed": missed}

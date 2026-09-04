@@ -162,7 +162,16 @@ def _decision_log_summary(week, log_path=None):
     except FileNotFoundError:
         return None
     evals = {r.get("transaction_id"): r for r in rows if r.get("record_type") == "evaluation"}
-    txs = [r for r in rows if r.get("record_type") is None]
+    txs, _seen = [], set()   # first row per transaction_id: union-merge tolerance (2026-09-04)
+    for r in rows:
+        if r.get("record_type") is not None:
+            continue
+        tid = r.get("transaction_id")
+        if tid is not None and tid in _seen:
+            continue
+        if tid is not None:
+            _seen.add(tid)
+        txs.append(r)
     if not txs:
         return None
 

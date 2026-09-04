@@ -130,12 +130,17 @@ def read_faab_observations(log_path=DECISION_LOG_FILE):
     sandboxes then run on the 2025 priors exactly."""
     import json as _json
     obs = {}
-    try:
+    seen_tx = set()   # first row per transaction_id, like ingestion: a union-merged
+    try:              # duplicate must not double-count a claim in the F31 blend (2026-09-04)
         with open(log_path, encoding="utf-8") as f:
             for line in f:
                 if not line.strip():
                     continue
                 r = _json.loads(line)
+                if r.get("record_type") is None and r.get("transaction_id") is not None:
+                    if r["transaction_id"] in seen_tx:
+                        continue
+                    seen_tx.add(r["transaction_id"])
                 if (r.get("record_type") is None and r.get("type") == "waiver"
                         and r.get("faab_bid") is not None):
                     team = (r.get("teams") or [None])[0]

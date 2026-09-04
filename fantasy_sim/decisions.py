@@ -988,14 +988,26 @@ import json as _json
 
 def _read_decision_log(path):
     """Open-and-catch rather than exists()-then-open: robust to TOCTOU, and to test harnesses
-    that patch os.path.exists globally (the engine fixture does)."""
-    rows = []
+    that patch os.path.exists globally (the engine fixture does).
+
+    Transaction rows dedupe on transaction_id, FIRST row wins -- the read-side mirror of
+    ingestion's own dedupe (2026-09-04). Needed because concurrent captures (a local sync
+    and the scheduled Actions sync) can union-merge the same Sleeper transaction onto two
+    lines; both snapshots are minutes apart and either is valid, first-wins is simply
+    consistent. Evaluation records pass through: their writers already dedupe."""
+    rows, seen_tx = [], set()
     try:
         with open(path, encoding="utf-8") as handle:
             for line in handle:
                 line = line.strip()
-                if line:
-                    rows.append(_json.loads(line))
+                if not line:
+                    continue
+                row = _json.loads(line)
+                if row.get("record_type") is None and row.get("transaction_id") is not None:
+                    if row["transaction_id"] in seen_tx:
+                        continue
+                    seen_tx.add(row["transaction_id"])
+                rows.append(row)
     except FileNotFoundError:
         return []
     return rows

@@ -1186,5 +1186,47 @@ class TestDepthUpgrades(_EngineCase):
                          ["WR_FA_4", "WR_FA_3", "WR_FA_2"], "the best three by VORP")
 
 
+class TestDuplicateRowTolerance(_EngineCase):
+    """Union-merged concurrent captures (local sync + the scheduled Actions sync, tier
+    1.5, 2026-09-04) can leave the SAME transaction_id on two lines. Ingestion dedupes
+    within one process; the read side must dedupe too, first row wins -- otherwise a
+    duplicated claim double-counts in every consumer downstream."""
+
+    def _dup_log(self, d):
+        import json, os
+        path = os.path.join(d, "decision_log.jsonl")
+        tx = {"transaction_id": "w1", "type": "waiver", "week": 1, "is_mine": True,
+              "teams": ["Legion of Coom"], "faab_bid": 7,
+              "snapshot_is_retroactive": False,
+              "adds": [{"player_id": "1", "name": "P1",
+                        "projection": {"mean": 10.0, "pos": "RB"}, "to_team": "Legion of Coom"}],
+              "drops": []}
+        later = dict(tx); later["faab_bid"] = 7   # same tx, re-ingested by the runner
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(json.dumps(tx) + chr(10))
+            f.write(json.dumps(later) + chr(10))
+        return path
+
+    def test_faab_context_counts_a_duplicated_claim_once(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as d:
+            ctx = faab_context(self.engine, bid=5, team="Legion of Coom",
+                               log_path=self._dup_log(d))
+        self.assertEqual(ctx["n_comparables"], 1)
+
+    def test_unevaluated_trades_list_a_duplicated_trade_once(self):
+        import json, os, tempfile
+        from fantasy_sim.decisions import unevaluated_my_trades
+        tx = {"transaction_id": "tr1", "type": "trade", "week": 1, "is_mine": True,
+              "teams": ["Legion of Coom", "Clankers"], "adds": [], "drops": []}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "decision_log.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(tx) + chr(10)); f.write(json.dumps(tx) + chr(10))
+            out = unevaluated_my_trades(path=path)
+        self.assertEqual(len(out), 1)
+
+
+
 if __name__ == "__main__":
     unittest.main()

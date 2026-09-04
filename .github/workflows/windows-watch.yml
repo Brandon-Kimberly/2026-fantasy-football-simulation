@@ -1,0 +1,73 @@
+# Tier 1 (2026-09-04): canonical-window watcher. Notifies through GitHub ISSUES, never
+# a failing job -- issues reach email AND the GitHub mobile app (the point: reminders
+# that work away from the computer), while a red X firing three times a week trains
+# itself to be ignored.
+#
+# Coverage is read from the committed predictions log's canonical rows, so this needs
+# no credentials, no data/ state, and no engine. The cron is deliberately WIDE (every
+# two hours) rather than aimed at window edges: GitHub cron is UTC and can lag, and the
+# PT windows shift against UTC at the Nov 1 DST change -- width absorbs both without a
+# hardcoded offset. The job itself is ~a minute and free on a public repo.
+name: windows-watch
+on:
+  schedule:
+    - cron: "17 */2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+      - name: Compute window verdict
+        run: python -m scripts.windows_watch > verdict.json && cat verdict.json
+      - name: Open, update, or close window issues
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          week=$(jq -r '.target_week' verdict.json)
+          [ "$week" = "null" ] && { echo "no target week (offseason or no data)"; exit 0; }
+
+          # One issue per (week, window); the deterministic title is the idempotence key.
+          jq -c '.actionable[]' verdict.json | while read -r a; do
+            name=$(jq -r '.name' <<<"$a"); hours=$(jq -r '.hours_left' <<<"$a"); dl=$(jq -r '.deadline' <<<"$a")
+            title="Canonical window open: week ${week} ${name}"
+            body=$(printf 'Window **%s** for week %s is open, uncovered, and closes at **%s UTC** (~%s h left).\n\nRun inside the window:\n\n    py -3.10 -m scripts.weekly_report --canonical\n\nThis issue closes itself once a canonical predictions row lands inside the window (the run pushes its own logs).' "$name" "$week" "$dl" "$hours")
+            n=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq 'length')
+            if [ "$n" = "0" ]; then
+              gh issue create --title "$title" --body "$body" --label "canonical-window" || \
+                gh issue create --title "$title" --body "$body"
+            else
+              num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number')
+              gh issue edit "$num" --body "$body"
+            fi
+          done
+
+          # MISSED: record the permanent gap and close.
+          jq -c '.missed[]' verdict.json | while read -r m; do
+            name=$(jq -r '.name' <<<"$m")
+            title="Canonical window open: week ${week} ${name}"
+            num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+            [ -n "$num" ] && gh issue close "$num" --comment "Window MISSED -- no canonical row landed before the deadline. That week's quoted-predictions record has a permanent gap (the F18/F19/F25 hole tier 1 exists to prevent). The tier-1.5 capture still preserved the projections and transaction snapshots."
+          done
+
+          # Covered or expired: close any leftover open window issues that are no longer actionable.
+          gh issue list --state open --search "\"Canonical window open: week ${week}\" in:title" --json number,title --jq '.[] | [.number, .title] | @tsv' | \
+          while IFS=$'\t' read -r num title; do
+            name=${title##* }
+            still=$(jq -r --arg n "$name" '[.actionable[].name, .missed[].name] | index($n)' verdict.json)
+            if [ "$still" = "null" ]; then
+              gh issue close "$num" --comment "Covered: a canonical predictions row landed inside the window (or the window is no longer pending)."
+            fi
+          done

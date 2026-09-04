@@ -506,6 +506,20 @@ class TestDecisionLogSection(unittest.TestCase):
         self.assertEqual(s_["retro_count"], 1, "within the week")
         self.assertEqual(s_["older_unevaluated"], 1, "the week-0 leftover is counted, not hidden")
 
+
+    def test_a_duplicated_transaction_renders_once(self):
+        """Union-merge tolerance (tier 1.5, 2026-09-04): first row per transaction_id."""
+        import tempfile
+        from fantasy_sim.weekly_report import _decision_log_summary
+        with tempfile.TemporaryDirectory() as d:
+            path = self._log(d)
+            with open(path, encoding="utf-8") as f:
+                first = f.readline()
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(first)   # t1 appears twice, as after a union merge
+            s_ = _decision_log_summary(1, log_path=path)
+        self.assertEqual(len(s_["rows"]), 3, "the duplicated t1 must not render twice")
+
     def test_rendering_shows_deltas_commands_retro_flags_and_the_caveat(self):
         import tempfile
         from fantasy_sim.weekly_report import _decision_log_summary
