@@ -156,5 +156,22 @@ class TestVersionMatchesTag(unittest.TestCase):
                          "in the tag's sitting (release policy)")
 
 
+class TestSampleReportFreshness(unittest.TestCase):
+    def test_published_sample_was_generated_by_the_current_renderer(self):
+        """The sample on GitHub Pages must not silently lag the renderer (owner's rule,
+        2026-09-04, made mechanical): the generator stamps the artifact with a sha256 of
+        the renderer sources, and this guard pins it. On failure: run
+        `py -3.10 -m scripts.make_sample_report` and commit the refreshed sample."""
+        import re
+        from scripts.make_sample_report import renderer_fingerprint
+        html = _doc("docs/sample/weekly_report_sample.html")
+        m = re.search(r"<!-- renderer-fingerprint: ([0-9a-f]{64}) -->", html)
+        self.assertIsNotNone(m, "the published sample carries no renderer fingerprint -- "
+                                "regenerate it with scripts.make_sample_report")
+        self.assertEqual(m.group(1), renderer_fingerprint(ROOT),
+                         "the report renderer changed since the published sample was "
+                         "generated -- regenerate and commit the sample in this sitting")
+
+
 if __name__ == "__main__":
     unittest.main()

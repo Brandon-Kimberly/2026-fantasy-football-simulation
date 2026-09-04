@@ -56,6 +56,24 @@ ILLUSTRATIVE_NOTE = (
 )
 
 
+RENDERER_SOURCES = ("fantasy_sim/weekly_report.py", "fantasy_sim/positional_tiers.py")
+
+
+def renderer_fingerprint(repo):
+    """sha256 over the report renderer's sources. The published sample embeds this
+    stamp and a docs guard pins it, so a renderer change without a regenerated sample
+    fails at pre-commit -- the published sample cannot silently lag the code
+    (2026-09-04). Scope is the HTML renderer + shared table CSS/JS, deliberately:
+    chart-producing modules live in the engine, and fingerprinting those would demand
+    a sample refresh on every MAJOR whether or not the report changed."""
+    import hashlib
+    h = hashlib.sha256()
+    for rel in RENDERER_SOURCES:
+        with open(os.path.join(repo, rel), "rb") as f:
+            h.update(f.read())
+    return h.hexdigest()
+
+
 def leak_check(html, forbidden):
     """Every forbidden string must be absent from the artifact. Returns the hits."""
     return sorted({f for f in forbidden if f and f in html})
@@ -139,6 +157,8 @@ def main(argv=None):
     if '<h2 id="decision-log">' in html:
         html = re.sub(r'(<h2 id="decision-log">.*?</h2>)', r"\1" + ILLUSTRATIVE_NOTE,
                       html, count=1)
+
+    html += f"\n<!-- renderer-fingerprint: {renderer_fingerprint(repo)} -->\n"
 
     hits = leak_check(html, forbidden)
     if hits:
