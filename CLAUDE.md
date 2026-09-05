@@ -124,6 +124,10 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   Ferrets guessed 0.15, measured 1.36), labeled 2025-derived PRIORS, and blended with this
   season's decision-log claims at engine init with a decaying prior weight. Still never
   optimiser-tuned: measured directly or not at all.
+- **No type annotations, by scope decision (2026-09-05).** The correctness bar is
+  statistical (goldens, gate, property tests); annotating the golden-pinned monoliths is
+  Phase 8 work. Do not add hints piecemeal -- a half-annotated codebase invites tooling
+  that the un-annotated half then fights.
 - `FantasySimulationEngine` is deliberately one class. Its methods share substantial state;
   splitting it is a real architectural change, not a tidy-up.
 

@@ -16,6 +16,11 @@ counting: a team that makes it in 6,800 of the 10,000 simulated seasons has a 68
 chance. Every probability in the reports is a count of that kind, and the model is
 checked against what actually happened in this league last year.
 
+**New here?** [`docs/demo.ipynb`](docs/demo.ipynb) is a five-minute runnable walkthrough
+(rendered with outputs on GitHub): the two-variance player model, the copula, a hermetic
+mini-season through the real engine, and the measured calibration -- no credentials, no
+network, any platform.
+
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
@@ -194,6 +199,12 @@ py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage repo
                                          # not that their behavior is asserted line-by-line.
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
 ```
+
+**Scope note:** the codebase deliberately carries no type annotations. The correctness
+bar here is statistical -- byte-exact goldens, a real-data backtest gate, and property
+tests carry the load that annotations would only partially duplicate -- and annotating
+the two golden-pinned monoliths is Phase 8 work, blocked until the R1 hardware is
+replaced. A scope decision, not an oversight.
 
 **Platform note:** the golden master is byte-locked to the Windows platform that
 generated it (the documented lock in `tests/golden_master.py`; CI runs `windows-latest`
