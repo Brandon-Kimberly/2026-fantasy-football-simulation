@@ -48,6 +48,12 @@ mechanism, flipped to a guard when `AUDIT_PLAN.md` F2 commit 1 landed on 2026-09
 `hypothesis` is pinned `<6.120` because 6.165 fails inside its own engine on Python 3.10.0
 (verified not to be the example database); revisit on a later 3.10.x.
 
+**Environment (F37, 2026-09-05):** the league identifiers are env-only --
+`SLEEPER_LEAGUE_ID`, `ESPN_LEAGUE_ID`, `SLEEPER_LEAGUE_ID_2025` (backtests) -- plus
+`ODDS_API_KEY` for real lines. The test suite needs NONE of them (hermetic by design);
+sync and the backtests refuse loudly, naming the variable, when one is missing. On the
+runner they are repo Actions secrets of the same names.
+
 ## Rules of engagement
 
 These are non-negotiable and exist because each was learned the hard way on this codebase.

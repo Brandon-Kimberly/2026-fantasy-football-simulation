@@ -3,23 +3,21 @@
 
   py -3.10 -m scripts.make_sample_report
 
-Sanitization is the hard requirement (2026-09-03, owner): no Sleeper usernames, no real
-team names, no league IDs -- nothing traceable to the actual league. Real NFL player
-names STAY (public data; an anonymized tier chart would be meaningless). The approach is
-a FULL run against sanitized config rather than post-processing, because ~10 chart PNGs
-carry team names baked into titles, axes and filenames -- regeneration is the only fix,
-and it keeps every artifact consistent:
+Sanitization was the hard requirement (2026-09-03, owner) and since F37 (2026-09-05)
+it is a property of the REPOSITORY: config carries only fictional team names, keys by
+roster_id, and reads the league ids from the environment. Real NFL player names STAY
+(public data; an anonymized tier chart would be meaningless). What this script still
+does, beyond a plain report run:
 
-  * config.TEAM_NAME_MAP's VALUES are mutated in place to fictional names, so the whole
-    pipeline (rosters, standings, charts, filenames) runs under fiction end-to-end;
-  * MANAGER_PROFILES is re-keyed the same way, so simulated behavior is IDENTICAL to a
-    real run rather than falling back to anonymous defaults;
-  * the run executes in an isolated scratch directory (the backtest's chdir pattern), so
-    it fetches live NFL data but can never read the real decision log; the decision-log
-    section instead renders ILLUSTRATIVE fictional rows, labeled as such in the page.
+  * executes in an isolated scratch directory (the backtest's chdir pattern), so it
+    fetches live NFL data but can never read the real decision log; the decision-log
+    section instead renders ILLUSTRATIVE fictional rows, labeled as such in the page;
+  * force-clears SHOW_REAL_TEAM_NAMES so the owner's local real-name legend (F37) can
+    never reach a published page, and leak-checks the artifact for the league ids and
+    the legend's marker string before writing -- a hit refuses to publish.
 
-The final artifact is LEAK-CHECKED before writing: every real team name, every Sleeper
-username, and both league IDs must be absent or this script refuses to publish.
+It runs in the pages-sample workflow on every renderer change and deploys straight to
+Pages; the artifact is a build product, never committed (2026-09-05).
 """
 import datetime as _dt
 import json

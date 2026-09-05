@@ -102,10 +102,6 @@ def main(argv=None):
         # not exist in the 2026 IDP format. The format caveat is recorded in the output.
         return "DEF" if raw == "DEF" else normalize_position(raw)
 
-    def name_of(pid):
-        p = players_db.get(str(pid))
-        return (p.get("full_name") or f"id:{pid}") if p else str(pid)
-
     raw_txs = fetch_transactions(league_id)
     txs = [t for t in raw_txs if t.get("status") == "complete"]
 

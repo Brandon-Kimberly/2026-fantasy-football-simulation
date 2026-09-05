@@ -17,7 +17,7 @@ OK with the four pre-existing expected failures.
 
 ## The rules, from the source of truth
 
-Sleeper league settings, fetched live 2026-08-28 (`/league/<league-id: env>`):
+Sleeper league settings, fetched live 2026-08-28 (`/league/<id>`):
 
 | setting | value | engine |
 |---|---|---|

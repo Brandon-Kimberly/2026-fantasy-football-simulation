@@ -14,12 +14,9 @@ swing from week to week. It then plays out the rest of the season 10,000 times, 
 different luck each time. Questions like "will I make the playoffs?" are answered by
 counting: a team that makes it in 6,800 of the 10,000 simulated seasons has a 68%
 chance. Every probability in the reports is a count of that kind, and the model is
-checked against what actually happened in this league last year.
-
-**New here?** [`docs/demo.ipynb`](docs/demo.ipynb) is a five-minute runnable walkthrough
-(rendered with outputs on GitHub): the two-variance player model, the copula, a hermetic
-mini-season through the real engine, and the measured calibration -- no credentials, no
-network, any platform.
+checked against what actually happened in this league last year. For a five-minute
+guided tour with the outputs already rendered, start with
+[the walkthrough notebook](docs/demo.ipynb).
 
 **What this is:** a Monte Carlo season simulator and seven decision tools for a real
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
