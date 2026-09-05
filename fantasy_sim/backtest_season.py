@@ -391,6 +391,22 @@ def build_flat_nfl_environment_files(power_rating_value=21.5, pairings=None, fai
 # Orchestration: run one checkpoint end-to-end against the REAL, unmodified simulation engine
 # ============================================================================
 
+def naive_weekly_forecast(optimal_score, rosters, baselines, checkpoint_week, last_week):
+    """The comparison baseline (2026-09-05): a projections-only STATIC forecast -- each
+    team's Hungarian-optimal lineup total on checkpoint means, per week, with that week's
+    bye players excluded and nothing else modeled (no injuries, no environment, no
+    variance, no waivers). This is what a careful spreadsheet does with the same inputs;
+    the full simulation's mean forecast has to beat it or the machinery is unpriced.
+    Pure over the optimal_score callable (the engine's get_optimal_score in production)."""
+    out = {}
+    for team, roster in (rosters or {}).items():
+        for wk in range(int(checkpoint_week), int(last_week) + 1):
+            names = [p for p in roster
+                     if (baselines.get(p) or {}).get("bye") != wk]
+            out.setdefault(team, {})[wk] = float(optimal_score(names))
+    return out
+
+
 def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LEAGUE_ID,
                              num_batches=1, sims_per_batch=2000, keep_workdir=False,
                              median_scoring_enabled=False, season_year="2025", return_raw=False):
@@ -529,6 +545,10 @@ def run_backtest_checkpoint(checkpoint_week, season_league_id=BACKTEST_SEASON_LE
         "checkpoint_week": checkpoint_week,
         "weekly_scores": captured['global_weekly_scores'],
         "real_weekly_points": real_weekly_points,
+        # the projections-only comparator, from the SAME reconstructed inputs the engine saw
+        "naive_weekly_forecast": naive_weekly_forecast(
+            sim.get_optimal_score, sim.rosters, sim.baselines,
+            checkpoint_week, REGULAR_SEASON_WEEKS),
     }
     return results, raw
 

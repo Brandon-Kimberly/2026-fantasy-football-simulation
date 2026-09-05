@@ -55,3 +55,8 @@ venv/
 # BEFORE each week -- F18/F19's origin data. data/weeks/ holds the same forecast untracked;
 # this is the copy that survives a machine loss. Verified against a real commit.
 !data/logs/predictions_*.jsonl
+
+# The sanitized sample is a BUILD PRODUCT since 2026-09-05: generated and deployed to
+# Pages by .github/workflows/pages-sample.yml, never committed (9MB per copy was
+# growing the repo permanently). Local generations land here and stay untracked.
+docs/sample/

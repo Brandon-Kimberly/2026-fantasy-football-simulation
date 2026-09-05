@@ -1,0 +1,67 @@
+# Pages deployment with a freshly generated sample report (2026-09-05).
+#
+# Why this exists: the sanitized sample is ~9 MB of HTML, and committing a new copy on
+# every renderer change grew the repo permanently (six blobs / 56 MB of history in the
+# first ten days -- a full season of iteration would put clones in the hundreds of MB).
+# The sample is a BUILD PRODUCT of committed code + live data, so it is built here and
+# deployed straight to Pages, never committed. The docs/ tree (including the README's
+# hero image) deploys alongside it, so every existing URL is unchanged.
+#
+# The freshness property the old committed-sample guard enforced ("the published sample
+# may not lag the renderer") is now enforced structurally: this workflow's `paths:`
+# triggers include every renderer source, so a renderer change on main redeploys the
+# sample automatically -- and a docs guard (tests/test_docs.py) pins that the paths list
+# actually covers scripts/make_sample_report.RENDERER_SOURCES, so the trigger cannot
+# silently rot.
+#
+# Sanitization is unchanged and still enforced at generation time: make_sample_report
+# refuses to publish unless the leak check for every real team name, username, and
+# league ID comes back clean, and refuses FAILED report artifacts outright.
+name: pages-sample
+on:
+  push:
+    branches: [main]
+    paths:
+      - fantasy_sim/weekly_report.py
+      - fantasy_sim/positional_tiers.py
+      - scripts/make_sample_report.py
+      - docs/**
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    env:
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+      - name: Sync (live data for the sample's projections)
+        run: python -m scripts.run_sync
+      - name: Generate the sanitized sample (leak-checked before writing)
+        run: python -m scripts.make_sample_report
+      - name: Upload the docs tree as the Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

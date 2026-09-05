@@ -224,6 +224,24 @@ class TestPointsBacktestScoring(unittest.TestCase):
         self.assertAlmostEqual(s["cover80"], 1.0)
         self.assertAlmostEqual(s["cover50"], 0.5)
 
+    def test_naive_forecast_is_scored_alongside_and_summarised(self):
+        """The showcase review's baseline comparison (2026-09-05): the same rows carry
+        the projections-only naive forecast, and the summary reports both models' MAE
+        and bias so "the machinery beats a spreadsheet" is a logged number, not a claim."""
+        from scripts.run_points_backtest import score_checkpoint, summarise
+        sims = np.zeros((5, 14))
+        sims[:, 2] = [100.0, 110.0, 120.0, 130.0, 140.0]
+        raw = {"checkpoint_week": 3,
+               "weekly_scores": {"A": sims},
+               "real_weekly_points": {"A": {3: 105.0}},
+               "naive_weekly_forecast": {"A": {3: 130.0}}}
+        rows = score_checkpoint(raw)
+        self.assertAlmostEqual(rows[0]["naive"], 130.0)
+        s = summarise(rows)
+        self.assertAlmostEqual(s["naive_bias"], 25.0)          # 130 - 105
+        self.assertAlmostEqual(s["naive_mae"], 25.0)
+        self.assertAlmostEqual(s["engine_mae"], 15.0)          # |120 - 105|
+
     def test_weeks_before_the_checkpoint_are_never_scored(self):
         from scripts.run_points_backtest import score_checkpoint
         raw = {"checkpoint_week": 6, "weekly_scores": {"A": np.ones((3, 14))},
@@ -304,3 +322,26 @@ class TestOutNowProxy(unittest.TestCase):
         self.assertNotIn("injury_status", base["Bye Then Zero"], "the bye-week zero must not count")
         self.assertNotIn("injury_status", base["Zero Zero Then Bye"], "the last non-bye week was a real game")
         self.assertNotIn("injury_status", base["Never Played"])
+
+
+class TestNaiveWeeklyForecast(unittest.TestCase):
+    """The comparison baseline the 2026-09-05 showcase review asked for: a
+    projections-only static forecast (Hungarian on checkpoint means, byes excluded,
+    nothing else) that the full simulation must beat to justify its machinery. Pure over
+    an optimal-score callable so the test needs no engine."""
+
+    def test_bye_players_are_excluded_per_week_and_weeks_span_checkpoint_to_last(self):
+        from fantasy_sim.backtest_season import naive_weekly_forecast
+        rosters = {"A": ["P1", "P2"]}
+        baselines = {"P1": {"mean": 10.0, "bye": 5}, "P2": {"mean": 8.0, "bye": 6}}
+        calls = []
+        def optimal(names):
+            calls.append(tuple(sorted(names)))
+            return float(len(names) * 7)
+        out = naive_weekly_forecast(optimal, rosters, baselines, checkpoint_week=5, last_week=6)
+        self.assertEqual(sorted(out["A"]), [5, 6])
+        self.assertIn(("P2",), calls)          # week 5: P1 on bye, excluded
+        self.assertIn(("P1",), calls)          # week 6: P2 on bye, excluded
+        self.assertEqual(out["A"][5], 7.0)
+
+

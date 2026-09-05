@@ -5,6 +5,16 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v4.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v4.1.0) — 2026-09-05 (MINOR)
+
+Season-operations automation and the showcase polish: the canonical-window watcher and
+scheduled log capture on GitHub Actions, fully gated unattended canonical runs (F36 —
+allowlist gate, remediation issues with verbatim commands, provenance-stamped rows),
+the behavioral-plausibility harness, a consolidated methods document with a measured
+naive-baseline comparison (engine MAE 22.24 vs 26.55 projections-only), and the sample
+report rebuilt as a Pages build product instead of a committed 9 MB blob. Engine
+goldens byte-identical throughout.
+
 ## [v4.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v4.0.0) — 2026-09-03 (MAJOR)
 
 FAAB behavior calibrated to the real league: bid sizes fitted to the 99 attributed 2025

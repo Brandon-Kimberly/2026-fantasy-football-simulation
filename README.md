@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-583%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-585%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -28,6 +28,12 @@ Every fix required a test that failed first. Every constant cites a source or sa
 gate decide what ships. When a measurement cleared a suspected defect, the claim was
 retired instead of "fixed" (F13, F14, F16, F20, F23, F24).
 
+**Pre-registered:** the season's success criteria -- calibration, points-for, and the
+coverage gap -- were committed and sha256-locked **before any game was played**, with
+record and playoff results explicitly scored as neither success nor failure:
+[SEASON_2026_EVALUATION.md](SEASON_2026_EVALUATION.md). A tamper guard hashes the file
+on every test run.
+
 **How it was built:** with Claude Code. The audit methodology, the accept/reject decision
 on every finding, and the domain judgment are mine. The code is largely AI-generated.
 The experiment is whether disciplined verification can make AI-generated code
@@ -40,8 +46,9 @@ look. Seeing the whole distribution is the point of simulating instead of projec
 
 **[View a full sanitized sample report](https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html)**.
 Team names are fictional; players and projections are real. `scripts.make_sample_report`
-regenerates it from live data and refuses to publish unless a leak check for every real
-team name, username and league ID comes back clean.
+builds it from live data on every renderer change (a Pages workflow -- the sample is a
+build product, never committed) and refuses to publish unless a leak check for every
+real team name, username and league ID comes back clean.
 
 ## Weekly use: one command
 
@@ -105,6 +112,10 @@ py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs th
 
 ## How the model works
 
+The consolidated statistical specification -- distributions, estimation procedures,
+calibration results, and known limitations in one document -- is
+[docs/METHODS.md](docs/METHODS.md). The short version:
+
 - **Data pipeline** (`fantasy_sim.sync`): real Sleeper projections blended with an
   independent ESPN source, real Vegas totals and spreads, defensive strength derived from
   completed games with empirical-Bayes shrinkage, and live byes and availability. Every
@@ -166,7 +177,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 583 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 585 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -175,6 +186,12 @@ py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage repo
                                          # not that their behavior is asserted line-by-line.
 py -3.10 -m tests.test_golden_master     # the reproducibility harness: 15 tests, three scenarios, byte-exact hashes
 ```
+
+**Platform note:** the golden master is byte-locked to the Windows platform that
+generated it (the documented lock in `tests/golden_master.py`; CI runs `windows-latest`
+for the same reason). On Linux or macOS, expect exactly those 15 golden tests to fail on
+float-representation differences while the rest of the suite passes -- that is the
+platform lock working, not a broken build.
 
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Any engine

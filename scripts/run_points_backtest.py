@@ -90,6 +90,7 @@ def score_checkpoint(raw):
             # optimal target; the hindsight-selection premium in that target shows up as a
             # negative bias_opt, which is why summarise() reports RECENTRED opt coverage.
             real_opt = (raw.get("real_optimal_points") or {}).get(team, {}).get(wk)
+            naive = (raw.get("naive_weekly_forecast") or {}).get(team, {}).get(wk)
             rows.append({
                 "checkpoint": cp, "team": team, "week": wk, "real": real, "sim_mean": mu, "sim_sd": sd,
                 "bias": mu - real, "z": (real - mu) / sd if sd > 0 else float("nan"),
@@ -97,6 +98,7 @@ def score_checkpoint(raw):
                 "p10": p10, "p25": p25, "p75": p75, "p90": p90,
                 "real_opt": real_opt,
                 "z_opt": ((real_opt - mu) / sd if (real_opt is not None and sd > 0) else None),
+                "naive": naive,
             })
     return rows
 
@@ -113,6 +115,20 @@ def summarise(rows):
         "cover80": round(float(np.mean([r["in80"] for r in rows])), 4),
         "cover50": round(float(np.mean([r["in50"] for r in rows])), 4),
     }
+    # The projections-only baseline (2026-09-05): same rows, same target -- the full
+    # simulation's mean forecast has to beat a static Hungarian-on-means forecast (byes
+    # excluded, nothing else) or its machinery is unpriced. MAE on both, deliberately:
+    # bias can cancel; MAE cannot.
+    nv = [r for r in rows if r.get("naive") is not None]
+    if nv:
+        naive_err = np.array([r["naive"] - r["real"] for r in nv])
+        engine_err = np.array([r["bias"] for r in nv])
+        out.update({
+            "naive_n": len(nv),
+            "naive_bias": round(float(naive_err.mean()), 3),
+            "naive_mae": round(float(np.abs(naive_err).mean()), 3),
+            "engine_mae": round(float(np.abs(engine_err).mean()), 3),
+        })
     opt = [r for r in rows if r.get("real_opt") is not None]
     if opt:
         bias_opt = np.array([r["sim_mean"] - r["real_opt"] for r in opt])
@@ -203,6 +219,10 @@ def main(argv=None):
         print(f"OPT TARGET (hindsight-optimal lineups, recentred): bias {overall['bias_opt']:+.2f}  "
               f"sd(z) {overall['sd_z_opt']:.2f}  cover80c {overall['cover80_opt_centered']:.2f}  "
               f"cover50c {overall['cover50_opt_centered']:.2f}")
+    if overall.get("naive_mae") is not None:
+        print(f"NAIVE BASELINE (projections-only, byes excluded): MAE {overall['naive_mae']:.2f} vs "
+              f"engine MAE {overall['engine_mae']:.2f}; naive bias {overall['naive_bias']:+.2f} "
+              f"(n={overall['naive_n']})")
     print(f"commit {record['git_commit']}{' (dirty)' if record['git_dirty'] else ''}  python {record['python']} "
           f"({record['python_executable']})\nlogged -> {POINTS_BACKTEST_LOG}\n{'=' * 70}")
     return record

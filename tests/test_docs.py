@@ -153,9 +153,25 @@ class TestVersionMatchesTag(unittest.TestCase):
             self.skipTest(f"git unavailable ({ex}); version-tag guard runs locally")
         if tag.returncode != 0 or not tag.stdout.strip():
             self.skipTest("no tags visible (shallow checkout?); version-tag guard runs locally")
-        self.assertEqual("v" + m.group(1), tag.stdout.strip(),
-                         "pyproject version does not match the latest git tag -- bump it "
-                         "in the tag's sitting (release policy)")
+        latest = tag.stdout.strip().lstrip("v")
+
+        def sv(v):
+            return tuple(int(x) for x in v.split("."))
+
+        # Match-or-ahead, not exact match (2026-09-05): the bump commit necessarily
+        # precedes its tag, so exact equality blocked every legitimate release sitting
+        # at pre-commit. BEHIND is the drift disease this guard exists for (pyproject
+        # sat at 1.0.0 through three MAJORs); AHEAD is a pending release, allowed.
+        self.assertGreaterEqual(sv(m.group(1)), sv(latest),
+                                f"pyproject version {m.group(1)} is BEHIND the latest tag "
+                                f"v{latest} -- bump it in the tag's sitting (release policy)")
+        m_cff = re.search(r"^version: (\S+)", _doc("CITATION.cff"), re.M)
+        self.assertIsNotNone(m_cff, "CITATION.cff has no version line")
+        self.assertGreaterEqual(sv(m_cff.group(1)), sv(latest),
+                                f"CITATION.cff version {m_cff.group(1)} is BEHIND the latest "
+                                f"tag v{latest} -- same sitting as the pyproject bump")
+        self.assertEqual(m_cff.group(1), m.group(1),
+                         "CITATION.cff and pyproject.toml disagree on the version")
 
     def test_changelog_lists_the_latest_git_tag(self):
         """Every release gets a CHANGELOG entry (owner's rule, 2026-09-04, made
@@ -176,21 +192,20 @@ class TestVersionMatchesTag(unittest.TestCase):
                       "release gets a headline entry in the same sitting (release policy)")
 
 
-class TestSampleReportFreshness(unittest.TestCase):
-    def test_published_sample_was_generated_by_the_current_renderer(self):
-        """The sample on GitHub Pages must not silently lag the renderer (owner's rule,
-        2026-09-04, made mechanical): the generator stamps the artifact with a sha256 of
-        the renderer sources, and this guard pins it. On failure: run
-        `py -3.10 -m scripts.make_sample_report` and commit the refreshed sample."""
-        import re
-        from scripts.make_sample_report import renderer_fingerprint
-        html = _doc("docs/sample/weekly_report_sample.html")
-        m = re.search(r"<!-- renderer-fingerprint: ([0-9a-f]{64}) -->", html)
-        self.assertIsNotNone(m, "the published sample carries no renderer fingerprint -- "
-                                "regenerate it with scripts.make_sample_report")
-        self.assertEqual(m.group(1), renderer_fingerprint(ROOT),
-                         "the report renderer changed since the published sample was "
-                         "generated -- regenerate and commit the sample in this sitting")
+class TestSampleWorkflowCoversRenderer(unittest.TestCase):
+    def test_every_renderer_source_triggers_the_pages_deploy(self):
+        """The sample is a BUILD PRODUCT since 2026-09-05 (deployed by
+        .github/workflows/pages-sample.yml, never committed -- six 9MB blobs in ten
+        days made the old committed-sample scheme untenable). The freshness property
+        the old stamp guard enforced is now structural: a renderer change must trigger
+        a redeploy, so the workflow's paths list has to cover every renderer source.
+        This guard pins that the trigger cannot silently rot."""
+        from scripts.make_sample_report import RENDERER_SOURCES
+        wf = _doc(".github/workflows/pages-sample.yml")
+        for rel in tuple(RENDERER_SOURCES) + ("scripts/make_sample_report.py",):
+            self.assertIn(rel, wf,
+                          f"pages-sample.yml does not trigger on {rel} -- a change "
+                          "there would leave the deployed sample stale")
 
 
 class TestFingerprintIsNewlineInsensitive(unittest.TestCase):

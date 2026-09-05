@@ -4,9 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fantasy-sim"
-version = "4.0.0"
+version = "4.1.0"
 description = "Monte Carlo fantasy football simulation, calibration, and backtesting for an 8-team IDP Sleeper league."
 readme = "README.md"
+license = { file = "LICENSE" }
+authors = [{ name = "Brandon Kimberly" }]
 requires-python = ">=3.10"
 dependencies = [
     "requests",
@@ -26,3 +28,8 @@ test = ["hypothesis"]
 
 [tool.setuptools]
 packages = ["fantasy_sim", "fantasy_sim.clients"]
+
+[project.urls]
+Repository = "https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation"
+"Sample report" = "https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html"
+Changelog = "https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/blob/main/CHANGELOG.md"
