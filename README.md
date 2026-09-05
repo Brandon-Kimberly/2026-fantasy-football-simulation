@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-587%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-592%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -114,6 +114,7 @@ py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, m
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
 py -3.10 -m scripts.free_add_study              # F34: committed 2025 churn derivation (adds/timing/retention/drops/occupancy)
 py -3.10 -m scripts.migrate_identity            # F37: the one-time identity migration (mechanics; the map stays untracked)
+py -3.10 -m scripts.localize_reports            # owner-local: real-name copies of downloaded runner reports (data/results/, never published)
 py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs the real 2025 league + drift vs the committed baseline
 ```
 
@@ -184,7 +185,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 587 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 592 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
