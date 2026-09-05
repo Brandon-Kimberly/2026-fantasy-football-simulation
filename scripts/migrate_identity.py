@@ -23,7 +23,7 @@ import sys
 
 TEXT_EXT = {".py", ".md", ".yml", ".yaml", ".json", ".jsonl", ".txt", ".cff", ".toml",
             ".gitignore", ".gitattributes", ".ps1", ""}
-SKIP_PREFIXES = ("data/local/",)
+SKIP_PREFIXES = ("data/local/", "scripts/migrate_identity.py")   # never rewrite itself: its own token literals match the prose pass
 
 
 def build_replacements(ident):
