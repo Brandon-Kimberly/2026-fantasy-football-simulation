@@ -289,3 +289,14 @@ class TestMissingBaselineWarningTellsTheTruth(_BaselineFixtures, unittest.TestCa
         self.assertNotIn("will abort", joined)
 
 
+class TestLeagueIdGuard(unittest.TestCase):
+    def test_sync_refuses_loudly_when_the_league_id_is_unset(self):
+        """F37 fallout, found by the first post-migration Pages run: an empty env id
+        produced a NoneType AttributeError three calls deep. The failure must name the
+        variable and the fix instead."""
+        with patch.object(sync, "LEAGUE_ID", ""):
+            with self.assertRaises(SystemExit) as cm:
+                sync._sync_body(False)
+        self.assertIn("SLEEPER_LEAGUE_ID", str(cm.exception))
+
+

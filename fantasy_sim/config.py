@@ -25,7 +25,7 @@ import re
 # published reports run entirely on the fictional names; the OWNER's local reports can
 # overlay real names via SHOW_REAL_TEAM_NAMES=1 (weekly_report legend, local-only,
 # fetched live and never written to any committed artifact). All data is real.
-LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID", "")
+LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID", "").strip()   # .strip(): a secret set via a shell pipe carries a trailing newline (bit the first Pages run, 2026-09-05)
 BASE_URL = "https://api.sleeper.app/v1"
 
 TEAM_NAME_MAP = {   # roster_id -> team label (fictional; see the F37 note above)
@@ -71,7 +71,7 @@ ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 # browser DevTools -> Application/Storage -> Cookies -> fantasy.espn.com, copy the "espn_s2" and
 # "SWID" cookie values). Verified live: this specific league connects fine with neither set, so
 # leave both blank unless/until the league is made private.
-ESPN_LEAGUE_ID = os.getenv("ESPN_LEAGUE_ID", "")   # F37: env-only, same reasoning as SLEEPER_LEAGUE_ID
+ESPN_LEAGUE_ID = os.getenv("ESPN_LEAGUE_ID", "").strip()   # F37: env-only, same reasoning as SLEEPER_LEAGUE_ID
 ESPN_S2 = os.getenv("ESPN_S2", "")
 ESPN_SWID = os.getenv("ESPN_SWID", "")
 # Kicker and IDP scoring categories could not be matched exactly between Sleeper and ESPN's

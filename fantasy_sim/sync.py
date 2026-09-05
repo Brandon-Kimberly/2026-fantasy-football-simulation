@@ -893,6 +893,10 @@ def sync_all(sharp_polling=False):
 
 
 def _sync_body(sharp_polling=False):
+    if not LEAGUE_ID:
+        raise SystemExit("SLEEPER_LEAGUE_ID is not set (F37: league ids are env-only). "
+                         "Locally: setx SLEEPER_LEAGUE_ID <id> and open a NEW terminal; "
+                         "on the runner: the repo secret of the same name.")
     players_db = update_player_cache()
     league_info = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}").json()
     scoring_settings = league_info.get("scoring_settings", {})

@@ -78,7 +78,7 @@ import logging
 from fantasy_sim.config import BASE_URL, REGULAR_SEASON_WEEKS, derive_bye_weeks
 
 BACKTEST_WORKDIR = "backtest_workdir"
-BACKTEST_SEASON_LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID_2025", "")   # F37: env-only; a committed id resolves to real identities via the public API
+BACKTEST_SEASON_LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID_2025", "").strip()   # F37: env-only; a committed id resolves to real identities via the public API
 DEFAULT_CHECKPOINT_WEEKS = (3, 6, 9, 12)
 
 
