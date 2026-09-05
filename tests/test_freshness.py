@@ -100,5 +100,24 @@ class TestSyncStageAssessment(unittest.TestCase):
 
 
 
+class TestCheckPlumbsCheckExport(unittest.TestCase):
+    def test_a_missing_export_is_stale_by_default_but_not_at_the_orchestrator_entry(self):
+        """Found by the force-report chain test on a fresh runner (2026-09-05): the
+        orchestrator's entry freshness gate demanded a simulation export that the
+        chain's own NEXT STEP creates -- and the chain already has a stronger
+        post-simulation gate (gate_export_fresh). check() must plumb check_export so
+        the entry gate can assess the sync alone."""
+        from unittest.mock import patch
+        import fantasy_sim.freshness as fr
+        with patch.object(fr, "read_manifest", return_value=(MANIFEST, T_SYNC)), \
+             patch.object(fr, "read_file_mtimes", return_value=FILES), \
+             patch.object(fr, "read_vegas_week", return_value=2), \
+             patch.object(fr, "read_export_mtime", return_value=None), \
+             patch.object(fr, "read_nfl_week", return_value=2):
+            self.assertEqual(fr.check(offline=False)[0], STALE)
+            self.assertEqual(fr.check(offline=False, check_export=False)[0], OK)
+
+
+
 if __name__ == "__main__":
     unittest.main()

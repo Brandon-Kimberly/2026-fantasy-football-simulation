@@ -920,7 +920,11 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
 
     def step_freshness():
         from fantasy_sim.freshness import check
-        status, reasons, details = check(offline=False)
+        # check_export=False: this entry gate assesses the SYNC on disk; the chain runs
+        # its own simulation as the very next step and gate_export_fresh re-checks the
+        # export it produces. Demanding a pre-existing export here aborted every fresh
+        # runner by construction (found by the force-report chain test, 2026-09-05).
+        status, reasons, details = check(offline=False, check_export=False)
         state["week"] = details.get("week") or load_json(LEAGUE_STATE_FILE).get("current_week", 1)
         if status == "STALE":
             raise StepFailed("sync skipped and the data on disk is STALE: " + "; ".join(reasons))

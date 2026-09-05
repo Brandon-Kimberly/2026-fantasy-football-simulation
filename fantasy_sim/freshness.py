@@ -104,14 +104,17 @@ def read_nfl_week(timeout=8):
         return None
 
 
-def check(offline=False):
-    """Read everything and assess. Returns (status, reasons, details)."""
+def check(offline=False, check_export=True):
+    """Read everything and assess. Returns (status, reasons, details). check_export=False
+    assesses the sync alone (the F36 gate and the orchestrator entry, which re-simulates
+    as its own next step and re-gates the export afterward)."""
     manifest, sync_start = read_manifest()
     week = (manifest or {}).get("current_week") or (load_json(LEAGUE_STATE_FILE).get("current_week", 1)
                                                     if os.path.exists(LEAGUE_STATE_FILE) else None)
     nfl_week = None if offline else read_nfl_week()
     status, reasons = assess(manifest, sync_start, read_file_mtimes(), read_vegas_week(),
-                             read_export_mtime(week) if week else None, nfl_week)
+                             read_export_mtime(week) if week else None, nfl_week,
+                             check_export=check_export)
     if not offline and nfl_week is None:
         reasons = list(reasons) + ["(Sleeper unreachable: week roll not checked)"]
     details = {"manifest": manifest, "week": week, "nfl_week": nfl_week, "offline": offline}
