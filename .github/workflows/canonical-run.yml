@@ -33,12 +33,15 @@ on:
       mode:
         description: >-
           auto = respect the coverage check (a covered window exits quietly).
-          force-report = run the FULL chain report-only even when covered -- sync,
-          gate, report, artifact, summary -- but never commit a canonical row, so a
-          test run cannot supersede a real quoted record. For watching it work.
+          force-report = run the FULL chain report-only even when covered -- never
+          commits a canonical row, so a test run cannot supersede a real record.
+          force-canonical = run even when covered AND commit the canonical row if the
+          gate passes -- the new row SUPERSEDES the window's existing record
+          (last-canonical-wins). Deliberate replacement only, e.g. re-quoting a
+          baseline with the current engine before kickoff (owner, 2026-09-05).
         default: auto
         type: choice
-        options: [auto, force-report]
+        options: [auto, force-report, force-canonical]
 
 permissions:
   contents: write
@@ -71,10 +74,10 @@ jobs:
           python -m scripts.windows_watch > watch.json
           cat watch.json
           n=$(jq '.actionable | length' watch.json)
-          if [ "$MODE" = "force-report" ]; then
+          if [ "$MODE" = "force-report" ] || [ "$MODE" = "force-canonical" ]; then
             echo "proceed=true" >> "$GITHUB_OUTPUT"
-            jq -n '{name: "manual-force-report", deadline: "(n/a -- manual test)", hours_left: 0}' > window.json
-            echo "force-report: running the full chain report-only, coverage ignored."
+            jq -n --arg m "manual-$MODE" '{name: $m, deadline: "(n/a -- manual dispatch)", hours_left: 0}' > window.json
+            echo "$MODE: running the full chain, coverage ignored."
           elif [ "$n" = "0" ]; then
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             echo "No open uncovered window -- nothing to do."
@@ -141,6 +144,7 @@ jobs:
               echo "- **Report:** [download the artifact](${{ steps.artifact.outputs.artifact-url }}) (the *_embed.html inside is the full self-contained report)"
             fi
             [ "$MODE" = "force-report" ] && echo "- Manual **force-report** run: no canonical row was committed, by design."
+            [ "$MODE" = "force-canonical" ] && echo "- Manual **force-canonical** run: on CANONICAL_OK the committed row SUPERSEDES this window's previous record (last-canonical-wins)."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open or close the remediation issue
