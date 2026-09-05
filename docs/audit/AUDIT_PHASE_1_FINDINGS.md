@@ -276,7 +276,7 @@ derived from `global_season_points`.
 It does carry a label/content mismatch. `get_optimal_score` returns
 `optimal_starting_lineup + bench * 0.1`, but the JSON key is `power_rankings_baseline_pts` and
 the chart's x-axis reads "Optimal Valid Starting Lineup Baseline (Projected Points)". Measured on
-week01: Femboy Cats' true starters-only optimum is 166.8 against a reported 173.1 — a 3.6% bench
+week01: Neon Walruses' true starters-only optimum is 166.8 against a reported 173.1 — a 3.6% bench
 uplift folded into a number presented as starters. The bench term is deliberate (it rewards
 depth), but the label does not say so.
 

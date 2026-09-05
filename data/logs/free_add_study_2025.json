@@ -1,6 +1,6 @@
 {
   "generated_at": "2026-09-04T04:20:28Z",
-  "league_id": "1253869352399142913",
+  "league_id": "",
   "season": "2025",
   "weeks_covered": 18,
   "format_caveat": "2025 ran a NON-IDP format (QB/2RB/2WR/TE/3FLEX/K/DEF, 16 active + 2 reserve); 31 of the 122 free adds were DEF streamers, a channel absent from the 2026 IDP league. Behavioral rates (activity, timing, retention, drop selection) transfer as priors; the position mix does NOT transfer directly.",
@@ -20,14 +20,14 @@
   },
   "self_check_mismatches": {},
   "per_team_free_adds": {
-    "Canton Killers": 42,
-    "Drunk Cats": 21,
-    "Femboy Cats": 19,
-    "Wine Drinkers": 12,
-    "Legion of Coom": 8,
-    "Year of Jarvis": 7,
-    "The Glutton": 7,
-    "Clankers": 6
+    "Crimson Marmots": 42,
+    "Polar Yetis": 21,
+    "Neon Walruses": 19,
+    "Iron Wombats": 12,
+    "Quantum Ferrets": 8,
+    "Rocket Pandas": 7,
+    "Cosmic Badgers": 7,
+    "Turbo Llamas": 6
   },
   "timing_free_by_week": {
     "1": 9,

@@ -2,25 +2,25 @@
   "playoff_week_start": 15,
   "playoff_teams": 4,
   "seeds": [
-    "Drunk Cats",
-    "The Glutton",
-    "Femboy Cats",
-    "Legion of Coom"
+    "Polar Yetis",
+    "Cosmic Badgers",
+    "Neon Walruses",
+    "Quantum Ferrets"
   ],
   "rounds": [
     {
       "round": 1,
       "match": 1,
-      "t1": "Drunk Cats",
-      "t2": "Legion of Coom",
+      "t1": "Polar Yetis",
+      "t2": "Quantum Ferrets",
       "winner": null,
       "loser": null
     },
     {
       "round": 1,
       "match": 2,
-      "t1": "The Glutton",
-      "t2": "Femboy Cats",
+      "t1": "Cosmic Badgers",
+      "t2": "Neon Walruses",
       "winner": null,
       "loser": null
     },

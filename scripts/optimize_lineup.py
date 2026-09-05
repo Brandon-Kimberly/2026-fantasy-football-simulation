@@ -5,7 +5,7 @@ week (fantasy_sim.decisions.optimize_lineup) -- optimal assignment on this week'
 expectations (baseline mean x environment x game script; bye / out-now = 0), with each starter's
 sampled p10/p50/p90 and the margin over the best bench alternative eligible for the slot.
 
-  py -3.10 -m scripts.optimize_lineup [--team "Legion of Coom"] [--week N] [--sims 1000] [--seed S]
+  py -3.10 -m scripts.optimize_lineup [--team "Quantum Ferrets"] [--week N] [--sims 1000] [--seed S]
 
 No draw enters the choice (lineups are chosen on expectation, never on realised scores). Reads
 data/current/ only; writes one JSON record under data/decisions/.

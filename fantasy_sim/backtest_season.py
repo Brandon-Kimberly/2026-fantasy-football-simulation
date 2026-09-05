@@ -78,7 +78,7 @@ import logging
 from fantasy_sim.config import BASE_URL, REGULAR_SEASON_WEEKS, derive_bye_weeks
 
 BACKTEST_WORKDIR = "backtest_workdir"
-BACKTEST_SEASON_LEAGUE_ID = "1253869352399142913"  # 2025 season, confirmed via prior diagnostic
+BACKTEST_SEASON_LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID_2025", "")   # F37: env-only; a committed id resolves to real identities via the public API
 DEFAULT_CHECKPOINT_WEEKS = (3, 6, 9, 12)
 
 
@@ -126,11 +126,10 @@ def fetch_league_roster_data(league_id, players_db):
     """Mirrors sync_all()'s roster/user/standings construction (same TEAM_NAME_MAP, same
     field extraction), applied to a historical league_id instead of the current one. Returns
     (roster_map, live_rosters_payload, final_standings_payload)."""
-    users = requests.get(f"{BASE_URL}/league/{league_id}/users").json()
     rosters = requests.get(f"{BASE_URL}/league/{league_id}/rosters").json()
-    user_map = {u["user_id"]: u.get("display_name", "") for u in users}
+    # F37: roster_id-keyed, mirroring sync (roster_id is stable across a renewed league).
     roster_map = {
-        r["roster_id"]: sync.TEAM_NAME_MAP.get(user_map.get(r.get("owner_id"), ""), f"Unknown_{r['roster_id']}")
+        r["roster_id"]: sync.TEAM_NAME_MAP.get(str(r["roster_id"]), f"Unknown_{r['roster_id']}")
         for r in rosters
     }
 

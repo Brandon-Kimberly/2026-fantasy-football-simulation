@@ -5,7 +5,7 @@ included) and VORP (mean minus replacement level at his position), rolled up per
 overall, for one team or as a league table (fantasy_sim.decisions.grade_roster / roster_grades).
 
   py -3.10 -m scripts.roster_grades                 # league table, ranked by lineup VORP
-  py -3.10 -m scripts.roster_grades --team "Legion of Coom"   # per-player detail
+  py -3.10 -m scripts.roster_grades --team "Quantum Ferrets"   # per-player detail
 
 No letter grades: rank is relative to the league. lineup_vorp = starters' expectation over the
 replacement level of the slot each fills (unfilled slots count 0); depth_vorp = positive bench

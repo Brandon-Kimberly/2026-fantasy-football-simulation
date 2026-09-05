@@ -902,10 +902,11 @@ def _sync_body(sharp_polling=False):
     current_nfl_week = 1 if season_type == "pre" else state.get("week", 1)
     save_json(LEAGUE_STATE_FILE, {"current_week": current_nfl_week})
 
-    users = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/users").json()
     rosters = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/rosters").json()
-    user_map = {u["user_id"]: u.get("display_name", "") for u in users}
-    roster_map = {r["roster_id"]: TEAM_NAME_MAP.get(user_map.get(r.get("owner_id"), ""), "Unknown") for r in rosters}
+    # F37 (2026-09-05): keyed by roster_id directly. The old display-name hop published
+    # real usernames in config and broke whenever a manager renamed themselves; roster_id
+    # is stable, opaque, and meaningless without the (env-only) league id.
+    roster_map = {r["roster_id"]: TEAM_NAME_MAP.get(str(r["roster_id"]), "Unknown") for r in rosters}
 
     live_rosters_payload, standings_payload = {}, {}
     reserve_pids = set()
@@ -1199,10 +1200,10 @@ def ingest_season(league_id, path_fn=None):
         path = path_fn(season)
         if os.path.exists(path):
             return 0  # immutable once written
-        users = requests.get(f"{BASE_URL}/league/{league_id}/users", timeout=10).json() or []
         rosters = requests.get(f"{BASE_URL}/league/{league_id}/rosters", timeout=10).json() or []
-        user_map = {u["user_id"]: u.get("display_name", "") for u in users}
-        roster_map = {str(r["roster_id"]): TEAM_NAME_MAP.get(user_map.get(r.get("owner_id"), ""),
+        # F37: roster_id-keyed (Sleeper keeps roster_id stable across a renewed league,
+        # the same assumption ingest_drafts already documents).
+        roster_map = {str(r["roster_id"]): TEAM_NAME_MAP.get(str(r["roster_id"]),
                                                              f"roster_{r['roster_id']}")
                       for r in rosters}
         final_standings = {}

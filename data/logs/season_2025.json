@@ -1,5 +1,5 @@
 {
-  "league_id": "1253869352399142913",
+  "league_id": "",
   "season": "2025",
   "name": "UWU FanBussy Football 2025",
   "status": "complete",
@@ -26,59 +26,59 @@
     "league_average_match": 0
   },
   "roster_map": {
-    "1": "Femboy Cats",
-    "2": "Year of Jarvis",
-    "3": "Clankers",
-    "4": "The Glutton",
-    "5": "Drunk Cats",
-    "6": "Legion of Coom",
-    "7": "Wine Drinkers",
-    "8": "Canton Killers"
+    "1": "Neon Walruses",
+    "2": "Rocket Pandas",
+    "3": "Turbo Llamas",
+    "4": "Cosmic Badgers",
+    "5": "Polar Yetis",
+    "6": "Quantum Ferrets",
+    "7": "Iron Wombats",
+    "8": "Crimson Marmots"
   },
   "final_standings": {
-    "Femboy Cats": {
+    "Neon Walruses": {
       "wins": 6,
       "losses": 8,
       "ties": 0,
       "points_scored": 1717.7
     },
-    "Year of Jarvis": {
+    "Rocket Pandas": {
       "wins": 10,
       "losses": 4,
       "ties": 0,
       "points_scored": 1944.52
     },
-    "Clankers": {
+    "Turbo Llamas": {
       "wins": 7,
       "losses": 7,
       "ties": 0,
       "points_scored": 1884.88
     },
-    "The Glutton": {
+    "Cosmic Badgers": {
       "wins": 8,
       "losses": 6,
       "ties": 0,
       "points_scored": 1877.8
     },
-    "Drunk Cats": {
+    "Polar Yetis": {
       "wins": 7,
       "losses": 7,
       "ties": 0,
       "points_scored": 1859.52
     },
-    "Legion of Coom": {
+    "Quantum Ferrets": {
       "wins": 4,
       "losses": 10,
       "ties": 0,
       "points_scored": 1721.32
     },
-    "Wine Drinkers": {
+    "Iron Wombats": {
       "wins": 7,
       "losses": 7,
       "ties": 0,
       "points_scored": 1818.28
     },
-    "Canton Killers": {
+    "Crimson Marmots": {
       "wins": 7,
       "losses": 7,
       "ties": 0,

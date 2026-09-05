@@ -28,7 +28,7 @@ class TestFantasySimulation(unittest.TestCase):
         self.previous_log_level = logging.getLogger().getEffectiveLevel()
         logging.getLogger().setLevel(logging.ERROR)
         
-        self.test_teams = ['Legion of Coom', 'Femboy Cats', 'Year of Jarvis', 'Drunk Cats']
+        self.test_teams = ['Quantum Ferrets', 'Neon Walruses', 'Rocket Pandas', 'Polar Yetis']
         self.mock_fs = {
             LEAGUE_STATE_FILE: {"current_week": 1},
             LEAGUE_STANDINGS_FILE: {t: {"remaining_faab": 100} for t in self.test_teams},
@@ -79,7 +79,7 @@ class TestFantasySimulation(unittest.TestCase):
         optimal_starting_lineup + bench * 0.1, but the export key was power_rankings_baseline_pts
         and the chart called it "Optimal Valid Starting Lineup Baseline" -- a real bench-depth
         uplift presented as if it were a starters-only number (measured on real week01 data:
-        Femboy Cats' true starters-only optimum was 166.8 against a reported 173.1, a 3.6% bench
+        Neon Walruses' true starters-only optimum was 166.8 against a reported 173.1, a 3.6% bench
         uplift folded into a number labelled as pure starters).
 
         This does not change get_optimal_score's return value -- the bench term is deliberate,
@@ -758,7 +758,7 @@ class TestFantasySimulation(unittest.TestCase):
 
     def test_optimal_score_constraints(self):
         """Verify the lineup optimizer does not illegally sum invalid starting rosters."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": [{"name": f"QB_{i}", "pos": "QB", "team": "FA"} for i in range(15)]}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": [{"name": f"QB_{i}", "pos": "QB", "team": "FA"} for i in range(15)]}
         self.mock_fs[BASELINES_FILE] = {f"QB_{i}": {"mean": 20.0, "pos": "QB"} for i in range(15)}
         
         sim = FantasySimulationEngine()
@@ -775,7 +775,7 @@ class TestFantasySimulation(unittest.TestCase):
         and all 3 FLEX slots already filled by better options) is counted at only 10% of their
         mean, not full value. This is the exact acceptance criterion the weeks 6-10 trade logic
         relies on to decide whether a swap is favorable, so it needs direct coverage."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": []}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": []}
         roster_defs = {
             "QB_1": ("QB", 20.0), "K_1": ("K", 8.0), "DL_1": ("DL", 8.0),
             "LB_1": ("LB", 8.0), "DB_1": ("DB", 8.0), "TE_1": ("TE", 10.0),
@@ -798,7 +798,7 @@ class TestFantasySimulation(unittest.TestCase):
         """Verify that adding a player to a currently-empty required position increases the
         optimal score by that player's full mean (not discounted) -- this is what makes an
         otherwise low-value incoming player in a trade genuinely worth accepting."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": []}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": []}
         self.mock_fs[BASELINES_FILE] = {"WR_1": {"mean": 15.0, "pos": "WR"}}
         sim = FantasySimulationEngine()
 
@@ -820,7 +820,7 @@ class TestFantasySimulation(unittest.TestCase):
         DB_backup there -- while leaving a WR slot completely empty (losing that slot's value
         entirely, since get_optimal_score has no bench/streamer fallback for an unfilled
         required slot). Old greedy score on this roster: 24.5. True optimum: 38.0."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": []}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": []}
         self.mock_fs[BASELINES_FILE] = {
             "Hunter": {"mean": 18.0, "pos": "WR"},
             "DB_backup": {"mean": 15.0, "pos": "DB"},
@@ -839,7 +839,7 @@ class TestFantasySimulation(unittest.TestCase):
 
     def test_covariance_matrix_psd(self):
         """Verify Gaussian copula generator returns valid Positive Semi-Definite matrices."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": []}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": []}
         self.mock_fs[BASELINES_FILE] = {
             "QB_1": {"pos": "QB", "team": "DET"}, "WR_1": {"pos": "WR", "team": "DET"}, "WR_2": {"pos": "WR", "team": "DET"}
         }
@@ -862,9 +862,9 @@ class TestFantasySimulation(unittest.TestCase):
     def test_bayesian_shrinkage_math(self):
         """Numerically verify James-Stein shrinkage handles variance splits correctly."""
         self.mock_fs[WEEKLY_ACTUALS_FILE] = {
-            "week_1": {"team_results": {"Legion of Coom": {"points_scored": 100}}, "player_scores": {"QB_1": 18.0}},
-            "week_2": {"team_results": {"Legion of Coom": {"points_scored": 100}}, "player_scores": {"QB_1": 20.0}},
-            "week_3": {"team_results": {"Legion of Coom": {"points_scored": 100}}, "player_scores": {"QB_1": 19.0}}
+            "week_1": {"team_results": {"Quantum Ferrets": {"points_scored": 100}}, "player_scores": {"QB_1": 18.0}},
+            "week_2": {"team_results": {"Quantum Ferrets": {"points_scored": 100}}, "player_scores": {"QB_1": 20.0}},
+            "week_3": {"team_results": {"Quantum Ferrets": {"points_scored": 100}}, "player_scores": {"QB_1": 19.0}}
         }
         
         sim = FantasySimulationEngine()
@@ -937,7 +937,7 @@ class TestFantasySimulation(unittest.TestCase):
         strong enough to reliably trigger the near-singular scenario with a realistic n_wr,
         rather than growing n_wr to match whatever WR_WR happens to be calibrated to at any
         given time -- decoupling this test from future recalibrations of that constant."""
-        self.mock_fs[LIVE_ROSTERS_FILE] = {"Legion of Coom": []}
+        self.mock_fs[LIVE_ROSTERS_FILE] = {"Quantum Ferrets": []}
         n_wr = 7
         players = [f"WR_{i}" for i in range(n_wr)]
         self.mock_fs[BASELINES_FILE] = {p: {"pos": "WR", "team": "DET"} for p in players}

@@ -9,7 +9,7 @@ engine) -- and four lineup constructions evaluated on that one sample:
   max_mean  the engine's own rule            safe   expectation - k*sd
   stack     expectation + k*sd + QB-stack bonus   p_max  local search maximising P(beat opponent)
 
-  py -3.10 -m scripts.matchup_lineup [--team "Legion of Coom"] [--week N] [--opponent T]
+  py -3.10 -m scripts.matchup_lineup [--team "Quantum Ferrets"] [--week N] [--opponent T]
         [--sims 5000] [--seed S] [--k 0.5] [--no-cross] [--opponent-lineup "A, B, ..."]
 
 Reads data/current/ only; writes one JSON record under data/decisions/.

@@ -173,7 +173,7 @@ class TestBaselineFetchHandlers(_BaselineFixtures, unittest.TestCase):
 
 
 class TestIngestionHandlers(unittest.TestCase):
-    ROSTER_MAP = {1: "Legion of Coom"}
+    ROSTER_MAP = {1: "Quantum Ferrets"}
 
     def test_unreadable_decision_log_skips_ingestion_rather_than_duplicating(self):
         with tempfile.TemporaryDirectory() as d:
@@ -201,7 +201,7 @@ class TestIngestionHandlers(unittest.TestCase):
     def test_draft_league_fetch_failure_warns_and_stops_the_chain(self):
         with patch.object(sync.requests, "get", side_effect=OSError("league down")), \
              self.assertLogs(level="WARNING") as logs:
-            n = sync.ingest_drafts({"1": "Legion of Coom"}, league_id="12345",
+            n = sync.ingest_drafts({"1": "Quantum Ferrets"}, league_id="12345",
                                    path_fn=lambda season: os.path.join(tempfile.gettempdir(), f"d{season}.json"))
         self.assertEqual(n, 0)
         self.assertTrue(any("DRAFT LOG" in m for m in logs.output))

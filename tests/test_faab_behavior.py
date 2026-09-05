@@ -73,20 +73,20 @@ class TestProfileBlend(unittest.TestCase):
 class TestDerivedProfileValues(unittest.TestCase):
     def test_profiles_carry_both_2025_derived_parameters(self):
         """Every team carries faab_agg AND faab_activity. The seven MEASURED profiles are
-        ~1.0-centered (the 2025 league means); Legion of Coom is exempt from the centering
+        ~1.0-centered (the 2025 league means); Quantum Ferrets is exempt from the centering
         check because it carries the owner's DECLARED 2026 strategy, not the measured
         prior (see the config comment). The old guessed 0-1 faab_agg scale is gone."""
         self.assertEqual(len(MANAGER_PROFILES), 8)
-        measured = {t: p for t, p in MANAGER_PROFILES.items() if t != "Legion of Coom"}
+        measured = {t: p for t, p in MANAGER_PROFILES.items() if t != "Quantum Ferrets"}
         aggs = [p["faab_agg"] for p in measured.values()]
         acts = [p["faab_activity"] for p in measured.values()]
         self.assertAlmostEqual(sum(acts) / len(acts), 1.0, delta=0.06)
         self.assertAlmostEqual(sum(aggs) / len(aggs), 1.0, delta=0.15)
         for key in ("faab_agg", "faab_activity"):
-            self.assertIn(key, MANAGER_PROFILES["Legion of Coom"])
+            self.assertIn(key, MANAGER_PROFILES["Quantum Ferrets"])
         # the measured extremes, as derived from the 99 attributed claims
-        self.assertGreater(MANAGER_PROFILES["The Glutton"]["faab_agg"], 1.5)
-        self.assertLess(MANAGER_PROFILES["The Glutton"]["faab_activity"], 0.5)
+        self.assertGreater(MANAGER_PROFILES["Cosmic Badgers"]["faab_agg"], 1.5)
+        self.assertLess(MANAGER_PROFILES["Cosmic Badgers"]["faab_activity"], 0.5)
 
 
 class TestReadObservationsDuplicateTolerance(unittest.TestCase):
@@ -96,10 +96,10 @@ class TestReadObservationsDuplicateTolerance(unittest.TestCase):
         import json, os, tempfile
         from fantasy_sim.simulation import read_faab_observations
         tx = {"transaction_id": "w1", "type": "waiver", "week": 1,
-              "teams": ["Legion of Coom"], "faab_bid": 9.0}
+              "teams": ["Quantum Ferrets"], "faab_bid": 9.0}
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "decision_log.jsonl")
             with open(path, "w", encoding="utf-8") as f:
                 f.write(json.dumps(tx) + chr(10)); f.write(json.dumps(tx) + chr(10))
             obs = read_faab_observations(log_path=path)
-        self.assertEqual(obs, {"Legion of Coom": [9.0]})
+        self.assertEqual(obs, {"Quantum Ferrets": [9.0]})

@@ -39,7 +39,7 @@ whatever happens, these are the criteria, and they do not move after the fact.
 **Final record. Playoff berth. Championship.** The 2025 season retrospective is the
 reason this is stated in advance: the 2025 team went **4–10 on the second-lowest
 points-for** (1,721.32), with schedule luck worth about one win (all-play expected 5.14
-vs 4 actual, the league's worst), while Femboy Cats went **6–8 on fewer points**
+vs 4 actual, the league's worst), while Neon Walruses went **6–8 on fewer points**
 (1,717.70). Fourteen games in an 8-team league cannot distinguish a good model from a
 lucky one on record alone. A championship will not validate this model, and a losing
 record will not refute it — the calibration numbers will do both jobs.
@@ -82,3 +82,11 @@ The instruments already exist; nothing needs building to run this evaluation:
 
 This file is a one-time pre-commitment. It is not updated during the season; the
 January evaluation cites it as written.
+
+---
+
+*Amendment note (2026-09-05, before any game was played): the F37 identity migration
+renamed the league's teams to their fictional public labels throughout this document.
+No criterion, number, threshold, or scoring rule changed -- names only. The sha256 lock
+was re-cut the same day; git history carries the pre-migration text and lock for
+comparison. After kickoff this file changes for no reason at all.*

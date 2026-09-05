@@ -37,7 +37,7 @@ from fantasy_sim.decisions import (
 def _fixture_engine():
     """A 4-team league with one rostered QB each plus three UNROSTERED players in the
     baselines: a healthy WR, a WR on bye in week 1, and an IR'd RB."""
-    teams = ['Legion of Coom', 'Femboy Cats', 'Year of Jarvis', 'Drunk Cats']
+    teams = ['Quantum Ferrets', 'Neon Walruses', 'Rocket Pandas', 'Polar Yetis']
     fs = {
         LEAGUE_STATE_FILE: {"current_week": 1},
         LEAGUE_STANDINGS_FILE: {t: {"remaining_faab": 100} for t in teams},
@@ -194,13 +194,13 @@ class TestComparePlayers(_EngineCase):
 
 
 class TestWaiverTargets(_EngineCase):
-    """Tool 3. The fixture's Legion of Coom rosters one QB, so every other starting slot is a
+    """Tool 3. The fixture's Quantum Ferrets rosters one QB, so every other starting slot is a
     hard hole; the free-agent pool holds a healthy WR (12), a WR on bye in week 1 (12), a weak
     WR (5, which sets the WR replacement level in this tiny pool), an IR'd RB and a team-DEF
     unit this league has no slot for."""
 
     def test_roster_gaps_lists_unfilled_slots_and_respects_bye_and_absence(self):
-        gaps = roster_gaps(self.engine, "Legion of Coom", weeks=(1, 2))
+        gaps = roster_gaps(self.engine, "Quantum Ferrets", weeks=(1, 2))
         self.assertEqual(set(gaps), {1, 2})
         self.assertNotIn("QB", gaps[1]["unfilled"])
         for slot in ("K", "DB", "DL", "LB", "RB", "WR", "TE", "FLEX"):
@@ -211,11 +211,11 @@ class TestWaiverTargets(_EngineCase):
         self.assertAlmostEqual(gaps[1]["starters"]["QB"][0][1], 20.0)
         # a QB on bye in week 2 is a week-2 hole only
         self.engine.baselines["QB_1"]["bye"] = 2
-        gaps = roster_gaps(self.engine, "Legion of Coom", weeks=(1, 2))
+        gaps = roster_gaps(self.engine, "Quantum Ferrets", weeks=(1, 2))
         self.assertNotIn("QB", gaps[1]["unfilled"]); self.assertIn("QB", gaps[2]["unfilled"])
         # an IR'd player is unavailable this week
         self.engine.baselines["QB_1"].update({"bye": 0, "injury_status": "IR", "on_ir": True})
-        self.assertIn("QB", roster_gaps(self.engine, "Legion of Coom", weeks=(1,))[1]["unfilled"])
+        self.assertIn("QB", roster_gaps(self.engine, "Quantum Ferrets", weeks=(1,))[1]["unfilled"])
 
     def test_free_agents_excludes_rostered_players_and_positions_without_a_slot(self):
         fa = free_agents(self.engine)
@@ -224,7 +224,7 @@ class TestWaiverTargets(_EngineCase):
         self.assertNotIn("FA_DEF_unit", fa, "team defense has no slot in this league")
 
     def test_ranking_is_by_vorp_at_needed_positions_and_skips_players_unavailable_that_week(self):
-        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=200, seed=1)
+        r = rank_waiver_targets(self.engine, "Quantum Ferrets", week=1, sims=200, seed=1)
         names = [x["name"] for x in r["targets"]]
         self.assertEqual(names[0], "FA_WR_healthy")
         self.assertNotIn("FA_WR_bye", names, "on bye in the target week: cannot fill a week-1 hole")
@@ -240,21 +240,21 @@ class TestWaiverTargets(_EngineCase):
 
     def test_upgrade_targets_compare_against_the_incumbent_with_the_caveat(self):
         # give the team a weak WR starter so the healthy FA is an upgrade, not a hole-filler
-        self.engine.rosters["Legion of Coom"].append("WR_weak_starter")
-        self.engine.meta["Legion of Coom"]["WR_weak_starter"] = {"pos": "WR", "team": "CHI"}
+        self.engine.rosters["Quantum Ferrets"].append("WR_weak_starter")
+        self.engine.meta["Quantum Ferrets"]["WR_weak_starter"] = {"pos": "WR", "team": "CHI"}
         self.engine.baselines["WR_weak_starter"] = {"mean": 6.0, "std_aleatoric": 3.0, "std_epistemic": 0.0,
                                                     "pos": "WR", "team": "CHI", "bye": 9}
-        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
+        r = rank_waiver_targets(self.engine, "Quantum Ferrets", week=1, sims=300, seed=1)
         top = next(x for x in r["targets"] if x["name"] == "FA_WR_healthy")
         self.assertIn(top["fills"], ("hole", "upgrade"))
         # there are still open WR/FLEX holes, so the FA fills a hole; force the upgrade path by
         # filling every WR/FLEX-eligible slot with weak starters
         for i in range(5):
             n = f"weak_{i}"
-            self.engine.rosters["Legion of Coom"].append(n)
-            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.rosters["Quantum Ferrets"].append(n)
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": "WR", "team": "CHI"}
             self.engine.baselines[n] = {"mean": 6.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
-        r = rank_waiver_targets(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
+        r = rank_waiver_targets(self.engine, "Quantum Ferrets", week=1, sims=300, seed=1)
         top = next(x for x in r["targets"] if x["name"] == "FA_WR_healthy")
         self.assertEqual(top["fills"], "upgrade")
         self.assertIsNotNone(top["p_beats_incumbent"])
@@ -280,35 +280,35 @@ class TestTradeEvaluator(_EngineCase):
     automatic trade block (~200k evaluations per run)."""
 
     def test_apply_trade_swaps_names_and_meta_and_leaves_the_original_engine_untouched(self):
-        e2 = apply_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"])
-        self.assertEqual(e2.rosters["Legion of Coom"], ["QB_2"])
-        self.assertEqual(e2.rosters["Femboy Cats"], ["QB_1"])
-        self.assertEqual(e2.meta["Legion of Coom"]["QB_2"]["team"], "CHI")
-        self.assertNotIn("QB_1", e2.meta["Legion of Coom"])
-        self.assertEqual(self.engine.rosters["Legion of Coom"], ["QB_1"], "original engine must not be mutated")
+        e2 = apply_trade(self.engine, "Quantum Ferrets", ["QB_1"], "Neon Walruses", ["QB_2"])
+        self.assertEqual(e2.rosters["Quantum Ferrets"], ["QB_2"])
+        self.assertEqual(e2.rosters["Neon Walruses"], ["QB_1"])
+        self.assertEqual(e2.meta["Quantum Ferrets"]["QB_2"]["team"], "CHI")
+        self.assertNotIn("QB_1", e2.meta["Quantum Ferrets"])
+        self.assertEqual(self.engine.rosters["Quantum Ferrets"], ["QB_1"], "original engine must not be mutated")
         self.assertEqual(sum(len(r) for r in e2.rosters.values()), sum(len(r) for r in self.engine.rosters.values()))
 
     def test_apply_trade_rejects_players_not_on_the_stated_roster_and_unknown_teams(self):
         with self.assertRaises(ValueError):
-            apply_trade(self.engine, "Legion of Coom", ["QB_2"], "Femboy Cats", ["QB_1"])
+            apply_trade(self.engine, "Quantum Ferrets", ["QB_2"], "Neon Walruses", ["QB_1"])
         with self.assertRaises(KeyError):
-            apply_trade(self.engine, "Nobody FC", ["QB_1"], "Femboy Cats", ["QB_2"])
+            apply_trade(self.engine, "Nobody FC", ["QB_1"], "Neon Walruses", ["QB_2"])
 
     def test_apply_trade_requires_a_drop_when_a_side_would_exceed_the_active_roster_limit(self):
-        # pad Femboy Cats to the active limit, then a 2-for-1 in its favour needs a drop
+        # pad Neon Walruses to the active limit, then a 2-for-1 in its favour needs a drop
         for i in range(ACTIVE_ROSTER_LIMIT - 1):
             n = f"pad_{i}"
-            self.engine.rosters["Femboy Cats"].append(n)
-            self.engine.meta["Femboy Cats"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.rosters["Neon Walruses"].append(n)
+            self.engine.meta["Neon Walruses"][n] = {"pos": "WR", "team": "CHI"}
             self.engine.baselines[n] = {"mean": 5.0, "std_aleatoric": 3.0, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
-        self.engine.rosters["Legion of Coom"].append("FA_WR_healthy")
-        self.engine.meta["Legion of Coom"]["FA_WR_healthy"] = {"pos": "WR", "team": "DET"}
+        self.engine.rosters["Quantum Ferrets"].append("FA_WR_healthy")
+        self.engine.meta["Quantum Ferrets"]["FA_WR_healthy"] = {"pos": "WR", "team": "DET"}
         with self.assertRaises(ValueError):
-            apply_trade(self.engine, "Legion of Coom", ["QB_1", "FA_WR_healthy"], "Femboy Cats", ["QB_2"])
-        e2 = apply_trade(self.engine, "Legion of Coom", ["QB_1", "FA_WR_healthy"], "Femboy Cats", ["QB_2"],
-                         drops={"Femboy Cats": ["pad_0"]})
-        self.assertEqual(len(e2.rosters["Femboy Cats"]), ACTIVE_ROSTER_LIMIT)
-        self.assertNotIn("pad_0", e2.rosters["Femboy Cats"])
+            apply_trade(self.engine, "Quantum Ferrets", ["QB_1", "FA_WR_healthy"], "Neon Walruses", ["QB_2"])
+        e2 = apply_trade(self.engine, "Quantum Ferrets", ["QB_1", "FA_WR_healthy"], "Neon Walruses", ["QB_2"],
+                         drops={"Neon Walruses": ["pad_0"]})
+        self.assertEqual(len(e2.rosters["Neon Walruses"]), ACTIVE_ROSTER_LIMIT)
+        self.assertNotIn("pad_0", e2.rosters["Neon Walruses"])
 
     def test_paired_capture_is_deterministic_and_never_writes(self):
         with patch('fantasy_sim.simulation.save_json') as sj, patch('fantasy_sim.simulation.save_chart'):
@@ -317,11 +317,11 @@ class TestTradeEvaluator(_EngineCase):
         sj.assert_not_called()
         for t in self.engine.team_names:
             np.testing.assert_array_equal(a["wins"][t], b["wins"][t])
-        self.assertEqual(len(a["b_champs"]["Legion of Coom"]), 2, "one championship rate per batch")
+        self.assertEqual(len(a["b_champs"]["Quantum Ferrets"]), 2, "one championship rate per batch")
 
     def test_evaluate_trade_reports_every_team_with_zero_sum_championship_deltas(self):
         with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
-            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"], batches=2, sims=15)
+            r = evaluate_trade(self.engine, "Quantum Ferrets", ["QB_1"], "Neon Walruses", ["QB_2"], batches=2, sims=15)
         self.assertEqual(set(r["teams"]), set(self.engine.team_names))
         for t, d in r["teams"].items():
             for k in ("champ_pct", "playoff_pct", "expected_wins"):
@@ -339,7 +339,7 @@ class TestTradeEvaluator(_EngineCase):
         the engine's budgets are never touched by it."""
         before = dict(self.engine.current_faab)
         with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
-            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"],
+            r = evaluate_trade(self.engine, "Quantum Ferrets", ["QB_1"], "Neon Walruses", ["QB_2"],
                                batches=2, sims=15, faab_a_to_b=48)
         self.assertEqual(r["trade"]["faab_a_to_b"], 48)
         self.assertIn("unpriced", r["faab_note"].lower())
@@ -349,7 +349,7 @@ class TestTradeEvaluator(_EngineCase):
 
     def test_no_faab_transfer_yields_no_note_and_a_null_field(self):
         with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
-            r = evaluate_trade(self.engine, "Legion of Coom", ["QB_1"], "Femboy Cats", ["QB_2"],
+            r = evaluate_trade(self.engine, "Quantum Ferrets", ["QB_1"], "Neon Walruses", ["QB_2"],
                                batches=2, sims=15)
         self.assertIsNone(r["trade"]["faab_a_to_b"])
         self.assertNotIn("faab_note", r)
@@ -359,19 +359,19 @@ class TestRosterGrades(_EngineCase):
     """Roster-grade report: every rostered player's tier and VORP, rolled up per position and
     overall, composed from what exists (compute_tiers, engine.replacement_levels, the optimal
     assignment via roster_gaps). Numbers below are by hand: with a 17-point bench QB added to
-    Legion of Coom the QB pool is [20, 17, 15, 15, 15], depth index min(10, 4) = 4 -> QB
+    Quantum Ferrets the QB pool is [20, 17, 15, 15, 15], depth index min(10, 4) = 4 -> QB
     replacement 15.0; QB_1 VORP 5, bench QB VORP 2; every other team's lone QB is at 0."""
 
     def setUp(self):
         super().setUp()
-        self.engine.rosters["Legion of Coom"].append("QB_bench")
-        self.engine.meta["Legion of Coom"]["QB_bench"] = {"pos": "QB", "team": "DET"}
+        self.engine.rosters["Quantum Ferrets"].append("QB_bench")
+        self.engine.meta["Quantum Ferrets"]["QB_bench"] = {"pos": "QB", "team": "DET"}
         self.engine.baselines["QB_bench"] = {"mean": 17.0, "std_aleatoric": 2.0, "std_epistemic": 1.0,
                                              "pos": "QB", "team": "DET", "bye": 0}
         self.engine.replacement_levels = self.engine._calc_replacement_levels()
 
     def test_per_player_rows_carry_role_tier_and_vorp(self):
-        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        g = grade_roster(self.engine, "Quantum Ferrets", week=1)
         rows = {r["name"]: r for r in g["players"]}
         self.assertEqual(set(rows), {"QB_1", "QB_bench"})
         self.assertEqual(rows["QB_1"]["role"], "starter"); self.assertEqual(rows["QB_1"]["slot"], "QB")
@@ -382,7 +382,7 @@ class TestRosterGrades(_EngineCase):
         self.assertIsInstance(rows["QB_bench"]["tier"], int)
 
     def test_rollups_by_hand(self):
-        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        g = grade_roster(self.engine, "Quantum Ferrets", week=1)
         qb = g["by_position"]["QB"]
         self.assertAlmostEqual(qb["starters_vorp"], 5.0)
         self.assertAlmostEqual(qb["depth_vorp"], 2.0)
@@ -390,14 +390,14 @@ class TestRosterGrades(_EngineCase):
         self.assertAlmostEqual(g["lineup_vorp"], 5.0, msg="12 empty slots contribute 0, not a negative")
         self.assertAlmostEqual(g["depth_vorp"], 2.0)
         self.assertEqual(len(g["holes"]), 12)
-        self.assertAlmostEqual(g["optimal_score"], self.engine.get_optimal_score(self.engine.rosters["Legion of Coom"]))
+        self.assertAlmostEqual(g["optimal_score"], self.engine.get_optimal_score(self.engine.rosters["Quantum Ferrets"]))
         # best available free agent at the position is the replaceability reference
         self.assertIn("best_free_agent", g["by_position"]["WR"] if "WR" in g["by_position"] else {"best_free_agent": None})
 
     def test_negative_vorp_bench_does_not_count_as_depth(self):
         self.engine.baselines["QB_bench"]["mean"] = 12.0
         self.engine.replacement_levels = self.engine._calc_replacement_levels()   # pool [20,15,15,15,12] -> 12
-        g = grade_roster(self.engine, "Legion of Coom", week=1)
+        g = grade_roster(self.engine, "Quantum Ferrets", week=1)
         rows = {r["name"]: r for r in g["players"]}
         self.assertAlmostEqual(rows["QB_bench"]["vorp"], 0.0)
         self.assertAlmostEqual(rows["QB_1"]["vorp"], 8.0)
@@ -405,7 +405,7 @@ class TestRosterGrades(_EngineCase):
 
     def test_league_table_ranks_by_lineup_vorp_and_covers_every_team(self):
         table = roster_grades(self.engine, week=1)
-        self.assertEqual([t["team"] for t in table["teams"]][0], "Legion of Coom")
+        self.assertEqual([t["team"] for t in table["teams"]][0], "Quantum Ferrets")
         self.assertEqual({t["team"] for t in table["teams"]}, set(self.engine.team_names))
         for t in table["teams"][1:]:
             self.assertAlmostEqual(t["lineup_vorp"], 0.0)
@@ -426,8 +426,8 @@ class TestLineupOptimizer(_EngineCase):
                                           ("WR_b", "WR", "CHI", 9.0, {}),
                                           ("WR_bye", "WR", "CHI", 14.0, {"bye": 1}),
                                           ("RB_ir", "RB", "DET", 15.0, {"injury_status": "IR", "on_ir": True})):
-            self.engine.rosters["Legion of Coom"].append(n)
-            self.engine.meta["Legion of Coom"][n] = {"pos": pos, "team": team}
+            self.engine.rosters["Quantum Ferrets"].append(n)
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": pos, "team": team}
             self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 0.0,
                                         "pos": pos, "team": team, "bye": 9, **extra}
 
@@ -443,7 +443,7 @@ class TestLineupOptimizer(_EngineCase):
         self.assertEqual(week_expectation(self.engine, "RB_ir", 1), 0.0)
 
     def test_lineup_starts_the_best_available_and_never_a_bye_or_ir_player(self):
-        r = optimize_lineup(self.engine, "Legion of Coom", week=1, sims=200, seed=1)
+        r = optimize_lineup(self.engine, "Quantum Ferrets", week=1, sims=200, seed=1)
         by_slot = {(row["slot"], row["name"]) for row in r["lineup"]}
         self.assertIn(("QB", "QB_1"), by_slot)
         started = {row["name"] for row in r["lineup"]}
@@ -456,7 +456,7 @@ class TestLineupOptimizer(_EngineCase):
         self.assertAlmostEqual(r["expected_total"], sum(row["expected"] for row in r["lineup"]), places=9)
 
     def test_margin_is_starter_minus_best_eligible_bench_alternative(self):
-        r = optimize_lineup(self.engine, "Legion of Coom", week=1, sims=100, seed=1)
+        r = optimize_lineup(self.engine, "Quantum Ferrets", week=1, sims=100, seed=1)
         qb = next(row for row in r["lineup"] if row["slot"] == "QB")
         self.assertAlmostEqual(qb["margin"], self._exp("QB_1") - self._exp("QB_bench"), places=9)
         self.assertEqual(qb["alternative"], "QB_bench")
@@ -539,25 +539,25 @@ class TestJointSampler(_EngineCase):
 
 
 class TestMatchupLineups(_EngineCase):
-    """Tool 5. Legion of Coom (QB 20 + six WRs of equal-ish means, three safe / three boom)
-    plays Femboy Cats (QB 15) in week 1 of the fixture schedule."""
+    """Tool 5. Quantum Ferrets (QB 20 + six WRs of equal-ish means, three safe / three boom)
+    plays Neon Walruses (QB 15) in week 1 of the fixture schedule."""
 
     def setUp(self):
         super().setUp()
         for i, (mean, sd) in enumerate([(12.0, 2.0), (12.0, 8.0), (11.9, 2.0), (11.9, 8.0), (11.8, 2.0), (11.8, 8.0)]):
             n = f"WR_{i}"
-            self.engine.rosters["Legion of Coom"].append(n)
-            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.rosters["Quantum Ferrets"].append(n)
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": "WR", "team": "CHI"}
             self.engine.baselines[n] = {"mean": mean, "std_aleatoric": sd, "std_epistemic": 0.0, "pos": "WR", "team": "CHI", "bye": 9}
 
     def test_opponent_comes_from_the_schedule_and_can_be_overridden(self):
-        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=300, seed=1)
-        self.assertEqual(r["opponent"], "Femboy Cats")
-        r2 = matchup_lineups(self.engine, "Legion of Coom", week=1, opponent="Drunk Cats", sims=300, seed=1)
-        self.assertEqual(r2["opponent"], "Drunk Cats")
+        r = matchup_lineups(self.engine, "Quantum Ferrets", week=1, sims=300, seed=1)
+        self.assertEqual(r["opponent"], "Neon Walruses")
+        r2 = matchup_lineups(self.engine, "Quantum Ferrets", week=1, opponent="Polar Yetis", sims=300, seed=1)
+        self.assertEqual(r2["opponent"], "Polar Yetis")
 
     def test_constructions_are_ordered_by_sd_and_local_search_never_lowers_p_win(self):
-        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=3000, seed=2)
+        r = matchup_lineups(self.engine, "Quantum Ferrets", week=1, sims=3000, seed=2)
         c = r["constructions"]
         for key in ("max_mean", "safe", "stack", "p_max"):
             self.assertIn(key, c)
@@ -574,7 +574,7 @@ class TestMatchupLineups(_EngineCase):
         self.assertTrue({"WR_1", "WR_3", "WR_5"} <= stack_names, "stack prefers the high-sd receivers")
 
     def test_no_cross_switch_is_honoured_and_reported(self):
-        r = matchup_lineups(self.engine, "Legion of Coom", week=1, sims=200, seed=1, cross=False)
+        r = matchup_lineups(self.engine, "Quantum Ferrets", week=1, sims=200, seed=1, cross=False)
         self.assertFalse(r["cross"]); self.assertIn("engine", r["note"].lower())
 
 
@@ -583,8 +583,8 @@ class TestTradeTargetFinder(_EngineCase):
     against each other roster (buy: their BURIED bench player who starts for me, with the
     cheapest give-back that upgrades one of their starters) and the other way round (sell: my
     surplus that would start for them). Gains are the engine's own acceptance rule
-    (get_optimal_score both sides). Hand numbers: Legion QB_1 20, QB_backup 18, LC_QB3 7,
-    LC_K 6; Femboy QB_2 15, FC_K_star 12, FC_K_bench 9, FC_QB_bench 8. Buy package: give
+    (get_optimal_score both sides). Hand numbers: Ferrets QB_1 20, QB_backup 18, LC_QB3 7,
+    LC_K 6; Walruses QB_2 15, FC_K_star 12, FC_K_bench 9, FC_QB_bench 8. Buy package: give
     QB_backup (+ LC_K as the 2-for-2 throw-in), get FC_K_bench + FC_QB_bench: my optimal
     score 27.8 -> 29.8 (+2.0), theirs 28.7 -> 32.1 (+3.4)."""
 
@@ -596,15 +596,15 @@ class TestTradeTargetFinder(_EngineCase):
     def setUp(self):
         super().setUp()
         for n, pos, m in (("QB_backup", "QB", 18.0), ("LC_QB3", "QB", 7.0), ("LC_K", "K", 6.0)):
-            self._add("Legion of Coom", n, pos, m)
+            self._add("Quantum Ferrets", n, pos, m)
         for n, pos, m in (("FC_K_star", "K", 12.0), ("FC_K_bench", "K", 9.0), ("FC_QB_bench", "QB", 8.0)):
-            self._add("Femboy Cats", n, pos, m)
+            self._add("Neon Walruses", n, pos, m)
         self.outcomes = {t: {"Playoff_Pct": 55.0, "Champ_Pct": 12.0, "Expected_Wins": 14.0} for t in self.engine.team_names}
-        self.outcomes["Femboy Cats"] = {"Playoff_Pct": 20.0, "Champ_Pct": 2.0, "Expected_Wins": 10.0}
+        self.outcomes["Neon Walruses"] = {"Playoff_Pct": 20.0, "Champ_Pct": 2.0, "Expected_Wins": 10.0}
 
     def test_buy_side_finds_the_buried_player_with_the_correct_give_back_and_gains(self):
-        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
-        buys = [b for b in r["buy"] if b["with"] == "Femboy Cats"]
+        r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=self.outcomes, week=1)
+        buys = [b for b in r["buy"] if b["with"] == "Neon Walruses"]
         self.assertGreaterEqual(len(buys), 2)
         top = buys[0]
         self.assertEqual(top["i_give"], ["QB_backup", "LC_K"])
@@ -619,8 +619,8 @@ class TestTradeTargetFinder(_EngineCase):
         self.assertIn("willingness", top)
 
     def test_ranking_puts_acceptable_packages_first_then_my_gain(self):
-        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
-        buys = [b for b in r["buy"] if b["with"] == "Femboy Cats"]
+        r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=self.outcomes, week=1)
+        buys = [b for b in r["buy"] if b["with"] == "Neon Walruses"]
         # giving QB_1 (20) instead of QB_backup leaves my optimal score unchanged (27.8 -> 27.8):
         # not acceptable, so it ranks below the acceptable package despite the same target
         worse = next(b for b in buys if b["i_give"][0] == "QB_1")
@@ -628,8 +628,8 @@ class TestTradeTargetFinder(_EngineCase):
         self.assertLess(buys.index(next(b for b in buys if b["i_give"][0] == "QB_backup")), buys.index(worse))
 
     def test_sell_side_mirrors_what_each_opponent_would_want_from_my_bench(self):
-        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
-        sells = [x for x in r["sell"] if x["buyer"] == "Femboy Cats"]
+        r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=self.outcomes, week=1)
+        sells = [x for x in r["sell"] if x["buyer"] == "Neon Walruses"]
         self.assertTrue(sells)
         self.assertIn("QB_backup", sells[0]["they_want"])
         # the constructor offers their cheapest player that upgrades one of my starters
@@ -642,33 +642,33 @@ class TestTradeTargetFinder(_EngineCase):
         self.assertTrue(sells[0]["acceptable"])
 
     def test_no_outcomes_means_no_seller_flag_and_a_stated_reason(self):
-        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=None, week=1)
+        r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=None, week=1)
         self.assertTrue(all(b["seller"] is None for b in r["buy"]))
         self.assertIn("no season export", r["contention_note"].lower())
 
     def test_package_collapses_to_one_for_one_when_the_throw_in_is_a_received_player(self):
-        """Found on real data (Legion week 1, 'Tyrone Tracy not on Legion of Coom's roster'): the
+        """Found on real data (Ferrets week 1, 'Tyrone Tracy not on Quantum Ferrets's roster'): the
         engine's 2-for-2 throw-in is the lowest-mean player on the desperate side AFTER the
         two received players are added, so when their second piece is the cheapest of all it
         is 'dropped' straight back -- a 1-for-1 in substance. The package must say so: I give
         p1 only, I get the piece that stays, and the terms must be valid for tool 2."""
         self.engine.baselines["FC_QB_bench"]["mean"] = 5.0   # below all of mine: the throw-in is now theirs
-        r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1)
-        pkg = next(b for b in r["buy"] if b["with"] == "Femboy Cats" and b["i_give"][0] == "QB_backup")
+        r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=self.outcomes, week=1)
+        pkg = next(b for b in r["buy"] if b["with"] == "Neon Walruses" and b["i_give"][0] == "QB_backup")
         self.assertEqual(pkg["i_give"], ["QB_backup"])
         self.assertEqual(pkg["i_get"], ["FC_K_bench"])
         for n in pkg["i_give"]:
-            self.assertIn(n, self.engine.rosters["Legion of Coom"])
+            self.assertIn(n, self.engine.rosters["Quantum Ferrets"])
         for n in pkg["i_get"]:
-            self.assertIn(n, self.engine.rosters["Femboy Cats"])
+            self.assertIn(n, self.engine.rosters["Neon Walruses"])
 
     def test_evaluate_top_calls_tool_2_with_the_exact_terms(self):
         with patch("fantasy_sim.decisions.evaluate_trade", return_value={"teams": {}, "n_sims": 30}) as ev:
-            r = find_trade_targets(self.engine, "Legion of Coom", outcomes=self.outcomes, week=1,
+            r = find_trade_targets(self.engine, "Quantum Ferrets", outcomes=self.outcomes, week=1,
                                    evaluate_top=1, batches=2, sims=15)
         ev.assert_called_once()
         args, kwargs = ev.call_args
-        self.assertEqual(args[1:4], ("Legion of Coom", ["QB_backup", "LC_K"], "Femboy Cats"))
+        self.assertEqual(args[1:4], ("Quantum Ferrets", ["QB_backup", "LC_K"], "Neon Walruses"))
         self.assertEqual(sorted(args[4]), ["FC_K_bench", "FC_QB_bench"])
         self.assertEqual((kwargs["batches"], kwargs["sims"]), (2, 15))
         self.assertIn("evaluation", r["buy"][0])
@@ -678,13 +678,13 @@ class TestLeagueWeekOutlook(_EngineCase):
     """League-wide 'this week': every pairing on the schedule, P(win) both ways and P(>= median)
     for all eight teams, on ONE joint sample through the copula -- the same machinery
     matchup_lineups uses for my matchup, applied to all pairings. Fixture schedule, week 1:
-    [Legion (QB 20) v Femboy (QB 15)], [Year of Jarvis (15) v Drunk Cats (15)]."""
+    [Ferrets (QB 20) v Walruses (QB 15)], [Rocket Pandas (15) v Polar Yetis (15)]."""
 
     def test_every_pairing_is_reported_with_probabilities_that_sum_to_one(self):
         r = league_week_outlook(self.engine, week=1, sims=2000, seed=1)
         self.assertEqual(r["week"], 1); self.assertEqual(r["n"], 2000); self.assertTrue(r["cross"])
         self.assertEqual([(m["a"], m["b"]) for m in r["matchups"]],
-                         [("Legion of Coom", "Femboy Cats"), ("Year of Jarvis", "Drunk Cats")])
+                         [("Quantum Ferrets", "Neon Walruses"), ("Rocket Pandas", "Polar Yetis")])
         for m in r["matchups"]:
             self.assertAlmostEqual(m["p_a"] + m["p_b"] + m["p_tie"], 1.0, places=9)
             for k in ("margin_mean", "margin_sd", "a_expected", "b_expected"):
@@ -707,7 +707,7 @@ class TestLeagueWeekOutlook(_EngineCase):
             # sampled mean prices absence/onset zeros, so it sits at or below the pre-game sum
             self.assertLessEqual(d["expected_total"], d["expected_pre_total"] * 1.05)
             self.assertIn("opponent", d)
-        self.assertEqual(r["teams"]["Legion of Coom"]["opponent"], "Femboy Cats")
+        self.assertEqual(r["teams"]["Quantum Ferrets"]["opponent"], "Neon Walruses")
         # the median rule: on average half the league is at or above the median each week
         self.assertAlmostEqual(sum(d["p_beat_median"] for d in r["teams"].values()) / 4, 0.5, delta=0.1)
 
@@ -731,10 +731,10 @@ class TestEvaluateLoggedTrade(_EngineCase):
         path = os.path.join(d, "decision_log.jsonl")
         tx = {"transaction_id": txid, "type": "trade", "week": 1, "created": "2026-09-01T00:00:00Z",
               "snapshot_at": "2026-09-01T00:00:00Z", "snapshot_lag_days": 0.0,
-              "snapshot_is_retroactive": False, "teams": ["Legion of Coom", "Femboy Cats"],
+              "snapshot_is_retroactive": False, "teams": ["Quantum Ferrets", "Neon Walruses"],
               "is_mine": True, "faab_bid": None,
-              "adds": [{"player_id": "1", "name": "QB_1", "to_team": "Femboy Cats", "projection": None},
-                        {"player_id": "2", "name": "QB_2", "to_team": "Legion of Coom", "projection": None}],
+              "adds": [{"player_id": "1", "name": "QB_1", "to_team": "Neon Walruses", "projection": None},
+                        {"player_id": "2", "name": "QB_2", "to_team": "Quantum Ferrets", "projection": None}],
               "drops": []}
         with open(path, "w", encoding="utf-8") as f:
             f.write(json.dumps(tx) + chr(10))
@@ -746,8 +746,8 @@ class TestEvaluateLoggedTrade(_EngineCase):
             path = self._log_with_trade(d)
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_trade(self.engine, "tr9", batches=2, sims=10, log_path=path)
-            self.assertEqual(r["trade"]["team_a"], "Legion of Coom")
-            self.assertEqual(r["trade"]["a_gives"], ["QB_1"])   # QB_1's to_team is Femboy: Legion gave him
+            self.assertEqual(r["trade"]["team_a"], "Quantum Ferrets")
+            self.assertEqual(r["trade"]["a_gives"], ["QB_1"])   # QB_1's to_team is Walruses: Ferrets gave him
             self.assertEqual(r["trade"]["b_gives"], ["QB_2"])
             with open(path, encoding="utf-8") as f:
                 rows = [json.loads(l) for l in f]
@@ -756,7 +756,7 @@ class TestEvaluateLoggedTrade(_EngineCase):
         self.assertEqual(ev["record_type"], "evaluation")
         self.assertEqual(ev["transaction_id"], "tr9")
         self.assertEqual(ev["n_sims"], 20)
-        self.assertIn("champ_pct", ev["teams"]["Legion of Coom"])
+        self.assertIn("champ_pct", ev["teams"]["Quantum Ferrets"])
 
     def test_skips_when_an_evaluation_already_exists(self):
         import json, tempfile
@@ -778,7 +778,7 @@ class TestEvaluateLoggedTrade(_EngineCase):
 
     def test_roster_drift_is_reported_not_a_stack_trace(self):
         import tempfile
-        self.engine.rosters["Legion of Coom"].remove("QB_1")   # the logged player has since moved on
+        self.engine.rosters["Quantum Ferrets"].remove("QB_1")   # the logged player has since moved on
         with tempfile.TemporaryDirectory() as d:
             path = self._log_with_trade(d)
             with self.assertRaises(ValueError) as ctx:
@@ -791,11 +791,11 @@ class TestEvaluateLoggedTrade(_EngineCase):
             path = os.path.join(d, "decision_log.jsonl")
             rows = [
                 {"transaction_id": "a", "type": "trade", "is_mine": True, "week": 1,
-                 "teams": ["Legion of Coom", "Femboy Cats"], "adds": [], "drops": []},
+                 "teams": ["Quantum Ferrets", "Neon Walruses"], "adds": [], "drops": []},
                 {"transaction_id": "b", "type": "trade", "is_mine": False, "week": 1, "teams": [], "adds": [], "drops": []},
                 {"transaction_id": "c", "type": "waiver", "is_mine": True, "week": 1, "teams": [], "adds": [], "drops": []},
                 {"transaction_id": "d", "type": "trade", "is_mine": True, "week": 1,
-                 "teams": ["Legion of Coom", "Drunk Cats"], "adds": [], "drops": []},
+                 "teams": ["Quantum Ferrets", "Polar Yetis"], "adds": [], "drops": []},
                 {"record_type": "evaluation", "transaction_id": "d"},
             ]
             with open(path, "w", encoding="utf-8") as f:
@@ -812,20 +812,20 @@ class TestApplyAddDrop(_EngineCase):
     apply_trade; the original engine is never mutated. Written before the function existed."""
 
     def test_add_and_drop_swap_the_roster_and_leave_the_original_untouched(self):
-        e2 = apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=["QB_1"])
-        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
-        self.assertNotIn("QB_1", e2.rosters["Legion of Coom"])
-        self.assertEqual(e2.meta["Legion of Coom"]["FA_WR_healthy"]["pos"], "WR",
+        e2 = apply_add_drop(self.engine, "Quantum Ferrets", adds=["FA_WR_healthy"], drops=["QB_1"])
+        self.assertIn("FA_WR_healthy", e2.rosters["Quantum Ferrets"])
+        self.assertNotIn("QB_1", e2.rosters["Quantum Ferrets"])
+        self.assertEqual(e2.meta["Quantum Ferrets"]["FA_WR_healthy"]["pos"], "WR",
                          "meta for a pool player comes from his baseline record")
-        self.assertEqual(self.engine.rosters["Legion of Coom"], ["QB_1"], "original untouched")
+        self.assertEqual(self.engine.rosters["Quantum Ferrets"], ["QB_1"], "original untouched")
 
     def test_adding_a_rostered_player_or_unknown_player_is_a_loud_error(self):
         with self.assertRaises(ValueError):
-            apply_add_drop(self.engine, "Legion of Coom", adds=["QB_2"], drops=[])   # on Femboy Cats
+            apply_add_drop(self.engine, "Quantum Ferrets", adds=["QB_2"], drops=[])   # on Neon Walruses
         with self.assertRaises(ValueError):
-            apply_add_drop(self.engine, "Legion of Coom", adds=["Nobody"], drops=[])
+            apply_add_drop(self.engine, "Quantum Ferrets", adds=["Nobody"], drops=[])
         with self.assertRaises(ValueError):
-            apply_add_drop(self.engine, "Legion of Coom", adds=[], drops=["FA_WR_healthy"])  # not on roster
+            apply_add_drop(self.engine, "Quantum Ferrets", adds=[], drops=["FA_WR_healthy"])  # not on roster
         with self.assertRaises(KeyError):
             apply_add_drop(self.engine, "Nobody FC", adds=["FA_WR_healthy"], drops=[])
 
@@ -833,23 +833,23 @@ class TestApplyAddDrop(_EngineCase):
         from fantasy_sim.decisions import ACTIVE_ROSTER_LIMIT
         for i in range(ACTIVE_ROSTER_LIMIT - 1):
             n = f"pad_{i}"
-            self.engine.rosters["Legion of Coom"].append(n)
-            self.engine.meta["Legion of Coom"][n] = {"pos": "WR", "team": "CHI"}
+            self.engine.rosters["Quantum Ferrets"].append(n)
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": "WR", "team": "CHI"}
             self.engine.baselines[n] = {"mean": 5.0, "std_aleatoric": 3.0, "std_epistemic": 0.0,
                                         "pos": "WR", "team": "CHI", "bye": 9}
         with self.assertRaises(ValueError):
-            apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=[])
-        e2 = apply_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"], drops=["pad_0"])
-        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
+            apply_add_drop(self.engine, "Quantum Ferrets", adds=["FA_WR_healthy"], drops=[])
+        e2 = apply_add_drop(self.engine, "Quantum Ferrets", adds=["FA_WR_healthy"], drops=["pad_0"])
+        self.assertIn("FA_WR_healthy", e2.rosters["Quantum Ferrets"])
 
 
 class TestEvaluateAddDrop(_EngineCase):
     def test_same_output_shape_as_a_trade_with_one_team_and_seven_bystanders(self):
         with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
-            r = evaluate_add_drop(self.engine, "Legion of Coom", adds=["FA_WR_healthy"],
+            r = evaluate_add_drop(self.engine, "Quantum Ferrets", adds=["FA_WR_healthy"],
                                   drops=["QB_1"], batches=2, sims=15)
         self.assertEqual(set(r["teams"]), set(self.engine.team_names))
-        self.assertEqual(r["teams"]["Legion of Coom"]["side"], "team")
+        self.assertEqual(r["teams"]["Quantum Ferrets"]["side"], "team")
         self.assertEqual(sum(1 for d in r["teams"].values() if d["side"] == "bystander"), 3)
         for d in r["teams"].values():
             for k in ("champ_pct", "playoff_pct", "expected_wins"):
@@ -858,7 +858,7 @@ class TestEvaluateAddDrop(_EngineCase):
         self.assertAlmostEqual(sum(d["champ_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
         self.assertAlmostEqual(sum(d["playoff_pct"]["delta"] for d in r["teams"].values()), 0.0, places=9)
         self.assertEqual(r["n_sims"], 30)
-        self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
+        self.assertEqual(r["move"], {"team": "Quantum Ferrets", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
 
 
 class TestEvaluateLoggedTransaction(_EngineCase):
@@ -867,7 +867,7 @@ class TestEvaluateLoggedTransaction(_EngineCase):
     the roster, dropped gone) evaluates the reverse and negates the deltas; the dropped
     player resurfacing on ANOTHER roster is drift, reported plainly."""
 
-    def _log(self, d, adds, drops, tx_type="free_agent", txid="fa1", team="Legion of Coom"):
+    def _log(self, d, adds, drops, tx_type="free_agent", txid="fa1", team="Quantum Ferrets"):
         import json, os
         path = os.path.join(d, "decision_log.jsonl")
         tx = {"transaction_id": txid, "type": tx_type, "week": 1, "created": "2026-09-01T00:00:00Z",
@@ -886,7 +886,7 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "fa1", batches=2, sims=10, log_path=path)
-            self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
+            self.assertEqual(r["move"], {"team": "Quantum Ferrets", "adds": ["FA_WR_healthy"], "drops": ["QB_1"]})
             with open(path, encoding="utf-8") as f:
                 rows = [json.loads(l) for l in f]
         ev = rows[1]
@@ -896,8 +896,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
     def test_executed_add_drop_is_reversed_with_negated_deltas(self):
         import json, tempfile
         # execute the move first: FA_WR_healthy is on the roster, QB_1 is back in the pool
-        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
-        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        self.engine.rosters["Quantum Ferrets"] = ["FA_WR_healthy"]
+        self.engine.meta["Quantum Ferrets"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
@@ -916,8 +916,8 @@ class TestEvaluateLoggedTransaction(_EngineCase):
         'would carry N active players (limit ...)'. The limit still binds for proposals."""
         import json, tempfile
         # executed drop-only: QB_1 sits in the pool; the roster is AT the (patched) limit
-        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
-        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        self.engine.rosters["Quantum Ferrets"] = ["FA_WR_healthy"]
+        self.engine.meta["Quantum Ferrets"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, adds=[], drops=["QB_1"])
             with patch('fantasy_sim.decisions.ACTIVE_ROSTER_LIMIT', 1), \
@@ -926,7 +926,7 @@ class TestEvaluateLoggedTransaction(_EngineCase):
             with open(path, encoding="utf-8") as f:
                 rows = [json.loads(l) for l in f]
         self.assertTrue(rows[1]["post_execution_reversed"])
-        self.assertEqual(r["move"], {"team": "Legion of Coom", "adds": [], "drops": ["QB_1"]})
+        self.assertEqual(r["move"], {"team": "Quantum Ferrets", "adds": [], "drops": ["QB_1"]})
 
     def test_apply_add_drop_enforces_the_limit_only_for_proposals(self):
         """The limit check protects prospective moves (never propose an illegal one);
@@ -934,17 +934,17 @@ class TestEvaluateLoggedTransaction(_EngineCase):
         reconstruction and must be explicit, never the default."""
         with patch('fantasy_sim.decisions.ACTIVE_ROSTER_LIMIT', 1):
             with self.assertRaises(ValueError):
-                apply_add_drop(self.engine, "Legion of Coom", ["FA_WR_healthy"], [])
-            e2 = apply_add_drop(self.engine, "Legion of Coom", ["FA_WR_healthy"], [],
+                apply_add_drop(self.engine, "Quantum Ferrets", ["FA_WR_healthy"], [])
+            e2 = apply_add_drop(self.engine, "Quantum Ferrets", ["FA_WR_healthy"], [],
                                 enforce_limit=False)
-        self.assertIn("FA_WR_healthy", e2.rosters["Legion of Coom"])
+        self.assertIn("FA_WR_healthy", e2.rosters["Quantum Ferrets"])
 
     def test_dropped_player_on_another_roster_is_drift(self):
         import tempfile
-        self.engine.rosters["Legion of Coom"] = ["FA_WR_healthy"]
-        self.engine.meta["Legion of Coom"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
-        self.engine.rosters["Drunk Cats"].append("QB_1")   # the dropped player was picked up elsewhere
-        self.engine.meta["Drunk Cats"]["QB_1"] = {"pos": "QB", "team": "DET"}
+        self.engine.rosters["Quantum Ferrets"] = ["FA_WR_healthy"]
+        self.engine.meta["Quantum Ferrets"] = {"FA_WR_healthy": {"pos": "WR", "team": "DET"}}
+        self.engine.rosters["Polar Yetis"].append("QB_1")   # the dropped player was picked up elsewhere
+        self.engine.meta["Polar Yetis"]["QB_1"] = {"pos": "QB", "team": "DET"}
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, adds=["FA_WR_healthy"], drops=["QB_1"])
             with self.assertRaises(ValueError) as ctx:
@@ -977,20 +977,20 @@ class TestFaabContext(_EngineCase):
             for k in range(n_claims):
                 f.write(json.dumps({
                     "transaction_id": f"w{k}", "type": "waiver", "week": 1, "is_mine": False,
-                    "teams": ["Femboy Cats"], "faab_bid": bid + k,
+                    "teams": ["Neon Walruses"], "faab_bid": bid + k,
                     "snapshot_is_retroactive": bool(k % 2),
                     "adds": [{"player_id": str(k), "name": f"P{k}",
-                              "projection": {"mean": mean, "pos": "RB"}, "to_team": "Femboy Cats"}],
+                              "projection": {"mean": mean, "pos": "RB"}, "to_team": "Neon Walruses"}],
                     "drops": []}) + chr(10))
             f.write(json.dumps({"transaction_id": "fa", "type": "free_agent", "week": 1, "is_mine": False,
-                                "teams": ["Clankers"], "faab_bid": None, "adds": [], "drops": []}) + chr(10))
+                                "teams": ["Turbo Llamas"], "faab_bid": None, "adds": [], "drops": []}) + chr(10))
         return path
 
     def test_below_the_threshold_it_lists_comparables_and_says_too_few(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, n_claims=3)
-            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path)
+            ctx = faab_context(self.engine, bid=7, team="Quantum Ferrets", log_path=path)
         self.assertEqual(ctx["bid"], 7)
         self.assertEqual(ctx["n_comparables"], 3)
         self.assertEqual(len(ctx["comparables"]), 3)
@@ -1007,7 +1007,7 @@ class TestFaabContext(_EngineCase):
         n = MARKET_MIN_COMPARABLES
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, n_claims=n, bid=4, mean=10.0)   # bids 4..4+n-1, all RB mean 10
-            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path)
+            ctx = faab_context(self.engine, bid=7, team="Quantum Ferrets", log_path=path)
         self.assertEqual(ctx["n_comparables"], n)
         self.assertIsNotNone(ctx["market"])
         import statistics
@@ -1024,7 +1024,7 @@ class TestFaabContext(_EngineCase):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
             path = self._log(d, n_claims=3)
-            ctx = faab_context(self.engine, bid=7, team="Legion of Coom", log_path=path, exclude_tx="w0")
+            ctx = faab_context(self.engine, bid=7, team="Quantum Ferrets", log_path=path, exclude_tx="w0")
         self.assertEqual(ctx["n_comparables"], 2)
 
     def test_logged_waiver_evaluation_carries_the_separated_faab_block(self):
@@ -1034,12 +1034,12 @@ class TestFaabContext(_EngineCase):
             with open(path, "a", encoding="utf-8") as f:
                 f.write(json.dumps({
                     "transaction_id": "wv9", "type": "waiver", "week": 1, "is_mine": True,
-                    "teams": ["Legion of Coom"], "faab_bid": 9,
+                    "teams": ["Quantum Ferrets"], "faab_bid": 9,
                     "snapshot_is_retroactive": False,
                     "adds": [{"player_id": "z", "name": "FA_WR_healthy",
-                              "projection": {"mean": 12.0, "pos": "WR"}, "to_team": "Legion of Coom"}],
+                              "projection": {"mean": 12.0, "pos": "WR"}, "to_team": "Quantum Ferrets"}],
                     "drops": [{"player_id": "q", "name": "QB_1",
-                               "projection": {"mean": 20.0, "pos": "QB"}, "to_team": "Legion of Coom"}]}) + chr(10))
+                               "projection": {"mean": 20.0, "pos": "QB"}, "to_team": "Quantum Ferrets"}]}) + chr(10))
             with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
                 r = evaluate_logged_transaction(self.engine, "wv9", batches=2, sims=10, log_path=path)
         self.assertIn("faab", r)
@@ -1061,13 +1061,13 @@ class TestBatchEvaluation(unittest.TestCase):
         path = os.path.join(d, "decision_log.jsonl")
         rows = [
             {"transaction_id": "a", "type": "free_agent", "week": 1, "created": "2026-08-20T00:00:00Z",
-             "is_mine": False, "teams": ["Clankers"], "adds": [], "drops": []},
+             "is_mine": False, "teams": ["Turbo Llamas"], "adds": [], "drops": []},
             {"transaction_id": "b", "type": "waiver", "week": 1, "created": "2026-09-01T02:00:00Z",
-             "is_mine": True, "teams": ["Legion of Coom"], "adds": [], "drops": []},
+             "is_mine": True, "teams": ["Quantum Ferrets"], "adds": [], "drops": []},
             {"transaction_id": "c", "type": "free_agent", "week": 1, "created": "2026-08-25T00:00:00Z",
-             "is_mine": True, "teams": ["Legion of Coom"], "adds": [], "drops": []},
+             "is_mine": True, "teams": ["Quantum Ferrets"], "adds": [], "drops": []},
             {"transaction_id": "d", "type": "free_agent", "week": 1, "created": "2026-08-22T00:00:00Z",
-             "is_mine": False, "teams": ["Drunk Cats"], "adds": [], "drops": []},
+             "is_mine": False, "teams": ["Polar Yetis"], "adds": [], "drops": []},
             {"record_type": "evaluation", "transaction_id": "d", "teams": {}},
         ]
         with open(path, "w", encoding="utf-8") as f:
@@ -1096,8 +1096,8 @@ class TestBatchEvaluation(unittest.TestCase):
                 raise ValueError("roster drift since the logged move")
             if txid == "b":
                 return {"skipped": "already evaluated", "transaction_id": txid}
-            return {"move": {"team": "Clankers", "adds": [], "drops": []},
-                    "teams": {"Clankers": {"champ_pct": {"delta": 1.0, "se": 0.5},
+            return {"move": {"team": "Turbo Llamas", "adds": [], "drops": []},
+                    "teams": {"Turbo Llamas": {"champ_pct": {"delta": 1.0, "se": 0.5},
                                            "playoff_pct": {"delta": 2.0, "se": 0.6},
                                            "expected_wins": {"delta": 0.1, "se": 0.05}}}}
 
@@ -1122,9 +1122,9 @@ class TestDepthUpgrades(_EngineCase):
 
     def _rig(self, roster, starters, pool, replacement=None):
         import copy
-        displaced = [n for n in self.engine.rosters["Legion of Coom"] if n not in roster]
-        self.engine.rosters["Legion of Coom"] = list(roster)
-        self.engine.meta["Legion of Coom"] = {}
+        displaced = [n for n in self.engine.rosters["Quantum Ferrets"] if n not in roster]
+        self.engine.rosters["Quantum Ferrets"] = list(roster)
+        self.engine.meta["Quantum Ferrets"] = {}
         for n in [n for n in self.engine.baselines if n.startswith("FA_")] + displaced:
             # the fixture pool -- and players displaced from the rigged roster -- would
             # otherwise leak into the rankings as legitimate free agents
@@ -1132,7 +1132,7 @@ class TestDepthUpgrades(_EngineCase):
         for n, mean in roster.items():
             self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
                                         "pos": n.split("_")[0], "team": "SEA", "bye": 9}
-            self.engine.meta["Legion of Coom"][n] = {"pos": n.split("_")[0], "team": "SEA"}
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": n.split("_")[0], "team": "SEA"}
         for n, mean in pool.items():
             self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
                                         "pos": n.split("_")[0], "team": "DET", "bye": 9}
@@ -1144,7 +1144,7 @@ class TestDepthUpgrades(_EngineCase):
 
     def _targets(self, **kw):
         with patch('fantasy_sim.simulation.save_json'), patch('fantasy_sim.simulation.save_chart'):
-            return rank_waiver_targets(self.engine, "Legion of Coom", 1, sims=20, seed=1, **kw)
+            return rank_waiver_targets(self.engine, "Quantum Ferrets", 1, sims=20, seed=1, **kw)
 
     def test_a_free_agent_who_beats_the_worst_bench_player_is_depth_with_the_incumbent_named(self):
         roster = {"QB_10": 20.0, "WR_A": 11.0, "WR_B": 9.0, "WR_C": 6.0}
@@ -1196,10 +1196,10 @@ class TestDuplicateRowTolerance(_EngineCase):
         import json, os
         path = os.path.join(d, "decision_log.jsonl")
         tx = {"transaction_id": "w1", "type": "waiver", "week": 1, "is_mine": True,
-              "teams": ["Legion of Coom"], "faab_bid": 7,
+              "teams": ["Quantum Ferrets"], "faab_bid": 7,
               "snapshot_is_retroactive": False,
               "adds": [{"player_id": "1", "name": "P1",
-                        "projection": {"mean": 10.0, "pos": "RB"}, "to_team": "Legion of Coom"}],
+                        "projection": {"mean": 10.0, "pos": "RB"}, "to_team": "Quantum Ferrets"}],
               "drops": []}
         later = dict(tx); later["faab_bid"] = 7   # same tx, re-ingested by the runner
         with open(path, "w", encoding="utf-8") as f:
@@ -1210,7 +1210,7 @@ class TestDuplicateRowTolerance(_EngineCase):
     def test_faab_context_counts_a_duplicated_claim_once(self):
         import tempfile
         with tempfile.TemporaryDirectory() as d:
-            ctx = faab_context(self.engine, bid=5, team="Legion of Coom",
+            ctx = faab_context(self.engine, bid=5, team="Quantum Ferrets",
                                log_path=self._dup_log(d))
         self.assertEqual(ctx["n_comparables"], 1)
 
@@ -1218,7 +1218,7 @@ class TestDuplicateRowTolerance(_EngineCase):
         import json, os, tempfile
         from fantasy_sim.decisions import unevaluated_my_trades
         tx = {"transaction_id": "tr1", "type": "trade", "week": 1, "is_mine": True,
-              "teams": ["Legion of Coom", "Clankers"], "adds": [], "drops": []}
+              "teams": ["Quantum Ferrets", "Turbo Llamas"], "adds": [], "drops": []}
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "decision_log.jsonl")
             with open(path, "w", encoding="utf-8") as f:

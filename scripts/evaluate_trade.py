@@ -4,8 +4,8 @@ Hypothetical trade evaluator: two PAIRED full simulations (with and without the 
 seeds) and the real Champ_Pct / Playoff_Pct / expected-wins delta for both sides and every
 bystander, each with a paired-batch standard error (fantasy_sim.decisions.evaluate_trade).
 
-  py -3.10 -m scripts.evaluate_trade --team-a "Legion of Coom" --a-gives "Tony Pollard"
-        --team-b "Femboy Cats" --b-gives "Player X, Player Y"
+  py -3.10 -m scripts.evaluate_trade --team-a "Quantum Ferrets" --a-gives "Tony Pollard"
+        --team-b "Neon Walruses" --b-gives "Player X, Player Y"
         [--a-drops "..."] [--b-drops "..."] [--batches 10] [--sims 300]
 
 Default 10 x 300 = 3,000 seasons per arm (~3 min each at production speed). Reads

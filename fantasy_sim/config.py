@@ -17,18 +17,26 @@ import re
 # ==============================================================================
 # LEAGUE IDENTITY
 # ==============================================================================
-LEAGUE_ID = "1310010483033522176"
+# League identity is PSEUDONYMIZED in this public repository (F37, 2026-09-05): the
+# league IDs live in environment variables (never committed -- Sleeper's API is public,
+# so a committed ID resolves to real identities in one request), TEAM_NAME_MAP keys by
+# roster_id (meaningless without the league ID; owner user_ids would resolve to real
+# usernames via /user/<id>), and the team names are fictional. The engine, logs, and
+# published reports run entirely on the fictional names; the OWNER's local reports can
+# overlay real names via SHOW_REAL_TEAM_NAMES=1 (weekly_report legend, local-only,
+# fetched live and never written to any committed artifact). All data is real.
+LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID", "")
 BASE_URL = "https://api.sleeper.app/v1"
 
-TEAM_NAME_MAP = {
-    "Borkug": "Legion of Coom",
-    "connerjkimble": "Canton Killers",
-    "Penguinator": "Wine Drinkers",
-    "dolphinswarm": "Femboy Cats",
-    "Clayylmao": "Clankers",
-    "antobius": "The Glutton",
-    "JTWald": "Drunk Cats",
-    "jbodie7": "Year of Jarvis",
+TEAM_NAME_MAP = {   # roster_id -> team label (fictional; see the F37 note above)
+    "1": "Neon Walruses",
+    "2": "Rocket Pandas",
+    "3": "Turbo Llamas",
+    "4": "Cosmic Badgers",
+    "5": "Polar Yetis",
+    "6": "Quantum Ferrets",
+    "7": "Iron Wombats",
+    "8": "Crimson Marmots",
 }
 
 # ==============================================================================
@@ -63,7 +71,7 @@ ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 # browser DevTools -> Application/Storage -> Cookies -> fantasy.espn.com, copy the "espn_s2" and
 # "SWID" cookie values). Verified live: this specific league connects fine with neither set, so
 # leave both blank unless/until the league is made private.
-ESPN_LEAGUE_ID = 798378381
+ESPN_LEAGUE_ID = os.getenv("ESPN_LEAGUE_ID", "")   # F37: env-only, same reasoning as SLEEPER_LEAGUE_ID
 ESPN_S2 = os.getenv("ESPN_S2", "")
 ESPN_SWID = os.getenv("ESPN_SWID", "")
 # Kicker and IDP scoring categories could not be matched exactly between Sleeper and ESPN's
@@ -341,7 +349,7 @@ DUAL_ELIGIBILITY = {
 # ==============================================================================
 # The team the decision-support tools (fantasy_sim.decisions, scripts/weekly_report.py) act
 # for by default. One source of truth: the scripts read this rather than each carrying its own.
-MY_TEAM = "Legion of Coom"
+MY_TEAM = "Quantum Ferrets"
 
 # F31 (docs/AUDIT_PLAN.md, 2026-09-03): FAAB behavior measured on the 99 attributed
 # real 2025 waiver claims. League-level bid-size distribution: a single lognormal
@@ -368,12 +376,12 @@ FAAB_PROFILE_PRIOR_WEIGHT = 12
 # manager's mean winning bid / league mean (7.35); activity = manager's claim count /
 # league mean (12.4). Managers change between seasons -- the engine blends these with
 # 2026 claims from the decision log at init (simulation.blend_faab_profiles). The old
-# guessed 0-1 faab_agg values were CONTRADICTED by the attributed data (Legion of Coom
-# guessed 0.15, measured the league's most aggressive bidder at 1.36; Wine Drinkers
+# guessed 0-1 faab_agg values were CONTRADICTED by the attributed data (Quantum Ferrets
+# guessed 0.15, measured the league's most aggressive bidder at 1.36; Iron Wombats
 # guessed 0.10, measured 0.96 with the second-highest total spend). trade_will remains
 # guessed and remains excluded from data-driven calibration (F2 untouched).
 MANAGER_PROFILES = {
-    # Legion of Coom: OWNER'S DECLARED 2026 STRATEGY, not the measured 2025 prior
+    # Quantum Ferrets: OWNER'S DECLARED 2026 STRATEGY, not the measured 2025 prior
     # (which was agg 1.36 / act 0.81 -- few, big bids). Declared intent: active bidder,
     # large only when needed, FAAB deliberately held back for the playoff weeks. The
     # model has no explicit reserve knob, so the reserve is encoded via expected spend:
@@ -382,14 +390,14 @@ MANAGER_PROFILES = {
     # model-derived: the owner's own grid search came back null (the sim is flat in
     # these parameters by design -- replacement-capped streamers). The decision-log
     # blend will show whether 2026 behavior matches the declaration.
-    'Legion of Coom': {'faab_agg': 0.65, 'faab_activity': 1.25, 'trade_will': 0.05, 'style': 'The Fortress'},
-    'Femboy Cats': {'faab_agg': 0.82, 'faab_activity': 0.81, 'trade_will': 0.85, 'style': 'High-risk trader'},
-    'Year of Jarvis': {'faab_agg': 1.17, 'faab_activity': 0.81, 'trade_will': 0.80, 'style': 'Rule exploiter'},
-    'Drunk Cats': {'faab_agg': 0.85, 'faab_activity': 1.29, 'trade_will': 0.60, 'style': 'Measured active'},
-    'The Glutton': {'faab_agg': 1.71, 'faab_activity': 0.40, 'trade_will': 0.40, 'style': 'Average'},
-    'Canton Killers': {'faab_agg': 0.72, 'faab_activity': 1.54, 'trade_will': 0.30, 'style': 'Casual'},
-    'Clankers': {'faab_agg': 1.11, 'faab_activity': 1.05, 'trade_will': 0.10, 'style': 'Passive / Autopilot'},
-    'Wine Drinkers': {'faab_agg': 0.96, 'faab_activity': 1.29, 'trade_will': 0.05, 'style': 'Autodraft'},
+    'Quantum Ferrets': {'faab_agg': 0.65, 'faab_activity': 1.25, 'trade_will': 0.05, 'style': 'The Fortress'},
+    'Neon Walruses': {'faab_agg': 0.82, 'faab_activity': 0.81, 'trade_will': 0.85, 'style': 'High-risk trader'},
+    'Rocket Pandas': {'faab_agg': 1.17, 'faab_activity': 0.81, 'trade_will': 0.80, 'style': 'Rule exploiter'},
+    'Polar Yetis': {'faab_agg': 0.85, 'faab_activity': 1.29, 'trade_will': 0.60, 'style': 'Measured active'},
+    'Cosmic Badgers': {'faab_agg': 1.71, 'faab_activity': 0.40, 'trade_will': 0.40, 'style': 'Average'},
+    'Crimson Marmots': {'faab_agg': 0.72, 'faab_activity': 1.54, 'trade_will': 0.30, 'style': 'Casual'},
+    'Turbo Llamas': {'faab_agg': 1.11, 'faab_activity': 1.05, 'trade_will': 0.10, 'style': 'Passive / Autopilot'},
+    'Iron Wombats': {'faab_agg': 0.96, 'faab_activity': 1.29, 'trade_will': 0.05, 'style': 'Autodraft'},
 }
 
 # ==============================================================================

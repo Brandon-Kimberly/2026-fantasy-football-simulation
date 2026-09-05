@@ -8,7 +8,7 @@ authors:
 repository-code: "https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation"
 url: "https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html"
 license: MIT
-version: 4.1.0
+version: 5.0.0
 date-released: "2026-09-05"
 keywords:
   - monte-carlo

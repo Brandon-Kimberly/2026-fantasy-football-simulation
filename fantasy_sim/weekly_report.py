@@ -55,6 +55,52 @@ def _git_head():
         return None
 
 
+def real_name_overlay():
+    """F37 local overlay (owner requirement, 2026-09-05): {fictional team: real team}
+    for the OWNER's eyes only. Empty unless SHOW_REAL_TEAM_NAMES is set in the
+    environment; when set, the mapping is fetched LIVE from Sleeper (users + rosters
+    joined through config.TEAM_NAME_MAP's roster_id keys) and exists only in the
+    rendered digest -- never in any log or committed artifact. Runners never set the
+    flag; make_sample_report force-clears it and forbids the legend's marker string."""
+    import os as _os
+    if not _os.environ.get("SHOW_REAL_TEAM_NAMES"):
+        return {}
+    try:
+        import requests
+        from fantasy_sim.config import BASE_URL, LEAGUE_ID, TEAM_NAME_MAP
+        users = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/users", timeout=10).json() or []
+        rosters = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/rosters", timeout=10).json() or []
+        by_user = {u["user_id"]: (u.get("metadata") or {}).get("team_name")
+                   or u.get("display_name", "?") for u in users}
+        out = {}
+        for r in rosters:
+            fict = TEAM_NAME_MAP.get(str(r.get("roster_id")))
+            if fict:
+                out[fict] = by_user.get(r.get("owner_id"), "?")
+        return out
+    except Exception as ex:
+        logging.warning("REAL-NAME LEGEND: unavailable this run (%s); digest renders "
+                        "fictional names only.", ex)
+        return {}
+
+
+def legend_md(overlay):
+    if not overlay:
+        return ""
+    pairs = "; ".join(f"{f} = {r}" for f, r in sorted(overlay.items()))
+    return "> **LOCAL VIEW -- team key (not for sharing):** " + pairs + "\n"
+
+
+def legend_html(overlay):
+    if not overlay:
+        return ""
+    rows = "".join(f"<tr><td>{escape(f)}</td><td>{escape(str(r))}</td></tr>"
+                   for f, r in sorted(overlay.items()))
+    return ('<div class="degraded" style="border-left-color:#7a5c2e"><b>LOCAL VIEW -- '
+            "team key (not for sharing):</b><table><tr><th>report name</th>"
+            f"<th>real team</th></tr>{rows}</table></div>")
+
+
 def append_predictions_log(week, season_outcomes, outlook, path=None, manifest=None,
                            commit=None, backfilled=False, provenance=None, canonical=False):
     """The weekly prediction record (storage.predictions_log_file) F18's decision
@@ -360,7 +406,8 @@ def _table(headers, rows):
 
 def render_digest(report, team, week):
     res = report.get("results", {})
-    md = [f"# Weekly report -- {team}, week {week}",
+    _legend = legend_md(real_name_overlay())
+    md = [f"# Weekly report -- {team}, week {week}"] + ([_legend] if _legend else []) + [
           f"_{report.get('started_at', '')} -> {report.get('finished_at', '')} UTC_", ""]
     if report.get("status") == "FAILED":
         md += [f"## FAILED AT STEP `{report.get('failed_step')}`", "",
@@ -688,6 +735,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     out = [f'<!doctype html><html><head><meta charset="utf-8"><title>Weekly report -- {T(team)}, week {week}</title>'
            f'<style>{_REPORT_CSS}</style></head><body>',
            f'<h1>Weekly report -- {T(team)}, week {week}</h1>',
+           legend_html(real_name_overlay()),
            f'<p class="note">{T(report.get("started_at", ""))} -> {T(report.get("finished_at", ""))} UTC</p>']
 
     if report.get("status") == "FAILED":

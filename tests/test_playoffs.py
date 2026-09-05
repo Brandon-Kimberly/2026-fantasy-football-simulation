@@ -122,7 +122,7 @@ class TestSeedingFromBankedStandings(unittest.TestCase):
         e = self.engine
         ranked = sorted(e.team_names, key=lambda t: (e.actual_h2h_wins[t] + e.actual_median_wins[t], e.actual_points[t]), reverse=True)
         self.assertEqual(e._seed_from_banked_standings()[0], ranked[:4])
-        self.assertEqual(ranked[:4], ["Drunk Cats", "The Glutton", "Femboy Cats", "Legion of Coom"])   # the fixture's banked top four
+        self.assertEqual(ranked[:4], ["Polar Yetis", "Cosmic Badgers", "Neon Walruses", "Quantum Ferrets"])   # the fixture's banked top four
 
     def test_probabilities_normalise_and_the_champion_is_a_seed(self):
         seeds = set(self.engine._seed_from_banked_standings()[0])

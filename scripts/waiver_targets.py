@@ -5,7 +5,7 @@ non-bye rostered player can fill, plus the weakest incumbent per slot) against t
 pool in data/current/player_baselines.json, ranked by value over replacement
 (fantasy_sim.decisions.rank_waiver_targets).
 
-  py -3.10 -m scripts.waiver_targets [--team "Legion of Coom"] [--week N] [--top 15]
+  py -3.10 -m scripts.waiver_targets [--team "Quantum Ferrets"] [--week N] [--top 15]
                                      [--positions RB,WR] [--sims 2000] [--seed S]
 
 Each target: tier (positional_tiers), VORP, a light-sampled week distribution, a SUGGESTED BID

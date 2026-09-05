@@ -82,22 +82,22 @@ def _fixture_results():
         "sync": {"manifest": {"current_week": 3, "finished_at": "2026-09-22T12:00:00Z",
                               "degraded": ["WARNING | ODDS: no key"], "notices_count": 4}},
         "simulation": {"season_outcomes": [
-            {"Team": "Legion of Coom", "Playoff_Pct": 61.0, "Champ_Pct": 15.5, "Expected_Wins": 15.1, "Expected_Points": 2300.0},
-            {"Team": "Femboy Cats", "Playoff_Pct": 50.0, "Champ_Pct": 12.0, "Expected_Wins": 14.0, "Expected_Points": 2250.0}]},
+            {"Team": "Quantum Ferrets", "Playoff_Pct": 61.0, "Champ_Pct": 15.5, "Expected_Wins": 15.1, "Expected_Points": 2300.0},
+            {"Team": "Neon Walruses", "Playoff_Pct": 50.0, "Champ_Pct": 12.0, "Expected_Wins": 14.0, "Expected_Points": 2250.0}]},
         "league": {"week": 3, "n": 5000, "cross": True,
-                   "matchups": [{"a": "Legion of Coom", "b": "Canton Killers", "p_a": 0.588, "p_b": 0.41, "p_tie": 0.002, "se": 0.007,
+                   "matchups": [{"a": "Quantum Ferrets", "b": "Crimson Marmots", "p_a": 0.588, "p_b": 0.41, "p_tie": 0.002, "se": 0.007,
                                  "a_expected": 166.4, "b_expected": 153.4, "margin_mean": 13.0, "margin_sd": 50.3}],
-                   "teams": {"Legion of Coom": {"opponent": "Canton Killers", "p_beat_median": 0.575, "expected_total": 166.4, "expected_pre_total": 177.3, "sd_total": 37.9,
+                   "teams": {"Quantum Ferrets": {"opponent": "Crimson Marmots", "p_beat_median": 0.575, "expected_total": 166.4, "expected_pre_total": 177.3, "sd_total": 37.9,
                                                 "lineup": [{"slot": "QB", "name": "Jayden Daniels", "expected": 16.1, "sd": 8.7, "nfl_team": "WAS"}]},
-                             "Canton Killers": {"opponent": "Legion of Coom", "p_beat_median": 0.41, "expected_total": 153.4, "expected_pre_total": 164.0, "sd_total": 36.0,
+                             "Crimson Marmots": {"opponent": "Quantum Ferrets", "p_beat_median": 0.41, "expected_total": 153.4, "expected_pre_total": 164.0, "sd_total": 36.0,
                                                 "lineup": [{"slot": "QB", "name": "Jalen Hurts", "expected": 25.0, "sd": 9.0, "nfl_team": "PHI"}]}}},
-        "roster_grades": {"league": {"teams": [{"rank": 1, "team": "Legion of Coom", "lineup_vorp": 25.9, "depth_vorp": 0.0, "optimal_score": 169.7, "holes": 0, "tier1_starters": 11, "starters_below_replacement": 1},
-                                               {"rank": 2, "team": "Femboy Cats", "lineup_vorp": 20.0, "depth_vorp": 1.0, "optimal_score": 165.0, "holes": 0, "tier1_starters": 9, "starters_below_replacement": 2}]},
+        "roster_grades": {"league": {"teams": [{"rank": 1, "team": "Quantum Ferrets", "lineup_vorp": 25.9, "depth_vorp": 0.0, "optimal_score": 169.7, "holes": 0, "tier1_starters": 11, "starters_below_replacement": 1},
+                                               {"rank": 2, "team": "Neon Walruses", "lineup_vorp": 20.0, "depth_vorp": 1.0, "optimal_score": 165.0, "holes": 0, "tier1_starters": 9, "starters_below_replacement": 2}]},
                           "team_detail": {"by_position": {"RB": {"n_starters": 3, "n_bench": 4, "starters_vorp": 14.2, "depth_vorp": 0.0, "tiers": [1, 1, 1], "best_free_agent": None}}}},
         "lineup": {"expected_total": 177.3, "unfilled": [],
                    "lineup": [{"slot": "QB", "name": "Jayden Daniels", "pos": "QB", "expected": 16.1, "p10": 5.7, "p50": 14.1, "p90": 26.6, "p_zero": 0.05, "margin": 3.0, "alternative": "QB_backup"}],
                    "bench": [{"name": "QB_backup", "pos": "QB", "expected": 13.1, "reason": ""}]},
-        "matchup": {"opponent": "Canton Killers", "favoured_by_max_mean": True, "cross": True, "n": 5000,
+        "matchup": {"opponent": "Crimson Marmots", "favoured_by_max_mean": True, "cross": True, "n": 5000,
                     "ranking_by_p_beat_opponent": ["max_mean", "safe", "stack", "p_max"],
                     "constructions": {k: {"mean": 166.4, "sd": 37.9, "p_beat_opponent": 0.602, "se": 0.007, "p_beat_median": 0.575,
                                           "margin_mean": 13.0, "margin_sd": 50.3,
@@ -117,10 +117,10 @@ class TestDigest(unittest.TestCase):
     def test_ok_digest_has_every_section_and_the_degraded_block(self):
         report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
                   "started_at": "2026-09-22T12:00:00Z", "finished_at": "2026-09-22T12:12:00Z"}
-        md = render_digest(report, team="Legion of Coom", week=3)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
         for needle in ("# Weekly report", "week 3", "DEGRADED", "ODDS: no key", "## Season outlook", "61.0",
-                       "## League this week", "Legion of Coom v Canton Killers", "58.8", "Jalen Hurts",
-                       "## Roster grade", "25.9", "## Lineup", "Jayden Daniels", "## Matchup", "Canton Killers", "60.2",
+                       "## League this week", "Quantum Ferrets v Crimson Marmots", "58.8", "Jalen Hurts",
+                       "## Roster grade", "25.9", "## Lineup", "Jayden Daniels", "## Matchup", "Crimson Marmots", "60.2",
                        "## Waiver targets", "Tuli Tuipulotu", "no variance lever"):
             self.assertIn(needle, md, needle)
         self.assertNotIn("## Trade targets", md)
@@ -130,7 +130,7 @@ class TestDigest(unittest.TestCase):
         results = {"sync": _fixture_results()["sync"]}
         report = {"status": "FAILED", "failed_step": "simulation", "error": "ValueError: CRITICAL ABORT: 2 rostered players lack projections",
                   "results": results, "started_at": "x", "finished_at": "y"}
-        md = render_digest(report, team="Legion of Coom", week=3)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
         self.assertIn("FAILED AT STEP `simulation`", md)
         self.assertIn("CRITICAL ABORT", md)
         for absent in ("## Lineup", "## Matchup", "## Waiver targets", "## Roster grade", "## Season outlook", "## League this week"):
@@ -139,20 +139,20 @@ class TestDigest(unittest.TestCase):
 
     def test_trade_section_present_when_full(self):
         results = _fixture_results()
-        results["trades"] = {"buy": [{"with": "Femboy Cats", "target": "X", "target_mean": 10.0, "buried_behind": "Y", "fills_my_slot": "LB",
+        results["trades"] = {"buy": [{"with": "Neon Walruses", "target": "X", "target_mean": 10.0, "buried_behind": "Y", "fills_my_slot": "LB",
                                       "i_give": ["A"], "i_get": ["X"], "my_gain": 0.5, "their_gain": 0.2, "acceptable": True,
                                       "their_playoff_pct": 50.0, "seller": False, "willingness": 0.85}],
                              "sell": [], "contention_note": "seller = ..."}
         report = {"status": "OK", "failed_step": None, "error": None, "results": results, "started_at": "x", "finished_at": "y"}
-        md = render_digest(report, team="Legion of Coom", week=3)
-        self.assertIn("## Trade targets", md); self.assertIn("Femboy Cats", md)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
+        self.assertIn("## Trade targets", md); self.assertIn("Neon Walruses", md)
 
     def test_digest_is_written_to_the_given_path(self):
         report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(), "started_at": "x", "finished_at": "y"}
         with tempfile.TemporaryDirectory() as d:
             path = os.path.join(d, "sub", "weekly_report.md")
             from fantasy_sim.weekly_report import write_digest
-            write_digest(render_digest(report, "Legion of Coom", 3), path)
+            write_digest(render_digest(report, "Quantum Ferrets", 3), path)
             self.assertTrue(os.path.exists(path))
             with open(path, encoding="utf-8") as f:
                 self.assertIn("# Weekly report", f.read())
@@ -163,18 +163,18 @@ class TestHousekeepingReminder(unittest.TestCase):
         report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
                   "started_at": "x", "finished_at": "y",
                   "housekeeping": {"unevaluated_trades": [
-                      {"transaction_id": "123", "week": 2, "teams": ["Legion of Coom", "Femboy Cats"]}]}}
-        md = render_digest(report, team="Legion of Coom", week=3)
+                      {"transaction_id": "123", "week": 2, "teams": ["Quantum Ferrets", "Neon Walruses"]}]}}
+        md = render_digest(report, team="Quantum Ferrets", week=3)
         self.assertIn("Housekeeping", md)
         self.assertIn("scripts.evaluate_trade --log-tx 123", md)
         with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
-            html = render_html(report, team="Legion of Coom", week=3)
+            html = render_html(report, team="Quantum Ferrets", week=3)
         self.assertIn("--log-tx 123", html)
 
     def test_no_reminder_when_nothing_is_pending(self):
         report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
                   "started_at": "x", "finished_at": "y", "housekeeping": {"unevaluated_trades": []}}
-        self.assertNotIn("Housekeeping", render_digest(report, team="Legion of Coom", week=3))
+        self.assertNotIn("Housekeeping", render_digest(report, team="Quantum Ferrets", week=3))
 
 
 class TestHtmlTable(unittest.TestCase):
@@ -223,10 +223,10 @@ class TestHtmlReport(unittest.TestCase):
 
     def test_ok_html_has_every_section_details_per_team_and_relative_images(self):
         with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
-            html = render_html(self._ok_report(), team="Legion of Coom", week=3)
+            html = render_html(self._ok_report(), team="Quantum Ferrets", week=3)
         for needle in ("<title>", "Weekly report", "DEGRADED", "ODDS: no key", "League this week", "Season outlook",
                        "Roster grade", "Lineup", "Matchup", "Waiver targets", "no variance lever",
-                       "<details>", "<summary>Legion of Coom", "<summary>Canton Killers", "Jalen Hurts",
+                       "<details>", "<summary>Quantum Ferrets", "<summary>Crimson Marmots", "Jalen Hurts",
                        'data-type="number"', "querySelectorAll('th[data-key]')"):
             self.assertIn(needle, html, needle)
         # charts referenced relative to data/decisions/, in the sections proposed
@@ -240,14 +240,14 @@ class TestHtmlReport(unittest.TestCase):
 
     def test_missing_chart_is_stated_not_broken(self):
         with patch("fantasy_sim.weekly_report.os.path.exists", return_value=False):
-            html = render_html(self._ok_report(), team="Legion of Coom", week=3)
+            html = render_html(self._ok_report(), team="Quantum Ferrets", week=3)
         self.assertNotIn("<img", html)
         self.assertIn("chart not generated", html)
 
     def test_embed_inlines_images_as_data_uris(self):
         with (patch("fantasy_sim.weekly_report.os.path.exists", return_value=True),
               patch("fantasy_sim.weekly_report._read_bytes", return_value=bytes([137, 80, 78, 71]))):
-            html = render_html(self._ok_report(), team="Legion of Coom", week=3, embed=True)
+            html = render_html(self._ok_report(), team="Quantum Ferrets", week=3, embed=True)
         self.assertIn('src="data:image/png;base64,', html)
         self.assertNotIn('src="../weeks/', html)
 
@@ -256,7 +256,7 @@ class TestHtmlReport(unittest.TestCase):
                   "results": {"sync": _fixture_results()["sync"]}, "started_at": "x", "finished_at": "y",
                   "planned": ["sync", "simulation", "lineup"]}
         with patch("fantasy_sim.weekly_report.os.path.exists", return_value=True):
-            html = render_html(report, team="Legion of Coom", week=3)
+            html = render_html(report, team="Quantum Ferrets", week=3)
         self.assertIn("FAILED AT STEP", html); self.assertIn("CRITICAL ABORT", html); self.assertIn("DEGRADED", html)
         for absent in ("League this week", "Season outlook", "Roster grade", 'id="lineup"', "Matchup", "Waiver targets"):
             self.assertNotIn(absent, html)
@@ -264,11 +264,11 @@ class TestHtmlReport(unittest.TestCase):
 
 class TestChain(unittest.TestCase):
     def test_default_chain_order_includes_the_three_chart_steps_after_the_simulation(self):
-        steps, _ = build_steps("Legion of Coom")
+        steps, _ = build_steps("Quantum Ferrets")
         self.assertEqual([n for n, _ in steps],
                          ["sync", "simulation", "positional_tiers", "strength_of_schedule", "win_trajectory",
                           "league", "predictions_log", "roster_grades", "lineup", "matchup", "waivers"])
-        steps, _ = build_steps("Legion of Coom", full=True, skip_sync=True)
+        steps, _ = build_steps("Quantum Ferrets", full=True, skip_sync=True)
         self.assertEqual(steps[0][0], "freshness"); self.assertEqual(steps[-1][0], "trades")
 
 
@@ -278,17 +278,17 @@ class TestPredictionsLog(unittest.TestCase):
     P(>= median), the commit hash and the sync-manifest timestamps. Unlike data/weeks/ it is
     git-tracked, so it survives a machine loss. Written before append_predictions_log existed."""
 
-    OUTCOMES = [{"Team": "Legion of Coom", "Expected_Wins": 15.93, "Expected_Points": 2457.9,
+    OUTCOMES = [{"Team": "Quantum Ferrets", "Expected_Wins": 15.93, "Expected_Points": 2457.9,
                  "Playoff_Pct": 61.5, "Playoff_SE": 0.49, "Champ_Pct": 20.2, "Toilet_Pct": 7.5},
-                {"Team": "Clankers", "Expected_Wins": 14.1, "Expected_Points": 2400.0,
+                {"Team": "Turbo Llamas", "Expected_Wins": 14.1, "Expected_Points": 2400.0,
                  "Playoff_Pct": 55.0, "Playoff_SE": 0.5, "Champ_Pct": 15.0, "Toilet_Pct": 9.0}]
     OUTLOOK = {"week": 1, "n": 5000, "cross": True,
-               "matchups": [{"a": "Legion of Coom", "b": "Clankers", "p_a": 0.654, "p_b": 0.346,
+               "matchups": [{"a": "Quantum Ferrets", "b": "Turbo Llamas", "p_a": 0.654, "p_b": 0.346,
                              "p_tie": 0.0, "se": 0.007, "a_expected": 174.0, "b_expected": 153.6,
                              "margin_sd": 50.8}],
-               "teams": {"Legion of Coom": {"opponent": "Clankers", "p_beat_median": 0.61,
+               "teams": {"Quantum Ferrets": {"opponent": "Turbo Llamas", "p_beat_median": 0.61,
                                             "expected_total": 174.0, "sd_total": 36.0},
-                         "Clankers": {"opponent": "Legion of Coom", "p_beat_median": 0.44,
+                         "Turbo Llamas": {"opponent": "Quantum Ferrets", "p_beat_median": 0.44,
                                       "expected_total": 153.6, "sd_total": 34.0}}}
     MANIFEST = {"season": "2026", "started_at": "2026-09-01T19:44:32Z",
                 "finished_at": "2026-09-01T19:44:39Z"}
@@ -310,13 +310,13 @@ class TestPredictionsLog(unittest.TestCase):
         self.assertEqual(r["sync_started_at"], "2026-09-01T19:44:32Z")
         self.assertFalse(r["backfilled"])
         teams = {o["Team"]: o for o in r["season_outcomes"]}
-        self.assertAlmostEqual(teams["Legion of Coom"]["Champ_Pct"], 20.2)
-        self.assertAlmostEqual(teams["Legion of Coom"]["Playoff_Pct"], 61.5)
-        self.assertAlmostEqual(teams["Legion of Coom"]["Expected_Wins"], 15.93)
+        self.assertAlmostEqual(teams["Quantum Ferrets"]["Champ_Pct"], 20.2)
+        self.assertAlmostEqual(teams["Quantum Ferrets"]["Playoff_Pct"], 61.5)
+        self.assertAlmostEqual(teams["Quantum Ferrets"]["Expected_Wins"], 15.93)
         m = r["matchups"][0]
-        self.assertEqual((m["a"], m["b"]), ("Legion of Coom", "Clankers"))
+        self.assertEqual((m["a"], m["b"]), ("Quantum Ferrets", "Turbo Llamas"))
         self.assertAlmostEqual(m["p_a"], 0.654)
-        self.assertAlmostEqual(r["median"]["Clankers"]["p_beat_median"], 0.44)
+        self.assertAlmostEqual(r["median"]["Turbo Llamas"]["p_beat_median"], 0.44)
         self.assertEqual(r["outlook_sims"], 5000)
 
     def test_append_only_a_rerun_appends_again(self):
@@ -349,7 +349,7 @@ class TestPredictionsLog(unittest.TestCase):
 
     def test_the_orchestrator_plans_the_step_after_league(self):
         from fantasy_sim.weekly_report import build_steps
-        steps, _state = build_steps("Legion of Coom", skip_sync=True)
+        steps, _state = build_steps("Quantum Ferrets", skip_sync=True)
         names = [n for n, _ in steps]
         self.assertIn("predictions_log", names)
         self.assertGreater(names.index("predictions_log"), names.index("league"),
@@ -405,9 +405,9 @@ class TestDecisionsLayout(unittest.TestCase):
 
     def test_orchestrator_threads_the_canonical_flag_to_the_tools(self):
         from fantasy_sim.weekly_report import build_steps
-        _steps, state = build_steps("Legion of Coom", skip_sync=True, canonical=True)
+        _steps, state = build_steps("Quantum Ferrets", skip_sync=True, canonical=True)
         self.assertEqual(state["tool_extra_argv"], ["--canonical"])
-        _steps, state = build_steps("Legion of Coom", skip_sync=True)
+        _steps, state = build_steps("Quantum Ferrets", skip_sync=True)
         self.assertEqual(state["tool_extra_argv"], [])
 
 
@@ -426,28 +426,28 @@ class TestTradeAndMatchupRendering(unittest.TestCase):
 
     def test_an_empty_buy_side_prints_a_message_not_an_empty_table(self):
         report = self._report([], [])
-        md = render_digest(report, team="Legion of Coom", week=3)
-        html = render_html(report, team="Legion of Coom", week=3)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
+        html = render_html(report, team="Quantum Ferrets", week=3)
         for out in (md, html):
             self.assertIn("no buy-side candidates met both sides' acceptance rule", out)
         self.assertNotIn('data-key="from"', html, "no header row over an empty tbody")
 
     def test_the_sell_side_is_a_table_with_the_buy_tables_column_family(self):
-        sell = [{"buyer": "Drunk Cats", "they_want": ["Fred Warner"],
+        sell = [{"buyer": "Polar Yetis", "they_want": ["Fred Warner"],
                  "they_give": ["Bijan Robinson"], "my_gain": 3.2, "their_gain": 1.1}]
         report = self._report([], sell)
-        md = render_digest(report, team="Legion of Coom", week=3)
-        html = render_html(report, team="Legion of Coom", week=3)
-        self.assertNotIn("Sell side: Drunk Cats wants", md, "prose paragraph replaced")
-        self.assertIn("| Drunk Cats | Fred Warner | Fred Warner | Bijan Robinson | +3.2 | +1.1 |", md)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
+        html = render_html(report, team="Quantum Ferrets", week=3)
+        self.assertNotIn("Sell side: Polar Yetis wants", md, "prose paragraph replaced")
+        self.assertIn("| Polar Yetis | Fred Warner | Fred Warner | Bijan Robinson | +3.2 | +1.1 |", md)
         for col in ("From", "Target", "I give", "I get", "My gain", "Their gain"):
             self.assertIn(f'data-key="{col}"', html)
-        self.assertIn("Drunk Cats", html)
+        self.assertIn("Polar Yetis", html)
 
     def test_the_matchup_section_notes_its_sample_is_independent_of_the_league_table(self):
         report = self._report([], [])
-        md = render_digest(report, team="Legion of Coom", week=3)
-        html = render_html(report, team="Legion of Coom", week=3)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
+        html = render_html(report, team="Quantum Ferrets", week=3)
         for out in (md, html):
             self.assertIn("independent", out)
             self.assertIn("sampling noise", out)
@@ -466,23 +466,23 @@ class TestDecisionLogSection(unittest.TestCase):
         path = os.path.join(d, "decision_log.jsonl")
         rows = [
             {"transaction_id": "t1", "type": "waiver", "week": 1, "created": "2026-09-01T02:00:00Z",
-             "snapshot_lag_days": 0.03, "snapshot_is_retroactive": False, "teams": ["Legion of Coom"],
+             "snapshot_lag_days": 0.03, "snapshot_is_retroactive": False, "teams": ["Quantum Ferrets"],
              "is_mine": True, "faab_bid": 9,
              "adds": [{"name": "Nick Bolton", "projection": {"mean": 9.6}}],
              "drops": [{"name": "Courtland Sutton", "projection": {"mean": 11.2}}]},
             {"transaction_id": "t2", "type": "free_agent", "week": 1, "created": "2026-08-23T00:00:00Z",
-             "snapshot_lag_days": 8.84, "snapshot_is_retroactive": True, "teams": ["Drunk Cats"],
+             "snapshot_lag_days": 8.84, "snapshot_is_retroactive": True, "teams": ["Polar Yetis"],
              "is_mine": False, "faab_bid": None,
              "adds": [{"name": "Some Guy", "projection": {"mean": 5.0}}], "drops": []},
             {"transaction_id": "t3", "type": "free_agent", "week": 1, "created": "2026-09-01T03:00:00Z",
-             "snapshot_lag_days": 0.04, "snapshot_is_retroactive": False, "teams": ["Canton Killers"],
+             "snapshot_lag_days": 0.04, "snapshot_is_retroactive": False, "teams": ["Crimson Marmots"],
              "is_mine": False, "faab_bid": None,
              "adds": [{"name": "Seth McGowan", "projection": {"mean": 4.1}}], "drops": []},
             {"transaction_id": "old", "type": "free_agent", "week": 0, "created": "2026-08-20T00:00:00Z",
-             "snapshot_lag_days": 10.0, "snapshot_is_retroactive": True, "teams": ["Clankers"],
+             "snapshot_lag_days": 10.0, "snapshot_is_retroactive": True, "teams": ["Turbo Llamas"],
              "is_mine": False, "faab_bid": None, "adds": [], "drops": []},
             {"record_type": "evaluation", "transaction_id": "t1", "post_execution_reversed": True,
-             "teams": {"Legion of Coom": {"champ_pct": {"delta": -0.33, "se": 1.27},
+             "teams": {"Quantum Ferrets": {"champ_pct": {"delta": -0.33, "se": 1.27},
                                           "playoff_pct": {"delta": -1.27, "se": 1.48}}}},
         ]
         with open(path, "w", encoding="utf-8") as f:
@@ -527,8 +527,8 @@ class TestDecisionLogSection(unittest.TestCase):
             summary = _decision_log_summary(1, log_path=self._log(d))
         report = {"status": "OK", "failed_step": None, "error": None, "results": _fixture_results(),
                   "started_at": "x", "finished_at": "y", "decision_log": summary}
-        md = render_digest(report, team="Legion of Coom", week=1)
-        html = render_html(report, team="Legion of Coom", week=1)
+        md = render_digest(report, team="Quantum Ferrets", week=1)
+        html = render_html(report, team="Quantum Ferrets", week=1)
         for out in (md, html):
             self.assertIn("Nick Bolton (9.6)", out)
             self.assertIn("Courtland Sutton (11.2)", out)
@@ -546,7 +546,7 @@ class TestPredictionsCanonicality(unittest.TestCase):
     week over append order; only a week with no canonical row falls back to its last row.
     Rows predating the field count as non-canonical. Written before either existed."""
 
-    OUTCOMES = [{"Team": "Legion of Coom", "Playoff_Pct": 61.5, "Champ_Pct": 20.2, "Expected_Wins": 15.9}]
+    OUTCOMES = [{"Team": "Quantum Ferrets", "Playoff_Pct": 61.5, "Champ_Pct": 20.2, "Expected_Wins": 15.9}]
     OUTLOOK = {"n": 100, "cross": True, "matchups": [], "teams": {}}
     MANIFEST = {"season": "2026", "started_at": "s", "finished_at": "f"}
 
@@ -651,9 +651,9 @@ class TestPredictionsCanonicality(unittest.TestCase):
         self.assertEqual(remaining, sorted(run1_cover + new_run2))
 
     def test_build_steps_stashes_the_canonical_flag_for_the_predictions_step(self):
-        _steps, state = build_steps("Legion of Coom", skip_sync=True, canonical=True)
+        _steps, state = build_steps("Quantum Ferrets", skip_sync=True, canonical=True)
         self.assertTrue(state["canonical"])
-        _steps, state = build_steps("Legion of Coom", skip_sync=True)
+        _steps, state = build_steps("Quantum Ferrets", skip_sync=True)
         self.assertFalse(state["canonical"])
 
 
@@ -672,8 +672,8 @@ class TestDepthWaiverRendering(unittest.TestCase):
         results["waivers"]["targets"] = results["waivers"]["targets"] + [depth_row]
         report = {"status": "OK", "failed_step": None, "error": None, "results": results,
                   "started_at": "x", "finished_at": "y"}
-        md = render_digest(report, team="Legion of Coom", week=3)
-        html = render_html(report, team="Legion of Coom", week=3)
+        md = render_digest(report, team="Quantum Ferrets", week=3)
+        html = render_html(report, team="Quantum Ferrets", week=3)
         for out in (md, html):
             self.assertIn("Depth upgrades", out)
             self.assertIn("Mark Andrews", out)
@@ -684,7 +684,7 @@ class TestDepthWaiverRendering(unittest.TestCase):
 
         results["waivers"]["targets"] = [t for t in results["waivers"]["targets"]
                                          if t["fills"] != "depth"]
-        md2 = render_digest(report, team="Legion of Coom", week=3)
+        md2 = render_digest(report, team="Quantum Ferrets", week=3)
         self.assertNotIn("Depth upgrades", md2, "no depth rows: no empty section")
 
 
@@ -698,9 +698,9 @@ class TestCanonicalLogsPush(unittest.TestCase):
 
     def test_canonical_appends_the_logs_push_step_last_and_plain_runs_lack_it(self):
         from fantasy_sim.weekly_report import build_steps
-        names = [n for n, _ in build_steps("Legion of Coom", canonical=True)[0]]
+        names = [n for n, _ in build_steps("Quantum Ferrets", canonical=True)[0]]
         self.assertEqual(names[-1], "logs_push")
-        names = [n for n, _ in build_steps("Legion of Coom")[0]]
+        names = [n for n, _ in build_steps("Quantum Ferrets")[0]]
         self.assertNotIn("logs_push", names)
 
     def test_nothing_staged_means_no_commit_and_no_push_attempt_when_not_ahead(self):
@@ -766,6 +766,36 @@ class TestCanonicalRowProvenance(unittest.TestCase):
         with _patch.dict(os.environ, {}, clear=True):
             p = run_provenance(manifest, vegas_meta)
         self.assertFalse(p["runner"])
+
+
+
+class TestRealNameLegend(unittest.TestCase):
+    """F37's at-a-glance requirement (owner, 2026-09-05): the repo runs entirely on
+    fictional team names, but the OWNER's local reports must show which fictional name
+    is which real team. The overlay is env-gated (SHOW_REAL_TEAM_NAMES), fetched live,
+    rendered as a clearly-marked LOCAL VIEW legend, and never written to any log --
+    runners never set the flag, and the sample generator force-clears it."""
+
+    MAP = {"Quantum Ferrets": "Real Team A", "Turbo Llamas": "Real Team B"}
+
+    def test_overlay_is_empty_when_the_flag_is_unset(self):
+        import os
+        from unittest.mock import patch
+        from fantasy_sim.weekly_report import real_name_overlay
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(real_name_overlay(), {})
+
+    def test_legend_renders_in_md_and_html_only_when_mapping_present(self):
+        from fantasy_sim.weekly_report import legend_html, legend_md
+        md = legend_md(self.MAP)
+        self.assertIn("LOCAL VIEW", md)
+        self.assertIn("Quantum Ferrets = Real Team A", md)
+        self.assertIn("not for sharing", md.lower())
+        html = legend_html(self.MAP)
+        self.assertIn("LOCAL VIEW", html)
+        self.assertIn("Turbo Llamas", html)
+        self.assertEqual(legend_md({}), "")
+        self.assertEqual(legend_html({}), "")
 
 
 

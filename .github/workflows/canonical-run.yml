@@ -53,6 +53,8 @@ jobs:
     timeout-minutes: 90
     env:
       MODE: ${{ inputs.mode || 'auto' }}
+      SLEEPER_LEAGUE_ID: ${{ secrets.SLEEPER_LEAGUE_ID }}
+      ESPN_LEAGUE_ID: ${{ secrets.ESPN_LEAGUE_ID }}
       ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
       ESPN_S2: ${{ secrets.ESPN_S2 }}
       ESPN_SWID: ${{ secrets.ESPN_SWID }}

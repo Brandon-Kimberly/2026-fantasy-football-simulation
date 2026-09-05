@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 585 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 587 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -120,8 +120,8 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   compensate for errors elsewhere. That reasoning originally covered the whole dict and was
   right when per-manager data was guesswork; F31 (2026-09-03) changed the evidentiary
   situation for the FAAB half specifically: `faab_agg`/`faab_activity` are DERIVED from the
-  99 attributed 2025 claims (several old guesses were contradicted outright — Legion of
-  Coom guessed 0.15, measured 1.36), labeled 2025-derived PRIORS, and blended with this
+  99 attributed 2025 claims (several old guesses were contradicted outright — Quantum
+  Ferrets guessed 0.15, measured 1.36), labeled 2025-derived PRIORS, and blended with this
   season's decision-log claims at engine init with a decaying prior weight. Still never
   optimiser-tuned: measured directly or not at all.
 - `FantasySimulationEngine` is deliberately one class. Its methods share substantial state;

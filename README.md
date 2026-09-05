@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-585%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-587%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -20,8 +20,8 @@ checked against what actually happened in this league last year.
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~74 findings and tracked follow-ups
-across 8 audit phases: 45 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~75 findings and tracked follow-ups
+across 8 audit phases: 46 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -43,6 +43,12 @@ trustworthy. The audit trail above is the evidence either way.
 *From the sanitized sample report (fictional team names, real NFL players). Each violin
 is one starter's simulated week: the upside, the bust tail, and the quartiles in one
 look. Seeing the whole distribution is the point of simulating instead of projecting.*
+
+**Identity note:** manager and team identities in this repository are pseudonymized
+(F37): fictional team names, roster-id keys, league IDs in environment variables only.
+Every number is real — projections, transactions, results — and the pseudonymization is
+itself test-pinned (a leak check gates the published sample; goldens and a behavioral
+baseline proved the rename changed nothing).
 
 **[View a full sanitized sample report](https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html)**.
 Team names are fictional; players and projections are real. `scripts.make_sample_report`
@@ -107,6 +113,7 @@ py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest v
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
 py -3.10 -m scripts.free_add_study              # F34: committed 2025 churn derivation (adds/timing/retention/drops/occupancy)
+py -3.10 -m scripts.migrate_identity            # F37: the one-time identity migration (mechanics; the map stays untracked)
 py -3.10 -m scripts.run_behavior_check          # simulated mechanic rates vs the real 2025 league + drift vs the committed baseline
 ```
 
@@ -177,7 +184,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 585 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 587 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -214,7 +221,7 @@ is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`**: seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`**: the working spec, with 36 tracked follow-ups (F1-F36), each with
+- **`docs/AUDIT_PLAN.md`**: the working spec, with 37 tracked follow-ups (F1-F37), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed, and the R1
   machine-fault investigation.
 

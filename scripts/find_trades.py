@@ -7,7 +7,7 @@ each opponent would want from my bench. Gains are the engine's own acceptance ru
 flag comes from the latest season export's Playoff_Pct (never from MANAGER_PROFILES, which is
 shown as "modelled willingness" only).
 
-  py -3.10 -m scripts.find_trades [--team "Legion of Coom"] [--week N] [--top 10]
+  py -3.10 -m scripts.find_trades [--team "Quantum Ferrets"] [--week N] [--top 10]
         [--seller-threshold 35] [--evaluate N] [--batches 3] [--sims 1000]
 
 --evaluate N runs tool 2 (paired simulations, real Champ/Playoff deltas) on the top N buy

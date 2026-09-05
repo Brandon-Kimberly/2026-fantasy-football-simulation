@@ -834,7 +834,7 @@ def _package(engine, d_team, r_team, p1, p2, p3):
     """The engine's 2-for-2: the desperate side's lowest-mean player AFTER the two received
     pieces are added goes back as the throw-in. When that lowest piece is one of the two
     received players, he is handed straight back -- a 1-for-1 in substance -- and the terms
-    say so (found on real data: 'Tyrone Tracy not on Legion of Coom's roster' when the throw-in
+    say so (found on real data: 'Tyrone Tracy not on Quantum Ferrets's roster' when the throw-in
     was listed as something I give). Returns (d_list, r_list, tent_d, tent_r, d_gives, r_gives)
     with d_gives/r_gives the real terms, valid for evaluate_trade."""
     mean = lambda p: _entry(engine, p).get('mean', 0.0)

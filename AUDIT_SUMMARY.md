@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~74 findings and tracked follow-ups** | **45 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~75 findings and tracked follow-ups** | **46 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F37** league-identity pseudonymization — BUILT: league IDs to env/secrets (a
+  committed Sleeper ID resolves to real identities via the public API), TEAM_NAME_MAP
+  re-keyed by roster_id, fictional team names throughout HEAD (code, docs, fixtures,
+  committed logs) via a committed migration whose real-name map lives only in the
+  owner's untracked data/local/. Goldens and sync golden regenerated; the behavior
+  baseline regenerated with ZERO drift (rename measured behavior-inert). The
+  pre-registered evaluation re-locked with a dated names-only note before any game.
+  The owner's local reports overlay real names via an env-gated LOCAL VIEW legend
+  that runners never see. History retains the pre-migration record by design.
 - **F36** canonical runs on GitHub Actions (tier 2) — BUILT: scheduled canonical runs
   gated mechanically (ABORT / REPORT_ONLY-with-artifact / CANONICAL_OK by explicit
   allowlists; unrecognized blocks conservatively), every failure opening an issue whose

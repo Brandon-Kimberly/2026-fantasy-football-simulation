@@ -29,17 +29,9 @@ import shutil
 import sys
 import tempfile
 
-# The fictional league. Clearly invented; the operator's team is the Quantum Ferrets.
-FICTIONAL = {
-    "Legion of Coom": "Quantum Ferrets",
-    "Canton Killers": "Crimson Marmots",
-    "Wine Drinkers": "Iron Wombats",
-    "Femboy Cats": "Neon Walruses",
-    "Clankers": "Turbo Llamas",
-    "The Glutton": "Cosmic Badgers",
-    "Drunk Cats": "Polar Yetis",
-    "Year of Jarvis": "Rocket Pandas",
-}
+# The league's eight (fictional -- F37) team names, for coverage checks.
+TEAMS = ("Quantum Ferrets", "Crimson Marmots", "Iron Wombats", "Neon Walruses",
+         "Turbo Llamas", "Cosmic Badgers", "Polar Yetis", "Rocket Pandas")
 SAMPLE_MY_TEAM = "Quantum Ferrets"
 
 BANNER = (
@@ -110,17 +102,16 @@ def main(argv=None):
     sys.path.insert(0, repo)
     from fantasy_sim import config
 
-    # Captured BEFORE mutation: everything the artifact must not contain.
-    forbidden = (list(config.TEAM_NAME_MAP.keys()) + list(config.TEAM_NAME_MAP.values())
-                 + [config.MY_TEAM, config.LEAGUE_ID, str(config.ESPN_LEAGUE_ID)])
-
-    # In-place mutation propagates to every module that imported these objects.
-    for user, real in list(config.TEAM_NAME_MAP.items()):
-        config.TEAM_NAME_MAP[user] = FICTIONAL[real]
-    profiles = dict(config.MANAGER_PROFILES)
-    config.MANAGER_PROFILES.clear()
-    config.MANAGER_PROFILES.update({FICTIONAL[k]: v for k, v in profiles.items()})
-    config.MY_TEAM = SAMPLE_MY_TEAM   # sync's is_mine flag imports this lazily
+    # F37 (2026-09-05): the repository itself is pseudonymized -- config carries only
+    # the fictional names and the league ids live in the environment -- so the old
+    # in-place rename mutation is gone. What the leak check still guards: the league
+    # ids (present in this process's environment) and, defensively, any accidental
+    # real-name reintroduction via the local overlay (SHOW_REAL_TEAM_NAMES must never
+    # be honored in a published artifact; it is force-cleared here).
+    os.environ.pop("SHOW_REAL_TEAM_NAMES", None)
+    forbidden = [x for x in (config.LEAGUE_ID, str(config.ESPN_LEAGUE_ID),
+                             os.environ.get("SLEEPER_LEAGUE_ID_2025", "")) if x]
+    forbidden.append("LOCAL VIEW")   # the legend's marker: must never reach a published page
 
     scratch = tempfile.mkdtemp(prefix="sample_report_")
     cwd = os.getcwd()

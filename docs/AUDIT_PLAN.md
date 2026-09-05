@@ -2032,7 +2032,7 @@ champion or playoff berth changed). `Playoff_Pct` itself carries no variance in 
 regardless of cap (seeding is fixed from banked standings before week 15 per F3, so the four
 playoff seeds are already determined; the measurement is really testing whether the cap can
 flip who wins among them). The measurement is not simply insensitive: the deliberately more
-aggressive cap=60 *did* move `Champ_Pct` slightly (e.g. Drunk Cats 39.075 -> 39.025, Femboy Cats
+aggressive cap=60 *did* move `Champ_Pct` slightly (e.g. Polar Yetis 39.075 -> 39.025, Neon Walruses
 17.325 -> 17.400), a small but nonzero effect consistent with roughly one simulated season's
 outcome flipping at that tighter threshold -- confirming the pipeline can detect a real effect
 when the cap is tight enough to produce one. At the actual production value, 80, it does not.
@@ -2088,16 +2088,16 @@ spent per season 252 vs 282 (week01), 174 vs 194 (week06); bids per season ident
 
 - *First pass, 1,000 seasons per arm, week01 and week06:* per-team deltas up to +-2.8 `Champ_Pct`
   / +-3.7 `Playoff_Pct` -- but with signs that did not track aggression (the low-aggression
-  Clankers gained +2.8 under the current values; the high-aggression Year of Jarvis lost -2.3 in
+  Turbo Llamas gained +2.8 under the current values; the high-aggression Rocket Pandas lost -2.3 in
   both scenarios). Suspicious rather than conclusive: once a changed bid alters a streamer
   assignment, that season diverges and behaves as an independent draw, so "paired" does not
   mean noise-free.
 - *Proper paired statistic, 3,000 seasons per arm, week01, per-batch differences over the 30
   shared-seed batches:* every team's |t| < 2. `Champ_Pct` deltas (current minus neutral, +-SE):
-  Femboy +0.43+-0.72, Year of Jarvis -1.00+-0.86, Drunk Cats +1.60+-0.93, Glutton -0.30+-0.86,
-  Canton -0.17+-0.54, Legion -0.13+-0.67, Clankers +0.10+-0.76, Wine Drinkers -0.53+-0.59.
+  Walruses +0.43+-0.72, Rocket Pandas -1.00+-0.86, Polar Yetis +1.60+-0.93, Badgers -0.30+-0.86,
+  Marmots -0.17+-0.54, Ferrets -0.13+-0.67, Turbo Llamas +0.10+-0.76, Iron Wombats -0.53+-0.59.
   `Playoff_Pct` deltas all within +-1.5+-1.4. Expected wins all within +-0.28+-0.18. The
-  1,000-season outliers collapsed (Clankers +2.8 -> +0.1; Year of Jarvis -2.3 -> -1.0+-0.9).
+  1,000-season outliers collapsed (Turbo Llamas +2.8 -> +0.1; Rocket Pandas -2.3 -> -1.0+-0.9).
   76% of team-seasons differ between arms in win total, confirming the pairing buys little
   variance reduction and these SEs are the honest ones.
 
@@ -2126,16 +2126,16 @@ desperate side meeting a high-willingness rich side is what the spread creates. 
 the offer-side constraint binds (F2 commit 1) and dispersion makes no difference (0.46 vs 0.48).
 
 *Outcomes, dispersion effect (CURRENT minus UNIFORM), paired-batch SEs:* week06 every team's
-|t| < 2 on `Champ_Pct` (largest Drunk Cats -2.17+-1.45, Femboy +1.77+-0.96) and on expected
-wins; one `Playoff_Pct` contrast at t = -2.2 (Wine Drinkers -2.47+-1.11). week01: Year of Jarvis
-`Champ_Pct` +3.17+-1.01 (t 3.1), Glutton `Playoff_Pct` -3.17+-1.17 (t -2.7), everything else
+|t| < 2 on `Champ_Pct` (largest Polar Yetis -2.17+-1.45, Walruses +1.77+-0.96) and on expected
+wins; one `Playoff_Pct` contrast at t = -2.2 (Iron Wombats -2.47+-1.11). week01: Rocket Pandas
+`Champ_Pct` +3.17+-1.01 (t 3.1), Badgers `Playoff_Pct` -3.17+-1.17 (t -2.7), everything else
 |t| < 2. Across the 48 contrasts per comparison, two or three at |t| > 2 is what the null
 produces; the signs do not line up with willingness (the two highest-willingness managers
 move +0.43 and +3.17 on week01, +1.77 and -0.77 on week06). 91-96% of team-seasons diverge
 between arms, so these are honest unpaired-scale SEs.
 
-*Mechanism on vs off (CURRENT minus OFF), for scale:* week06 Femboy Cats +2.20+-0.97
-`Champ_Pct` / +2.87+-1.05 `Playoff_Pct`, Year of Jarvis +2.93+-1.26 `Playoff_Pct`, Drunk Cats
+*Mechanism on vs off (CURRENT minus OFF), for scale:* week06 Neon Walruses +2.20+-0.97
+`Champ_Pct` / +2.87+-1.05 `Playoff_Pct`, Rocket Pandas +2.93+-1.26 `Playoff_Pct`, Polar Yetis
 -2.90+-1.32 `Champ_Pct` -- the two most willing managers gain and the strongest team gives a
 little up, a coherent direction at ~2 sigma; the whole mechanism is worth about +-3 points of
 championship or playoff probability to the teams it touches most, and less to the rest.
@@ -2211,7 +2211,7 @@ Tuipulotu) highly, so late-round "reach" verdicts are the picks most polluted by
 genuinely needs the season.
 
 **2025 verdicts contradicted by the season retrospective (2026-09-02, F21).** The 2025 draft
-review graded Legion of Coom's draft best in the league (mean VORP gap -3.54, top of the
+review graded Quantum Ferrets's draft best in the league (mean VORP gap -3.54, top of the
 per-manager table) -- and the 2025 season retrospective measured the same roster at
 **7th of 8 in realized points** (1721.32). The 2025 grade should be read as measuring
 HINDSIGHT (who holds up on a board 13 months later), not draft-day decision quality: the
@@ -2287,8 +2287,8 @@ script once the opponent-aware tool lands; worth running in the first weeks of t
 
 **MEASURED (1), week 1 only (2026-09-01, `decisions.matchup_lineups`, max-expectation lineups
 both sides, n = 20,000 per arm, same seed).** P(win) with vs without cross-roster correlation:
-Femboy-Drunk Cats 50.4 vs 51.0; Year of Jarvis-Clankers 45.0 vs 45.8; Glutton-Wine Drinkers
-48.3 vs 48.8; Legion-Canton 58.8 vs 58.9. Margin sd moved at most 0.8 points (50.1 vs 50.9).
+Walruses-Polar Yetis 50.4 vs 51.0; Rocket Pandas-Turbo Llamas 45.0 vs 45.8; Badgers-Iron Wombats
+48.3 vs 48.8; Ferrets-Marmots 58.8 vs 58.9. Margin sd moved at most 0.8 points (50.1 vs 50.9).
 Two honesty notes: (a) the two arms consume the random stream in different shapes, so they are
 not truly paired -- the difference carries ~0.5 points of noise at this n, and the -0.6 on a
 matchup with zero correlated *starting* pairs is that noise; (b) the correlated pairs that
@@ -2303,7 +2303,7 @@ that the tool exists.
 
 ### F17 — Commissioner-Exempt (`NA`) return timing: capture the live data point
 
-**Origin:** 2026-09-01. Josh Jacobs (The Glutton) entered week 1 rostered with no Sleeper
+**Origin:** 2026-09-01. Josh Jacobs (Cosmic Badgers) entered week 1 rostered with no Sleeper
 projection and `injury_status: "NA"` -- Sleeper's reserve / non-football code, here the
 Commissioner Exempt list, a roster-eligibility absence with no injury. Rather than a hand-typed
 healthy baseline, the sync now carries his prior mean (12.98, the projection log's last Sleeper/
@@ -2470,7 +2470,7 @@ measurements, reported separately with no combined verdict
 read from the bundle so the 2026 run in January needs only `--season 2026`):
 
 1. Schedule luck: all-play expected 5.14 wins vs actual 4 -> **-1.14, the league's worst**
-   (Year of Jarvis +1.43 at the other end; league sums to zero). Context carried in the
+   (Rocket Pandas +1.43 at the other end; league sums to zero). Context carried in the
    output: 2025 ran pure H2H (`league_average_match=0`), one decision per week --
    structurally higher record variance than the current hybrid format.
 2. Lineup efficiency: 88.42% of the Hungarian optimum on realized scores, 6th of 8, 225.4
@@ -2533,7 +2533,7 @@ above stays either way.
 - *Season outcomes (Champ%/Playoff%/ExpW): immaterial, F14-style.* Across all 9 arms, 1-3 of
   24 team-metrics per arm exceed |z| = 2 against the paired SE (the F20 null floor produced
   |z| up to 2.6 on pure noise); the worst single excursions are 2-4 Playoff points, scattered
-  across different teams with no consistent sign between arms. Legion of Coom's own deltas
+  across different teams with no consistent sign between arms. Quantum Ferrets's own deltas
   never exceed 1.2 SE in any arm (|dChamp| <= 0.9, |dExpW| <= 0.14).
 - *Waiver channel: immaterial.* VORP ordering invariant by construction; p_beats_incumbent
   moves at most 0.06 across all arms on base values ~0.39-0.55 -- not decision-changing.
@@ -3061,8 +3061,8 @@ not.
   **728 of 800 league FAAB spent (91%)**; five of eight teams at/near 100; winning bids
   mean 7.4, MEDIAN 4, max 39; spending front-loaded (385 of 728 in weeks 1–4, before a
   single bye) and persistent all season. Per-manager spread is real signal: claims 5–19,
-  mean bid 5.3 (Canton Killers) to 12.6 (The Glutton). Caveat: two teams sum over 100
-  (Wine Drinkers 113, Clankers 106) — FAAB acquired by trade or multi-roster claim
+  mean bid 5.3 (Crimson Marmots) to 12.6 (Cosmic Badgers). Caveat: two teams sum over 100
+  (Iron Wombats 113, Turbo Llamas 106) — FAAB acquired by trade or multi-roster claim
   attribution; headline unaffected.
 - *Current sim* (instrumented `_compute_faab_bid` over hermetic golden-fixture seasons):
   **248 of 800 per season (~31%)** from week 1 (week06 scenario: 175) — ~60 bids per
@@ -3113,9 +3113,9 @@ existed).** The implementation, owner-approved design with both judgment calls s
   won-streamer-value fix is not re-opened.
 - *Two-parameter manager model* (owner's call): `faab_agg` (mean bid / league mean) and
   `faab_activity` (claims / league mean) derived per manager from attributed claims —
-  visibly separate dimensions (The Glutton 0.40 activity / 1.71 aggression; Canton
-  Killers 1.54 / 0.72). Several old guesses were contradicted outright (Legion of Coom
-  guessed 0.15, measured the league's most aggressive at 1.36; Wine Drinkers guessed
+  visibly separate dimensions (Cosmic Badgers 0.40 activity / 1.71 aggression; Marmots
+  Killers 1.54 / 0.72). Several old guesses were contradicted outright (Quantum Ferrets
+  guessed 0.15, measured the league's most aggressive at 1.36; Iron Wombats guessed
   0.10, measured 0.96). **2025-derived PRIORS, not facts**: blended at engine init with
   this season's decision-log claims, prior worth ~one season (weight 12), decaying as
   2026 accumulates.
@@ -3141,7 +3141,7 @@ inside a "hermetic" sandbox, which would have made the engine goldens change wit
 logged transaction (F11's contamination class). The sandbox now patches
 `read_faab_observations` to {} with a load-bearing comment.
 
-**Owner strategy declaration (2026-09-03, after closure):** Legion of Coom's profile
+**Owner strategy declaration (2026-09-03, after closure):** Quantum Ferrets's profile
 is the one deliberate exception to measured-priors -- the owner declared a 2026 strategy
 (active bidder, large only when needed, FAAB reserved into the playoffs) and it is
 encoded as act 1.25 / agg 0.65 with the translation arithmetic and the no-reserve-knob
@@ -3293,7 +3293,7 @@ within 2 weeks), confirming 122. Churn under-modeling is **~2.0x** (221 real add
 Behavioral rates transfer as priors; the position mix does not.
 
 *What the measurement pinned* (full detail in the artifact): per-team free adds 6-42
-(Canton Killers 42, Legion of Coom 8 — activity is real per-manager signal); timing is
+(Crimson Marmots 42, Quantum Ferrets 8 — activity is real per-manager signal); timing is
 NOT front-loaded (weeks 1-4 carry 16% of free adds vs 39% of paid claims — free adds
 are steady in-season churn, the opposite profile); retention: free adds start
 immediately (57% within 1 week, 64% within 2) while paid claims start the FOLLOWING
@@ -3458,3 +3458,41 @@ fire inside it), so the twice-in-one-day hole class cannot be silently reintrodu
 
 Run before any MAJOR and at milestone tags. Unit tests cover the classification and
 drift logic; the engine-measuring path is exercised by the script itself, by design.
+
+
+### F37 — League-identity pseudonymization — BUILT (2026-09-05)
+
+**Origin (owner + the showcase review):** the public repository carried the real
+league's identity in ~349 places — eight Sleeper usernames, the real team names, and
+the raw league IDs — while the published sample was elaborately sanitized. The IDs were
+the sharpest edge: Sleeper's API is public, so a committed league ID resolves to real
+identities in one request, making any rename cosmetic without it.
+
+**Built (option B: forward-only, HEAD clean, history intact by design):**
+- League IDs (2026, 2025, ESPN) moved to environment variables locally and repo
+  secrets on the runner; committed data files carry blank ids and consumers fall back
+  to the environment.
+- `TEAM_NAME_MAP` re-keyed by **roster_id** (usernames AND owner user_ids both resolve
+  to real identities via the public API; roster_id is stable, opaque, and meaningless
+  without the env-only league id). Sync and the season backtest drop the display-name
+  hop — also a robustness fix (display names can change mid-season).
+- Team names throughout code, docs, tests, fixtures, and the committed logs replaced
+  by the fictional map the sanitized sample always used (`scripts.migrate_identity`,
+  committed mechanics; the real-name mapping lives only in the owner's untracked
+  `data/local/`). Draft-log `picked_by` user ids replaced by fictional team names
+  (recoverability preserved through the local map).
+- **Owner's at-a-glance requirement:** `SHOW_REAL_TEAM_NAMES=1` renders a clearly
+  marked LOCAL VIEW legend (fictional → real) at the top of the owner's own reports,
+  fetched live, never written to any log; runners never set the flag, and the sample
+  generator force-clears it and forbids the legend's marker string (test-pinned).
+- The sample generator's rename mutation is deleted — the repository itself is the
+  sanitized thing now; its leak check guards the ids and the overlay marker.
+
+**MAJOR ritual:** engine goldens and sync golden regenerated on the renamed fixtures;
+the behavior baseline regenerated and reported **zero drift** — the rename is
+behavior-inert, measured, not asserted. `SEASON_2026_EVALUATION.md` re-locked with a
+dated names-only amendment note, before any game was played — the only window in which
+a re-lock is honest. Git history retains the pre-migration record on purpose: this
+project does not rewrite history; HEAD is the presentation, history is the record.
+Timing was deliberate: the season's quoted record (starting with the 09-09 baseline
+run) is born entirely under the final identity scheme.

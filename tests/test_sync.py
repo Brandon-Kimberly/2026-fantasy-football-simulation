@@ -698,7 +698,7 @@ class TestSeasonIngestion(unittest.TestCase):
     def _run(self, d, fake=None):
         import fantasy_sim.sync as syncmod, os as _os
         path_fn = lambda season: _os.path.join(d, f"season_{season}.json")
-        name_map = {"brandon.kimberly": "Legion of Coom", "clanker_han": "Clankers"}
+        name_map = {"1": "Quantum Ferrets", "2": "Turbo Llamas"}   # F37: roster_id-keyed
         with patch("requests.get", side_effect=fake or self._fake_get()), \
              patch.object(syncmod, "TEAM_NAME_MAP", name_map):
             return syncmod.ingest_season("L0", path_fn=path_fn)
@@ -714,9 +714,9 @@ class TestSeasonIngestion(unittest.TestCase):
                          "the slot list is IN the bundle -- the retrospective reads it, never hardcodes")
         self.assertEqual(b["settings"]["playoff_week_start"], 3)
         self.assertEqual(b["settings"]["league_average_match"], 0)
-        self.assertEqual(b["roster_map"]["1"], "Legion of Coom")
-        self.assertEqual(b["final_standings"]["Legion of Coom"]["wins"], 1)
-        self.assertAlmostEqual(b["final_standings"]["Legion of Coom"]["points_scored"], 200.50)
+        self.assertEqual(b["roster_map"]["1"], "Quantum Ferrets")
+        self.assertEqual(b["final_standings"]["Quantum Ferrets"]["wins"], 1)
+        self.assertAlmostEqual(b["final_standings"]["Quantum Ferrets"]["points_scored"], 200.50)
         self.assertEqual(sorted(b["matchups"]), ["1", "2"], "only weeks that returned data")
         e = b["matchups"]["1"][0]
         self.assertEqual(e["roster_id"], 1); self.assertEqual(e["matchup_id"], 1)
@@ -750,7 +750,7 @@ class TestDraftIngestion(unittest.TestCase):
     roster_id and picked_by user id survive on every pick so a cross-season mapping error is
     recoverable. Written before sync.ingest_drafts existed."""
 
-    ROSTER_MAP = {1: "Legion of Coom", 2: "Femboy Cats"}
+    ROSTER_MAP = {1: "Quantum Ferrets", 2: "Neon Walruses"}
 
     def _pick(self, no, rnd, slot, rid, pid, first, last, pos, team, keeper=False):
         return {"pick_no": no, "round": rnd, "draft_slot": slot, "roster_id": rid,
@@ -800,14 +800,14 @@ class TestDraftIngestion(unittest.TestCase):
         self.assertEqual(d26["draft_id"], "D26"); self.assertEqual(d26["season"], "2026")
         self.assertEqual(len(d26["picks"]), 2)
         p1 = d26["picks"][0]
-        self.assertEqual(p1["team"], "Legion of Coom", "roster_id resolved via the roster map")
+        self.assertEqual(p1["team"], "Quantum Ferrets", "roster_id resolved via the roster map")
         self.assertEqual(p1["roster_id"], 1, "the raw id survives beside the resolved name")
         self.assertEqual(p1["picked_by"], "user_1")
         self.assertEqual(p1["name"], "Player A"); self.assertEqual(p1["pos"], "RB")
         self.assertEqual(p1["pick_no"], 1); self.assertEqual(p1["round"], 1)
         self.assertTrue(d26["picks"][1]["is_keeper"])
         self.assertEqual(d25["league_id"], "L0")
-        self.assertEqual(d25["picks"][0]["team"], "Femboy Cats")
+        self.assertEqual(d25["picks"][0]["team"], "Neon Walruses")
 
     def test_an_existing_draft_file_is_never_rewritten(self):
         import json as _json, os as _os, tempfile
@@ -846,7 +846,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
     a later retrospective never treats a backfilled projection as if it were recorded at the
     moment of the click. Written before sync.ingest_transactions existed."""
 
-    ROSTER_MAP = {1: "Legion of Coom", 2: "Femboy Cats"}
+    ROSTER_MAP = {1: "Quantum Ferrets", 2: "Neon Walruses"}
     BASELINES = {
         "Player A": {"mean": 10.0, "std_epistemic": 2.0, "pos": "RB", "team": "SEA", "player_id": "111",
                      "injury_status": None},
@@ -877,7 +877,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
         with patch("requests.get", side_effect=fake_get), \
              patch.object(syncmod, "_now_ms", return_value=now_ms):
             return syncmod.ingest_transactions(self.ROSTER_MAP, current_week, self.BASELINES,
-                                               self.PLAYERS_DB, my_team="Legion of Coom", path=path,
+                                               self.PLAYERS_DB, my_team="Quantum Ferrets", path=path,
                                                standings=standings)
 
     def test_appends_one_record_per_completed_transaction_with_terms_and_snapshot(self):
@@ -896,7 +896,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
         self.assertEqual(r1["type"], "waiver"); self.assertEqual(r1["week"], 1)
         self.assertTrue(r1["is_mine"]); self.assertEqual(r1["faab_bid"], 3)
         self.assertEqual(r1["adds"][0]["name"], "Player A")
-        self.assertEqual(r1["adds"][0]["to_team"], "Legion of Coom")
+        self.assertEqual(r1["adds"][0]["to_team"], "Quantum Ferrets")
         self.assertAlmostEqual(r1["adds"][0]["projection"]["mean"], 10.0)
         self.assertEqual(r1["drops"][0]["projection"]["injury_status"], "Questionable")
         self.assertFalse(r1["snapshot_is_retroactive"])
@@ -912,7 +912,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
             path = _os.path.join(d, "decision_log.jsonl")
             txs = {1: [self._tx("w1", 1_756_899_000_000, tx_type="waiver", bid=6),
                        self._tx("f1", 1_756_899_000_000, tx_type="free_agent", bid=None)]}
-            standings = {"Legion of Coom": {"remaining_faab": 87.0}}
+            standings = {"Quantum Ferrets": {"remaining_faab": 87.0}}
             self._run(txs, path, standings=standings)
             with open(path, encoding="utf-8") as fh:
                 rows = {r["transaction_id"]: r for r in map(_json.loads, fh)}
@@ -940,7 +940,7 @@ class TestDecisionLogIngestion(unittest.TestCase):
                 r = _json.loads(f.read())
         self.assertEqual(r["type"], "trade"); self.assertTrue(r["is_mine"])
         self.assertEqual({(a["name"], a["to_team"]) for a in r["adds"]},
-                         {("Player A", "Femboy Cats"), ("Player C", "Legion of Coom")})
+                         {("Player A", "Neon Walruses"), ("Player C", "Quantum Ferrets")})
         pc = next(a for a in r["adds"] if a["name"] == "Player C")
         self.assertIsNone(pc["projection"], "no baseline for the player: projection is None, not invented")
 

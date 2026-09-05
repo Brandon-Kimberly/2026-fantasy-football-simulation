@@ -1699,7 +1699,7 @@ class FantasySimulationEngine:
         # optimal_starting_lineup + bench * 0.1 (a deliberate bench-depth reward, not a bug),
         # but this was labelled "Optimal Valid Starting Lineup Baseline" and exported as
         # power_rankings_baseline_pts -- a real bench uplift presented as if it were a
-        # starters-only number. Measured on real week01 data: Femboy Cats' true starters-only
+        # starters-only number. Measured on real week01 data: Neon Walruses' true starters-only
         # optimum was 166.8 against a reported 173.1, a 3.6% bench uplift folded into a number
         # labelled as pure starters. Renamed to state what the number actually is; the value
         # itself is unchanged.
@@ -1753,7 +1753,7 @@ class FantasySimulationEngine:
         weeks_range = np.arange(1, 15)
         sorted_teams = summary_df['Team'].tolist()
         palette = sns.color_palette('tab10', len(sorted_teams))
-        coom_mean = np.mean(trajectories['Legion of Coom'], axis=0) if 'Legion of Coom' in trajectories else np.zeros(14)
+        my_team_mean = np.mean(trajectories['Quantum Ferrets'], axis=0) if 'Quantum Ferrets' in trajectories else np.zeros(14)
 
         for idx, t in enumerate(sorted_teams):
             ax = axes[idx]
@@ -1766,16 +1766,16 @@ class FantasySimulationEngine:
             p_90 = np.percentile(team_matrix, 90, axis=0)
             p_99 = np.percentile(team_matrix, 99, axis=0)
 
-            color = 'purple' if t == 'Legion of Coom' else palette[idx]
+            color = 'purple' if t == 'Quantum Ferrets' else palette[idx]
             ax.fill_between(weeks_range, p_10, p_90, color=color, alpha=0.18, label='80% Conf. Interval')
             ax.fill_between(weeks_range, p_25, p_75, color=color, alpha=0.35, label='50% Likely Range')
             ax.plot(weeks_range, p_99, color='forestgreen', linestyle=':', linewidth=1.4, alpha=0.85, label='1% Best Case')
             ax.plot(weeks_range, p_01, color='crimson', linestyle=':', linewidth=1.4, alpha=0.85, label='1% Worst Case')
 
-            if t != 'Legion of Coom':
-                ax.plot(weeks_range, coom_mean, color='black', linestyle='--', linewidth=1.2, alpha=0.6, label='Legion of Coom Pace')
+            if t != 'Quantum Ferrets':
+                ax.plot(weeks_range, my_team_mean, color='black', linestyle='--', linewidth=1.2, alpha=0.6, label='Quantum Ferrets Pace')
 
-            ax.plot(weeks_range, mean_w, color='black' if t == 'Legion of Coom' else color, linewidth=2.5, label='Expected Mean')
+            ax.plot(weeks_range, mean_w, color='black' if t == 'Quantum Ferrets' else color, linewidth=2.5, label='Expected Mean')
             ax.axhline(16, color='gold', linestyle='--', linewidth=1.5, alpha=0.9)
 
             p_pct = summary_df.loc[summary_df['Team'] == t, 'Playoff_Pct'].values[0]
@@ -1909,10 +1909,10 @@ class FantasySimulationEngine:
             "week_of_highest_score": max_wk,
             "most_valuable_players_championship_shares": top_20_valuable_assets,
             "schedule_luck_index": schedule_luck,
-            "legion_of_coom_insights": {
-                "championship_probability": round(float(summary_df.loc[summary_df['Team'] == 'Legion of Coom', 'Champ_Pct'].values[0]), 2) if 'Legion of Coom' in summary_df['Team'].values else 0.0,
-                "playoff_probability": round(float(summary_df.loc[summary_df['Team'] == 'Legion of Coom', 'Playoff_Pct'].values[0]), 2) if 'Legion of Coom' in summary_df['Team'].values else 0.0,
-                "playoff_standard_error": round(float(summary_df.loc[summary_df['Team'] == 'Legion of Coom', 'Playoff_SE'].values[0]), 3) if 'Legion of Coom' in summary_df['Team'].values else 0.0
+            "my_team_insights": {
+                "championship_probability": round(float(summary_df.loc[summary_df['Team'] == 'Quantum Ferrets', 'Champ_Pct'].values[0]), 2) if 'Quantum Ferrets' in summary_df['Team'].values else 0.0,
+                "playoff_probability": round(float(summary_df.loc[summary_df['Team'] == 'Quantum Ferrets', 'Playoff_Pct'].values[0]), 2) if 'Quantum Ferrets' in summary_df['Team'].values else 0.0,
+                "playoff_standard_error": round(float(summary_df.loc[summary_df['Team'] == 'Quantum Ferrets', 'Playoff_SE'].values[0]), 3) if 'Quantum Ferrets' in summary_df['Team'].values else 0.0
             }
         }
 

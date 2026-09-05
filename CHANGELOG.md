@@ -5,6 +5,16 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v5.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.0.0) — 2026-09-05 (MAJOR)
+
+League-identity pseudonymization (F37): fictional team names throughout, roster-id
+keys, league IDs moved to environment/secrets (a committed Sleeper ID resolves to real
+identities through the public API). Goldens regenerated on the renamed fixtures — and
+the behavioral baseline regenerated with zero drift, measuring the rename as
+behavior-inert. The pre-registered season evaluation re-locked with a dated names-only
+note before any game was played. The owner's local reports keep an env-gated real-name
+legend that never reaches logs or published artifacts.
+
 ## [v4.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v4.1.0) — 2026-09-05 (MINOR)
 
 Season-operations automation and the showcase polish: the canonical-window watcher and

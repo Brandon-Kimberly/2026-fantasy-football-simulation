@@ -118,14 +118,14 @@ standard error √(p̂(1−p̂)/N):
 
 | team | p̂ | exported SE% | i.i.d. SE% | ratio | χ²₉ | p |
 |---|---|---|---|---|---|---|
-| Canton Killers | 0.4189 | 0.4639 | 0.4934 | 0.940 | 7.96 | 0.923 |
-| Clankers | 0.5793 | 0.4435 | 0.4937 | 0.898 | 7.26 | 0.781 |
-| Drunk Cats | 0.5943 | 0.5331 | 0.4910 | 1.086 | 10.61 | 0.607 |
-| Femboy Cats | 0.5067 | 0.6337 | 0.5000 | 1.267 | 14.46 | 0.214 |
-| Legion of Coom | 0.5313 | 0.5710 | 0.4990 | 1.144 | 11.78 | 0.452 |
-| The Glutton | 0.5038 | 0.5613 | 0.5000 | 1.123 | 11.34 | 0.506 |
-| Wine Drinkers | 0.3897 | 0.5226 | 0.4877 | 1.072 | 10.34 | 0.648 |
-| Year of Jarvis | 0.4760 | 0.4837 | 0.4994 | 0.969 | 8.44 | 0.980 |
+| Crimson Marmots | 0.4189 | 0.4639 | 0.4934 | 0.940 | 7.96 | 0.923 |
+| Turbo Llamas | 0.5793 | 0.4435 | 0.4937 | 0.898 | 7.26 | 0.781 |
+| Polar Yetis | 0.5943 | 0.5331 | 0.4910 | 1.086 | 10.61 | 0.607 |
+| Neon Walruses | 0.5067 | 0.6337 | 0.5000 | 1.267 | 14.46 | 0.214 |
+| Quantum Ferrets | 0.5313 | 0.5710 | 0.4990 | 1.144 | 11.78 | 0.452 |
+| Cosmic Badgers | 0.5038 | 0.5613 | 0.5000 | 1.123 | 11.34 | 0.506 |
+| Iron Wombats | 0.3897 | 0.5226 | 0.4877 | 1.072 | 10.34 | 0.648 |
+| Rocket Pandas | 0.4760 | 0.4837 | 0.4994 | 0.969 | 8.44 | 0.980 |
 
 Ratios sit on both sides of 1. Over all 24 team × metric tests (playoff, championship, toilet
 bowl) the smallest p-value was 0.071 — unremarkable for 24 tests.
@@ -174,16 +174,16 @@ sum to χ²₇₂ — 72 df per team instead of 9. Total: 24,000 simulated seaso
 
 | team | playoffs z | champs z | toilets z | mean s/σ (playoffs) |
 |---|---|---|---|---|
-| Canton Killers | −0.20 | −0.64 | +0.24 | 0.939 |
-| Clankers | −0.13 | −0.18 | +0.43 | 0.957 |
-| Drunk Cats | −0.47 | +0.15 | −1.89 | 0.932 |
-| Femboy Cats | −0.82 | +0.15 | −0.37 | 0.908 |
-| Legion of Coom | −0.11 | −0.48 | +0.61 | 0.936 |
-| The Glutton | +0.08 | +0.15 | +0.59 | 0.979 |
-| Wine Drinkers | +1.44 | −0.50 | +1.12 | 1.097 |
-| Year of Jarvis | −0.83 | −0.10 | −1.29 | 0.906 |
+| Crimson Marmots | −0.20 | −0.64 | +0.24 | 0.939 |
+| Turbo Llamas | −0.13 | −0.18 | +0.43 | 0.957 |
+| Polar Yetis | −0.47 | +0.15 | −1.89 | 0.932 |
+| Neon Walruses | −0.82 | +0.15 | −0.37 | 0.908 |
+| Quantum Ferrets | −0.11 | −0.48 | +0.61 | 0.936 |
+| Cosmic Badgers | +0.08 | +0.15 | +0.59 | 0.979 |
+| Iron Wombats | +1.44 | −0.50 | +1.12 | 1.097 |
+| Rocket Pandas | −0.83 | −0.10 | −1.29 | 0.906 |
 
-Across all 24 tests exactly one falls below α=0.05 (Drunk Cats, toilet bowl, p=0.038). The null
+Across all 24 tests exactly one falls below α=0.05 (Polar Yetis, toilet bowl, p=0.038). The null
 predicts 1.2 such results in 24 tests. The `s/σ` column clusters on 0.9727, its expected value
 under independence.
 
@@ -219,8 +219,8 @@ freedom, so the *reported standard error is itself* imprecise:
 | 100 | 7.1% | [0.86, 1.14] |
 
 A reported `Playoff_SE` can legitimately land 45% low or 45% high with nothing wrong at all.
-That is visible in the real run: Femboy Cats' exported SE is 27% above the i.i.d. value,
-Clankers' 10% below — both pure estimator noise.
+That is visible in the real run: Neon Walruses' exported SE is 27% above the i.i.d. value,
+Turbo Llamas' 10% below — both pure estimator noise.
 
 This is not a Mersenne Twister problem. It is an estimator-choice problem. Because the
 simulations are i.i.d. Bernoulli draws, the Monte Carlo standard error of a proportion has a
