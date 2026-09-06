@@ -27,6 +27,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   capture:
@@ -60,3 +61,31 @@ jobs:
           # Union-merge absorbs a race with a local push (see .gitattributes); retry once.
           git pull --rebase origin main
           git push origin main || { git pull --rebase origin main && git push origin main; }
+      - name: Alarm on failure (issue -> phone)
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Automation failure: data-capture"
+          link="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body="The scheduled data-capture run failed: $link
+      
+          At risk: this day's projection snapshot. It is backstopped by the week's canonical-run syncs and any local gameday sync; a full WEEK with no successful sync anywhere is the only permanently-lossy case.
+      
+          Usually self-heals on the next scheduled run; read the failing step's log at the link. This issue auto-closes when a run succeeds."
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "Failed again: $link"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
+      - name: Clear the failure alarm on success
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Automation failure: data-capture"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          [ -n "$num" ] && gh issue close "$num" --comment "Recovered: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} succeeded." || true

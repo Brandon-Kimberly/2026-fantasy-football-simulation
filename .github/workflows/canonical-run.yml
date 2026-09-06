@@ -185,3 +185,22 @@ jobs:
             echo "gate verdict $verdict -- failing loud as designed"
             exit 1
           fi
+      - name: Alarm on failure (issue -> phone)
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Automation failure: canonical-run"
+          link="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body="The scheduled canonical-run run failed: $link
+      
+          At risk: this window's canonical quote if no retry or local run covers it -- the windows-watch issue tracks coverage independently, so you will also be nagged there while the window is open.
+      
+          Usually self-heals on the next scheduled run; read the failing step's log at the link. This issue auto-closes when a run succeeds."
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "Failed again: $link"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi

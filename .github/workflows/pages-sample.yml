@@ -30,6 +30,7 @@ on:
 
 permissions:
   contents: read
+  issues: write
   pages: write
   id-token: write
 
@@ -67,3 +68,22 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+      - name: Alarm on failure (issue -> phone)
+        if: failure()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Automation failure: pages-sample"
+          link="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          body="The scheduled pages-sample run failed: $link
+      
+          At risk: only the public sample's freshness (it keeps serving the previous build); no data is involved.
+      
+          Usually self-heals on the next scheduled run; read the failing step's log at the link. This issue auto-closes when a run succeeds."
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue comment "$num" --body "Failed again: $link"
+          else
+            gh issue create --title "$title" --body "$body"
+          fi
