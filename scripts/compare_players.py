@@ -24,18 +24,9 @@ from fantasy_sim.storage import decisions_adhoc_path, save_json
 
 
 def _resolve(engine, query):
-    """Exact key first; otherwise a unique case-insensitive match on the baseline pool."""
-    if query in engine.baselines:
-        return query
-    hits = [n for n in engine.baselines if n.lower() == query.lower()]
-    if not hits:
-        hits = [n for n in engine.baselines if query.lower() in n.lower()]
-    if len(hits) == 1:
-        return hits[0]
-    if not hits:
-        raise SystemExit(f"no player matching {query!r} in the baseline pool")
-    raise SystemExit(f"{query!r} is ambiguous: {hits[:8]}")
-
+    """Delegates to the shared forgiving resolver (last-name matching included)."""
+    from fantasy_sim.decisions import resolve_player
+    return resolve_player(query, list(engine.baselines), "player")
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)

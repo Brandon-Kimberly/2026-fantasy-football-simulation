@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-596%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-604%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -105,6 +105,7 @@ py -3.10 -m scripts.run_simulation              # the Monte Carlo engine: export
 py -3.10 -m scripts.run_positional_tiers        # statistically-derived tiers per position (PNG + sortable HTML tables)
 py -3.10 -m scripts.run_strength_of_schedule    # NFL-team and fantasy-roster schedule heatmaps
 py -3.10 -m scripts.run_win_trajectory          # expected wins over the simulated season, all teams
+py -3.10 -m scripts.gameday                     # the pre-lock one-liner: sync if stale, flag roster status changes, optimize, open in browser
 py -3.10 -m scripts.run_windows                 # this week's three canonical-run windows: open, covered, or missed (read-only)
 py -3.10 -m scripts.windows_watch               # Actions window watcher: JSON verdict from the committed predictions log
 py -3.10 -m scripts.canonical_gate              # F36: may an unattended run quote canonical predictions? (+ remediation compose)
@@ -187,7 +188,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 596 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 604 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

@@ -31,15 +31,9 @@ def _git(*args):
 
 
 def _names(engine, team, text):
-    out = []
-    for q in [x.strip() for x in (text or "").split(",") if x.strip()]:
-        if q in engine.rosters[team]:
-            out.append(q); continue
-        hits = [n for n in engine.rosters[team] if q.lower() in n.lower()]
-        if len(hits) != 1:
-            raise SystemExit(f"{q!r} on {team}: {'no match' if not hits else 'ambiguous ' + str(hits)}")
-        out.append(hits[0])
-    return out
+    from fantasy_sim.decisions import resolve_player
+    return [resolve_player(q.strip(), engine.rosters[team], f"on {team}")
+            for q in (text or "").split(",") if q.strip()]
 
 
 def main(argv=None):

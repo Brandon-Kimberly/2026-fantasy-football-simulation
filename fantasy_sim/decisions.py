@@ -227,6 +227,30 @@ def roster_gaps(engine, team, weeks):
     return out
 
 
+def resolve_player(query, pool, what="player"):
+    """Forgiving name resolution (owner usability request, 2026-09-06): exact, then
+    case-insensitive exact, then unique substring, then unique last-name match --
+    so `gibbs` finds Jahmyr Gibbs at 9:40 on a Sunday. Ambiguity or no match exits
+    with the candidate list; the resolver never guesses."""
+    if query in pool:
+        return query
+    ql = query.lower().strip()
+    ci = [n for n in pool if n.lower() == ql]
+    if len(ci) == 1:
+        return ci[0]
+    sub = [n for n in pool if ql in n.lower()]
+    if len(sub) == 1:
+        return sub[0]
+    last = [n for n in pool if n.lower().split()[-1] == ql]
+    if len(last) == 1:
+        return last[0]
+    hits = sorted(set(sub) | set(last))
+    if hits:
+        raise SystemExit(f"{query!r} ({what}) is ambiguous -- did you mean: "
+                         + ", ".join(hits[:6]) + "?")
+    raise SystemExit(f"{query!r} ({what}): no match in the current pool.")
+
+
 def free_agents(engine):
     """Baseline-pool players on no roster, at a position this league starts."""
     rostered = {n for r in engine.rosters.values() for n in r}

@@ -33,12 +33,8 @@ def _git(*args):
 
 
 def _resolve(pool, query, what):
-    if query in pool:
-        return query
-    hits = [n for n in pool if query.lower() in n.lower()]
-    if len(hits) == 1:
-        return hits[0]
-    raise SystemExit(f"{query!r} ({what}): {'no match' if not hits else 'ambiguous ' + str(hits[:6])}")
+    from fantasy_sim.decisions import resolve_player
+    return resolve_player(query, list(pool), what)
 
 
 def main(argv=None):

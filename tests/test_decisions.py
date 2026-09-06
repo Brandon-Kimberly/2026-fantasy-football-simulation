@@ -1228,5 +1228,39 @@ class TestDuplicateRowTolerance(_EngineCase):
 
 
 
+class TestResolvePlayer(unittest.TestCase):
+    """Forgiving name resolution (owner usability request, 2026-09-06): the tools took
+    exact names only, which made pre-kickoff use error-prone. Exact, then
+    case-insensitive, then unique substring, then unique last name; ambiguity and
+    no-match exit with candidates -- the resolver never guesses."""
+
+    POOL = ["Jahmyr Gibbs", "Breece Hall", "Bryce Hall", "Malik Nabers"]
+
+    def test_exact_and_case_insensitive(self):
+        from fantasy_sim.decisions import resolve_player
+        self.assertEqual(resolve_player("Jahmyr Gibbs", self.POOL), "Jahmyr Gibbs")
+        self.assertEqual(resolve_player("jahmyr gibbs", self.POOL), "Jahmyr Gibbs")
+
+    def test_unique_substring_and_last_name(self):
+        from fantasy_sim.decisions import resolve_player
+        self.assertEqual(resolve_player("gibbs", self.POOL), "Jahmyr Gibbs")
+        self.assertEqual(resolve_player("nabers", self.POOL), "Malik Nabers")
+        self.assertEqual(resolve_player("breece", self.POOL), "Breece Hall")
+
+    def test_ambiguous_exits_listing_candidates(self):
+        from fantasy_sim.decisions import resolve_player
+        with self.assertRaises(SystemExit) as cm:
+            resolve_player("hall", self.POOL)
+        msg = str(cm.exception)
+        self.assertIn("Breece Hall", msg); self.assertIn("Bryce Hall", msg)
+
+    def test_no_match_exits_clearly(self):
+        from fantasy_sim.decisions import resolve_player
+        with self.assertRaises(SystemExit) as cm:
+            resolve_player("Patrick Mahomes", self.POOL)
+        self.assertIn("no match", str(cm.exception))
+
+
+
 if __name__ == "__main__":
     unittest.main()
