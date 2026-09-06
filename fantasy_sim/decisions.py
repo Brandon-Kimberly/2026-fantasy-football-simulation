@@ -1249,26 +1249,24 @@ def evaluate_pending(engine, mine_only=False, limit=None, batches=10, sims=300,
             r = evaluate_logged_transaction(engine, txid, batches=batches, sims=sims,
                                             log_path=log_path)
         except ValueError as ex:
-            if "drift" in str(ex).lower():
-                out["drift"].append(txid)
-                # Persist the skip (2026-09-06): a drifted move is PERMANENTLY
-                # unevaluable (rosters moved on), and without a record it re-entered
-                # the backlog every daily run forever -- blocking the evaluate-moves
-                # early exit and wasting an engine attempt per day. The skip record is
-                # honest season data and dedupes it out of pending_evaluations.
-                _lp = log_path
-                if _lp is None:
-                    from fantasy_sim.storage import DECISION_LOG_FILE as _lp  # noqa: F811
-                with open(_lp, "a", encoding="utf-8") as _f:
-                    _f.write(_json.dumps({
-                        "record_type": "evaluation", "transaction_id": txid,
-                        "skipped": "roster drift",
-                        "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc)
-                                            .strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    }) + "\n")
-                progress(f"{label}: SKIPPED -- {ex} (skip record appended)")
-                continue
-            raise
+            # ANY ValueError here means "unevaluable as logged" -- roster drift, the
+            # roster-limit overflow that killed the 2026-09-06 17:10Z runner batch
+            # ("would carry 20 active players"), or whatever comes next. The contract
+            # is never-fatal: persist the reason as a skip record so the move leaves
+            # the backlog permanently, and move on. Word-matching on "drift" was the bug.
+            out["drift"].append(txid)
+            _lp = log_path
+            if _lp is None:
+                from fantasy_sim.storage import DECISION_LOG_FILE as _lp  # noqa: F811
+            with open(_lp, "a", encoding="utf-8") as _f:
+                _f.write(_json.dumps({
+                    "record_type": "evaluation", "transaction_id": txid,
+                    "skipped": str(ex)[:160],
+                    "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc)
+                                        .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }) + chr(10))
+            progress(f"{label}: SKIPPED -- {ex} (skip record appended)")
+            continue
         if r.get("skipped"):
             out["already"].append(txid)
             progress(f"{label}: skipped ({r['skipped']})")

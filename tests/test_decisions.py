@@ -1290,6 +1290,31 @@ class TestDriftSkipIsPersistent(unittest.TestCase):
             self.assertEqual(pending_evaluations(log_path=path), [],
                              "a drifted move must never re-enter the backlog")
 
+    def test_any_unevaluable_move_skips_persistently_instead_of_killing_the_batch(self):
+        """The 2026-09-06 17:10Z runner failure: a roster-limit ValueError ("would
+        carry 20 active players... a drop is needed") did not contain the word "drift",
+        escaped the handler, and killed the whole batch -- violating evaluate_pending's
+        never-fatal contract. ANY ValueError from evaluating a logged move means
+        "unevaluable as logged": skip record with the real reason, batch continues."""
+        import json, os, tempfile
+        from unittest.mock import patch
+        from fantasy_sim.decisions import evaluate_pending, pending_evaluations
+        tx = {"transaction_id": "over1", "type": "waiver", "week": 1, "is_mine": False,
+              "teams": ["Crimson Marmots"], "faab_bid": 2, "adds": [], "drops": []}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "decision_log.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(tx) + chr(10))
+            with patch("fantasy_sim.decisions.evaluate_logged_transaction",
+                       side_effect=ValueError("Crimson Marmots would carry 20 active "
+                                              "players (limit 19); a drop is needed")):
+                out = evaluate_pending(None, log_path=path)   # must NOT raise
+            self.assertEqual(out["drift"], ["over1"])
+            rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+            skip = [r for r in rows if r.get("skipped")][0]
+            self.assertIn("drop is needed", skip["skipped"])
+            self.assertEqual(pending_evaluations(log_path=path), [])
+
 
 
 if __name__ == "__main__":
