@@ -15,15 +15,25 @@
 # windows-latest on purpose: the platform every audited number was produced on; CI
 # already proves the suite and byte-exact goldens there. Fire times sit hours inside
 # each window in BOTH DST regimes (width over offsets, as everywhere else):
-#   Sunday   12:30 + 14:30 UTC  vs deadline 17:00 (PDT) / 18:00 (PST) -- worst case
-#            (1h cron lag + ~35 min run) still leaves ~2.5h spare
+#   Sunday   11:30 + 12:30 + 14:30 UTC  vs deadline 17:00 (PDT) / 18:00 (PST); the
+#            11:30 fire also beats ~13:30 UTC international kickoffs
 #   Thursday 13:00 + 17:30 UTC  vs the usual ~00:20 Friday UTC kickoff
+#   Wednesday 13:00 UTC          self-selecting via the <=24h proceed gate: quiet skip
+#            on normal weeks, a real run only when the opener is Wednesday
 #   Tuesday  15:00 + 20:00 UTC  vs Wednesday 07:00/08:00 UTC waiver clear
 name: canonical-run
 on:
   schedule:
+    # Wednesday-opener guard (2026-09-06): fires every Wednesday but the proceed gate
+    # (open + uncovered + <=24h to deadline) makes it a quiet skip on normal weeks --
+    # Thursday's deadline sits ~35h out -- and a real run only when the week's earliest
+    # kickoff is Wednesday (the week-1 case, generalized).
+    - cron: "0 13 * * 3"
     - cron: "0 13 * * 4"
     - cron: "30 17 * * 4"
+    # Early-Sunday guard (2026-09-06): ~04:30 PT, comfortably ahead of ~06:30 PT
+    # international kickoffs; the 12:30 fire becomes the effective retry.
+    - cron: "30 11 * * 0"
     - cron: "30 12 * * 0"
     - cron: "30 14 * * 0"
     - cron: "0 15 * * 2"
