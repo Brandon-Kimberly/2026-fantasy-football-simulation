@@ -1251,7 +1251,22 @@ def evaluate_pending(engine, mine_only=False, limit=None, batches=10, sims=300,
         except ValueError as ex:
             if "drift" in str(ex).lower():
                 out["drift"].append(txid)
-                progress(f"{label}: SKIPPED -- {ex}")
+                # Persist the skip (2026-09-06): a drifted move is PERMANENTLY
+                # unevaluable (rosters moved on), and without a record it re-entered
+                # the backlog every daily run forever -- blocking the evaluate-moves
+                # early exit and wasting an engine attempt per day. The skip record is
+                # honest season data and dedupes it out of pending_evaluations.
+                _lp = log_path
+                if _lp is None:
+                    from fantasy_sim.storage import DECISION_LOG_FILE as _lp  # noqa: F811
+                with open(_lp, "a", encoding="utf-8") as _f:
+                    _f.write(_json.dumps({
+                        "record_type": "evaluation", "transaction_id": txid,
+                        "skipped": "roster drift",
+                        "evaluated_at": _dt2.datetime.now(_dt2.timezone.utc)
+                                            .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    }) + "\n")
+                progress(f"{label}: SKIPPED -- {ex} (skip record appended)")
                 continue
             raise
         if r.get("skipped"):

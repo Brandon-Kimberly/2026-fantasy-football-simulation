@@ -240,7 +240,9 @@ def _decision_log_summary(week, log_path=None):
             continue
         ev = evals.get(t.get("transaction_id"))
         ev_summary = None
-        if ev:
+        if ev and ev.get("skipped"):
+            ev_summary = {"skipped": ev["skipped"]}
+        elif ev:
             mover = (t.get("teams") or [None])[0]
             d = (ev.get("teams") or {}).get(mover) or {}
             ev_summary = {"champ_delta": (d.get("champ_pct") or {}).get("delta"),
@@ -278,7 +280,9 @@ def _declog_cells(r):
         return ", ".join(f"{n} ({m:.1f})" if m is not None else str(n) for n, m in lst) or "-"
     snap = (f"retro +{r['lag_days']:.1f}d" if r["retro"]
             else (f"{r['lag_days']:.2f}d" if r["lag_days"] is not None else "-"))
-    if r["eval"]:
+    if r["eval"] and r["eval"].get("skipped"):
+        ev = f"skipped: {r['eval']['skipped']}"
+    elif r["eval"]:
         e = r["eval"]
         ev = (f"Champ {e['champ_delta']:+.2f}+-{e['champ_se']:.2f} / "
               f"PO {e['playoff_delta']:+.2f}+-{e['playoff_se']:.2f}")

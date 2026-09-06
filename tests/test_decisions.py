@@ -1262,5 +1262,35 @@ class TestResolvePlayer(unittest.TestCase):
 
 
 
+class TestDriftSkipIsPersistent(unittest.TestCase):
+    def test_a_drifted_transaction_gets_a_skip_record_and_leaves_the_backlog(self):
+        """Owner request (2026-09-06): drift-skips were counted but never recorded, so
+        permanently-unevaluable moves were retried every daily run forever -- blocking
+        the evaluate-moves early exit and wasting engine attempts. A drift now appends
+        an evaluation record with skipped="roster drift", which is honest season data
+        and removes the move from pending_evaluations permanently."""
+        import json, os, tempfile
+        from unittest.mock import patch
+        from fantasy_sim.decisions import evaluate_pending, pending_evaluations
+        tx = {"transaction_id": "old1", "type": "waiver", "week": 1, "is_mine": False,
+              "teams": ["Turbo Llamas"], "faab_bid": 3, "adds": [], "drops": []}
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "decision_log.jsonl")
+            with open(path, "w", encoding="utf-8") as f:
+                f.write(json.dumps(tx) + chr(10))
+            with patch("fantasy_sim.decisions.evaluate_logged_transaction",
+                       side_effect=ValueError("roster drift since the logged move")):
+                out = evaluate_pending(None, log_path=path)
+            self.assertEqual(out["drift"], ["old1"])
+            rows = [json.loads(l) for l in open(path, encoding="utf-8") if l.strip()]
+            skips = [r for r in rows if r.get("record_type") == "evaluation"
+                     and r.get("skipped")]
+            self.assertEqual(len(skips), 1)
+            self.assertIn("drift", skips[0]["skipped"])
+            self.assertEqual(pending_evaluations(log_path=path), [],
+                             "a drifted move must never re-enter the backlog")
+
+
+
 if __name__ == "__main__":
     unittest.main()
