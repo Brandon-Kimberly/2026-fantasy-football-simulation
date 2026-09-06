@@ -38,5 +38,21 @@ class TestRenderPage(unittest.TestCase):
         self.assertIn("No status changes", html)
 
 
+class TestSelfPushingCapture(unittest.TestCase):
+    def test_a_gameday_sync_pushes_its_own_log_capture(self):
+        """Owner request (2026-09-06): every gameday sync appends irreplaceable
+        projection rows, and leaving them for a manual sweep recreated the exact
+        human-memory dependency the log-push machinery exists to remove. The sync
+        branch must invoke the same warn-never-fail, pathspec-scoped push canonical
+        runs use (weekly_report.commit_and_push_logs)."""
+        import inspect
+        import scripts.gameday as g
+        src = inspect.getsource(g.main)
+        self.assertIn("commit_and_push_logs", src)
+        self.assertLess(src.index("sync_all()"), src.index("commit_and_push_logs("),
+                        "the push must follow the sync, inside the synced branch")
+
+
+
 if __name__ == "__main__":
     unittest.main()

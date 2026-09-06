@@ -90,6 +90,14 @@ def main(argv=None):
         from fantasy_sim.sync import sync_all
         sync_all()
         manifest, _ = read_manifest()
+        # Self-pushing capture (owner, 2026-09-06): the sync just appended
+        # irreplaceable projection rows; push them through the same warn-never-fail,
+        # pathspec-scoped helper canonical runs use, so no gameday leaves a manual
+        # sweep behind. A push failure warns and never blocks the pre-lock answer.
+        from fantasy_sim.weekly_report import commit_and_push_logs
+        r = commit_and_push_logs(manifest.get("current_week", 0) if manifest else 0)
+        print(f"[gameday] log capture: committed={r.get('committed')} pushed={r.get('pushed')}"
+              + (f" ({r['warning']})" if r.get("warning") else ""))
     else:
         print(f"[gameday] using data on disk (synced {manifest.get('finished_at') if manifest else '?'})")
 
