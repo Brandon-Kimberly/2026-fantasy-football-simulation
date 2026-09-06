@@ -59,5 +59,39 @@ class TestZipIntake(unittest.TestCase):
             extract_zips(d)   # second call: already-extracted zips are skipped, no error
 
 
+class TestFetch(unittest.TestCase):
+    """--fetch (2026-09-06): the last manual seam in the weekly ritual -- browser
+    download of runner artifacts -- replaced by gh. Pure planning/filing logic tested
+    here; the gh calls sit behind an injectable seam and are exercised live."""
+
+    def test_only_runs_without_an_existing_directory_are_planned(self):
+        from scripts.localize_reports import missing_runs
+        self.assertEqual(missing_runs(["111", "222", "333"],
+                                      {"weekly-report-222", "unrelated"}),
+                         ["111", "333"])
+
+    def test_downloaded_week_dirs_are_filed_under_the_matching_results_week(self):
+        import os, tempfile
+        from scripts.localize_reports import file_artifact
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as root:
+            os.makedirs(os.path.join(src, "week_03", "archive"))
+            with open(os.path.join(src, "week_03", "archive", "r.html"), "w") as f:
+                f.write("<h1>x</h1>")
+            file_artifact(src, root, "weekly-report-999")
+            self.assertTrue(os.path.exists(os.path.join(
+                root, "week_03", "weekly-report-999", "week_03", "archive", "r.html")))
+
+    def test_an_artifact_without_week_dirs_files_under_unsorted(self):
+        import os, tempfile
+        from scripts.localize_reports import file_artifact
+        with tempfile.TemporaryDirectory() as src, tempfile.TemporaryDirectory() as root:
+            with open(os.path.join(src, "loose.md"), "w") as f:
+                f.write("x")
+            file_artifact(src, root, "weekly-report-7")
+            self.assertTrue(os.path.exists(os.path.join(
+                root, "unsorted", "weekly-report-7", "loose.md")))
+
+
+
 if __name__ == "__main__":
     unittest.main()

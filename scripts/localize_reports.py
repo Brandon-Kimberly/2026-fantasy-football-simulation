@@ -2,7 +2,11 @@
 """Localize downloaded runner reports to REAL team names -- the owner's private copies
 (F37 follow-up, 2026-09-06).
 
-  py -3.10 -m scripts.localize_reports              # processes data/results/ in place
+  py -3.10 -m scripts.localize_reports --fetch      # the weekly one-liner: download
+                                                    # every new successful canonical-run
+                                                    # artifact via gh, file by week,
+                                                    # localize everything
+  py -3.10 -m scripts.localize_reports              # localize data/results/ in place
   py -3.10 -m scripts.localize_reports data/results/week_03
 
 Workflow: download a canonical run's artifact zip from the Actions run page, drop it
@@ -105,10 +109,92 @@ def real_mapping():
         return inv, "local map"
 
 
+def missing_runs(run_ids, existing_dirnames):
+    """Pure: run ids whose artifact directory is not already on disk."""
+    return [r for r in run_ids if f"weekly-report-{r}" not in existing_dirnames]
+
+
+def file_artifact(src_dir, root, name):
+    """Files a downloaded artifact into data/results/: each contained week_NN goes to
+    root/week_NN/<name>/ (keeping the artifact's own layout inside); anything with no
+    week directory lands under root/unsorted/<name>/."""
+    import shutil
+    weeks = [d for d in os.listdir(src_dir)
+             if d.startswith("week_") and os.path.isdir(os.path.join(src_dir, d))]
+    if weeks:
+        for wk in weeks:
+            dest = os.path.join(root, wk, name, wk)
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            shutil.move(os.path.join(src_dir, wk), dest)
+        # anything left over (loose files next to the week dirs) rides along
+        leftovers = os.listdir(src_dir)
+        if leftovers:
+            dest = os.path.join(root, weeks[0], name)
+            for item in leftovers:
+                shutil.move(os.path.join(src_dir, item), os.path.join(dest, item))
+    else:
+        dest = os.path.join(root, "unsorted", name)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        shutil.move(src_dir, dest)
+
+
+def _run_gh(args):
+    """gh seam: (returncode, stdout). Finds gh on PATH or at the default Windows
+    install location; a missing gh reads as a failure, never an exception."""
+    import shutil
+    import subprocess
+    exe = shutil.which("gh") or r"C:\Program Files\GitHub CLI\gh.exe"
+    try:
+        out = subprocess.run([exe, *args], capture_output=True, text=True, timeout=300)
+        return out.returncode, out.stdout
+    except Exception as ex:
+        return 1, str(ex)
+
+
+def fetch_artifacts(root, gh=_run_gh):
+    """Downloads every SUCCESSFUL canonical-run's report artifact not already under
+    root, filed by week. Failed runs are deliberately excluded (their artifacts exist
+    for debugging via the remediation issue, not for the archive). Fetch problems warn
+    and return; localizing what is already on disk must never be blocked by GitHub
+    being unreachable."""
+    import shutil
+    import tempfile
+    rc, out = gh(["run", "list", "--workflow", "canonical-run", "--status", "success",
+                  "--limit", "50", "--json", "databaseId",
+                  "--jq", ".[].databaseId"])
+    if rc != 0:
+        print(f"[NOTE] artifact fetch unavailable (gh: {out.strip() or 'failed'}); "
+              "localizing what is already on disk.")
+        return 0
+    run_ids = [x.strip() for x in out.splitlines() if x.strip()]
+    existing = {d for _dp, dirs, _f in os.walk(root) for d in dirs}
+    todo = missing_runs(run_ids, existing)
+    fetched = 0
+    for rid in todo:
+        name = f"weekly-report-{rid}"
+        tmp = tempfile.mkdtemp(prefix="fetch_")
+        rc, out = gh(["run", "download", rid, "--name", name, "--dir", tmp])
+        if rc != 0:
+            print(f"[NOTE] run {rid}: no downloadable artifact ({out.strip() or 'skipped'})")
+            shutil.rmtree(tmp, ignore_errors=True)
+            continue
+        file_artifact(tmp, root, name)
+        shutil.rmtree(tmp, ignore_errors=True)
+        fetched += 1
+        print(f"  fetched {name}")
+    print(f"{fetched} artifact(s) fetched ({len(run_ids) - len(todo)} already present)")
+    return fetched
+
+
 def main(argv=None):
     argv = argv if argv is not None else sys.argv[1:]
+    fetch = "--fetch" in argv
+    argv = [a for a in argv if a != "--fetch"]
     root = argv[0] if argv else os.path.join("data", "results")
     refuse_unsafe_root(root)
+    if fetch:
+        os.makedirs(root, exist_ok=True)
+        fetch_artifacts(root)
     if not os.path.isdir(root):
         os.makedirs(root, exist_ok=True)
         print(f"created empty {root} -- drop downloaded artifact zips (or folders) "
