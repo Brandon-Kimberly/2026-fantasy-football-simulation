@@ -1,0 +1,68 @@
+# Automated paired move evaluations (owner request, 2026-09-06): the last
+# human-memory dependency. Every real roster move is auto-ingested with a frozen
+# projection snapshot (data-capture, 13:43 UTC daily); this runs 45 minutes later and
+# evaluates the backlog -- the paired-simulation Champ%/Playoff% delta that makes
+# January's decision-quality analysis possible. Relying on the owner to run
+# --evaluate-unevaluated across ~290 season moves is the same brittleness the
+# canonical-run automation eliminated for windows.
+#
+# Design notes:
+#   * --limit 12 bounds the run (~5-8 min per paired evaluation); an above-average
+#     day's backlog drains within a day or two, and the weekly digest's housekeeping
+#     section remains the visible backlog meter either way.
+#   * Contemporaneity lives in the SNAPSHOT (frozen at ingestion), not the evaluation
+#     timestamp -- evaluating <=1 day after the move is well inside useful.
+#   * Evaluation records append to the tracked decision log and push through the same
+#     union-merge machinery as every other capture; a concurrent local evaluation of
+#     the same move is harmless (readers keep one record per transaction_id).
+#   * ubuntu on purpose: evaluations are paired DELTAS with standard errors, not
+#     golden-compared artifacts; platform is statistically inert here and the runner
+#     is faster.
+name: evaluate-moves
+on:
+  schedule:
+    - cron: "28 14 * * *"
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: max evaluations this run
+        default: "12"
+
+permissions:
+  contents: write
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    env:
+      SLEEPER_LEAGUE_ID: ${{ secrets.SLEEPER_LEAGUE_ID }}
+      ESPN_LEAGUE_ID: ${{ secrets.ESPN_LEAGUE_ID }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+          cache: pip
+      - name: Install pinned requirements
+        run: python -m pip install -r requirements.txt
+      - name: Sync (evaluations run against current projections)
+        run: python -m scripts.run_sync
+      - name: Evaluate the unevaluated backlog
+        run: python -m scripts.evaluate_move --evaluate-unevaluated --limit ${{ inputs.limit || '12' }}
+      - name: Commit and push the evaluation records
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- data/logs
+          if git diff --cached --quiet -- data/logs; then
+            echo "no new records this run"
+            exit 0
+          fi
+          git commit -m "Logs: automated move evaluations (actions)" -- data/logs
+          git pull --rebase origin main
+          git push origin main || { git pull --rebase origin main && git push origin main; }
