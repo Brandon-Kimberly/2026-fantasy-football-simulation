@@ -46,6 +46,18 @@ class _InSeason(datetime):
         return datetime(2026, 10, 1)
 
 
+class _PreSeason(datetime):
+    """Before the 2026-09-09 odds gate. Pinned because the preseason path is defined by
+    the CALENDAR: this test read the real clock and silently expired the morning the gate
+    opened (found on kickoff day, 2026-09-09, when it failed for the first time). A
+    behaviour that depends on a date must be tested at a fixed date -- as the in-season
+    cases beside it already were."""
+
+    @classmethod
+    def now(cls, tz=None):
+        return datetime(2026, 8, 20)
+
+
 class _no_logs(object):
     """assertNoLogs for Python < 3.10: fails the test if any WARNING+ record is emitted."""
 
@@ -95,6 +107,7 @@ class TestVegasFallbacks(unittest.TestCase):
     def test_preseason_gate_serves_the_verified_week_one_table_without_calling_the_api(self):
         saved, fake_save = _capture_saves()
         with patch.object(sync, "save_json", side_effect=fake_save), \
+             patch.object(sync, "datetime", _PreSeason), \
              patch.object(sync, "ODDS_API_KEY", "key"), \
              patch.object(sync.requests, "get", side_effect=AssertionError("API must not be called")):
             out = sync.fetch_vegas_implied_totals(1)

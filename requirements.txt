@@ -21,3 +21,6 @@ coverage==7.16.0
 # variables, undefined names, mutable defaults, bare excepts. Deliberately NOT a style
 # gate: no line-length, formatting, or import-sorting rules (2026-09-04 hygiene pass).
 ruff==0.16.6
+# pyyaml: the workflow shell-syntax guard (tests/test_workflows.py) parses the
+# GitHub workflow files. Test-only, and the guard skips cleanly without it.
+pyyaml==6.0.3

@@ -172,7 +172,17 @@ jobs:
           title="Canonical run needs you: week ${week} ${wname}"
           num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
           if [ "$verdict" = "CANONICAL_OK" ]; then
-            [ -n "$num" ] && gh issue close "$num" --comment "Resolved: this window's canonical row is committed. Report: ${ARTIFACT_URL:-see the run's Artifacts section}."
+            # Plain if-blocks and no apostrophes: an apostrophe inside a ${VAR:-default}
+            # expansion opens an unterminated quote and kills the step with a bash PARSE
+            # error (exit 2) -- which is exactly what happened to the 2026-09-09 22:02Z
+            # force-canonical run AFTER it had already committed its canonical row.
+            if [ -n "$num" ]; then
+              report_link="$ARTIFACT_URL"
+              if [ -z "$report_link" ]; then
+                report_link="see the Artifacts section of this run"
+              fi
+              gh issue close "$num" --comment "Resolved: the canonical row for this window is committed. Report: $report_link"
+            fi
             exit 0
           fi
           python -m scripts.canonical_gate --compose-issue gate.json window.json > issue_body.md
