@@ -153,5 +153,33 @@ class TestEspnBlockWording(unittest.TestCase):
 
 
 
+class TestVegasPartialFallbackIsBenign(unittest.TestCase):
+    """Found live on kickoff night (2026-09-10): once a game is COMPLETE its teams have
+    no market line, so sync warns that N teams took the flat fallback. Unclassified, it
+    read as blocking:unrecognized -- which would have refused a canonical row on every
+    Sunday and Tuesday quote for the rest of the season, the exact permanent data loss
+    the windows exist to prevent. It is expected by design (byes do it too), and a real
+    odds outage is still caught by the SEPARATE vegas_source check."""
+
+    ENTRY = ("WARNING | VEGAS (week 1): 2 teams had no usable line and got the flat 21.5 "
+             "/ no-opponent fallback: NE, SEA")
+
+    def test_the_partial_fallback_warning_is_benign(self):
+        self.assertEqual(classify_degraded_entry(self.ENTRY), "benign")
+
+    def test_a_post_kickoff_sync_can_still_quote_canonically(self):
+        g = canonical_gate("DEGRADED", BENIGN + [self.ENTRY], "odds_api", baselines_count=888)
+        self.assertEqual(g["verdict"], CANONICAL_OK)
+
+    def test_but_a_real_odds_outage_still_blocks(self):
+        """The hole this must NOT open: if the odds fetch itself failed, the source is a
+        fallback source and the gate refuses regardless of how the entry classifies."""
+        for src in ("fallback_api_error", "fallback_no_api_key", "fallback_empty_payload"):
+            g = canonical_gate("DEGRADED", BENIGN + [self.ENTRY], src, baselines_count=888)
+            self.assertEqual(g["verdict"], REPORT_ONLY, src)
+            self.assertIn("odds", [b["key"] for b in g["blocking"]], src)
+
+
+
 if __name__ == "__main__":
     unittest.main()

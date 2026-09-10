@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~75 findings and tracked follow-ups** | **46 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~76 findings and tracked follow-ups** | **46 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,12 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F38** the vegas fallback warning does not say WHY a team has no line — OPEN,
+  found live on kickoff night: a completed game leaves its teams without a market line,
+  and the unclassified warning would have refused a canonical row at every remaining
+  Sunday/Tuesday quote. Classified benign the same night (a real odds failure is still
+  caught by the separate source check, test-pinned); the tracked residual is that bye,
+  already-played, and a genuinely partial payload all share one warning text.
 - **F37** league-identity pseudonymization — BUILT: league IDs to env/secrets (a
   committed Sleeper ID resolves to real identities via the public API), TEAM_NAME_MAP
   re-keyed by roster_id, fictional team names throughout HEAD (code, docs, fixtures,

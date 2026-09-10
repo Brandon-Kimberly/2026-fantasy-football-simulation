@@ -3496,3 +3496,36 @@ a re-lock is honest. Git history retains the pre-migration record on purpose: th
 project does not rewrite history; HEAD is the presentation, history is the record.
 Timing was deliberate: the season's quoted record (starting with the 09-09 baseline
 run) is born entirely under the final identity scheme.
+
+
+### F38 — The vegas fallback warning does not say WHY a team has no line (2026-09-10)
+
+**Origin (found live, the night of kickoff):** the first post-game sync warned
+`VEGAS (week 1): 2 teams had no usable line and got the flat 21.5 / no-opponent
+fallback: NE, SEA` -- because their game was already complete, so the market no longer
+lists it. The canonical gate had never seen the text, classified it
+`blocking:unrecognized` (correctly, by its conservative default) and returned
+REPORT_ONLY. Left alone that would have refused a canonical row on **every Sunday and
+Tuesday quote for the rest of the season** -- the exact permanent hole in the
+F18/F19/F25 record the three-window design exists to prevent. The gate worked as
+designed: it refused to quote on a condition no human had classified, and put the
+decision in front of one.
+
+**Classified benign, same night** (`scripts/canonical_gate.py`, tests first): the
+condition fires BY DESIGN at Sunday/Tuesday quote times and on every bye week, and a
+real odds FAILURE is still caught by the separate `vegas_source` check -- all three
+fallback sources still block, test-pinned so the classification cannot open that hole.
+
+**The residual this entry tracks:** one warning text covers three different causes --
+(a) the team is on bye, (b) the team's game has already kicked off or finished, and
+(c) the market payload was genuinely partial (a real, forecast-affecting gap for a team
+that still has a game pending). (a) and (b) are benign; (c) is not, and today they are
+indistinguishable to the gate. Mitigations in place: the entry names the count and the
+teams, the digest leads with the DEGRADED block, and the row's provenance records the
+degraded count, so a human reading the report can tell.
+
+**Fix when the freeze lifts:** teach `fetch_vegas_implied_totals` to say which cause
+applies (it already knows the week's schedule and can compare kickoff times), and split
+the gate's classification accordingly -- benign for bye/played, blocking for a genuine
+partial payload. Sync-side warning text only; no constant, no baseline, no golden.
+OPEN; unlock: off-season (or sooner if a partial-payload week is ever observed).

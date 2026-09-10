@@ -36,6 +36,17 @@ BENIGN_MARKERS = (
     "use the anonymous defaults",
     "DEPTH WATCHDOG:",
     "covered by KNOWN_MISSING_ASSETS",   # whitelisted zero-projection: engine imputes cleanly
+    # A team with no market line takes the flat 21.5 / no-opponent fallback. This fires
+    # BY DESIGN at every Sunday and Tuesday quote (a completed game has no live line) and
+    # on every bye week -- classified 2026-09-10, the night it first appeared, when it
+    # would otherwise have refused a canonical row on every remaining window of the
+    # season. Safe because a real odds FAILURE is caught by the separate vegas_source
+    # check (fallback_no_api_key / fallback_api_error / fallback_empty_payload all still
+    # block, test-pinned). Residual, stated: a PARTIAL payload outage produces this same
+    # text while the affected teams still have games pending -- the entry names the count
+    # and the teams, the digest leads with the DEGRADED block, and the row's provenance
+    # records the count. F38 tracks teaching sync to distinguish the two causes.
+    "had no usable line and got the flat",
 )
 
 # Forecast-affecting classes with dedicated remediations.
