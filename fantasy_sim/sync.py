@@ -256,7 +256,7 @@ def _write_vegas(totals, week, source):
     return stamped
 
 
-def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
+def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_schedule=None):
     """Market-implied team totals for `current_nfl_week`, stamped with the week they are for.
 
     THE FIX FOR CORRECT IN-SEASON OPPONENTS IS ODDS_API_KEY. Without it there is no market
@@ -300,6 +300,20 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False):
         home_team = NFL_TEAM_ABBREVIATIONS.get(game.get("home_team"))
         away_team = NFL_TEAM_ABBREVIATIONS.get(game.get("away_team"))
         if not home_team or not away_team: continue
+
+        # THIS WEEK'S GAMES ONLY (2026-09-11). The odds API returns every remaining game
+        # of the season -- 213 across 54 dates when this was measured -- and the loop
+        # below writes implied_totals[team] unconditionally, so without this filter each
+        # team ended up holding whichever of its 14-17 listed games came LAST: a matchup
+        # months away with the wrong opponent. The engine then rejected all 32 lines as
+        # stale (its rule: a line's opponent must match the week's schedule) and ran on
+        # the ratings-model fallback, which is how every forecast from the odds gate
+        # opening through week 1 -- the pre-registered baseline included -- came out
+        # matchup-blind. Filtering with the ENGINE'S OWN RULE means sync writes exactly
+        # what the engine accepts. No schedule -> no filtering: without it there is no
+        # way to tell the weeks apart, and guessing is worse than the honest fallback.
+        if week_schedule and week_schedule.get(home_team) != away_team:
+            continue
 
         bookmakers = game.get("bookmakers", [])
         if not bookmakers: continue
@@ -942,7 +956,19 @@ def _sync_body(sharp_polling=False):
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
     baselines = generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
                               rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids)
-    fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling)
+    _wk_sched = {}
+    try:
+        _wk_sched = (load_json(NFL_SCHEDULE_FILE) or {}).get(str(current_nfl_week), {}) or {}
+    except (FileNotFoundError, OSError, ValueError):
+        _wk_sched = {}
+    if not _wk_sched:
+        logging.warning(
+            "VEGAS (week %d): no schedule available to match the odds payload against, so "
+            "every game in it is accepted -- lines for other weeks may land in the file and "
+            "the engine will reject them. Re-run after the schedule fetch succeeds.",
+            current_nfl_week)
+    fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling,
+                               week_schedule=_wk_sched)
 
     all_weeks_actuals = {}
     for wk in range(1, max(0, current_nfl_week - 1) + 1):

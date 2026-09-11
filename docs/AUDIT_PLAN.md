@@ -3529,3 +3529,66 @@ applies (it already knows the week's schedule and can compare kickoff times), an
 the gate's classification accordingly -- benign for bye/played, blocking for a genuine
 partial payload. Sync-side warning text only; no constant, no baseline, no golden.
 OPEN; unlock: off-season (or sooner if a partial-payload week is ever observed).
+
+
+### F39 — The odds payload is the whole season; sync kept the wrong week — FIXED (2026-09-11)
+
+**Origin (found live, two games into the season).** A matchup-tool run reported
+`VEGAS STALE: 32 of 32 lines ... are not for week 1`, and the stored line for LAR named
+TB — a week-2 opponent. Measured against the live API: the odds endpoint returns **every
+remaining game of the season — 213 games across 54 dates**, with most teams appearing
+14-17 times. `fetch_vegas_implied_totals` looped over the payload writing
+`implied_totals[team]` unconditionally, so each team ended up holding whichever of its
+games came LAST in the list: a matchup months away, with the wrong opponent and the
+wrong total.
+
+**What it cost.** The engine's Phase-3 guard caught it exactly as designed — a line whose
+opponent does not match the week's schedule is refused — so nothing was corrupted. But it
+refused ALL of them, and fell back to the ratings-model environment. Every forecast from
+the 2026-09-09 odds gate opening onward therefore ran **matchup-blind**, the state
+`config.py` describes as "not correct" and which the `ODDS_API_KEY` exists to prevent.
+That includes the pre-registered week-1 canonical baseline (run 34410101648, whose log
+carries the VEGAS STALE error). The gate never saw it: the engine's ERROR is emitted at
+simulation time, not into the sync manifest's degraded list.
+
+**Fix.** Sync now keeps only games whose pairing matches the current week's schedule —
+the ENGINE'S OWN acceptance rule, applied at write time, so sync writes exactly what the
+engine accepts instead of the engine discarding everything. The schedule is already
+generated before the odds fetch in `_sync_body`; it is passed in explicitly, and with no
+schedule available sync filters nothing and says so (guessing would be worse than the
+honest fallback). Measured live after the fix: **28 of 32 teams carry correct week-1
+lines, up from 0**; the 4 exceptions are LAR/NE/SEA/SF, whose games had already been
+played, which is the F38-classified flat-fallback case.
+
+**Provenance, same sitting.** The baseline row recorded `vegas_source: "odds_api"`
+because that is what SYNC WROTE — it could not show that the engine had thrown those
+lines away. Rows now also carry `vegas_lines_used` / `vegas_lines_total` from
+`weekly_report.usable_vegas_lines`, which mirrors the engine's rule. A count cannot
+overstate itself, and January's calibration work can tell a market-informed quote from a
+matchup-blind one.
+
+**Verification.** Engine goldens 15/15 byte-identical and the sync golden clean (the
+change is acquisition-side; both harnesses run on pinned inputs). Tests written failing
+first: a payload spanning two weeks must yield only this week's game, no schedule must
+filter nothing, and the provenance count must match the engine's rule including the
+wrong-week stamp.
+
+The gate needed a **same-day A/B**, not a diff against the last logged line, and the
+reason is worth recording. Today's gate run differs from the 2026-09-05 line (bias -1.13
+-> -2.12, mean z +0.054 -> +0.105) -- larger than F2's acceptance band -- but NONE of it
+is this change: with the fix stashed and re-run against identical data, every metric came
+back BIT-IDENTICAL (bias -2.119, mean z 0.1045, engine MAE 22.364, naive MAE 26.538).
+`fetch_vegas_implied_totals` is reachable only from `_sync_body`; the backtest writes an
+empty vegas file into its own workdir and holds the environment flat, so the code path is
+never executed there. The drift is in the reconstruction's live inputs (the players cache
+refreshes with every sync, moving positions and therefore optimal lineups) -- which means
+**the gate's cross-day comparability is weaker than "a diff of two committed lines"
+assumes**: attributing a change to a commit requires running both arms on the same day's
+inputs. Recorded here rather than filed separately; the A/B costs ~11 minutes and is the
+honest procedure whenever a gate delta must be attributed.
+
+**Honest residual.** Week 1 now holds two canonical rows quoted under different
+environments — the 09-09 baseline (ratings-model) and everything after (market lines).
+Left unfixed the alternative was running the entire pre-registered season on a degraded
+model for internal consistency, which is worse. The row provenance makes the difference
+visible rather than silent. RESOLVED.

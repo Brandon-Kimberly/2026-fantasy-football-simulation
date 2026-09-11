@@ -90,6 +90,50 @@ class TestVegasHandlers(unittest.TestCase):
         self.assertEqual(payload["_meta"]["source"], "fallback_api_error")
         self.assertEqual(payload["DET"]["total"], 21.5, "flat fallback totals in force")
 
+    def _odds_game(self, home, away, total, home_spread, when="2026-09-13T17:00:00Z"):
+        return {"home_team": home, "away_team": away, "commence_time": when,
+                "bookmakers": [{"key": "draftkings", "markets": [
+                    {"key": "totals", "outcomes": [{"name": "Over", "point": total}]},
+                    {"key": "spreads", "outcomes": [
+                        {"name": home, "point": home_spread},
+                        {"name": away, "point": -home_spread}]}]}]}
+
+    def test_only_this_weeks_games_survive_a_whole_season_payload(self):
+        """Found live 2026-09-11: the odds API returns EVERY remaining game (213 across
+        54 dates), and the unfiltered loop left each team holding whichever came last --
+        a matchup months away. The engine then rejected all 32 lines as stale, so every
+        forecast since the odds gate opened ran matchup-blind, including the
+        pre-registered week-1 baseline. Sync now keeps only games whose pairing matches
+        the week's schedule: the engine's own acceptance rule, applied at write time."""
+        payload_games = [
+            self._odds_game("Detroit Lions", "Green Bay Packers", 48.0, -3.5),
+            # later in the list = what the old loop would have kept for DET
+            self._odds_game("Detroit Lions", "Chicago Bears", 60.0, -10.0,
+                            when="2026-11-26T17:30:00Z"),
+        ]
+        with patch.object(sync, "datetime", _PostGateDatetime), \
+             patch.object(sync, "ODDS_API_KEY", "dummy-key"), \
+             patch.object(sync.requests, "get", side_effect=lambda *a, **k: _resp(payload_games)), \
+             patch.object(sync, "save_json") as saved:
+            sync.fetch_vegas_implied_totals(current_nfl_week=2,
+                                            week_schedule={"DET": "GB", "GB": "DET"})
+        payload = saved.call_args_list[0].args[1]
+        self.assertEqual(payload["DET"]["opponent"], "GB", "kept the week's game, not November's")
+        self.assertAlmostEqual(payload["DET"]["total"], 25.75)
+        self.assertEqual(payload["CHI"]["total"], 21.5,
+                         "a team with no game THIS week takes the flat fallback")
+
+    def test_without_a_schedule_nothing_is_filtered(self):
+        """Back-compat and honesty: with no schedule to check against, sync cannot tell
+        which games are this week's, so it filters nothing rather than guessing."""
+        games = [self._odds_game("Detroit Lions", "Green Bay Packers", 48.0, -3.5)]
+        with patch.object(sync, "datetime", _PostGateDatetime), \
+             patch.object(sync, "ODDS_API_KEY", "dummy-key"), \
+             patch.object(sync.requests, "get", side_effect=lambda *a, **k: _resp(games)), \
+             patch.object(sync, "save_json") as saved:
+            sync.fetch_vegas_implied_totals(current_nfl_week=2, week_schedule=None)
+        self.assertAlmostEqual(saved.call_args_list[0].args[1]["DET"]["total"], 25.75)
+
     def test_weather_failure_is_silent_and_the_game_totals_survive_without_it(self):
         game = {"home_team": "Detroit Lions", "away_team": "Green Bay Packers",
                 "commence_time": "2026-09-13T17:00:00Z",

@@ -28,7 +28,7 @@ from html import escape
 from fantasy_sim.freshness import read_manifest, read_export_mtime   # module attrs: patchable in tests
 from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS       # the sortable-table pattern, reused as-is
 from fantasy_sim.storage import (
-    SYNC_MANIFEST_FILE, VEGAS_FILE, load_json, predictions_log_file, decisions_adhoc_path, decisions_week_path,
+    SYNC_MANIFEST_FILE, VEGAS_FILE, NFL_SCHEDULE_FILE, load_json, predictions_log_file, decisions_adhoc_path, decisions_week_path,
     ensure_dir_for, decisions_path, season_outcomes_chart_path, all_teams_trajectories_chart_path,
     win_trajectory_chart_path, expected_wins_chart_path, power_rankings_chart_path, h2h_heatmap_chart_path,
     seeding_distribution_path, weekly_scoring_density_path, boom_bust_chart_path, floor_ceiling_chart_path,
@@ -193,12 +193,39 @@ def commit_and_push_logs(week, git=_run_git):
         return result
 
 
-def run_provenance(manifest, vegas_meta):
+def usable_vegas_lines(vegas, schedule, week):
+    """(usable, total) vegas lines by the ENGINE's own rule (simulation.py): the file's
+    stamped week must match the current week, and each team's line must name that team's
+    scheduled opponent. Mirrored here rather than imported because the engine's copy is
+    inline in a golden-pinned monolith -- the engine stays the authority; this is the
+    reporting view of the same rule.
+
+    Exists because provenance recorded vegas_source -- what SYNC WROTE -- so the
+    2026-09-09 baseline row claimed `odds_api` while the engine had discarded all 32 of
+    those lines and run on the ratings model. A count cannot overstate itself."""
+    meta = (vegas or {}).get("_meta") or {}
+    stamped = meta.get("week")
+    wrong_week = stamped is not None and week is not None and stamped != week
+    used = total = 0
+    for team, line in (vegas or {}).items():
+        if team in ("FA", "_meta") or not isinstance(line, dict):
+            continue
+        total += 1
+        opp = (schedule or {}).get(team)
+        wrong_opp = opp is not None and line.get("opponent", "FA") != opp
+        if not (wrong_week or wrong_opp):
+            used += 1
+    return used, total
+
+
+def run_provenance(manifest, vegas, schedule=None, week=None):
     """F36's DEGRADED-judgment mitigation, made durable (2026-09-04): the sync state a
     prediction row was quoted under. The manifest is untracked and overwritten every
     sync, so the row's provenance is the only record of it that survives."""
     import os as _os
-    return {"vegas_source": (vegas_meta or {}).get("source"),
+    used, total = usable_vegas_lines(vegas, schedule, week)
+    return {"vegas_source": ((vegas or {}).get("_meta") or {}).get("source"),
+            "vegas_lines_used": used, "vegas_lines_total": total,
             "degraded": len((manifest or {}).get("degraded") or []),
             "runner": bool(_os.environ.get("GITHUB_ACTIONS"))}
 
@@ -1012,10 +1039,15 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
 
     def step_predictions_log():
         try:
-            vegas_meta = (load_json(VEGAS_FILE) or {}).get("_meta")
+            vegas = load_json(VEGAS_FILE) or {}
         except FileNotFoundError:
-            vegas_meta = None
-        prov = run_provenance(load_json(SYNC_MANIFEST_FILE), vegas_meta)
+            vegas = {}
+        try:
+            schedule = (load_json(NFL_SCHEDULE_FILE) or {}).get(str(state["week"]), {})
+        except FileNotFoundError:
+            schedule = {}
+        prov = run_provenance(load_json(SYNC_MANIFEST_FILE), vegas,
+                              schedule=schedule, week=state["week"])
         n = append_predictions_log(state["week"], state["season_outcomes"], state["league_outlook"],
                                    commit=_git_head(), canonical=state["canonical"],
                                    provenance=prov)

@@ -759,12 +759,16 @@ class TestCanonicalRowProvenance(unittest.TestCase):
         from unittest.mock import patch as _patch
         from fantasy_sim.weekly_report import run_provenance
         manifest = {"degraded": ["a", "b"], "current_week": 3}
-        vegas_meta = {"source": "odds_api", "week": 3}
+        # the full vegas file now, not just its _meta: provenance also counts how many
+        # lines the ENGINE will accept (2026-09-11), which _meta alone cannot say
+        vegas = {"_meta": {"source": "odds_api", "week": 3}, "DET": {"opponent": "GB"}}
+        sched = {"DET": "GB"}
         with _patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
-            p = run_provenance(manifest, vegas_meta)
-        self.assertEqual(p, {"vegas_source": "odds_api", "degraded": 2, "runner": True})
+            p = run_provenance(manifest, vegas, schedule=sched, week=3)
+        self.assertEqual(p, {"vegas_source": "odds_api", "vegas_lines_used": 1,
+                             "vegas_lines_total": 1, "degraded": 2, "runner": True})
         with _patch.dict(os.environ, {}, clear=True):
-            p = run_provenance(manifest, vegas_meta)
+            p = run_provenance(manifest, vegas, schedule=sched, week=3)
         self.assertFalse(p["runner"])
 
 
@@ -796,6 +800,48 @@ class TestRealNameLegend(unittest.TestCase):
         self.assertIn("Turbo Llamas", html)
         self.assertEqual(legend_md({}), "")
         self.assertEqual(legend_html({}), "")
+
+
+
+class TestProvenanceRecordsWhatTheEngineUsed(unittest.TestCase):
+    """The 09-09 baseline row recorded vegas_source "odds_api" while the engine had
+    rejected all 32 of those lines as stale -- provenance described what SYNC WROTE, so
+    the record overstated the forecast's inputs (found 2026-09-11). It now also counts
+    the lines the engine will actually accept."""
+
+    SCHED = {"DET": "GB", "GB": "DET", "KC": "BUF", "BUF": "KC"}
+
+    def test_counts_only_lines_the_engine_will_accept(self):
+        from fantasy_sim.weekly_report import usable_vegas_lines
+        vegas = {"_meta": {"week": 2, "source": "odds_api"},
+                 "FA": {"opponent": "FA"},
+                 "DET": {"opponent": "GB"},      # matches the schedule -> usable
+                 "GB": {"opponent": "DET"},      # usable
+                 "KC": {"opponent": "LAC"},      # wrong opponent -> engine rejects
+                 "BUF": {"opponent": "MIA"}}     # wrong opponent -> engine rejects
+        self.assertEqual(usable_vegas_lines(vegas, self.SCHED, 2), (2, 4))
+
+    def test_a_wrong_week_stamp_invalidates_every_line(self):
+        from fantasy_sim.weekly_report import usable_vegas_lines
+        vegas = {"_meta": {"week": 1, "source": "odds_api"},
+                 "DET": {"opponent": "GB"}, "GB": {"opponent": "DET"}}
+        self.assertEqual(usable_vegas_lines(vegas, self.SCHED, 2), (0, 2))
+
+    def test_provenance_carries_the_count_beside_the_source(self):
+        import os
+        from unittest.mock import patch as _patch
+        from fantasy_sim.weekly_report import run_provenance
+        vegas = {"_meta": {"week": 2, "source": "odds_api"},
+                 "DET": {"opponent": "GB"}, "GB": {"opponent": "DET"},
+                 "KC": {"opponent": "LAC"}, "BUF": {"opponent": "MIA"}}
+        with _patch.dict(os.environ, {"GITHUB_ACTIONS": "true"}):
+            p = run_provenance({"degraded": ["a", "b"], "current_week": 2}, vegas,
+                               schedule=self.SCHED, week=2)
+        self.assertEqual(p["vegas_source"], "odds_api")
+        self.assertEqual(p["vegas_lines_used"], 2)
+        self.assertEqual(p["vegas_lines_total"], 4)
+        self.assertEqual(p["degraded"], 2)
+        self.assertTrue(p["runner"])
 
 
 
