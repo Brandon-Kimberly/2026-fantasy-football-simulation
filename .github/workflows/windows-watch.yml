@@ -37,7 +37,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           week=$(jq -r '.target_week' verdict.json)
-          [ "$week" = "null" ] && { echo "no target week (offseason or no data)"; exit 0; }
+          # if-blocks throughout: a statement-level `[ ... ] && cmd` returns 1 when the
+          # test is false, and a bash step's final exit status IS the step result.
+          if [ "$week" = "null" ]; then
+            echo "no target week (offseason or no data)"
+            exit 0
+          fi
 
           # One issue per (week, window); the deterministic title is the idempotence key.
           jq -c '.actionable[]' verdict.json | while read -r a; do
@@ -59,7 +64,9 @@ jobs:
             name=$(jq -r '.name' <<<"$m")
             title="Canonical window open: week ${week} ${name}"
             num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
-            [ -n "$num" ] && gh issue close "$num" --comment "Window MISSED -- no canonical row landed before the deadline. That week's quoted-predictions record has a permanent gap (the F18/F19/F25 hole tier 1 exists to prevent). The tier-1.5 capture still preserved the projections and transaction snapshots."
+            if [ -n "$num" ]; then
+              gh issue close "$num" --comment "Window MISSED -- no canonical row landed before the deadline. That week's quoted-predictions record has a permanent gap (the F18/F19/F25 hole tier 1 exists to prevent). The tier-1.5 capture still preserved the projections and transaction snapshots."
+            fi
           done
 
           # Covered or expired: close any leftover open window issues that are no longer actionable.

@@ -3592,3 +3592,77 @@ environments — the 09-09 baseline (ratings-model) and everything after (market
 Left unfixed the alternative was running the entire pre-registered season on a degraded
 model for internal consistency, which is worse. The row provenance makes the difference
 visible rather than silent. RESOLVED.
+
+
+### F40 — A false `[ ... ] &&` test failed the canonical run after it had succeeded — FIXED (2026-09-13)
+
+**Origin (found live, the first automated canonical run that actually proceeded).** Run
+34764219769 went red and opened the failure alarm. Every step that mattered had passed:
+sync, the tier-1.5 log capture, the gate (CANONICAL_OK), the canonical weekly report and
+its committed predictions row. The failing step was step 12 of 14 — the cosmetic job
+summary — and the cause is one line of shell:
+
+    [ "$MODE" = "force-canonical" ] && echo "- Manual force-canonical run: ..."
+
+On an `auto` run that test is false, so the construct returns 1; it is the last statement
+of the `{ ... } >> "$GITHUB_STEP_SUMMARY"` group, so the group returns 1, so the script
+returns 1, so **GitHub failed the step and the job**. Reproduced locally: a three-line
+script of exactly this shape exits 1.
+
+**Why it had never fired.** The step is gated on `steps.watch.outputs.proceed == 'true'`.
+Every prior scheduled run quiet-skipped (the window was already covered), and the one
+manual force-canonical run had `MODE = force-canonical`, which makes the final test TRUE.
+The bug needed the first *automatic* run to actually do work — week 1's Sunday window —
+to appear at all.
+
+**Second instance of one class.** This is the same failure shape as the kickoff-day parse
+error (`AUDIT_PLAN` F36 notes, 2026-09-09): a decorative trailing step killing a run whose
+real work was already durable, and alarming for it. The earlier fix added a `bash -n`
+syntax guard over every workflow bash block; this line PARSES fine, so that guard was
+silent on it.
+
+**Fix.** `if` blocks (an `if` with no matching branch returns 0), which is already the
+house style two steps down. Three other occurrences were found in passing: two in
+`data-capture`/`evaluate-moves` already neutralised with `|| true`, and two in
+`windows-watch` that were safe only by position — rewritten as `if` blocks as well.
+
+**Guard.** `tests/test_workflows.py` gained an exit-status lint beside the syntax one: no
+statement-level `[ ... ] && cmd` in workflow bash unless it ends in `|| true`. Deliberately
+stricter than the defect — whether a given occurrence is "the last statement" changes the
+moment someone inserts a line below it, so the rule does not try to decide which ones are
+currently safe. Written failing first: it flagged the live defect plus the two latent
+`windows-watch` occurrences. RESOLVED.
+
+
+### F41 — Local coverage was blind to windows the RUNNER covered — FIXED (2026-09-13)
+
+**Origin (found live, same hour as F40).** The scheduled desktop check popped up
+`attention: YES -- a window was MISSED` for week 1's Sunday window. The window was not
+missed: the runner had committed its canonical predictions row at 15:10:19Z, well inside
+it. Two tools, two answers, one fact.
+
+**Cause.** The two watchers were written against different definitions of coverage.
+`scripts/run_windows.py` (local, feeds the popup) read canonical **digest filenames** from
+`data/decisions/week_NN/`; `scripts/windows_watch.py` (runner, feeds the GitHub issues)
+read canonical rows from the **committed predictions log**. That was a deliberate and
+correct split when it was written — a bare runner checkout has no `data/decisions` at all,
+because it is untracked. What changed is who runs the report: once F36 tier 2 started
+covering windows itself, the digest landed on the runner's disk and the local checker,
+looking only at its own, correctly reported no local file and wrongly concluded MISSED.
+
+**What it would have cost.** Nothing in the record — the row is durable and the runner-side
+watcher was right. The cost is the alarm: a false MISSED after **every** runner-covered
+window, three times a week, on the one notification channel whose whole value is that it
+only fires when something is wrong. F36's own design note ("a reminder that fires three
+times a week on nothing trains itself to be ignored") applied to the checker itself.
+
+**Fix.** `_canonical_stamps` now reads BOTH and unions them, deduplicating on timestamp:
+local digests (the answer when a human ran the report and has not pushed yet — still worth
+having, an unpushed record is not durable) and the committed log (the durable definition,
+and the thing the windows exist to protect). A missing or unreadable log is not fatal; it
+just contributes no rows. The runner-side watcher is unchanged — it was already right.
+
+**Verification.** Three tests, written failing first: a runner-committed row counts as local
+coverage, local digests still count when the log cannot be read, and one run seen through
+both channels is listed once. Confirmed against the live state: the local checker now reads
+the Sunday window as covered, agreeing with the runner. RESOLVED.

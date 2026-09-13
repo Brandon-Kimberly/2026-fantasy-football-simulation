@@ -69,5 +69,42 @@ class TestWorkflowBashParses(unittest.TestCase):
         self.assertEqual(failures, [], "workflow bash that will not parse:\n" + "\n".join(failures))
 
 
+@unittest.skipIf(yaml is None, "pyyaml not installed; workflow syntax guard skipped")
+class TestWorkflowBashExitStatus(unittest.TestCase):
+    """The second way a cosmetic step kills a good run (2026-09-13).
+
+    `[ "$MODE" = "force-canonical" ] && echo ...` PARSES fine, so the syntax guard above
+    passes it. But a test that is false returns 1, and GitHub takes the block's final
+    exit status as the STEP result -- so the job-summary step of the first automated
+    canonical run that actually proceeded failed with exit 1 after sync, gate, canonical
+    report and the committed predictions row had all succeeded. Same shape as the
+    kickoff-day parse error: everything that mattered was already done, and the run still
+    went red and alarmed.
+
+    The rule is stricter than the bug needs, on purpose. Whether a given occurrence is
+    "the last statement" changes the moment someone adds a line below it, so the guard
+    does not try to decide which ones are currently safe: a statement-level test-and-run
+    in workflow bash must neutralise its own exit status (`|| true`) or be written as an
+    `if` block, which is the house style anyway.
+    """
+
+    # A test used as a statement: `[ x ] && cmd` / `[[ x ]] && cmd`, at the start of a
+    # line (so `cmd1 && [ x ] && cmd2` -- where the status is already someone else's
+    # concern -- is out of scope).
+    STATEMENT_TEST = re.compile(r"^\s*\[\[?[^]]*\]\]?\s*&&")
+    NEUTRALISED = re.compile(r"\|\|\s*(true|:)\s*$")
+
+    def test_no_bare_statement_level_test_and_run(self):
+        offenders = []
+        for fname, step, script in _bash_blocks():
+            for lineno, line in enumerate(script.splitlines(), 1):
+                if self.STATEMENT_TEST.match(line) and not self.NEUTRALISED.search(line):
+                    offenders.append(f"{fname} -> {step} (line {lineno}): {line.strip()[:90]}")
+        self.assertEqual(
+            offenders, [],
+            "statement-level `[ ... ] && cmd` leaks its exit status into the step result; "
+            "use an if block, or append `|| true`:\n" + "\n".join(offenders))
+
+
 if __name__ == "__main__":
     unittest.main()

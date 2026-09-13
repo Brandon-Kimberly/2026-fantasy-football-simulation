@@ -22,8 +22,12 @@ import os
 from datetime import datetime, timezone
 
 from fantasy_sim.freshness import check as freshness_check
-from fantasy_sim.run_windows import PT, compute_windows, load_kickoffs, parse_canonical_digest, release_advice
+from fantasy_sim.run_windows import (
+    PT, compute_windows, load_kickoffs, parse_canonical_digest, release_advice,
+    stamps_from_predictions_rows,
+)
 from fantasy_sim.storage import decisions_week_path
+from scripts.windows_watch import read_predictions_rows
 
 
 def _release_advice_live(week):
@@ -47,7 +51,7 @@ def _release_advice_live(week):
     return release_advice(tag, changed, week)
 
 
-def _canonical_stamps(week):
+def _local_digest_stamps(week):
     """Canonical weekly digests on disk for the week (both name shapes; _FAILED covers
     nothing -- see run_windows.parse_canonical_digest)."""
     week_dir = os.path.dirname(decisions_week_path(week, "x", canonical=True))
@@ -58,6 +62,31 @@ def _canonical_stamps(week):
             if dt is not None:
                 stamps.append((name, dt))
     return stamps
+
+
+def _canonical_stamps(week):
+    """Coverage from BOTH machines: local digest files UNION the committed predictions
+    log's canonical rows.
+
+    Digests live in untracked data/decisions/, so they only ever exist on the machine
+    that ran the report. When the F36 runner started covering windows itself
+    (2026-09-13), this checker saw no local file, reported MISSED, and the scheduled
+    popup alarmed on a window that was in fact covered -- while windows_watch, reading
+    the committed log on the runner, had it right. The committed log is the durable
+    definition (it IS the record the windows exist to protect), so read it here too.
+    Never fatal: a missing or unreadable log just means no rows, and the local digests
+    still answer."""
+    stamps = _local_digest_stamps(week)
+    seen = {dt for _, dt in stamps}
+    try:
+        rows = read_predictions_rows()
+    except OSError:
+        rows = []
+    for name, dt in stamps_from_predictions_rows(rows, week):
+        if dt not in seen:
+            seen.add(dt)
+            stamps.append((name, dt))
+    return sorted(stamps, key=lambda s: s[1])
 
 
 def main(argv=None):

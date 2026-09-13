@@ -208,5 +208,48 @@ class TestWatchVerdict(unittest.TestCase):
 
 
 
+class TestLocalCoverageSeesRunnerCanonicalRuns(unittest.TestCase):
+    """The popup cried wolf on the first runner-covered window (2026-09-13).
+
+    `scripts.run_windows` computed coverage from LOCAL digest filenames in
+    data/decisions/week_NN/ -- untracked, and written on whichever machine ran the
+    report. The Sunday canonical row was produced on the GitHub runner, so no local file
+    existed, so the local checker called the window MISSED and the scheduled popup
+    alarmed, while the runner-side watcher (reading the committed predictions log)
+    correctly saw it covered. Two coverage definitions for one fact; the durable one is
+    the committed log, which is also the thing the record is actually made of. The local
+    checker now reads BOTH, so a window covered by either machine reads as covered."""
+
+    ROW = {"record_type": "week_predictions", "canonical": True, "week": 1,
+           "logged_at": "2026-09-13T15:10:19Z"}
+
+    def test_a_row_committed_by_the_runner_counts_as_local_coverage(self):
+        from unittest.mock import patch
+        import scripts.run_windows as rw
+        with patch.object(rw, "_local_digest_stamps", return_value=[]), \
+             patch.object(rw, "read_predictions_rows", return_value=[self.ROW]):
+            stamps = rw._canonical_stamps(1)
+        self.assertEqual([n for n, _ in stamps], ["predictions@2026-09-13T15:10:19Z"])
+        self.assertEqual(stamps[0][1], u("2026-09-13T15:10:19"))
+
+    def test_local_digests_still_count_when_the_log_is_unreadable(self):
+        from unittest.mock import patch
+        import scripts.run_windows as rw
+        local = [("weekly_digest_2026-09-13T09-00-00.md", u("2026-09-13T16:00:00"))]
+        with patch.object(rw, "_local_digest_stamps", return_value=local), \
+             patch.object(rw, "read_predictions_rows", side_effect=OSError("no log")):
+            stamps = rw._canonical_stamps(1)
+        self.assertEqual(stamps, local)
+
+    def test_the_same_run_seen_twice_is_not_listed_twice(self):
+        from unittest.mock import patch
+        import scripts.run_windows as rw
+        dt = u("2026-09-13T15:10:19")
+        with patch.object(rw, "_local_digest_stamps", return_value=[("local.md", dt)]), \
+             patch.object(rw, "read_predictions_rows", return_value=[self.ROW]):
+            stamps = rw._canonical_stamps(1)
+        self.assertEqual(stamps, [("local.md", dt)])
+
+
 if __name__ == "__main__":
     unittest.main()

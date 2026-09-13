@@ -155,8 +155,18 @@ jobs:
             if [ -n "${{ steps.artifact.outputs.artifact-url }}" ]; then
               echo "- **Report:** [download the artifact](${{ steps.artifact.outputs.artifact-url }}) (the *_embed.html inside is the full self-contained report)"
             fi
-            [ "$MODE" = "force-report" ] && echo "- Manual **force-report** run: no canonical row was committed, by design."
-            [ "$MODE" = "force-canonical" ] && echo "- Manual **force-canonical** run: on CANONICAL_OK the committed row SUPERSEDES this window's previous record (last-canonical-wins)."
+            # if-blocks, not `[ ... ] && echo`: a false test returns 1, GitHub takes the
+            # block's final exit status as the STEP result, and on an `auto` run BOTH
+            # tests are false -- so this cosmetic summary failed the whole job (exit 1)
+            # after the canonical row had already been committed and pushed. First
+            # automated run that actually proceeded, 2026-09-13; every earlier one had
+            # quiet-skipped past this step. An `if` with no matching branch returns 0.
+            if [ "$MODE" = "force-report" ]; then
+              echo "- Manual **force-report** run: no canonical row was committed, by design."
+            fi
+            if [ "$MODE" = "force-canonical" ]; then
+              echo "- Manual **force-canonical** run: on CANONICAL_OK the committed row SUPERSEDES this window's previous record (last-canonical-wins)."
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Open or close the remediation issue

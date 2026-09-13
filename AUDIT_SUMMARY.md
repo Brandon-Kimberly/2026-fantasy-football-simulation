@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~77 findings and tracked follow-ups** | **47 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~79 findings and tracked follow-ups** | **49 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,22 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F41** local coverage was blind to windows the runner covered — FIXED, found live
+  the same hour: the desktop popup called week 1's Sunday window MISSED while the
+  runner-side watcher had it covered, because the local checker read untracked digest
+  FILENAMES and the runner read the committed predictions log. Correct when only humans
+  ran reports; wrong the moment F36 tier 2 started covering windows itself, and it would
+  have cried wolf after every runner-covered window. The local checker now unions both,
+  deduplicated on timestamp.
+- **F40** a false `[ ... ] &&` test failed the canonical run after it had succeeded —
+  FIXED, found live on the first automated canonical run that proceeded: the cosmetic
+  job-summary step returned 1 because both of its `MODE` tests were false on an `auto`
+  run, and a bash step's final exit status is the step result — so the job went red and
+  alarmed with the canonical predictions row already committed and pushed. Same class as
+  the kickoff-day parse error, invisible to the `bash -n` guard because the line parses.
+  Rewritten as `if` blocks; a new exit-status lint forbids statement-level `[ ... ] &&`
+  in workflow bash unless neutralised, and caught two latent occurrences in
+  windows-watch.
 - **F39** the odds payload is the whole season; sync kept the wrong week — FIXED,
   found live two games in: the odds endpoint returns every remaining game (213 across 54
   dates), the unfiltered loop left each team holding its LAST listed game, and the
