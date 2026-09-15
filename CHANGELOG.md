@@ -5,6 +5,19 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v5.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.1.0) — 2026-09-14 (MINOR)
+
+The first week of live season operation, and what it cost. Week 1's automated canonical
+run did everything right and then failed on a cosmetic step (F40), which cried wolf on
+the desktop watcher (F41) and — in a second, unrelated tool the same week — silently hid
+the week's primary pre-registered record from the archive (F42), because both treated
+"the run succeeded" as a proxy for "the run produced something". New tool
+`scripts.live_matchup` (F43) answers the question the week actually asked: banked points
+are certain and only the remaining game clock carries variance. Week 1 measured against
+both canonical quotes, with three hypotheses pre-registered into F25 for the week 5-6
+calibration check — including the first measurement of the odds feed as an input with
+its own error. Engine goldens byte-identical; the model itself was not touched.
+
 ## [v5.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.0.0) — 2026-09-05 (MAJOR)
 
 League-identity pseudonymization (F37): fictional team names throughout, roster-id
