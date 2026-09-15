@@ -81,6 +81,51 @@ class TestFetch(unittest.TestCase):
             self.assertTrue(os.path.exists(os.path.join(
                 root, "week_03", "weekly-report-999", "week_03", "archive", "r.html")))
 
+    def test_the_run_list_is_not_filtered_to_successful_runs(self):
+        """Found 2026-09-14: --status success hid week 1's Sunday canonical report.
+
+        That run committed its predictions row, uploaded a 6.7 MB artifact, and THEN
+        failed on the cosmetic job-summary step (F40) -- so gh reported it failed, the
+        fetch skipped it, and the week's primary record silently never reached the
+        archive. Run conclusion is the wrong question: the question is whether an
+        artifact exists, and `run download` already answers that by failing cleanly.
+        Filter to completed instead, so failures with real artifacts are offered."""
+        calls = []
+
+        def fake_gh(args):
+            calls.append(list(args))
+            if args[:2] == ["run", "list"]:
+                return 0, ""
+            return 1, "no artifact"
+
+        with tempfile.TemporaryDirectory() as root:
+            from scripts.localize_reports import fetch_artifacts
+            fetch_artifacts(root, gh=fake_gh)
+        listing = calls[0]
+        self.assertIn("--status", listing, "the run list should still exclude in-flight runs")
+        status = listing[listing.index("--status") + 1]
+        self.assertEqual(status, "completed",
+                         "filtering on 'success' drops failed runs whose artifact is intact")
+
+    def test_a_failed_run_whose_artifact_exists_is_still_archived(self):
+        import os
+
+        def fake_gh(args):
+            if args[:2] == ["run", "list"]:
+                return 0, "34764219769\n"
+            if args[:2] == ["run", "download"]:
+                d = args[args.index("--dir") + 1]
+                os.makedirs(os.path.join(d, "week_01"), exist_ok=True)
+                with open(os.path.join(d, "week_01", "report.md"), "w") as f:
+                    f.write("# canonical")
+                return 0, ""
+            return 1, ""
+
+        with tempfile.TemporaryDirectory() as root:
+            from scripts.localize_reports import fetch_artifacts
+            n = fetch_artifacts(root, gh=fake_gh)
+        self.assertEqual(n, 1)
+
     def test_an_artifact_without_week_dirs_files_under_unsorted(self):
         import os, tempfile
         from scripts.localize_reports import file_artifact

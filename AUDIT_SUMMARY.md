@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~79 findings and tracked follow-ups** | **49 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~81 findings and tracked follow-ups** | **51 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,19 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F43** live in-game tracking existed only as throwaway scripts — BUILT, after
+  week 1 was tracked all day from ad-hoc scratch files and the first answer given was
+  wrong (a naive projection credited nothing for the remainder of in-progress games:
+  read 58% when the honest number was 25%). scripts.live_matchup models banked points as
+  certain and only the remaining clock as variance (mean*f, sd*sqrt(f)), draws the median
+  leg jointly over all eight rosters, and is deliberately read-only — a halftime number
+  is not a pre-registered quote. 20 pure tests.
+- **F42** the report fetch filtered on run SUCCESS and hid the week's primary record —
+  FIXED: week 1's Sunday canonical run committed its row and uploaded a 6.7 MB artifact,
+  then failed on F40's cosmetic summary step, so --status success skipped it and the
+  archive silently lacked the week's market-informed record. A run's conclusion is not a
+  proxy for "produced an artifact"; the filter is now --status completed and the download
+  itself is the existence test. F40's second bill, in a different tool, the same week.
 - **F41** local coverage was blind to windows the runner covered — FIXED, found live
   the same hour: the desktop popup called week 1's Sunday window MISSED while the
   runner-side watcher had it covered, because the local checker read untracked digest

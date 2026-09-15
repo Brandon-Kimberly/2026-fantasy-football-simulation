@@ -3,7 +3,7 @@
 (F37 follow-up, 2026-09-06).
 
   py -3.10 -m scripts.localize_reports --fetch      # the weekly one-liner: download
-                                                    # every new successful canonical-run
+                                                    # every new COMPLETED canonical-run
                                                     # artifact via gh, file by week,
                                                     # localize everything
   py -3.10 -m scripts.localize_reports              # localize data/results/ in place
@@ -152,14 +152,22 @@ def _run_gh(args):
 
 
 def fetch_artifacts(root, gh=_run_gh):
-    """Downloads every SUCCESSFUL canonical-run's report artifact not already under
-    root, filed by week. Failed runs are deliberately excluded (their artifacts exist
-    for debugging via the remediation issue, not for the archive). Fetch problems warn
-    and return; localizing what is already on disk must never be blocked by GitHub
-    being unreachable."""
+    """Downloads every COMPLETED canonical-run's report artifact not already under root,
+    filed by week. Fetch problems warn and return; localizing what is already on disk
+    must never be blocked by GitHub being unreachable.
+
+    Completed, not successful (2026-09-14). The filter used to be --status success, on
+    the reasoning that a failed run's artifact is debugging material rather than
+    archive. Week 1 disproved it: the Sunday canonical run committed its predictions
+    row, uploaded a 6.7 MB report artifact, and then failed on the cosmetic job-summary
+    step (F40) -- so the week's PRIMARY record was skipped silently and only turned up
+    because someone went looking. A run's conclusion does not tell you whether its
+    artifact is worth keeping; `run download` failing cleanly does, and that path
+    already prints a NOTE per run. In-flight runs stay excluded, which is what the
+    filter is actually for."""
     import shutil
     import tempfile
-    rc, out = gh(["run", "list", "--workflow", "canonical-run", "--status", "success",
+    rc, out = gh(["run", "list", "--workflow", "canonical-run", "--status", "completed",
                   "--limit", "50", "--json", "databaseId",
                   "--jq", ".[].databaseId"])
     if rc != 0:

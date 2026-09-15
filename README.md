@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-620%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-642%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -22,8 +22,8 @@ guided tour with the outputs already rendered, start with
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~79 findings and tracked follow-ups
-across 8 audit phases: 49 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~81 findings and tracked follow-ups
+across 8 audit phases: 51 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -106,6 +106,7 @@ py -3.10 -m scripts.run_positional_tiers        # statistically-derived tiers pe
 py -3.10 -m scripts.run_strength_of_schedule    # NFL-team and fantasy-roster schedule heatmaps
 py -3.10 -m scripts.run_win_trajectory          # expected wins over the simulated season, all teams
 py -3.10 -m scripts.gameday                     # the pre-lock one-liner: sync if stale, flag roster status changes, optimize, open in browser
+py -3.10 -m scripts.live_matchup                # F43: am I winning RIGHT NOW? banked + remaining-clock model, joint median leg (--review, --json)
 py -3.10 -m scripts.run_windows                 # this week's three canonical-run windows: open, covered, or missed (read-only)
 py -3.10 -m scripts.windows_watch               # Actions window watcher: JSON verdict from the committed predictions log
 py -3.10 -m scripts.canonical_gate              # F36: may an unattended run quote canonical predictions? (+ remediation compose)
@@ -188,7 +189,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 620 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 642 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -231,7 +232,7 @@ is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`**: seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`**: the working spec, with 41 tracked follow-ups (F1-F41), each with
+- **`docs/AUDIT_PLAN.md`**: the working spec, with 43 tracked follow-ups (F1-F43), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed, and the R1
   machine-fault investigation.
 

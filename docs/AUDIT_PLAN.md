@@ -2677,6 +2677,41 @@ direct calibration check (quoted P vs realized outcomes, Brier/reliability) need
 harness at all. Revisit then; the gate now reports both targets every run in the interim.
 Interim honesty: read confident win-probability quotes with the table above in mind.
 
+**Week-1 addendum (2026-09-14) — three questions pre-registered for the week 5-6 check.**
+The first canonical week is measured, n=8 team-weeks and 104 starter-weeks: descriptive
+only, recorded now so the week 5-6 analysis tests stated hypotheses rather than fishing.
+
+1. **Is there a persistent under-quote?** Week 1 came in at mean z **+0.41** (Wednesday,
+   matchup-blind) and **+0.36** (Sunday, 28/32 real lines), with 8/8 teams above their
+   quote on the Sunday row. At player level, bias **+0.79 pts/starter** (n=104). A
+   single high-scoring week looks exactly like this, so the question is whether the sign
+   persists — not whether it was present once.
+2. **Do the market lines help some legs and hurt others?** Week 1 split cleanly: the
+   lines IMPROVED the totals (rms z 0.63 -> 0.56; quoted-vs-actual rank correlation 0.52
+   -> 0.67) and the median leg (5/8 -> 7/8 correct, Brier 0.238 -> 0.182), and made the
+   close head-to-heads WORSE (3/4 -> 2/4, Brier 0.220 -> 0.256). Both H2H misses were
+   games the lines had moved. Every quote sat in 48-60%, so 2-2 on four coin flips is
+   entirely consistent with noise; the hypothesis is stated so it can be refuted.
+3. **Is the player upside tail too thin, and is it RB-led?** rms z **1.23** with **62%**
+   inside 1 sd (68% expected) and 92% inside 2 sd (95% expected) — mildly fat tails, and
+   **seven of the ten largest misses were BOOMS** (T.J. Watt +4.8 sd, Swift +2.9,
+   K. Walker +2.8, Henry +2.5). Positional bias: RB **+3.10 pts/starter** (n=26), LB
+   +5.05 (n=8, one outlier), everything else within +/-1. If RB upside is genuinely
+   under-modelled that is a VOLATILITY_CONSTANTS question, i.e. MAJOR, i.e. exactly the
+   change that must not be made on one week.
+
+**Also recorded, because it does not reconcile yet.** Team-level intervals look WIDE
+(8/8 inside 1 sd, rms z 0.56) while player-level intervals look NARROW (62% inside 1 sd,
+rms z 1.23). With positively-correlated starters, team intervals should come out too
+narrow, not too wide. Either the team-level epistemic term is oversized or it is n=8.
+Week 5-6 has ~40 team-weeks and ~500 starter-weeks and can tell these apart.
+
+**Third input measured for the first time: the lines themselves.** Vegas implied team
+totals vs actual NFL points, 28 teams with real week-1 lines: bias **+3.57** points per
+team, MAE **8.38**, correlation **0.34**. The market under-called the week too (CHI
+lined 25.2, scored 59), which is part of where the model's own under-quote came from.
+Worth carrying: the odds feed is an input with its own error, not ground truth.
+
 ### F26 — Coverage analysis: the number is 74%, the finding is the silent-failure map — BUILT (2026-09-03)
 
 coverage.py (branch mode) is wired locally (.coveragerc; coverage_floor.txt) and into CI
@@ -3666,3 +3701,83 @@ just contributes no rows. The runner-side watcher is unchanged — it was alread
 coverage, local digests still count when the log cannot be read, and one run seen through
 both channels is listed once. Confirmed against the live state: the local checker now reads
 the Sunday window as covered, agreeing with the runner. RESOLVED.
+
+
+### F42 — The report fetch filtered on run SUCCESS and hid the week's primary record — FIXED (2026-09-14)
+
+**Origin.** Running the weekly `--fetch` ritual after week 1 finished pulled nothing new.
+Week 1 had three canonical runs; only two were on disk. The missing one was
+**run 34764219769 — the Sunday canonical run**, the market-informed quote that is the
+week's primary pre-registered record. Its artifact was intact on GitHub (6.7 MB, not
+expired) and its predictions row was committed and pushed.
+
+**Cause.** `fetch_artifacts` listed runs with `--status success`. That run had failed —
+on the cosmetic job-summary step (F40), *after* sync, the gate, the canonical report, the
+committed row and the artifact upload had all succeeded. So gh reported `failure`, the
+fetch skipped it silently, and the archive was quietly missing the record the whole
+season-evaluation design exists to preserve. It surfaced only because someone went
+looking by hand.
+
+**The wrong question.** A run's CONCLUSION does not answer "is there an artifact worth
+keeping" — it answers "did every step exit zero", which includes steps that produce
+nothing. `gh run download` answers the real question directly and already fails cleanly
+per run, printing a NOTE. The filter now reads `--status completed`: in-flight runs stay
+excluded (which is what the filter is for) and a failed run with a real artifact is
+offered like any other.
+
+**Compounding, worth stating.** This is F40's second bill. The first was a red X and a
+false alarm; the second was a silent archive gap in the same week, from a different
+tool, because two independent components both treated "run succeeded" as a proxy for
+"run produced something". Artifacts expire at 90 days — had this gone unnoticed past
+December, week 1's Sunday report would have been unrecoverable.
+
+**Verification.** Two tests written failing first: the run list must not filter on
+`success` (it asserted `'success' != 'completed'` against the live code), and a failed
+run whose artifact downloads must still be filed. The missing artifact was then fetched,
+localized, and archived under `data/results/week_01/`. RESOLVED.
+
+### F43 — Live in-game tracking existed only as throwaway scripts — BUILT (2026-09-14)
+
+**Origin.** Week 1 was tracked live all day from ad-hoc scratch files: win probability at
+five points through Sunday, a joint median-leg simulation, a whole-league review, and a
+quoted-vs-realized scorecard. Every one was written, used, and discarded. The repo had no
+tool for the question that actually gets asked on a Sunday, and the first answer given
+that morning was **wrong** — a naive projection that credited nothing for the remainder of
+in-progress games, which biased the number toward whichever roster had fewer players
+mid-game. It read 58% when the honest number was 25%.
+
+**Why it is a different question from every existing tool.** Every other tool quotes a
+week before it starts. Once games are running, points already scored are CERTAIN and only
+the remainder carries variance:
+
+  - not kicked off        -> full mean, full sd
+  - mid-game, fraction f  -> mean*f, sd*sqrt(f)
+  - final                 -> nothing, zero variance
+
+Scoring accrues over game time, so expectation is linear in remaining clock and VARIANCE
+is linear in it — hence sd scales with sqrt(f), not f. Overtime is capped at ten minutes
+of exposure rather than treated as a fifth quarter: a team in OT has already played a
+full game, and the naive reading would hand it more upside than a team yet to kick off.
+
+**What it does.** `scripts.live_matchup` reports banked/remaining/projected for the
+matchup and the whole league, P(win head-to-head), P(beat the league median) drawn
+JOINTLY over all eight rosters (the median is itself a random variable, so a point
+estimate understates how live it is), expected wins of 2, and `--review` for each
+roster's over/under performers and benched points. `--json` for scripting; the
+`SHOW_REAL_TEAM_NAMES` legend behaves exactly as in `weekly_report`.
+
+**Stated limits, in the module docstring.** Same-game players are correlated and the tool
+treats them as independent, which understates the spread — so it reports the same number
+at an inflated margin sd alongside. And the remaining-time model is linear in clock: it
+knows nothing about game script or garbage time.
+
+**Deliberately read-only.** It never writes a predictions row. A number computed at
+halftime is not a pre-registered quote, and letting in-game state anywhere near the
+canonical log would corrupt exactly the record F18/F19/F25 depend on.
+
+**Verification.** 20 tests, all pure: clock fractions hand-computed at pregame, halftime,
+mid-quarter, overtime and on garbled input; the sqrt-time variance rule; win probability
+against the Normal tail at one sigma; the ESPN/Sleeper abbreviation aliasing that would
+otherwise credit a finished player a full fresh game; team states hand-computed end to
+end; and the median draw's monotonicity, certainty when settled, and reproducibility
+under seed. BUILT.
