@@ -43,14 +43,15 @@ def main(argv=None):
         g = grade_roster(engine, args.team, week)
         print(f"\n{args.team} -- lineup VORP {g['lineup_vorp']:+.1f}, depth VORP {g['depth_vorp']:+.1f}, "
               f"optimal score {g['optimal_score']:.1f} (incl. 0.1 x bench), holes: {g['holes'] or 'none'}")
-        print(f"  {'player':26s} {'pos':4s} {'role':8s} {'slot':5s} {'tier':>4s} {'mean':>6s} {'rep':>5s} {'VORP':>6s}  status")
+        print(f"  {'player':26s} {'pos':4s} {'role':8s} {'slot':5s} {'tier':>4s} "
+              f"{'szn mean':>8s} {'szn rep':>7s} {'szn VORP':>8s}  status")
         for p in g["players"]:
             st = []
             if p["injury_status"]: st.append(p["injury_status"])
             if p["on_ir"]: st.append("IR")
             if p["bye"] == week: st.append("BYE")
             print(f"  {p['name'][:26]:26s} {p['pos']:4s} {p['role']:8s} {str(p['slot'] or '-'):5s} {str(p['tier'] or '-'):>4s} "
-                  f"{p['mean']:6.1f} {g['replacement_levels'].get(p['pos'], 4.0):5.1f} {p['vorp']:+6.1f}  {' '.join(st)}")
+                  f"{p['mean']:8.1f} {g['replacement_levels'].get(p['pos'], 4.0):7.1f} {p['vorp']:+8.1f}  {' '.join(st)}")
         print(f"\n  {'pos':4s} {'st':>3s} {'bn':>3s} {'startVORP':>9s} {'depthVORP':>9s} {'tiers':14s}  best free agent")
         for pos, b in sorted(g["by_position"].items()):
             fa = b["best_free_agent"]

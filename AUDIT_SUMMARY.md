@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~82 findings and tracked follow-ups** | **52 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~83 findings and tracked follow-ups** | **53 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F45** the waiver table ranked a WEEK decision on a SEASON number — FIXED, caught
+  mid-decision: it recommended a DB with the better season VORP over one whose team had
+  the league's highest week-2 implied total and who the engine put ahead at 54.6% for
+  one less FAAB. In an 8-team league 83% of projected players are free agents, so the
+  season spread among top free agents (0.5-1.2 pts) is smaller than the matchup swing it
+  ignored (3.4-8.8) at every position without a moat. VORP still selects; the week now
+  orders, each row carries its season rank, and the sampling pool doubled — which
+  surfaced a season-rank-14 kicker as the joint-best claim of the week. Season-level
+  columns in both tools are now labelled szn mean / szn VORP / szn rep.
 - **F44** run3_tuesday could never be covered, and would have reported MISSED all
   season — FIXED, found on the season's first Tuesday: run3 sits after the week's games,
   so the report it triggers prices the NEXT week and its canonical row is stamped week

@@ -3829,3 +3829,66 @@ an unrolled Tuesday); and a next-week row must NOT cover run2_sunday. Confirmed 
 the live season: all three of week 1's windows now read COVERED, and
 `scripts.windows_watch` reports `actionable: []  missed: []`, which closes issue #9 on
 its next run. RESOLVED.
+
+
+### F45 — The waiver table ranked a WEEK decision on a SEASON number — FIXED (2026-09-16)
+
+**Origin (found live, mid-decision).** The owner was about to submit a FAAB bid on the
+tool's top-ranked DB. `waiver_targets` sorts by season VORP and prints the
+week-adjusted mean four columns to the right, so it recommended **Tykee Smith** (season
+9.54) over **Cole Bishop** (season 9.2) — while Bishop's team carried the league's
+highest week-2 implied total (BUF 29.5 vs TB 25.0) and the engine's own joint
+comparison put him ahead, **P(Bishop > Smith) = 54.6%**, for one less FAAB. The bid was
+changed before waivers ran.
+
+**Cause, and why it is structural rather than cosmetic.** Two different questions share
+one table. *"Is this player worth a roster spot"* is a season question and VORP answers
+it correctly. *"Who do I claim tonight"* is about the week the claim lands in. Sorting
+the second on the first is wrong whenever the matchup swing exceeds the talent gap —
+which, measured in this league, is **every position where the owner has no moat**:
+
+| position | talent spread (season, FA1 vs FA5) | week env swing | ratio |
+|---|---|---|---|
+| QB | 0.90 | 8.80 | 9.8x |
+| K | 0.50 | 4.26 | 8.5x |
+| LB | 0.60 | 3.40 | 5.7x |
+| DL | 1.15 | 4.94 | 4.3x |
+| DB | 0.82 | 3.56 | 4.3x |
+
+The mechanism is the league size. **157 of ~900 projected players are rostered — 83% of
+the league's talent is free**, so the season-level gap between the best and fifth-best
+free agent at a position is under ~1.2 points while the matchup moves them 3.4–8.8. The
+ranking was resolving a difference smaller than the noise it discarded.
+
+**Fix.** Season VORP still SELECTS (the hole/upgrade/depth blocks and which candidates
+are worth sampling are unchanged — that is the season question, correctly answered).
+The table is now **ordered by the week-adjusted mean**, each row carries its
+`season_rank`, and the sampling pool is widened to `2 x top_n` so a strong matchup just
+outside the VORP cut can still surface. Live proof of that last part: **Tyler Bass
+ranked 14th by season VORP** — never sampled, never displayed — and came out joint-best
+claim of the week at 58% over the incumbent.
+
+**Honest residual.** A player far down the season list with an enormous matchup is still
+never sampled; the pool is twice as wide, not unbounded. Stated in the docstring rather
+than papered over.
+
+**Display, same sitting.** The columns that are season-level now say so: `szn mean`,
+`szn VORP`, `szn rep`, plus a `szn#` rank column, in both `waiver_targets` and
+`roster_grades`. `grade_roster`'s note now opens by stating that every number in it is
+season-level and must not be used for a start/sit.
+
+**Why the labelling mattered.** The same misreading produced four wrong reads in one
+evening — quoting season baselines to answer week questions on a QB start/sit, twice in
+trade reasoning, and on a kicker add the owner had to catch. Both tools DID carry the
+caveat, at the bottom, in a dense legend. Moving it into the column headers makes the
+trap structural instead of a reading-comprehension test.
+
+**Verification.** Three tests written failing first (`1 not less than 0` against live
+code): the better week projection outranks the better season number; every row carries
+`season_rank`; and block order still beats the week number, so a depth add with a monster
+matchup cannot leapfrog a hole-filler. One existing assertion changed with justification
+— `test_depth_is_block_ordered_last_and_capped_at_three_per_position` bundled *which*
+three are selected (still VORP, still asserted) with *what order* they display in (now
+the week), so it now asserts the set plus each row's season rank. Engine goldens 15/15
+byte-identical and the sync golden matches — this is a decision-tool ranking, not a
+model change. RESOLVED.

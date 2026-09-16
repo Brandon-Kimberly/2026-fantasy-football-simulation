@@ -347,7 +347,8 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
                         "bye": e.get('bye'), "injury_status": e.get('injury_status'),
                         "fills": fills, "incumbent": incumbent,
                         "need_next_week": any(s in next_holes for s in my_slots)})
-    targets.sort(key=lambda t: ({"hole": 0, "upgrade": 1, "depth": 2}[t["fills"]], -t["vorp"]))
+    _BLOCK = {"hole": 0, "upgrade": 1, "depth": 2}
+    targets.sort(key=lambda t: (_BLOCK[t["fills"]], -t["vorp"]))
     kept, depth_per_pos = [], {}
     for t in targets:
         if t["fills"] == "depth":
@@ -355,9 +356,22 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
                 continue
             depth_per_pos[t["pos"]] = depth_per_pos.get(t["pos"], 0) + 1
         kept.append(t)
-    targets = kept[:top_n]
+    # Season VORP selects; the WEEK decides the order (2026-09-16). The two questions are
+    # different: "is this player rosterable at all" is a season question and VORP answers
+    # it, but "who do I claim tonight" is about the week the claim lands in. Sorting the
+    # table on VORP put a season-9.54 DB above a season-9.2 DB whose team carried the
+    # league's highest implied total that week -- the worse claim, recommended first, for
+    # one more FAAB. In an 8-team league 83% of projected players are free agents, so the
+    # season spread among the top free agents at a position (~0.5-1.2 pts) is smaller than
+    # the matchup swing it ignores (3.4-8.8).
+    # Sample WIDER than we display so a strong matchup just outside the VORP cut can still
+    # surface; the residual limit is honest and stated -- a player far down the VORP list
+    # with a huge matchup is never sampled at all.
+    pool = kept[:max(top_n, min(len(kept), top_n * 2))]
+    for rank, t in enumerate(sorted(pool, key=lambda t: (_BLOCK[t["fills"]], -t["vorp"])), 1):
+        t["season_rank"] = rank
 
-    for i, t in enumerate(targets):
+    for i, t in enumerate(pool):
         s = sample_week_scores(engine, t["name"], week, sims, seed=None if seed is None else seed + i)
         t["week"] = summarise_scores(s)
         t["bid"] = {
@@ -375,6 +389,8 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
                                       "incumbent": t["incumbent"], "caveat": INDEPENDENCE_CAVEAT}
         else:
             t["p_beats_incumbent"] = None
+    pool.sort(key=lambda t: (_BLOCK[t["fills"]], -t["week"]["mean"]))
+    targets = pool[:top_n]
     return {"team": team, "week": week, "holes": holes, "holes_next_week": next_holes,
             "remaining_faab": remaining, "league_avg_faab": league_avg,
             "targets": targets, "caveat": INDEPENDENCE_CAVEAT}
@@ -592,7 +608,11 @@ def grade_roster(engine, team, week=None):
             "holes": gaps["unfilled"], "lineup_vorp": float(lineup_vorp), "depth_vorp": float(depth_vorp),
             "optimal_score": float(engine.get_optimal_score(engine.rosters[team])),
             "replacement_levels": {k: float(v) for k, v in rep.items()},
-            "note": ("tier = standing in the whole pool (free agents included); VORP = mean - replacement "
+            "note": ("EVERY number here is SEASON-level -- no matchup, no Vegas total, no opponent. "
+                     "Use it for roster construction (is this player worth a spot), never for a "
+                     "start/sit or a this-week claim; compare_players / optimize_lineup / "
+                     "matchup_lineup apply the week's environment and can reverse the ordering. "
+                     "tier = standing in the whole pool (free agents included); VORP = mean - replacement "
                      "level at the player's position; lineup_vorp uses the replacement level of the slot "
                      "filled, unfilled slots count 0; depth_vorp = positive bench VORP only; optimal_score "
                      "includes the engine's deliberate 0.1 x bench term.")}

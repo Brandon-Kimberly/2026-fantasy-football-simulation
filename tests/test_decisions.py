@@ -1182,8 +1182,15 @@ class TestDepthUpgrades(_EngineCase):
                          "hole -> upgrade -> depth, never interleaved")
         depth = [t for t in r["targets"] if t["fills"] == "depth"]
         self.assertEqual(len(depth), 3, "capped at three per position")
-        self.assertEqual([t["name"] for t in depth],
-                         ["WR_FA_4", "WR_FA_3", "WR_FA_2"], "the best three by VORP")
+        # SELECTION is still by season VORP -- which three are worth a roster spot is a
+        # season question. Their ORDER is the week's projection (2026-09-16), so this
+        # asserts the set, not the sequence; the sequence is covered by
+        # TestWaiverRankingUsesTheWeekNotTheSeason.
+        self.assertEqual({t["name"] for t in depth},
+                         {"WR_FA_4", "WR_FA_3", "WR_FA_2"}, "the best three by VORP")
+        self.assertEqual(sorted(t["season_rank"] for t in depth), [2, 3, 4],
+                         "each row carries its season standing even though the display "
+                         "order is the week's")
 
 
 class TestDuplicateRowTolerance(_EngineCase):
@@ -1315,6 +1322,101 @@ class TestDriftSkipIsPersistent(unittest.TestCase):
             self.assertIn("drop is needed", skip["skipped"])
             self.assertEqual(pending_evaluations(log_path=path), [])
 
+
+
+class TestWaiverRankingUsesTheWeekNotTheSeason(_EngineCase):
+    """Claims are for a WEEK; the ranking was sorted on a SEASON number (2026-09-16).
+
+    Found live. `waiver_targets` ordered its table by season VORP and printed the
+    week-adjusted mean four columns to the right, so the top-ranked DB was Tykee Smith
+    (season 9.54) while Cole Bishop -- season 9.2, but Buffalo at a league-high 29.5
+    implied total that week -- actually projected higher and cost one less FAAB. The
+    owner was one keystroke from the worse claim on the tool's own recommendation.
+
+    Why it matters here specifically: in an 8-team league 83% of projected players are
+    free agents, so the season-level spread among the top free agents at a position is
+    ~0.5-1.2 points while the week's matchup swings them 3.4-8.8. Season VORP is
+    measuring a difference that is smaller than the noise it omits.
+
+    Season VORP still decides WHICH candidates are worth sampling -- it is the right
+    question for "is this player rosterable at all" -- so the block structure
+    (hole/upgrade/depth) and the selection are unchanged. Only the order they are
+    presented in changes, and each row now carries its season rank so a one-week wonder
+    is visible as one."""
+
+    def _rig(self, roster, starters, pool, replacement=None):
+        import copy
+        displaced = [n for n in self.engine.rosters["Quantum Ferrets"] if n not in roster]
+        self.engine.rosters["Quantum Ferrets"] = list(roster)
+        self.engine.meta["Quantum Ferrets"] = {}
+        for n in [n for n in self.engine.baselines if n.startswith("FA_")] + displaced:
+            self.engine.baselines.pop(n, None)
+        for n, mean in roster.items():
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
+                                        "pos": n.split("_")[0], "team": "SEA", "bye": 9}
+            self.engine.meta["Quantum Ferrets"][n] = {"pos": n.split("_")[0], "team": "SEA"}
+        for n, mean in pool.items():
+            self.engine.baselines[n] = {"mean": mean, "std_aleatoric": 3.0, "std_epistemic": 1.0,
+                                        "pos": n.split("_")[0], "team": "DET", "bye": 9}
+        self.engine.replacement_levels = replacement or {"QB": 10.0, "WR": 6.0, "DL": 5.0,
+                                                         "RB": 5.0, "FLEX": 5.0}
+        gaps = {1: {"unfilled": [], "starters": {s_: [(n, roster[n])] for s_, n in starters.items()}},
+                2: {"unfilled": [], "starters": {}}}
+        return patch("fantasy_sim.decisions.roster_gaps", return_value=copy.deepcopy(gaps))
+
+    def test_the_better_week_projection_outranks_the_better_season_number(self):
+        roster = {"QB_10": 20.0, "WR_A": 11.0, "WR_B": 9.0}
+        rig = self._rig(roster, {"QB": "QB_10", "WR": "WR_A", "WR2": "WR_B"},
+                        {"WR_good_season": 8.0, "WR_good_matchup": 7.6})
+
+        def fake_week(_engine, name, _week, sims, seed=None):
+            # WR_good_matchup is the worse season asset and the better play this week --
+            # exactly the Bishop/Smith shape.
+            base = 18.0 if name == "WR_good_matchup" else 9.0
+            return [base] * sims
+
+        with rig, patch("fantasy_sim.decisions.sample_week_scores", side_effect=fake_week):
+            r = rank_waiver_targets(self.engine, "Quantum Ferrets", 1, sims=20, seed=1)
+
+        names = [t["name"] for t in r["targets"]]
+        self.assertIn("WR_good_matchup", names)
+        self.assertIn("WR_good_season", names)
+        self.assertLess(names.index("WR_good_matchup"), names.index("WR_good_season"),
+                        "the week's projection decides the claim, not the season baseline")
+
+    def test_every_row_carries_its_season_rank_so_a_one_week_wonder_is_visible(self):
+        roster = {"QB_10": 20.0, "WR_A": 11.0, "WR_B": 9.0}
+        rig = self._rig(roster, {"QB": "QB_10", "WR": "WR_A", "WR2": "WR_B"},
+                        {"WR_good_season": 8.0, "WR_good_matchup": 7.6})
+
+        def fake_week(_engine, name, _week, sims, seed=None):
+            return [18.0 if name == "WR_good_matchup" else 9.0] * sims
+
+        with rig, patch("fantasy_sim.decisions.sample_week_scores", side_effect=fake_week):
+            r = rank_waiver_targets(self.engine, "Quantum Ferrets", 1, sims=20, seed=1)
+
+        by = {t["name"]: t for t in r["targets"]}
+        self.assertEqual(by["WR_good_season"]["season_rank"], 1,
+                         "the better season asset is still identifiable as such")
+        self.assertEqual(by["WR_good_matchup"]["season_rank"], 2)
+
+    def test_the_block_order_still_wins_over_the_week_number(self):
+        """A depth add with a monster matchup must not leapfrog a hole-filler. Blocks are
+        about whether a slot is EMPTY, which no weekly projection can compensate for."""
+        roster = {"QB_10": 20.0, "WR_A": 11.0}
+        rig = self._rig(roster, {"QB": "QB_10", "WR": "WR_A"},
+                        {"WR_fills_hole": 9.0, "DL_depth": 8.0})
+
+        def fake_week(_engine, name, _week, sims, seed=None):
+            return [40.0 if name == "DL_depth" else 9.0] * sims
+
+        with rig, patch("fantasy_sim.decisions.sample_week_scores", side_effect=fake_week):
+            r = rank_waiver_targets(self.engine, "Quantum Ferrets", 1, sims=20, seed=1)
+
+        order = [(t["name"], t["fills"]) for t in r["targets"]]
+        fills = [f for _n, f in order]
+        self.assertEqual(fills, sorted(fills, key=lambda f: {"hole": 0, "upgrade": 1, "depth": 2}[f]),
+                         "blocks stay ordered: an empty slot outranks a hot matchup")
 
 
 if __name__ == "__main__":

@@ -43,7 +43,8 @@ def main(argv=None):
 
     print(f"\n{args.team} -- week {week}   FAAB remaining {r['remaining_faab']:.0f} (league avg {r['league_avg_faab']:.0f})")
     print(f"  holes this week: {r['holes'] or 'none'}   next week: {r['holes_next_week'] or 'none'}")
-    print(f"  {'#':>2s} {'player':26s} {'pos':4s} {'tier':>4s} {'season':>6s} {'VORP':>5s} {'wk mean':>7s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
+    print(f"  {'#':>2s} {'szn#':>4s} {'player':26s} {'pos':4s} {'tier':>4s} {'szn mean':>8s} {'szn VORP':>8s} "
+          f"{'WK MEAN':>7s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
           f"{'zero':>5s} {'fills':8s} {'bid':>4s} {'model':>5s}  incumbent / P(beats)")
     depth_header_shown = False
     for i, t in enumerate(r["targets"], 1):
@@ -55,10 +56,14 @@ def main(argv=None):
         inc = ""
         if t["p_beats_incumbent"]:
             inc = f"{t['incumbent']} / {100 * t['p_beats_incumbent']['p']:.0f}%*"
-        print(f"  {i:2d} {t['name'][:26]:26s} {t['pos']:4s} {str(t['tier'] or '-'):>4s} {t['mean']:6.1f} {t['vorp']:+5.1f} {w['mean']:7.1f} "
+        print(f"  {i:2d} {t.get('season_rank', 0):4d} {t['name'][:26]:26s} {t['pos']:4s} {str(t['tier'] or '-'):>4s} "
+              f"{t['mean']:8.1f} {t['vorp']:+8.1f} {w['mean']:7.1f} "
               f"{w['p10']:5.1f} {w['p50']:5.1f} {w['p90']:5.1f} {100 * w['p_zero']:4.0f}% {t['fills']:8s} "
               f"{t['bid']['suggested']:4d} {t['bid']['typical_manager_model']:5.1f}  {inc}")
-    print("  season = baseline (season-level) mean, the basis of VORP; wk mean/p10/p50/p90 = this week's environment-adjusted draws.")
+    print("  RANKED BY WK MEAN -- the week the claim lands in. szn#/szn mean/szn VORP are "
+          "SEASON-level (no matchup, no Vegas total): they decide which players are worth "
+          "sampling, not which to claim. A row whose # is far above its szn# is a matchup "
+          "play, not an asset.")
     print("  bid = UNVERIFIED value heuristic (suggest_bid); model = what the engine simulates a typical manager paying.")
     print(f"  * P(beats incumbent): {r['caveat']}")
 
