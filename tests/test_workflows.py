@@ -106,5 +106,53 @@ class TestWorkflowBashExitStatus(unittest.TestCase):
             "use an if block, or append `|| true`:\n" + "\n".join(offenders))
 
 
+@unittest.skipIf(yaml is None, "pyyaml not installed; workflow syntax guard skipped")
+class TestEveryAlarmCanClearItself(unittest.TestCase):
+    """An alarm nobody can silence becomes an alarm nobody reads (2026-09-16).
+
+    Four workflows open an `Automation failure: <name>` issue when they fail, and the
+    body each one writes promises *"This issue auto-closes when a run succeeds."* Two of
+    them could not keep that promise: `canonical-run` and `pages-sample` raised the alarm
+    and had no clear-on-success step at all, so their issues sat open until closed by
+    hand. Both were -- #8 on 2026-09-13 and #10 on 2026-09-16, each after the underlying
+    failure had already been fixed and a later run had gone green.
+
+    That is the same class as F41 and F44: a monitor whose false state is invisible to
+    itself. The invariant is the one the issue body already states, so this test just
+    holds the workflows to their own words."""
+
+    ALARM = re.compile(r'title="Automation failure: ([a-z0-9-]+)"')
+
+    def _by_file(self):
+        out = {}
+        for name in sorted(os.listdir(WORKFLOW_DIR)):
+            if name.endswith((".yml", ".yaml")):
+                with open(os.path.join(WORKFLOW_DIR, name), encoding="utf-8") as f:
+                    out[name] = f.read()
+        return out
+
+    def test_a_workflow_that_raises_an_alarm_also_clears_it(self):
+        missing = []
+        for fname, text in self._by_file().items():
+            if not self.ALARM.search(text):
+                continue
+            has_clear = "gh issue close" in text and "if: success()" in text
+            if not has_clear:
+                missing.append(fname)
+        self.assertEqual(
+            missing, [],
+            "these workflows open an 'Automation failure' issue but never close it on a "
+            "later success, while their issue body promises they will: " + ", ".join(missing))
+
+    def test_the_promise_in_the_issue_body_is_the_one_being_tested(self):
+        """Guards the test itself: if someone rewrites the body to stop promising
+        auto-close, this test should be revisited rather than silently passing."""
+        promises = [f for f, t in self._by_file().items()
+                    if "auto-closes when a run succeeds" in t]
+        self.assertGreaterEqual(len(promises), 2,
+                                "the auto-close promise vanished from the alarm bodies; "
+                                "re-read TestEveryAlarmCanClearItself before deleting it")
+
+
 if __name__ == "__main__":
     unittest.main()

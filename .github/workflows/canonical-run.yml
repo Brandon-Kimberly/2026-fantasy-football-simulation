@@ -205,6 +205,21 @@ jobs:
             echo "gate verdict $verdict -- failing loud as designed"
             exit 1
           fi
+      - name: Clear the failure alarm on success
+        # An alarm nobody can silence becomes an alarm nobody reads. The body this
+        # workflow writes promises "auto-closes when a run succeeds" -- this is the step
+        # that keeps the promise (F47). if-block, not `[ ... ] && cmd`: a false test
+        # returns 1 and a bash step's exit status IS the step result (F40).
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          title="Automation failure: canonical-run"
+          num=$(gh issue list --state open --search "\"$title\" in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$num" ]; then
+            gh issue close "$num" --comment "Recovered: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }} succeeded."
+          fi
       - name: Alarm on failure (issue -> phone)
         if: failure()
         shell: bash

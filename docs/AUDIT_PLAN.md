@@ -3926,3 +3926,40 @@ is rather than silently skipped, and an empty tree fails loudly naming the direc
 week-2 run is found; week 1 still works; the newest wins when both exist; a FAILED digest
 raises rather than publishes; an empty tree raises. Engine goldens untouched — this is
 build plumbing, not model code. RESOLVED.
+
+
+### F47 — Two alarms promised to clear themselves and could not — FIXED (2026-09-16)
+
+**Origin.** Fixing F46 produced a green `pages-sample` run, and issue #10 stayed open
+anyway. The issue body its own workflow had written said: *"This issue auto-closes when a
+run succeeds."*
+
+**Cause.** Four workflows raise an `Automation failure: <name>` issue on failure. Only
+two of them ever close it:
+
+| workflow | raises | clears |
+|---|---|---|
+| canonical-run | yes | **no** |
+| pages-sample | yes | **no** |
+| data-capture | yes | yes |
+| evaluate-moves | yes | yes |
+
+`data-capture` and `evaluate-moves` each carry a `Clear the failure alarm on success`
+step; `canonical-run` and `pages-sample` never had one. `canonical-run` *looks* covered
+because it closes its **remediation** issue on CANONICAL_OK, but that is a different
+title from its failure alarm.
+
+**What it cost.** Both stale alarms were closed by hand after the underlying fault was
+already fixed and a later run had gone green: **#8** on 2026-09-13 (after F40) and
+**#10** on 2026-09-16 (after F46). An alarm that stays lit after the fire is out is the
+same failure class as F41 and F44 -- a monitor whose own false state is invisible to it
+-- and it is the one that ends with alarms being ignored.
+
+**Fix.** Both workflows gained the `if: success()` clear step, matching the existing
+pattern, written as `if` blocks rather than `[ ... ] && cmd` per F40.
+
+**Guard.** `tests/test_workflows.py` gains an invariant taken from the issue body's own
+words: a workflow that raises an `Automation failure` issue must also close it on a later
+success. A second test pins the promise itself, so that rewording the body to drop
+"auto-closes when a run succeeds" forces a deliberate revisit rather than silently
+passing. Written failing first -- it named both offenders. RESOLVED.
