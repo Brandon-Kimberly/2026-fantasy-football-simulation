@@ -161,7 +161,8 @@ def _windows_for(week, kickoffs_by_week):
     return windows, kicks, sunday
 
 
-def compute_windows(now_utc, kickoffs_by_week, canonical_stamps, state_week=None):
+def compute_windows(now_utc, kickoffs_by_week, canonical_stamps, state_week=None,
+                    next_week_stamps=None):
     """The window report. kickoffs_by_week: {int week: [aware UTC datetimes]};
     canonical_stamps: [(marker name, aware UTC datetime)] -- the canonical weekly digests
     already on disk for whatever week ends up targeted; state_week: Sleeper's current_week
@@ -180,7 +181,21 @@ def compute_windows(now_utc, kickoffs_by_week, canonical_stamps, state_week=None
     windows, kicks, sunday = _windows_for(target, kickoffs_by_week)
     claimed = set()
     for win in windows:
-        covering = [n for n, dt in canonical_stamps if win["start"] <= dt < win["deadline"]]
+        # run3 straddles the week roll (2026-09-15). It sits on the Tuesday AFTER this
+        # week's games and before Wednesday's waiver clear, so the report it triggers
+        # prices the NEXT week -- that is the point of quoting before waivers move
+        # rosters. Sleeper's current_week has already rolled by then, so the canonical
+        # row is stamped target+1 while this cycle still targets `target` (the cycle does
+        # not end until run3's own deadline). Matching on the target week alone made the
+        # window impossible to cover: week 1's two Tuesday runner fires both succeeded
+        # with 32/32 vegas lines and it still read uncovered. Left alone it would have
+        # gone MISSED every week and posted a "permanent gap" that is false.
+        # run1/run2 stay strict -- they sit before the week's games, when nothing has
+        # rolled, and widening them would let a row quoted for another week claim them.
+        eligible = list(canonical_stamps)
+        if win["name"] == "run3_tuesday":
+            eligible += list(next_week_stamps or [])
+        covering = [n for n, dt in eligible if win["start"] <= dt < win["deadline"]]
         win["covered_by"] = covering[-1] if covering else None
         claimed.update(covering)
         if covering:

@@ -3781,3 +3781,51 @@ against the Normal tail at one sigma; the ESPN/Sleeper abbreviation aliasing tha
 otherwise credit a finished player a full fresh game; team states hand-computed end to
 end; and the median draw's monotonicity, certainty when settled, and reproducibility
 under seed. BUILT.
+
+
+### F44 — run3_tuesday could never be covered, and would have reported MISSED all season — FIXED (2026-09-15)
+
+**Origin (found live, the first Tuesday of the season).** `scripts.run_windows` showed
+`OPEN run3_tuesday ... (3.1 h remaining)` with issue #9 open, while BOTH of that
+Tuesday's runner fires had succeeded end to end -- sync, tier-1.5 capture, gate
+CANONICAL_OK, canonical report, committed predictions row -- and landed rows carrying
+**32 of 32 vegas lines**, better market coverage than week 1's Sunday quote. Nothing had
+been missed. The window simply could not see its own record.
+
+**Cause: run3 straddles the week roll, and coverage matched on the target week alone.**
+run3 sits on the Tuesday AFTER a week's games and before Wednesday's waiver clear, so
+the report it triggers prices the NEXT week -- that is the entire point of quoting
+before waivers move rosters. By Tuesday, Sleeper's `current_week` has already rolled, so
+the canonical row is stamped week N+1. But `compute_windows` still targets week N (its
+cycle does not end until run3's own deadline), and `stamps_from_predictions_rows(rows,
+target)` filters to week N exactly. The row that the window itself caused is the one row
+the window refuses to count.
+
+**What it would have cost.** run3 is one of three windows a week, so left alone this was
+a guaranteed **16 false MISSED verdicts across the season**: the desktop watcher alarming
+weekly on a covered window (the same cry-wolf failure as F41, from a different cause),
+and -- worse -- `windows-watch` closing each week's issue with the comment *"Window
+MISSED -- that week's quoted-predictions record has a permanent gap (the F18/F19/F25 hole
+tier 1 exists to prevent)"*. That comment is false, and it would have written a fictional
+data-integrity failure into the audit trail every week, for the exact record the whole
+canonical-window design exists to protect.
+
+**Fix.** `compute_windows` gains `next_week_stamps`, consulted **only** for
+run3_tuesday: that window accepts a row stamped for the target week OR the next one.
+run1 and run2 stay strict, because they sit before the week's games when nothing has
+rolled, and widening them would let a row quoted for a different week silently claim a
+window. Both callers -- the local `scripts.run_windows` and the runner-side
+`scripts.windows_watch` -- pass the extra list.
+
+**Note on the existing week-roll flag.** `compute_windows` already carried a flag for
+this boundary, but only for the OPPOSITE case: `state_week == target`, i.e. Sleeper has
+NOT yet rolled. The case that actually breaks coverage -- Sleeper HAS rolled while the
+cycle still targets the old week -- had no handling at all. The flag being present made
+the gap look considered.
+
+**Verification.** Three tests written failing first (`'OPEN' != 'COVERED'` against live
+code): a next-week row covers run3; a target-week row still covers it (back-compat for
+an unrolled Tuesday); and a next-week row must NOT cover run2_sunday. Confirmed against
+the live season: all three of week 1's windows now read COVERED, and
+`scripts.windows_watch` reports `actionable: []  missed: []`, which closes issue #9 on
+its next run. RESOLVED.

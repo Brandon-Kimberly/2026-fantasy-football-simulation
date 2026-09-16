@@ -6,7 +6,9 @@ import unittest
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
-from fantasy_sim.run_windows import compute_windows, parse_canonical_digest, release_advice
+from fantasy_sim.run_windows import (
+    compute_windows, parse_canonical_digest, release_advice, stamps_from_predictions_rows,
+)
 
 PT = ZoneInfo("America/Los_Angeles")
 UTC = timezone.utc
@@ -206,6 +208,64 @@ class TestWatchVerdict(unittest.TestCase):
         v2 = watch_verdict(r2, now2, horizon_hours=24.0)
         self.assertIn("run2_sunday", [m["name"] for m in v2["missed"]])
 
+
+
+class TestRun3IsCoveredByTheWeekItActuallyQuotes(unittest.TestCase):
+    """run3_tuesday could never be covered (found live 2026-09-15).
+
+    run3 sits on the Tuesday AFTER a week's games, before Wednesday's waiver clear, and
+    the report it triggers prices the NEXT week -- that is the whole point of quoting
+    before waivers move rosters. But Sleeper's current_week has already rolled by then,
+    so the canonical row is stamped week N+1 while compute_windows still targets week N
+    (its cycle does not end until run3's own deadline). Coverage matched on the target
+    week alone, found nothing, and reported the window uncovered.
+
+    Week 1 proved it: both Tuesday runner fires succeeded end to end and committed
+    canonical rows with 32/32 vegas lines, and run3_tuesday still read OPEN/uncovered
+    with three hours left. Left alone it would have gone MISSED every week of the
+    season, firing the desktop alarm and posting a 'permanent gap' comment that is
+    false -- corrupting the very record the windows exist to protect.
+
+    So run3 accepts a row for the target week OR the next one. run1 and run2 are
+    unchanged: they sit before the week's games, when no roll has happened, and
+    widening them would let a stale row from the previous cycle claim the window."""
+
+    KICKS = KICKS
+
+    def _run3_stamp(self, name):
+        # inside run3_tuesday for week 1: Tue 2026-09-15 18:53Z
+        return [(name, u("2026-09-15T18:53:45"))]
+
+    def test_a_next_week_row_covers_run3(self):
+        rows = [{"record_type": "week_predictions", "canonical": True,
+                 "week": 2, "logged_at": "2026-09-15T18:53:45Z"}]
+        r = compute_windows(u("2026-09-15T23:30:00"), self.KICKS,
+                            stamps_from_predictions_rows(rows, 1), state_week=2,
+                            next_week_stamps=stamps_from_predictions_rows(rows, 2))
+        self.assertEqual(r["target_week"], 1)
+        w = {x["name"]: x for x in r["windows"]}
+        self.assertEqual(w["run3_tuesday"]["status"], "COVERED",
+                         "the Tuesday row prices week 2 by design; it must still count")
+
+    def test_the_target_week_row_covers_run3_too(self):
+        """Back-compat: if the roll has not happened, a week-N row still covers it."""
+        r = compute_windows(u("2026-09-15T23:30:00"), self.KICKS,
+                            self._run3_stamp("predictions@2026-09-15T18:53:45Z"),
+                            state_week=1)
+        w = {x["name"]: x for x in r["windows"]}
+        self.assertEqual(w["run3_tuesday"]["status"], "COVERED")
+
+    def test_run1_and_run2_do_not_accept_the_next_weeks_rows(self):
+        """Only run3 straddles the roll. Widening the pre-game windows would let a row
+        quoted for a different week silently claim them."""
+        rows = [{"record_type": "week_predictions", "canonical": True, "week": 2,
+                 "logged_at": "2026-09-13T15:10:19Z"}]          # inside run2_sunday
+        r = compute_windows(u("2026-09-13T20:00:00"), self.KICKS,
+                            stamps_from_predictions_rows(rows, 1), state_week=1,
+                            next_week_stamps=stamps_from_predictions_rows(rows, 2))
+        w = {x["name"]: x for x in r["windows"]}
+        self.assertIsNone(w["run2_sunday"]["covered_by"],
+                          "a week-2 row must not cover week 1's Sunday window")
 
 
 class TestLocalCoverageSeesRunnerCanonicalRuns(unittest.TestCase):

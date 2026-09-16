@@ -104,7 +104,10 @@ def main(argv=None):
 
     target = compute_windows(now, kicks, [], state_week=state_week)["target_week"]
     stamps = _canonical_stamps(target) if target else []
-    r = compute_windows(now, kicks, stamps, state_week=state_week)
+    # run3_tuesday's own report prices the NEXT week (it quotes before Wednesday's
+    # waiver clear), so its coverage can only come from a target+1 row -- F44.
+    nxt = _canonical_stamps(target + 1) if target else []
+    r = compute_windows(now, kicks, stamps, state_week=state_week, next_week_stamps=nxt)
     r["freshness"] = {"status": status, "reasons": reasons}
     r["kickoff_source"] = kick_source
     r["now"] = now

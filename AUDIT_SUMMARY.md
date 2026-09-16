@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~81 findings and tracked follow-ups** | **51 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~82 findings and tracked follow-ups** | **52 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F44** run3_tuesday could never be covered, and would have reported MISSED all
+  season — FIXED, found on the season's first Tuesday: run3 sits after the week's games,
+  so the report it triggers prices the NEXT week and its canonical row is stamped week
+  N+1, while the cycle still targets week N and coverage matched the target week exactly.
+  Both runner fires had succeeded with 32/32 vegas lines and the window still read
+  uncovered. Left alone: 16 false MISSED verdicts, a weekly desktop alarm, and a
+  "permanent gap" comment written into the audit trail every week about a record that
+  was never missing. run3 now accepts a target-week OR next-week row; run1/run2 stay
+  strict because nothing has rolled before a week's games.
 - **F43** live in-game tracking existed only as throwaway scripts — BUILT, after
   week 1 was tracked all day from ad-hoc scratch files and the first answer given was
   wrong (a naive projection credited nothing for the remainder of in-progress games:

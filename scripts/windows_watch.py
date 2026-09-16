@@ -63,7 +63,11 @@ def main(argv=None):
     rows = read_predictions_rows()
     target = compute_windows(now, kicks, [], state_week=state_week)["target_week"]
     stamps = stamps_from_predictions_rows(rows, target) if target else []
-    result = compute_windows(now, kicks, stamps, state_week=state_week)
+    # F44: the Tuesday window is covered by the row it actually produces, which is
+    # stamped for the NEXT week because Sleeper has rolled by then.
+    nxt = stamps_from_predictions_rows(rows, target + 1) if target else []
+    result = compute_windows(now, kicks, stamps, state_week=state_week,
+                             next_week_stamps=nxt)
     verdict = watch_verdict(result, now, horizon_hours=args.hours)
     verdict["kickoff_source"] = kick_source
     verdict["now"] = now.strftime("%Y-%m-%dT%H:%M:%SZ")
