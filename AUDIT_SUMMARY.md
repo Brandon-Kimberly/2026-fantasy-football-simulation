@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~85 findings and tracked follow-ups** | **55 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~86 findings and tracked follow-ups** | **56 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F48** hand-run reports were pseudonymous, and the flag only ever added a key —
+  FIXED: SHOW_REAL_TEAM_NAMES was opt-in (so always forgotten) and, even when set,
+  appended a "LOCAL VIEW" legend rather than substituting, leaving every table reading
+  the fictional name. Local reports now substitute throughout with a PRIVATE banner; the
+  default lives in the CLI, not the library, because putting it in the library made the
+  hermetic test suite start doing live fetches mid-render. GITHUB_ACTIONS hard-blocks
+  ahead of any explicit flag. Closed a real hole in passing: make_sample_report defended
+  the published page by POPPING the variable — sufficient only while unset meant off —
+  and its forbidden list never contained the real names at all.
 - **F47** two alarms promised to clear themselves and could not — FIXED: four
   workflows raise an `Automation failure` issue, and the body each writes says it
   auto-closes on the next success, but canonical-run and pages-sample had no

@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 655 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 665 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -50,7 +50,9 @@ mechanism, flipped to a guard when `AUDIT_PLAN.md` F2 commit 1 landed on 2026-09
 
 **Environment (F37, 2026-09-05):** the league identifiers are env-only --
 `SLEEPER_LEAGUE_ID`, `ESPN_LEAGUE_ID`, `SLEEPER_LEAGUE_ID_2025` (backtests) -- plus
-`ODDS_API_KEY` for real lines. The test suite needs NONE of them (hermetic by design);
+`ODDS_API_KEY` for real lines. The test suite needs NONE of them (hermetic by design --
+F48: keep it that way, the real-name default lives in `scripts.weekly_report`, never in
+the library, or rendering starts fetching live data mid-test);
 sync and the backtests refuse loudly, naming the variable, when one is missing. On the
 runner they are repo Actions secrets of the same names.
 

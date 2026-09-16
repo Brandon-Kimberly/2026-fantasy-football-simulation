@@ -93,15 +93,28 @@ class TestSanitization(unittest.TestCase):
         self.assertEqual(leak_check("<html>Cosmic Badgers beat Quantum Ferrets</html>",
                                     forbidden), [])
 
-    def test_the_local_overlay_marker_is_forbidden(self):
-        """The owner's real-name legend (SHOW_REAL_TEAM_NAMES) renders a 'LOCAL VIEW'
-        marker; a published sample containing it means the overlay leaked into a public
-        artifact. The generator both clears the env flag and forbids the marker."""
+    def test_real_names_are_disabled_explicitly_not_by_unsetting(self):
+        """This used to assert `os.environ.pop(...)`, and popping was sufficient while
+        an unset flag meant OFF. As of 2026-09-16 the CLI opts local runs IN, so an
+        unset flag means ON -- popping would have handed this PUBLISHED artifact the
+        owner's real league identities. It must be set to "0"."""
         import inspect
         import scripts.make_sample_report as m
         src = inspect.getsource(m.main)
-        self.assertIn('os.environ.pop("SHOW_REAL_TEAM_NAMES"', src)
+        self.assertIn('os.environ["SHOW_REAL_TEAM_NAMES"] = "0"', src)
+        self.assertNotIn('os.environ.pop("SHOW_REAL_TEAM_NAMES"', src,
+                         "popping no longer disables it")
+
+    def test_the_forbidden_list_covers_both_markers_and_the_real_names(self):
+        """Defence in depth. The real names themselves were never in the forbidden list
+        -- the only protection was the flag being off, which is precisely the assumption
+        that changed. Both banner markers and the local identity map are now included."""
+        import inspect
+        import scripts.make_sample_report as m
+        src = inspect.getsource(m.main)
         self.assertIn('"LOCAL VIEW"', src)
+        self.assertIn("PRIVATE_MARKER", src)
+        self.assertIn("identity_map.json", src)
 
 
 if __name__ == "__main__":

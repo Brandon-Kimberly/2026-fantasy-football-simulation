@@ -803,6 +803,105 @@ class TestRealNameLegend(unittest.TestCase):
 
 
 
+class TestLocalReportsUseRealNames(unittest.TestCase):
+    """A report the owner asks for by hand shows REAL names (owner, 2026-09-16).
+
+    F37 pseudonymized the repo and gated real names behind SHOW_REAL_TEAM_NAMES. Two
+    things were wrong with that in practice. The flag only ever appended a *legend* --
+    the tables still read "Quantum Ferrets" with a key at the top -- so a manual report
+    was unreadable to the person it was for. And it was opt-in, so the flag was simply
+    forgotten on every local run.
+
+    Local runs now substitute the real names and default to ON. The invariant that
+    matters is the other half: a RUNNER must never produce them, because those artifacts
+    are downloaded, attached to releases and published. That is what these tests pin."""
+
+    OVERLAY = {"Quantum Ferrets": "Legion of Coom", "Polar Yetis": "Drunk Racist Cats"}
+
+    def test_a_runner_never_gets_real_names_even_with_the_flag_set(self):
+        """The runner is the publish path. An owner who exports the variable into a CI
+        secret, or a workflow that inherits a local shell, must still be pseudonymous."""
+        import os
+        from unittest.mock import patch as _p
+        from fantasy_sim.weekly_report import real_names_enabled
+        with _p.dict(os.environ, {"GITHUB_ACTIONS": "true", "SHOW_REAL_TEAM_NAMES": "1"}):
+            self.assertFalse(real_names_enabled(), "a runner must never show real names")
+
+    def test_the_library_default_is_off_so_the_suite_stays_hermetic(self):
+        """Rendering must never reach the network. The 'on locally' half lives in the
+        CLI, not here -- a first attempt put it in the library and the test suite
+        immediately started doing live Sleeper fetches mid-render."""
+        import os
+        from unittest.mock import patch as _p
+        from fantasy_sim.weekly_report import real_names_enabled
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("GITHUB_ACTIONS", "SHOW_REAL_TEAM_NAMES")}
+        with _p.dict(os.environ, env, clear=True):
+            self.assertFalse(real_names_enabled())
+
+    def test_the_cli_opts_a_hand_run_in(self):
+        import os
+        from unittest.mock import patch as _p
+        from scripts.weekly_report import _default_to_real_names
+        env = {k: v for k, v in os.environ.items()
+               if k not in ("GITHUB_ACTIONS", "SHOW_REAL_TEAM_NAMES")}
+        with _p.dict(os.environ, env, clear=True):
+            _default_to_real_names()
+            self.assertEqual(os.environ.get("SHOW_REAL_TEAM_NAMES"), "1")
+
+    def test_the_cli_never_opts_a_runner_in(self):
+        import os
+        from unittest.mock import patch as _p
+        from scripts.weekly_report import _default_to_real_names
+        env = {k: v for k, v in os.environ.items() if k != "SHOW_REAL_TEAM_NAMES"}
+        env["GITHUB_ACTIONS"] = "true"
+        with _p.dict(os.environ, env, clear=True):
+            _default_to_real_names()
+            self.assertIsNone(os.environ.get("SHOW_REAL_TEAM_NAMES"),
+                              "a runner must be left pseudonymous")
+
+    def test_an_explicit_opt_out_survives_the_cli(self):
+        """make_sample_report depends on this: it sets 0 and then calls the CLI."""
+        import os
+        from unittest.mock import patch as _p
+        from scripts.weekly_report import _default_to_real_names
+        with _p.dict(os.environ, {"SHOW_REAL_TEAM_NAMES": "0"}):
+            _default_to_real_names()
+            self.assertEqual(os.environ["SHOW_REAL_TEAM_NAMES"], "0")
+
+    def test_an_explicit_zero_turns_it_off(self):
+        """make_sample_report relies on this: it SETS the variable to 0 rather than
+        unsetting it, because unsetting now means 'on'."""
+        import os
+        from unittest.mock import patch as _p
+        from fantasy_sim.weekly_report import real_names_enabled
+        for off in ("0", "false", "no", ""):
+            with _p.dict(os.environ, {"SHOW_REAL_TEAM_NAMES": off}):
+                self.assertFalse(real_names_enabled(), f"{off!r} should disable")
+
+    def test_names_are_substituted_not_annotated(self):
+        from fantasy_sim.weekly_report import localize_names
+        md = ("# Weekly report -- Quantum Ferrets, week 2\n"
+              "| Quantum Ferrets | 87.2 |\n| Polar Yetis | 79.8 |\n")
+        out = localize_names(md, self.OVERLAY, kind="md")
+        self.assertIn("Legion of Coom", out)
+        self.assertIn("Drunk Racist Cats", out)
+        self.assertNotIn("Quantum Ferrets", out, "the fictional name must be GONE, not keyed")
+        self.assertNotIn("Polar Yetis", out)
+
+    def test_the_substituted_report_is_marked_private(self):
+        from fantasy_sim.weekly_report import PRIVATE_MARKER, localize_names
+        out = localize_names("# Weekly report -- Quantum Ferrets, week 2\n",
+                             self.OVERLAY, kind="md")
+        self.assertIn(PRIVATE_MARKER, out)
+
+    def test_an_empty_overlay_changes_nothing(self):
+        from fantasy_sim.weekly_report import PRIVATE_MARKER, localize_names
+        md = "# Weekly report -- Quantum Ferrets, week 2\n"
+        self.assertEqual(localize_names(md, {}, kind="md"), md)
+        self.assertNotIn(PRIVATE_MARKER, localize_names(md, {}, kind="md"))
+
+
 class TestProvenanceRecordsWhatTheEngineUsed(unittest.TestCase):
     """The 09-09 baseline row recorded vegas_source "odds_api" while the engine had
     rejected all 32 of those lines as stale -- provenance described what SYNC WROTE, so

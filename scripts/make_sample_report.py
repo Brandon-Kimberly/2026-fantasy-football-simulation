@@ -27,6 +27,8 @@ import shutil
 import sys
 import tempfile
 
+from fantasy_sim.weekly_report import PRIVATE_MARKER
+
 # The league's eight (fictional -- F37) team names, for coverage checks.
 TEAMS = ("Quantum Ferrets", "Crimson Marmots", "Iron Wombats", "Neon Walruses",
          "Turbo Llamas", "Cosmic Badgers", "Polar Yetis", "Rocket Pandas")
@@ -130,10 +132,22 @@ def main(argv=None):
     # ids (present in this process's environment) and, defensively, any accidental
     # real-name reintroduction via the local overlay (SHOW_REAL_TEAM_NAMES must never
     # be honored in a published artifact; it is force-cleared here).
-    os.environ.pop("SHOW_REAL_TEAM_NAMES", None)
+    # SET to "0", do not pop (2026-09-16). scripts.weekly_report now opts local runs IN
+    # to real names, so an unset variable no longer means "off" -- popping it would hand
+    # this published artifact the owner's real league identities.
+    os.environ["SHOW_REAL_TEAM_NAMES"] = "0"
     forbidden = [x for x in (config.LEAGUE_ID, str(config.ESPN_LEAGUE_ID),
                              os.environ.get("SLEEPER_LEAGUE_ID_2025", "")) if x]
-    forbidden.append("LOCAL VIEW")   # the legend's marker: must never reach a published page
+    forbidden.append("LOCAL VIEW")   # the old legend's marker
+    forbidden.append(PRIVATE_MARKER)  # the substituted-report banner
+    # Defence in depth: the real names THEMSELVES were never in this list -- the only
+    # protection was the flag being off, which is exactly the assumption that just
+    # changed. The untracked local map gives them without a network call or the flag.
+    try:
+        with open(os.path.join("data", "local", "identity_map.json"), encoding="utf-8") as f:
+            forbidden += [str(v) for v in (json.load(f).get("real_to_fictional") or {})]
+    except (OSError, ValueError, AttributeError):
+        pass   # absent on a runner, where the flag is off anyway
 
     scratch = tempfile.mkdtemp(prefix="sample_report_")
     cwd = os.getcwd()

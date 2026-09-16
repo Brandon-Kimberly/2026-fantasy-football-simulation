@@ -55,6 +55,56 @@ def _git_head():
         return None
 
 
+PRIVATE_MARKER = "PRIVATE -- real team names; do not share or publish"
+
+
+def real_names_enabled():
+    """Should this run render REAL team names?
+
+    Local by default, runner never (owner, 2026-09-16). The F37 gate was opt-in via
+    SHOW_REAL_TEAM_NAMES, which meant every hand-run report came out pseudonymous
+    because the flag was forgotten -- unreadable to the one person it is written for.
+    The publish path is what actually needs protecting, and that is the runner: its
+    artifacts get downloaded, attached to releases, and rendered to Pages.
+
+    GITHUB_ACTIONS wins over an explicitly-set flag, deliberately. A variable exported
+    into a CI secret or inherited from a local shell must not be able to turn real names
+    on in a published artifact.
+
+    UNSET means off HERE, in the library, so the test suite stays hermetic (it must not
+    reach the network to render). The "on by default locally" half lives in
+    `scripts.weekly_report`, which opts in for a real hand-run report and never on a
+    runner -- the library keeps no opinion, and only the CLI a human typed does."""
+    import os as _os
+    if _os.environ.get("GITHUB_ACTIONS"):
+        return False
+    v = _os.environ.get("SHOW_REAL_TEAM_NAMES")
+    if v is None:
+        return False
+    return v.strip().lower() not in ("", "0", "false", "no", "off")
+
+
+def localize_names(text, overlay, kind="md"):
+    """Substitute fictional -> real throughout, and mark the result private.
+
+    SUBSTITUTION, not annotation: the previous behaviour appended a key and left every
+    table reading the fictional name, which is not a report anyone can read. An empty
+    overlay is a no-op, so a runner (or an explicit opt-out) gets byte-identical output
+    to before."""
+    if not overlay:
+        return text
+    for fict, real in overlay.items():
+        text = text.replace(fict, str(real))
+    if PRIVATE_MARKER in text:
+        return text
+    if kind == "html":
+        banner = ('<div class="degraded" style="border-left-color:#7a2e2e">'
+                  f'<b>{escape(PRIVATE_MARKER)}.</b></div>')
+        i = text.find("<h1")
+        return text[:i] + banner + text[i:] if i >= 0 else banner + text
+    return f"> **{PRIVATE_MARKER}.**\n\n" + text
+
+
 def real_name_overlay():
     """F37 local overlay (owner requirement, 2026-09-05): {fictional team: real team}
     for the OWNER's eyes only. Empty unless SHOW_REAL_TEAM_NAMES is set in the
@@ -62,8 +112,7 @@ def real_name_overlay():
     joined through config.TEAM_NAME_MAP's roster_id keys) and exists only in the
     rendered digest -- never in any log or committed artifact. Runners never set the
     flag; make_sample_report force-clears it and forbids the legend's marker string."""
-    import os as _os
-    if not _os.environ.get("SHOW_REAL_TEAM_NAMES"):
+    if not real_names_enabled():
         return {}
     try:
         import requests
@@ -437,8 +486,7 @@ def _table(headers, rows):
 
 def render_digest(report, team, week):
     res = report.get("results", {})
-    _legend = legend_md(real_name_overlay())
-    md = [f"# Weekly report -- {team}, week {week}"] + ([_legend] if _legend else []) + [
+    md = [f"# Weekly report -- {team}, week {week}"] + [
           f"_{report.get('started_at', '')} -> {report.get('finished_at', '')} UTC_", ""]
     if report.get("status") == "FAILED":
         md += [f"## FAILED AT STEP `{report.get('failed_step')}`", "",
@@ -464,7 +512,7 @@ def render_digest(report, team, week):
         st, reasons = res["freshness"]["status"], res["freshness"]["reasons"]
         md += [f"## DATA FRESHNESS (sync skipped): **{st}**", ""] + [f"- {r}" for r in reasons] + [""]
     if report.get("status") == "FAILED":
-        return "\n".join(md)
+        return localize_names("\n".join(md), real_name_overlay(), kind="md")
 
     sim = res.get("simulation")
     if sim and sim.get("season_outcomes"):
@@ -593,7 +641,7 @@ def render_digest(report, team, week):
         md += [f"- logged trade {t['transaction_id']} (week {t.get('week')}, {' v '.join(t.get('teams') or [])}) has no "
                f"paired evaluation -- run: py -3.10 -m scripts.evaluate_trade --log-tx {t['transaction_id']}"
                for t in hk["unevaluated_trades"]] + [""]
-    return "\n".join(md)
+    return localize_names("\n".join(md), real_name_overlay(), kind="md")
 
 
 def write_digest(md, path):
@@ -766,7 +814,6 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     out = [f'<!doctype html><html><head><meta charset="utf-8"><title>Weekly report -- {T(team)}, week {week}</title>'
            f'<style>{_REPORT_CSS}</style></head><body>',
            f'<h1>Weekly report -- {T(team)}, week {week}</h1>',
-           legend_html(real_name_overlay()),
            f'<p class="note">{T(report.get("started_at", ""))} -> {T(report.get("finished_at", ""))} UTC</p>']
 
     if report.get("status") == "FAILED":
@@ -794,7 +841,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                    + "".join(f"<li>{T(r)}</li>" for r in reasons) + '</ul></div>')
     if report.get("status") == "FAILED":
         out.append(f"<script>{_TABLE_JS}</script></body></html>")
-        return "".join(out)
+        return localize_names("".join(out), real_name_overlay(), kind="html")
 
     lg = res.get("league")
     if lg:
@@ -979,7 +1026,7 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if links:
         out.insert(3, '<p class="toc">' + " &middot; ".join(links) + "</p>")
     out.append(f"<script>{_TABLE_JS}</script></body></html>")
-    return "".join(out)
+    return localize_names("".join(out), real_name_overlay(), kind="html")
 
 
 # ------------------------------------------------------------------- the real chain

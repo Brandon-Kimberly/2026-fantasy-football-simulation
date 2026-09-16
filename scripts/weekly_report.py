@@ -21,7 +21,27 @@ from fantasy_sim.config import MY_TEAM
 from fantasy_sim.weekly_report import run_weekly_report
 
 
+def _default_to_real_names():
+    """A report a human asked for by hand shows REAL team names (owner, 2026-09-16).
+
+    F37 pseudonymized the repo and put real names behind SHOW_REAL_TEAM_NAMES. In
+    practice the flag was simply forgotten on every local run, so the person the report
+    is written for got a page of fictional names. The publish path is what needs
+    protecting, and that is the RUNNER -- its artifacts are downloaded, attached to
+    releases and rendered to Pages.
+
+    So: opt in here, in the CLI a human typed, and never on a runner. An explicit
+    SHOW_REAL_TEAM_NAMES=0 still wins, which is how make_sample_report stays clean.
+    The library default (fantasy_sim.weekly_report.real_names_enabled) stays OFF so the
+    test suite never reaches the network to render."""
+    import os
+    if os.environ.get("GITHUB_ACTIONS"):
+        return
+    os.environ.setdefault("SHOW_REAL_TEAM_NAMES", "1")
+
+
 def main(argv=None):
+    _default_to_real_names()
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--full", action="store_true")
     ap.add_argument("--skip-sync", action="store_true")
