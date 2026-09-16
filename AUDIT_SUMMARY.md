@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~83 findings and tracked follow-ups** | **53 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~84 findings and tracked follow-ups** | **54 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,14 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F46** the public sample builder was pinned to week 1 — FIXED: make_sample_report
+  read its generated embed back from `data/decisions/week_01/archive` while the weekly
+  report writes to the engine's CURRENT week, so every scheduled pages-sample run died on
+  FileNotFoundError from the moment the NFL week rolled. Only the public sample's
+  freshness was at risk (Pages keeps serving the previous build), which is why it would
+  have served a frozen week-1 sample for sixteen weeks had the failure alarm not been
+  read. Now globs week_*/archive and takes the newest timestamped embed; a FAILED digest
+  raises instead of being skipped.
 - **F45** the waiver table ranked a WEEK decision on a SEASON number — FIXED, caught
   mid-decision: it recommended a DB with the better season VORP over one whose team had
   the league's highest week-2 implied total and who the engine put ahead at 54.6% for

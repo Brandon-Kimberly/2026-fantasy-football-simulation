@@ -95,6 +95,30 @@ def illustrative_log_rows(week, now_iso):
     ]
 
 
+def newest_sample_embed(decisions_root):
+    """Path to the embed the sanitized run just produced, in WHATEVER week it wrote to.
+
+    This was pinned to week_01 and broke the moment the NFL week rolled to 2
+    (2026-09-16): the weekly report writes to the engine's current week, so every
+    scheduled pages-sample build died on FileNotFoundError while its own log's last line
+    read `logged -> data/decisions/week_02/...`. Only the public sample's freshness was
+    at risk, which is precisely why it could have gone unnoticed for sixteen weeks.
+
+    Digests are timestamped in their filenames, so the newest name across all week
+    directories is the run just made. A _FAILED digest is never publishable and is
+    reported as the failure it is rather than skipped silently."""
+    import glob
+    pattern = os.path.join(decisions_root, "week_*", "archive", "*_embed.html")
+    found = sorted(glob.glob(pattern), key=lambda p: os.path.basename(p))
+    ok = [p for p in found if "FAILED" not in os.path.basename(p)]
+    if ok:
+        return ok[-1]
+    if found:
+        raise SystemExit("the sanitized run FAILED -- only a FAILED digest was produced: "
+                         + found[-1])
+    raise SystemExit("the sanitized run produced no embed at all under " + decisions_root)
+
+
 def main(argv=None):
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, repo)
@@ -132,13 +156,8 @@ def main(argv=None):
         from scripts.weekly_report import main as report_main
         report_main(["--full", "--embed", "--team", SAMPLE_MY_TEAM])
 
-        archive = os.path.join(scratch, "data", "decisions", "week_01", "archive")
-        embeds = sorted(f for f in os.listdir(archive)
-                        if f.endswith("_embed.html") and "FAILED" not in f)
-        if not embeds:
-            raise SystemExit("the sanitized run FAILED -- no publishable report was produced; "
-                             "see the FAILED digest in " + archive)
-        with open(os.path.join(archive, embeds[-1]), encoding="utf-8") as f:
+        embed = newest_sample_embed(os.path.join(scratch, "data", "decisions"))
+        with open(embed, encoding="utf-8") as f:
             html = f.read()
     finally:
         os.chdir(cwd)

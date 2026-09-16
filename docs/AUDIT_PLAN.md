@@ -3892,3 +3892,37 @@ three are selected (still VORP, still asserted) with *what order* they display i
 the week), so it now asserts the set plus each row's season rank. Engine goldens 15/15
 byte-identical and the sync golden matches — this is a decision-tool ranking, not a
 model change. RESOLVED.
+
+
+### F46 — The public sample builder was pinned to week 1 — FIXED (2026-09-16)
+
+**Origin.** The owner noticed two open GitHub issues. One was a stale window issue (F44,
+fixed the night before but after the window had already expired); the other was live:
+`Automation failure: pages-sample`, failing on every scheduled run since the NFL week
+rolled.
+
+    FileNotFoundError: '/tmp/sample_report_.../data/decisions/week_01/archive'
+      make_sample_report.py:135
+
+**Cause.** `make_sample_report` runs the real weekly report inside a sanitized scratch
+tree, then reads back the embed it produced. The read-back path was written
+`data/decisions/week_01/archive` — correct for the whole preseason, wrong forever after.
+The report writes to the ENGINE'S CURRENT WEEK, and the failing log's own last line says
+so: `logged -> data/decisions/week_02/...`. The builder generated a perfectly good
+report and then looked for it in the wrong drawer.
+
+**Why it would have gone unnoticed.** Nothing but the public sample's freshness is at
+risk — Pages keeps serving the previous build, so the site never looks broken. Only the
+tier-1 failure alarm (F36) surfaced it at all, and only because the owner reads the issue
+list. Left alone it would have served a frozen week-1 sample for the remaining sixteen
+weeks of the season.
+
+**Fix.** `newest_sample_embed(decisions_root)` globs `week_*/archive/*_embed.html` and
+returns the newest by filename — digests are timestamped, so the newest name is the run
+just made, whatever week it landed in. A `_FAILED` digest is reported as the failure it
+is rather than silently skipped, and an empty tree fails loudly naming the directory.
+
+**Verification.** Five tests written failing first (`ImportError` against live code): a
+week-2 run is found; week 1 still works; the newest wins when both exist; a FAILED digest
+raises rather than publishes; an empty tree raises. Engine goldens untouched — this is
+build plumbing, not model code. RESOLVED.
