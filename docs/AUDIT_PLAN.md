@@ -4013,3 +4013,62 @@ explicit `0` survives; names are substituted not annotated; the result is marked
 an empty overlay changes nothing. Two existing tests were updated with justification --
 both encoded the superseded `pop()` mechanism, and one is now inverted to assert that
 popping is NOT used. RESOLVED.
+
+
+### F49 — Mid-season IDP scoring change: the evaluation boundary — RECORDED (2026-09-17)
+
+**Origin.** The owner noticed that this league's IDP categories STACK: a single solo sack
+triggers four of them at once. Verified live against the league object the same evening,
+before any change:
+
+| category | value |
+|---|---|
+| idp_sack | 4.0 |
+| idp_tkl_loss | 2.0 |
+| idp_tkl_solo | 1.5 |
+| idp_qb_hit | 1.0 |
+| **one solo sack** | **8.5** |
+
+For scale, a receiving touchdown in this league is 6.0 plus yardage. **A sack outscored a
+touchdown.** The league is voting to cut `idp_sack` to **2.0** and `idp_qb_hit` to **0.5**,
+taking a solo sack to **6.0** — a 29% cut — effective the week after the vote passes.
+
+**What this explains retroactively.** T.J. Watt's week-1 34.50 against a 9.55 quote —
+**+4.84 sd, the most improbable single performance in the league** and the largest
+contributor to the fat upside tail recorded in F25's week-1 addendum — is almost certainly
+sack-stacking. It also explains why the LB replacement level (10.68) sat within 0.2 of the
+RB one (10.80) for a nominally fringe position.
+
+**No code change is required, and that is the F37 design working.** `sync.py:916` reads
+`scoring_settings` live from the Sleeper league object on every sync and hands it to
+`generate_player_baselines`; nothing is hardcoded. The first sync after the vote
+recalculates every IDP baseline under the new values automatically.
+
+**The evaluation boundary, which is the reason this entry exists.**
+`SEASON_2026_EVALUATION.md` is a one-time pre-commitment, hashed and CI-guarded, and is
+NOT being edited — it says in its own text that it changes for no reason after kickoff.
+This entry records what the January analysis must do instead:
+
+1. **Criterion 1 (calibration) — PARTITION, do not pool.** Quotes made before the change
+   were correct under the rules that applied when they were made; quotes after are under
+   different rules. The quoted-vs-realized sample splits at the effective week and both
+   halves are reported. Pooling across the boundary mixes two different games.
+2. **Criterion 2 (points-for top third) — UNAFFECTED.** It is a relative measure. Every
+   team's IDP scoring falls together, so the ranking means exactly what it meant.
+3. **Criterion 3 (interval coverage) — THE TRAP.** Cutting the fattest tail in the scoring
+   system NARROWS real team-week dispersion. The model's intervals are already too narrow
+   (points-backtest cover80 **0.65** against a nominal 0.80; F25 brackets the understatement
+   at r ~ 1.15-1.34). Post-change coverage can therefore improve **for a reason that has
+   nothing to do with the model getting better**, and must not be read as success on this
+   criterion. Compare pre-change coverage to pre-change baseline only.
+
+**Class.** This is the same family as the evaluation document's existing out-of-scope
+clause for "league rulings, not football" (holdouts, suspensions, Commissioner-Exempt) —
+an administrative change to the game rather than a fact about football. The clause as
+written covers absences only, so a scoring change is recorded here rather than claimed
+under it.
+
+**Live consequence, same evening.** The owner had a pending waiver bid of 8 on Roquan
+Smith. Off-ball linebackers lose less than pass rushers under the change (tackle volume,
+not sack volume), but the whole IDP group deflates and with it the value of winning that
+auction. RECORDED.

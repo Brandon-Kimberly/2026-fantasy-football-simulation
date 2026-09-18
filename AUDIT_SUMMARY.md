@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~86 findings and tracked follow-ups** | **56 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~87 findings and tracked follow-ups** | **56 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F49** mid-season IDP scoring change: the evaluation boundary — RECORDED, not a
+  defect: this league's IDP categories stack, so one solo sack was worth 8.5 (sack 4.0 +
+  TFL 2.0 + solo 1.5 + QB hit 1.0) — more than a receiving touchdown — which is almost
+  certainly what produced T.J. Watt's +4.84 sd week 1. The league cut sack to 2.0 and QB
+  hit to 0.5, effective the following week. No code change needed (sync reads scoring
+  live from the league object), and SEASON_2026_EVALUATION.md is deliberately NOT edited.
+  The January analysis must PARTITION criterion 1 at the change date, may read criterion 2
+  unchanged, and must not read any criterion-3 coverage improvement as success — cutting
+  the fattest scoring tail narrows real dispersion on its own.
 - **F48** hand-run reports were pseudonymous, and the flag only ever added a key —
   FIXED: SHOW_REAL_TEAM_NAMES was opt-in (so always forgotten) and, even when set,
   appended a "LOCAL VIEW" legend rather than substituting, leaving every table reading
