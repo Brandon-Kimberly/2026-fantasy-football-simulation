@@ -4151,11 +4151,18 @@ that is NOT a defect.
 | simulation `expected_total` | ~172 (wk 1) | week-adjusted, **discounted for in-week injury/absence**, averaged over 10,000 seasons |
 | `scripts.live_matchup` | 188.7 | week-adjusted, **assuming every pre-game starter plays a full game** |
 
-The first two gaps are explained and closed by F50: `player_baselines.json`'s `mean` is
-literally Sleeper's weekly projection (`sync.py:504` fetches
-`/projections/nfl/regular/{year}/{week}`), so the pre-F50 tracker was summing Sleeper's
-numbers and handing them back — 163.0 against the app's 163.17, agreement to a rounding
-error. That is the cleanest possible confirmation of F50's diagnosis.
+The first two gaps are explained and closed by F50: the pre-F50 tracker was summing the
+raw baselines file and handing it back — 163.0 against the app's 163.17, agreement to a
+rounding error. That is the cleanest possible confirmation of F50's diagnosis.
+
+**AMENDED 2026-09-20, same day.** This entry originally said the baselines `mean` *is*
+Sleeper's weekly projection. That is WRONG as a statement of design: `sync.py:660`
+averages Sleeper 50/50 with ESPN for `ESPN_BLEND_ELIGIBLE_POSITIONS` (QB/RB/WR/TE), and
+only K/IDP are Sleeper-only. The claim was accidentally true for week 2 — but only
+because the ESPN blend was silently dead (**F52**), which stating it as the design
+actively masked. The owner caught it by asking why it was not a blend. The 163.0/163.17
+agreement is still real and still confirms F50; it just also happened to be a symptom of
+a second, larger defect.
 
 **The remaining gap, and why it stays.** `remaining()` scales a pre-game starter by
 `frac = 1.0` and applies no availability haircut: no `p_zero`, no inactive probability,
