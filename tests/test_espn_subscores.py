@@ -14,7 +14,9 @@ from unittest.mock import MagicMock, mock_open, patch
 from fantasy_sim.sync import (
     generate_player_baselines, _shared_subscore, IDP_SHARED_DISAGREEMENT_KEYS,
 )
-from fantasy_sim.clients.espn import espn_idp_subscore, espn_k_subscore
+from fantasy_sim.clients.espn import (
+    espn_idp_subscore, espn_k_subscore, fetch_espn_projection_data,
+)
 from fantasy_sim.config import EPISTEMIC_ERROR_RATES
 
 IDP_SCORING = {"idp_tkl_solo": 1.5, "idp_tkl_ast": 0.75, "idp_sack": 4.0,
@@ -120,3 +122,67 @@ class TestGenerateBaselinesWithSubscores(unittest.TestCase):
         entry = result["Test Wideout"]
         self.assertAlmostEqual(entry["mean"], 25.0)            # (10 + 40) / 2, as before
         self.assertAlmostEqual(entry["std_epistemic"], 15.0)   # max(floor, 30/2)
+
+
+class _FakePlayer:
+    """Carries stats for exactly ONE scoring period, which is how ESPN behaves: the
+    payload comes back scoped to the period that was asked for."""
+
+    def __init__(self, week, position="RB", name="Test Back", points=18.0):
+        self.name = name
+        self.position = position
+        self.stats = {0: {}, week: {"projected_points": points}}
+
+
+class TestEspnProjectionsRequestTheRightWeek(unittest.TestCase):
+    """CHARACTERISATION (F52, 2026-09-20). fetch_espn_projection_data called
+    league.free_agents(size=2000) and never passed `week`, so espn_api returned the
+    dummy league's current scoring period -- and that league is inactive, so
+    league.current_week is 0. The payload carried weeks [0, 1]. stats.get(1) therefore
+    worked and stats.get(2) found nothing, silently.
+
+    Week 1 blended correctly by luck; from week 2 on, every QB/RB/WR/TE baseline was
+    Sleeper-only instead of the 50/50 average at sync.py:660, the source_disagreement
+    epistemic signal was absent (std_epistemic fell back to positional defaults), and
+    F29's K/IDP subscore channel was empty. Measured live: 5,656 week-1 projection-log
+    rows carry an espn_mean; 0 of 3,020 week-2 rows do.
+
+    It failed silently by contract -- the function returns ({}, {}) on ANY failure so a
+    missing dependency degrades like a network blip -- and an empty result is
+    indistinguishable from "ESPN has nothing to say". Nothing in the manifest, the
+    freshness verdict, or the 129 notices flagged it.
+
+    The existing tests in this file all patch fetch_espn_projection_data wholesale, so
+    the free_agents() call itself was never exercised. These two pin it.
+    """
+
+    def _run(self, requested_week):
+        calls = []
+
+        class FakeLeague:
+            teams = []
+
+            def __init__(self, *a, **k):
+                pass
+
+            def free_agents(self, week=None, size=50, **kw):
+                calls.append(week)
+                # ESPN scopes the payload to the requested period; with week=None the
+                # inactive league yields its current_week (0) plus week 1.
+                return [_FakePlayer(week if week is not None else 1)]
+
+        with patch("espn_api.football.League", FakeLeague):
+            projections, _subscores = fetch_espn_projection_data(2026, requested_week)
+        return calls, projections
+
+    def test_free_agents_is_asked_for_the_week_being_synced(self):
+        calls, _ = self._run(2)
+        self.assertEqual(calls, [2],
+                         "free_agents() must be scoped to the week being synced; with no "
+                         "week it returns the inactive league's current period")
+
+    def test_a_week_after_the_first_still_returns_projections(self):
+        _calls, projections = self._run(2)
+        self.assertTrue(projections,
+                        "week 2 must blend; an empty dict here is the silent fallback to "
+                        "Sleeper-only that F52 records")
