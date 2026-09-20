@@ -128,8 +128,13 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
         return {}, {}
 
     all_players = []
+    week_int = int(week)
     try:
-        all_players.extend(league.free_agents(size=2000))
+        # F52: the week MUST be passed. espn_api scopes the payload to the scoring period
+        # it is asked for, and with week=None it uses the league's current_week -- which is
+        # 0 for this deliberately inactive dummy league. That returned weeks [0, 1], so
+        # stats.get(1) worked and every later week silently found nothing.
+        all_players.extend(league.free_agents(week=week_int, size=2000))
     except Exception:
         pass
     # Defensive extra coverage: also pull rostered players from each team, in case the dummy
@@ -143,7 +148,6 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
 
     projections = {}
     subscores = {}
-    week_int = int(week)
     for p in all_players:
         try:
             pos = getattr(p, 'position', None)

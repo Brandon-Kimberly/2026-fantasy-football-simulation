@@ -186,3 +186,37 @@ class TestEspnProjectionsRequestTheRightWeek(unittest.TestCase):
         self.assertTrue(projections,
                         "week 2 must blend; an empty dict here is the silent fallback to "
                         "Sleeper-only that F52 records")
+
+
+class TestAnEmptyEspnBlendIsAsLoudAsAFailedOne(unittest.TestCase):
+    """F52. F36 made a RAISED ESPN failure visible in the degraded channel, because a
+    Sleeper-only sync must not be indistinguishable from a blended one. It did not cover
+    the call that succeeds and returns {} -- the same outcome, and the one that actually
+    happened: a missing `week` argument kept the blend off from week 2 with no notice.
+    """
+
+    def test_a_silent_empty_blend_still_warns(self):
+        players_db = {"1": {"first_name": "Test", "last_name": "Wideout",
+                            "position": "WR", "team": "PHI", "player_id": "1"}}
+        live_rosters = {"Team": [{"name": "Test Wideout"}]}
+
+        def fake_get(url, *a, **k):
+            r = MagicMock()
+            r.status_code = 200
+            r.json.return_value = ({"1": {"pts_half_ppr": 10.0}}
+                                   if "projections" in url else {})
+            return r
+
+        with patch("os.path.exists", return_value=False), \
+             patch("requests.get", side_effect=fake_get), \
+             patch("fantasy_sim.sync.fetch_espn_projection_data", return_value=({}, {})), \
+             patch("builtins.open", mock_open()), \
+             patch("json.dump"), \
+             self.assertLogs("root", level="WARNING") as captured:
+            generate_player_baselines({"rec": 1.0}, players_db, live_rosters,
+                                      current_year="2026", week=2)
+
+        self.assertTrue(
+            any("ESPN BLEND" in line and "zero usable projections" in line
+                for line in captured.output),
+            "an empty ESPN blend must reach the degraded channel, not pass silently")

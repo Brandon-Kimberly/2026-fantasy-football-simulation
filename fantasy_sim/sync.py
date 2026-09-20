@@ -531,6 +531,14 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         # The degraded channel exists for exactly this class of tolerated failure.
         logging.warning("ESPN BLEND: fetch failed (%s); all players fall back to "
                         "Sleeper-only this sync.", type(ex).__name__)
+    # F52 (2026-09-20): F36's guard above fires only on an EXCEPTION. A call that
+    # succeeds and returns {} is the same outcome and was invisible -- which is how a
+    # missing `week` argument kept the blend off from week 2 onward without one notice.
+    # An empty result is now as loud as a raised one, which is what F36 actually intended.
+    if not espn_projections:
+        logging.warning("ESPN BLEND: zero usable projections returned for week %s; every "
+                        "player falls back to Sleeper-only this sync and std_epistemic "
+                        "loses the source-disagreement signal.", week)
 
     keys = resolve_player_keys(projections.keys(), players_db, rostered_pids)
     colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}

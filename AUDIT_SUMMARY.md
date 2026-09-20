@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~89 findings and tracked follow-ups** | **57 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~90 findings and tracked follow-ups** | **58 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,18 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F52** the ESPN blend was silently off from week 2 — RESOLVED:
+  `fetch_espn_projection_data` never passed `week` to `free_agents()`, so espn_api
+  returned the inactive dummy league's `current_week` (0) plus week 1. `stats.get(1)`
+  worked; every week after found nothing. Projection log: 5,656 week-1 rows carry an
+  `espn_mean`, **0 of 3,020 week-2 rows do**. Killed three channels — the ESPN half of
+  the QB/RB/WR/TE mean, the `source_disagreement` epistemic signal (std_epistemic fell
+  back to positional defaults), and F29's K/IDP subscore. F36's silent-failure guard
+  fired only on a raised exception, never on an empty return, so nothing was logged;
+  that half is now closed too. Fixed by passing the week. **MAJOR pending** — changes
+  `player_baselines.json` for every offensive player with no constant touched, which the
+  goldens cannot detect; re-sync deliberately held to Tuesday's window rather than moved
+  under a live matchup. January calibration: week 1 was blended, week 2 was not.
 - **F51** the live tracker carries no availability discount — RECORDED, deliberate:
   a pre-game starter is carried at his FULL week expectation, with no inactive or
   in-game-injury haircut, so the tracker reads "if everyone plays" and sits ABOVE the
