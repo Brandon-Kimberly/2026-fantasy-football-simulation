@@ -118,10 +118,12 @@ PLAYERS = {
     "20": {"first_name": "Yet", "last_name": "Toplay", "position": "WR", "team": "PHI"},
     "30": {"first_name": "Mid", "last_name": "Game", "position": "TE", "team": "DET"},
 }
+# pid -> week-adjusted mean and full predictive sd, as week_projections() builds it.
+# NOT the raw baselines file: the tracker must never read that again (F50).
 BASELINES = {
-    "Done Back": {"player_id": "10", "mean": 12.0, "std_aleatoric": 6.0},
-    "Yet Toplay": {"player_id": "20", "mean": 10.0, "std_aleatoric": 5.0},
-    "Mid Game": {"player_id": "30", "mean": 8.0, "std_aleatoric": 4.0},
+    "10": {"mean": 12.0, "sd": 6.0},
+    "20": {"mean": 10.0, "sd": 5.0},
+    "30": {"mean": 8.0, "sd": 4.0},
 }
 CLOCKS = {"LAR": (0.0, "final"), "PHI": (1.0, "pregame"), "DET": (0.5, "Q2 0:00")}
 MATCHUPS = [

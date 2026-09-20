@@ -38,7 +38,9 @@ from datetime import datetime, timezone
 
 import requests
 
-from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP
+from fantasy_sim.config import ANON_EPISTEMIC_RATE, BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP
+from fantasy_sim.decisions import week_expectation
+from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import load_json
 from fantasy_sim.weekly_report import real_name_overlay
 
@@ -111,10 +113,45 @@ def game_clocks(week, fetch=None):
     return out
 
 
-def team_states(matchups, rosters, clocks, players, baselines):
-    """Per roster: banked points, the remaining mean/sd, and each starter's line."""
-    by_pid = {str(e["player_id"]): e for e in baselines.values()
-              if isinstance(e, dict) and e.get("player_id") is not None}
+def week_projections(engine, week, expect=week_expectation):
+    """pid -> {'mean': this week's expectation, 'sd': predictive sd}, for the tracker.
+
+    F50. The live tracker must quote the SAME number every other decision tool quotes.
+    That number is week_expectation() -- the engine's blended baseline scaled by this
+    week's environment ratio and script multiplier -- not the raw season `mean` sitting
+    in player_baselines.json, which predates both the Bayesian update against observed
+    scores (applied at engine init) and the week's Vegas line. Reading the file directly
+    made this the only tool in the repo answering from tier one of a three-tier number.
+
+    sd combines aleatoric and epistemic, matching decisions._sample_week_scores: over a
+    single week the player's true mean is itself unknown, so the predictive spread has
+    to carry parameter uncertainty as well as game-to-game noise.
+
+    `expect` is injectable for the same reason `fetch` is: it keeps the unit tests
+    hermetic without standing up an engine.
+    """
+    out = {}
+    for name, entry in (engine.baselines or {}).items():
+        if not isinstance(entry, dict):
+            continue
+        pid = entry.get("player_id")
+        if pid is None:
+            continue
+        mu_0 = float(entry.get("mean") or 0.0)
+        sig_e = float(entry.get("std_epistemic", mu_0 * ANON_EPISTEMIC_RATE) or 0.0)
+        std_a = float(entry.get("std_aleatoric") or 0.0)
+        out[str(pid)] = {"mean": float(expect(engine, name, week)),
+                         "sd": math.hypot(std_a, sig_e)}
+    return out
+
+
+def team_states(matchups, rosters, clocks, players, projections):
+    """Per roster: banked points, the remaining mean/sd, and each starter's line.
+
+    `projections` is the pid-keyed map from week_projections() -- week-adjusted means
+    and full predictive sds. It is deliberately NOT the raw baselines file (F50).
+    """
+    by_pid = projections or {}
     names = {str(r["roster_id"]): TEAM_NAME_MAP.get(str(r["roster_id"]), f"roster {r['roster_id']}")
              for r in rosters}
     out = {}
@@ -130,7 +167,7 @@ def team_states(matchups, rosters, clocks, players, baselines):
             nfl = info.get("team") or "FA"
             frac, label = clocks.get(nfl, (1.0, "unknown"))
             r_mu, r_sd = remaining(float(base.get("mean") or 0.0),
-                                   float(base.get("std_aleatoric") or 0.0), frac)
+                                   float(base.get("sd") or 0.0), frac)
             mu += r_mu
             var += r_sd ** 2
             rows.append({
@@ -139,7 +176,7 @@ def team_states(matchups, rosters, clocks, players, baselines):
                 "pos": info.get("position") or "?", "nfl": nfl, "status": label,
                 "scored": scored.get(pid, 0.0), "left": r_mu,
                 "mean": float(base.get("mean") or 0.0),
-                "sd": float(base.get("std_aleatoric") or 0.0), "frac": frac,
+                "sd": float(base.get("sd") or 0.0), "frac": frac,
             })
         banked = float(m.get("points") or 0.0)
         out[team] = {"banked": banked, "rem_mu": mu, "rem_sd": math.sqrt(var),
@@ -187,8 +224,9 @@ def gather(week=None, fetch=None):
     matchups = fetch(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{week}")
     clocks = game_clocks(week, fetch=fetch)
     players = load_json("data/current/sleeper_players_cache.json")
-    baselines = load_json("data/current/player_baselines.json")
-    return week, team_states(matchups, rosters, clocks, players, baselines)
+    # F50: the engine, not the baselines file -- see week_projections().
+    projections = week_projections(FantasySimulationEngine(), week)
+    return week, team_states(matchups, rosters, clocks, players, projections)
 
 
 def main(argv=None):

@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~87 findings and tracked follow-ups** | **56 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~88 findings and tracked follow-ups** | **57 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F50** the live tracker quoted a number no other tool quotes — RESOLVED:
+  `scripts.live_matchup` read `player_baselines.json` and used the raw season mean,
+  skipping BOTH the engine's 4:1 Bayesian blend against observed scores AND
+  `week_expectation()`'s environment/script adjustment. Error up to 9.9 points on one
+  starter (Kenneth Walker 15.26 vs 25.14) and asymmetric across rosters, so margins
+  moved, not just totals: week 2's median leg was reported 46.5% when it was 64.4%.
+  The sd was understated too (aleatoric only, no epistemic). Fixed by a new
+  `week_projections()` seam; F43's tests had pinned the clock arithmetic but never the
+  source of the mean.
 - **F49** mid-season IDP scoring change: the evaluation boundary — RECORDED, not a
   defect: this league's IDP categories stack, so one solo sack was worth 8.5 (sack 4.0 +
   TFL 2.0 + solo 1.5 + QB hit 1.0) — more than a receiving touchdown — which is almost

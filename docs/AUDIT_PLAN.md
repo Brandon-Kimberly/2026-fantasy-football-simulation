@@ -4072,3 +4072,66 @@ under it.
 Smith. Off-ball linebackers lose less than pass rushers under the change (tackle volume,
 not sack volume), but the whole IDP group deflates and with it the value of winning that
 auction. RECORDED.
+
+
+### F50 — The live tracker quoted a number no other tool quotes — RESOLVED (2026-09-20)
+
+**Origin.** Mid-session, while modelling what an opponent's Monday-only injury would do
+to a head-to-head, a hand calculation disagreed with `scripts.live_matchup` by 26 points
+per roster. The tool was right about the clock and wrong about the players.
+
+**The defect.** `team_states` loaded `data/current/player_baselines.json` and used the
+raw season `mean` verbatim for every pre-game starter. That file sits **two** corrections
+upstream of a week-specific answer:
+
+1. the engine's **4:1 Bayesian blend against observed scores**, applied at engine init —
+   so a player's actual games this season never reached the tracker at all;
+2. **`week_expectation()`** — the environment ratio (`vegas_total / _env_norm`) and the
+   positional script multiplier.
+
+This made the live tracker the only decision tool in the repo answering from tier one of
+a three-tier number. Measured on live week-2 data:
+
+| player | file (used) | engine | week-adjusted (correct) | error |
+|---|---|---|---|---|
+| Kenneth Walker | 15.26 | 18.73 | 25.14 | **−9.88** |
+| Caleb Williams | 18.43 | 22.20 | 25.66 | −7.23 |
+| Roquan Smith | 11.89 | 13.71 | 16.46 | −4.57 |
+| Puka Nacua | 16.55 | **15.52** | 18.81 | −2.26 |
+
+**The error is not symmetric and does not cancel.** Nacua's engine mean is *below* his
+file mean — the blend marked him down after a weak week 1 — while Walker's is far above.
+Two rosters in different scoring environments therefore drift apart, so the head-to-head
+margin was wrong, not merely both totals. On the week-2 matchup the totals moved
+163.0 → 188.7 (mine) and 160.0 → 186.3 (opponent): the margin survived by luck
+(+3.0 → +2.4), but **P(beat league median) moved 46.5% → 64.4%** and expected wins
+1.00 → 1.17 of 2. A median leg reported as a coin-flip loss was actually a two-thirds
+favourite, and that reached the owner as live advice before the fix.
+
+**Second defect, same expression.** The remaining-time sd used `std_aleatoric` alone,
+while `decisions._sample_week_scores` (`decisions.py:753`) carries aleatoric **and**
+epistemic. Over a single week the player's true mean is itself unknown, so the predictive
+spread must include parameter uncertainty; the tracker's intervals were too tight, which
+pushed every win probability artificially away from 50%.
+
+**The fix.** New `week_projections(engine, week, expect=week_expectation)` builds a
+pid-keyed map of week-adjusted means and `hypot(std_aleatoric, std_epistemic)` sds;
+`team_states` now consumes that map and can no longer see the baselines file. `gather()`
+constructs the engine. `expect` is injectable for the same reason `fetch` is — the unit
+tests stay hermetic without standing up an engine.
+
+**Why it survived F43's own test suite.** The tests pinned the *clock* arithmetic
+(mean × f, sd × √f) exactly as designed, and pinned it correctly. Nothing asserted where
+the mean came from — the fixture handed `team_states` a baselines dict and the assertions
+re-used the same numbers. A test that supplies the wrong input and checks the arithmetic
+on it cannot catch a wrong input. The four new red tests pin the *source*, not the
+arithmetic.
+
+**Class.** Same family as the three-tier projection errors of 2026-09-11, but in code
+rather than in an answer: raw file / engine-blended / week-adjusted are three different
+numbers and only the third answers a week question. The lesson generalises — any tool
+that opens `player_baselines.json` directly is suspect. After this fix, `sync.py` writes
+it and the engine reads it at init; nothing else touches it.
+
+Suite 665 → 669 (four new red-then-green tests). Goldens byte-identical: this is a
+decision tool and never enters the engine. RESOLVED.
