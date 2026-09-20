@@ -4135,3 +4135,67 @@ it and the engine reads it at init; nothing else touches it.
 
 Suite 665 → 669 (four new red-then-green tests). Goldens byte-identical: this is a
 decision tool and never enters the engine. RESOLVED.
+
+
+### F51 — The live tracker carries no availability discount — RECORDED, deliberate (2026-09-20)
+
+**Origin.** Immediately after F50 the owner asked why the tracker projected 188.7 when
+Sleeper's own app showed 163.17. Answering that surfaced a third number, and a real gap
+that is NOT a defect.
+
+**Three different quantities, all correct for their own question.**
+
+| source | week-2 value (mine) | what it measures |
+|---|---|---|
+| Sleeper app | 163.17 | Sleeper's per-player weekly projections, summed |
+| simulation `expected_total` | ~172 (wk 1) | week-adjusted, **discounted for in-week injury/absence**, averaged over 10,000 seasons |
+| `scripts.live_matchup` | 188.7 | week-adjusted, **assuming every pre-game starter plays a full game** |
+
+The first two gaps are explained and closed by F50: `player_baselines.json`'s `mean` is
+literally Sleeper's weekly projection (`sync.py:504` fetches
+`/projections/nfl/regular/{year}/{week}`), so the pre-F50 tracker was summing Sleeper's
+numbers and handing them back — 163.0 against the app's 163.17, agreement to a rounding
+error. That is the cleanest possible confirmation of F50's diagnosis.
+
+**The remaining gap, and why it stays.** `remaining()` scales a pre-game starter by
+`frac = 1.0` and applies no availability haircut: no `p_zero`, no inactive probability,
+no in-game injury onset. `decisions._sample_week_scores` and the engine both DO model
+this. The tracker deliberately does not, for the reason the owner gave when it was put
+to him:
+
+> "Modelling in-game injuries or last-minute inactives over a season makes sense, but in
+> terms of understanding a specific matchup that is ongoing, we can probably ignore that
+> stuff beyond making moves to hedge our bets on someone who is questionable."
+
+That is the right boundary. Over a season, availability is **actuarial** — nobody knows
+which starter will be inactive in week 9, so it must be priced as a rate, and the engine
+prices it. Inside one live matchup it is a **decision**, not a rate: the owner reads the
+Saturday designations and the inactive list and hedges by hand — which is exactly what
+happened this week (Andrews added as the Olave fallback; Santos added as the Pineiro
+fallback). Discounting a starter the owner has already confirmed active would make the
+tracker wrong in the other direction, and discounting one he has not confirmed would
+double-count a hedge he is about to make anyway.
+
+**So the tracker's number reads "if everyone plays."** That is why it sits ABOVE the
+simulation's `expected_total`, and the difference is a feature: the two numbers bracket
+the honest range, and the gap between them IS the availability risk still on the table.
+
+**What this costs, and why it is tolerable.** The optimism is roughly symmetric between
+two rosters that each carry a comparable number of Questionable starters — week 2 had
+Olave (mine) against Nacua (the opponent's) — so the MARGIN, and therefore the win
+probability, is far less affected than either total. It is not guaranteed symmetric: a
+roster carrying three Questionable starters against one carrying none would have its win
+probability overstated. **When reading a live margin, check both sides' Questionable
+count first; if they are lopsided, discount the number by hand.**
+
+**Standing hazard this inherits from F50's neighbourhood.** `INITIAL_ABSENCE_STATUSES`
+is `('IR','PUP','Out','Sus','DNR','NA')` — **`Questionable` is not in it**, anywhere in
+the codebase. No tool applies any haircut for a Questionable player; `_initial_absence_clock`
+returns 0 for him exactly as for a healthy player. That is defensible (the Sleeper
+projection the baseline derives from already reflects expected usage) but it means the
+judgment is ALWAYS the owner's, in every tool, not just this one.
+
+**Recorded in three places** so a reader meets it where they are: the `live_matchup`
+docstring's stated-limits paragraph (now three, not two), CLAUDE.md's "Deliberate
+decisions — do not 'fix' these", and here. No code change, no test — there is nothing to
+assert that would not simply re-state the design. RECORDED.

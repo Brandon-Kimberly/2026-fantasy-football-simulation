@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~88 findings and tracked follow-ups** | **57 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~89 findings and tracked follow-ups** | **57 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,15 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F51** the live tracker carries no availability discount — RECORDED, deliberate:
+  a pre-game starter is carried at his FULL week expectation, with no inactive or
+  in-game-injury haircut, so the tracker reads "if everyone plays" and sits ABOVE the
+  simulation's expected_total. Kept on purpose: over a season availability is actuarial
+  and the engine prices it; inside one live matchup it is a decision the owner hedges by
+  hand. The optimism is near-symmetric when both rosters carry similar Questionable
+  counts (week 2: Olave vs Nacua), so the margin survives — but check that before
+  trusting a live win probability. Related standing hazard: `Questionable` is in NO
+  tool's absence set anywhere in the repo.
 - **F50** the live tracker quoted a number no other tool quotes — RESOLVED:
   `scripts.live_matchup` read `player_baselines.json` and used the raw season mean,
   skipping BOTH the engine's 4:1 Bayesian blend against observed scores AND

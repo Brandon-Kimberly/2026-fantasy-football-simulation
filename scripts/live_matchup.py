@@ -25,11 +25,17 @@ itself a random variable.
 SHOW_REAL_TEAM_NAMES=1 renders the owner's real-name legend, exactly as weekly_report
 does; unset (the default, and always on a runner) it stays pseudonymous.
 
-Two stated limits. Players in the same NFL game are correlated and this treats them as
+Three stated limits. Players in the same NFL game are correlated and this treats them as
 independent, which UNDERSTATES the spread and pulls probabilities toward 0/100 -- so
---inflate reports the same number at widened margin sd. And the remaining-time model is
+--inflate reports the same number at widened margin sd. The remaining-time model is
 linear in clock: it knows nothing about game script, blowouts, or a back getting benched
-in garbage time. This reports; it never writes a prediction row (AUDIT_PLAN F43).
+in garbage time. And a pre-game starter is carried at his FULL week expectation with no
+discount for being inactive or going down early (AUDIT_PLAN F51) -- deliberate, not an
+oversight: over a season that risk is actuarial and the engine prices it, but inside one
+matchup it is a decision the owner hedges by hand, on the Questionable tag the engine
+cannot see. So this number reads "if everyone plays", which is why it sits ABOVE the
+simulation's expected_total. It is the right quantity for a Sunday and the wrong one
+for a season. This reports; it never writes a prediction row (AUDIT_PLAN F43).
 """
 import argparse
 import json

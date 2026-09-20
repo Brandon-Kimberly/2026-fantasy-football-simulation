@@ -136,6 +136,15 @@ Each of these looks like a defect and is not. Changing any of them requires expl
   statistical (goldens, gate, property tests); annotating the golden-pinned monoliths is
   Phase 8 work. Do not add hints piecemeal -- a half-annotated codebase invites tooling
   that the un-annotated half then fights.
+- **`scripts.live_matchup` applies NO availability discount to a pre-game starter**
+  (F51, 2026-09-20). Its number reads "if everyone plays" and therefore sits ABOVE the
+  simulation's `expected_total`; the gap between them is the availability risk still on
+  the table. Over a season availability is actuarial and the engine prices it; inside one
+  live matchup it is a decision the owner hedges by hand off the Saturday designations.
+  Do not add a `p_zero` or inactive haircut here. Do check both rosters' Questionable
+  counts before trusting a live margin -- the optimism only cancels when they are
+  comparable. Note `Questionable` is in no tool's absence set: `INITIAL_ABSENCE_STATUSES`
+  is ('IR','PUP','Out','Sus','DNR','NA').
 - `FantasySimulationEngine` is deliberately one class. Its methods share substantial state;
   splitting it is a real architectural change, not a tidy-up.
 
