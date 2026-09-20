@@ -195,5 +195,76 @@ class TestMedianLeg(unittest.TestCase):
         self.assertEqual(first, again)
 
 
+class _StubEngine:
+    """Just enough engine for the projection builder: the baselines mapping."""
+
+    def __init__(self, baselines):
+        self.baselines = baselines
+
+
+class TestLiveTrackerQuotesTheWeekAdjustedNumber(unittest.TestCase):
+    """CHARACTERISATION (F50, 2026-09-20). The live tracker loaded
+    player_baselines.json and used the raw season `mean` verbatim, which made it the
+    only decision tool in the repo quoting a number no other tool quotes. It missed
+    BOTH corrections that stand between that file and a week-specific answer:
+
+      1. the engine's 4:1 Bayesian blend against observed scores, applied at init
+      2. week_expectation()'s environment ratio and script multiplier
+
+    Measured on live week-2 data the gap reached 9.9 points on ONE starter (Kenneth
+    Walker: file 15.26, engine 18.73, week-adjusted 25.14) and it is not symmetric
+    between rosters -- Nacua moves the other way (16.55 -> 15.52 -> 18.81) -- so the
+    head-to-head margin was wrong, not just the totals. The sd was understated too:
+    the tracker used std_aleatoric alone while decisions._sample_week_scores carries
+    aleatoric AND epistemic, because for a single week the player's true mean is
+    itself unknown.
+    """
+
+    PREGAME = [{"roster_id": 2, "matchup_id": 1, "points": 0.0, "starters": ["20"],
+                "players": ["20"], "players_points": {"20": 0.0}}]
+
+    def test_team_states_takes_a_pid_keyed_projection_map(self):
+        """The fifth argument must be week-adjusted projections keyed by player id,
+        not the raw baselines file keyed by name."""
+        states = team_states(self.PREGAME, ROSTERS, CLOCKS, PLAYERS,
+                             {"20": {"mean": 18.0, "sd": 7.0}})
+        st = next(iter(states.values()))
+        self.assertAlmostEqual(st["rem_mu"], 18.0)
+        self.assertAlmostEqual(st["rem_sd"], 7.0)
+
+    def test_the_projection_builder_applies_week_expectation(self):
+        """week_projections must quote week_expectation(), never the season mean that
+        happens to sit in the same record."""
+        from scripts import live_matchup as lm
+        self.assertTrue(hasattr(lm, "week_projections"),
+                        "F50: the tracker needs a projection builder that runs every "
+                        "player through week_expectation()")
+        eng = _StubEngine({"Yet Toplay": {"player_id": "20", "mean": 10.0,
+                                          "std_aleatoric": 5.0, "std_epistemic": 3.0,
+                                          "pos": "WR", "team": "PHI"}})
+        proj = lm.week_projections(eng, 2, expect=lambda _e, _n, _w: 17.5)
+        self.assertAlmostEqual(proj["20"]["mean"], 17.5,
+                               msg="the raw season mean 10.0 must not survive")
+
+    def test_the_predictive_sd_carries_epistemic_uncertainty_too(self):
+        from scripts import live_matchup as lm
+        self.assertTrue(hasattr(lm, "week_projections"), "F50: see above")
+        eng = _StubEngine({"Yet Toplay": {"player_id": "20", "mean": 10.0,
+                                          "std_aleatoric": 5.0, "std_epistemic": 3.0,
+                                          "pos": "WR", "team": "PHI"}})
+        proj = lm.week_projections(eng, 2, expect=lambda _e, _n, _w: 17.5)
+        self.assertAlmostEqual(proj["20"]["sd"], math.hypot(5.0, 3.0),
+                               msg="std_aleatoric alone understates a one-week spread")
+
+    def test_a_player_with_no_player_id_is_skipped_not_crashed_on(self):
+        from scripts import live_matchup as lm
+        self.assertTrue(hasattr(lm, "week_projections"), "F50: see above")
+        eng = _StubEngine({"Ghost": {"mean": 9.0, "std_aleatoric": 4.0},
+                           "Real": {"player_id": "20", "mean": 9.0,
+                                    "std_aleatoric": 4.0, "std_epistemic": 2.0}})
+        proj = lm.week_projections(eng, 2, expect=lambda _e, _n, _w: 11.0)
+        self.assertEqual(set(proj), {"20"})
+
+
 if __name__ == "__main__":
     unittest.main()
