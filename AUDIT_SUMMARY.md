@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~90 findings and tracked follow-ups** | **58 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~91 findings and tracked follow-ups** | **59 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,16 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F53** the luck ledger: five pre-registered measurements — BUILT: three seasons of
+  "am I actually cursed?" made answerable by fixing the definitions in writing BEFORE the
+  data (`docs/LUCK_LEDGER.md`), since any specific sequence is improbable after the fact.
+  Schedule luck, opponent luck, close games, DNP luck, scoring luck — each differenced
+  against the LEAGUE, never an absolute, because the engine's own bias (−2.12, cover80
+  0.654) would otherwise be reported as one team's luck. No combined score, by design.
+  Standing result: schedule luck −1.14 in BOTH completed seasons, pooled z ≈ −0.88,
+  p ≈ 0.38 — a real lean, still indistinguishable from chance. DNP luck runs the other
+  way (fewer absences than the league). Not wired into the weekly report, at the owner's
+  request. MINOR.
 - **F52** the ESPN blend was silently off from week 2 — RESOLVED:
   `fetch_espn_projection_data` never passed `week` to `free_agents()`, so espn_api
   returned the inactive dummy league's `current_week` (0) plus week 1. `stats.get(1)`

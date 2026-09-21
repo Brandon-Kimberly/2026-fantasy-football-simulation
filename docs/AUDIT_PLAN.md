@@ -4281,3 +4281,87 @@ blended and week 2 was not**. Criterion 1 already partitions at the IDP scoring 
 
 Suite 669 -> 672 (three red-then-green tests). Goldens byte-identical until a sync
 regenerates baselines, which is the point of the MAJOR flag. RESOLVED.
+
+
+### F53 — The luck ledger: five pre-registered measurements — BUILT (2026-09-21)
+
+**Origin.** Three seasons of the owner asking, in various states of fury, whether he is
+genuinely unlucky. The question had never been answerable because **any** specific
+sequence of events is improbable after the fact — a 1.39-point loss in which a reversed
+fumble call extends overtime is a one-in-something event, and so is every other week
+viewed narrowly enough. Post-hoc probability is not evidence, and the honest answer had
+been "I can't tell you" each time it came up.
+
+**The defence is pre-registration.** `docs/LUCK_LEDGER.md` fixes five definitions in
+writing before the rest of the 2026 season was played; the git history is the timestamp.
+Changing one after seeing what it says converts the whole thing from a test into a story,
+which is stated in the module docstring, the doc, and the CLI help so a future reader
+cannot miss it.
+
+| metric | definition | null | lucky sign |
+|---|---|---|---|
+| `schedule_luck` | actual H2H wins − all-play expected wins | 0 | + |
+| `opponent_luck` | my points-against per game − league average | 0 | − |
+| `close_games` | W−L in H2H decided by < 10.0 | .500 | + |
+| `dnp_luck` | my starter-DNPs per game − league average | 0 | − |
+| `scoring_luck` | my mean weekly z − league mean weekly z | 0 | + |
+
+**The one methodological commitment.** Every metric is differenced **against the league**,
+never against an absolute. The engine carries measured bias (`bias −2.12`, `cover80 0.654`
+against nominal 0.80, optimal sd inflation ~1.27), so scoring a team's z against zero
+would re-measure the MODEL's error and report it as THAT TEAM's luck. Differencing
+against the league cancels everything shared. A test pins this directly: when every team
+misses projection by −1 sd, the delta must be exactly 0.
+
+**No combined score, deliberately** — five measurements side by side, matching
+`season_retrospective`'s refusal of a combined verdict. One blended number is precisely
+what invites the narrative-fitting this module exists to prevent.
+
+**Direction labels are part of the contract, not cosmetics.** The first working build
+printed `dnp_luck −0.69` and `scoring_luck −0.40` identically as "SIGNIFICANT" — but the
+first is FEWER injuries than the league (a gift) and the second is worse performance
+against projection (a beating). A reader who cannot tell good luck from bad at a glance is
+worse off than one with no number, so `LUCKY_SIGN` is registered alongside the metrics and
+the renderer prints lucky/unlucky/neutral. Below six completed weeks no significance word
+is printed at all: `too early`. "SIGNIFICANT" beside n=2 is how a tool like this starts
+lying.
+
+**Standing result at registration** (2024 and 2025 complete, 2026 at two weeks):
+
+| season | schedule | opponent | close | DNP |
+|---|---|---|---|---|
+| 2024 | **−1.14** unlucky | +1.28 unlucky | −0.50 | *contaminated* |
+| 2025 | **−1.14** unlucky | +3.46 unlucky | −0.50 | −0.06 lucky |
+| 2026 (2 wk) | −0.43 unlucky | +5.27 unlucky | 0.00 | −0.69 lucky |
+
+Schedule luck landed at −1.14 in **both** completed seasons. Pooled: −2.28 wins against a
+pooled SE near ±2.6, **z ≈ −0.88, p ≈ 0.38** — a consistent lean, still indistinguishable
+from chance. Two seasons is not enough, which is the entire reason for writing the rules
+down and waiting rather than answering now.
+
+Note the DNP rows run the OTHER way: fewer starter absences than the league in both 2025
+and 2026, against the owner's standing "my receivers are always hurt" reading.
+
+**Three limitations recorded rather than hidden.**
+
+1. `scoring_luck` exists only from 2026 — it needs contemporaneous projections and
+   `predictions_2026.jsonl` began this season. Earlier years report `None`, never a
+   fabricated zero.
+2. 2024's `dnp_luck` is **unusable**: that season had an abandoned roster whose owner
+   stopped setting lineups, so its starters score 0.00 in bulk and inflate the league
+   average to 2.12/game against the owner's 0.43.
+3. **The renewal chain is broken at 2025** — `previous_league_id` is `None`, so `--all`
+   silently reaches only 2026 and 2025. 2024 is orphaned and needs
+   `--league-id 1134957276114178048`. Found while backfilling; the flag exists because of
+   it.
+
+**Refereeing and negated plays are not measured at all.** Sleeper does not log calls that
+came back. The owner's most-repeated grievance is therefore outside this instrument
+entirely, and the doc says so explicitly so its absence is never read as "disproven".
+
+**Deliberately NOT wired into `scripts.weekly_report`**, at the owner's request: *"I can
+be a bit overly emotional about this luck stuff and though I am curious about it, I
+shouldn't be always thinking about it."* A luck number in front of him every Sunday is an
+invitation to read noise as persecution. It is a command he pulls when he wants it.
+
+MINOR: new capability, goldens untouched, nothing in the engine path. Suite 672 -> 690. BUILT.
