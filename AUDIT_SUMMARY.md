@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~92 findings and tracked follow-ups** | **60 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~93 findings and tracked follow-ups** | **60 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,17 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F55** weather is fetched every sync and read by nothing — OPEN, plan recorded: the
+  Open-Meteo call at `sync.py:333-347` is live and populating `wind_mph`/`precip_prob`
+  for 24 of 32 teams; every consumer site is a default-dict literal that never branches
+  on them (Phase 3 finding 9, still "reported"). NOT fixed on intuition: the team-level
+  effect is already priced by the Vegas total, so a multiplier would double-count. The
+  real gap is POSITIONAL — `_script_multiplier` reads total and spread only, and weather
+  redistributes within a total rather than scaling it. Offseason study designed and its
+  adoption bar fixed in the entry. Three data faults to fix first: `precip_prob` is a
+  probability not an amount, both values are daily maxima not game-time, and the fetch
+  swallows failures so a dead endpoint reads as a calm day. Live hazard: a populated
+  field nothing reads looks exactly like a working feature — how F52 hid.
 - **F54** the Bayesian blend reached 157 of ~1,140 players — RESOLVED, **MAJOR**:
   `_extract_weekly_player_scores` read `players_points`, which carries only ROSTERED
   players, so ~750 projected players kept an untouched preseason prior — exactly the

@@ -4444,3 +4444,87 @@ The distribution compresses slightly — a corrected replacement pool makes the 
 as more even — and total wins are untouched, which is the invariant that had to hold.
 
 Suite 690 -> 695. RESOLVED.
+
+
+### F55 — Weather is fetched every sync and read by nothing — OPEN, measurement plan recorded (2026-09-22)
+
+**Origin.** Caleb Williams posted 8.72 against a 25.7 expectation in a Chicago downpour
+(the game finished 9-3) before leaving injured. The owner asked whether the weather code
+had been "dropped at some point."
+
+**It was not dropped. It is running right now, and nothing consumes it.**
+
+`sync.py:333-347` calls Open-Meteo for every game at one of the **21 outdoor stadiums** in
+`OUTDOOR_STADIUMS` (the 11 domes and retractables are correctly skipped) and writes
+`wind_mph` and `precip_prob` into `vegas_totals.json` for both teams in the game. Verified
+live this sync: **24 of 32 team entries carry non-zero values** (GB 8.26 mph / 1.0%,
+BUF 11.0 / 2.0, LAC 11.0 / 2.0, CLE 8.76 / 1.0).
+
+Every other occurrence of those keys in the codebase is a default-dict literal —
+`{'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'}` —
+carried along `simulation.py:891/901/957/1325/1429` and **never branched on**. Phase 3
+finding 9 already said so exactly: *"Weather / injury_status / standings fields never read
+— closed as reported."* It has stayed reported ever since.
+
+**Why this is filed now rather than fixed now.** The obvious move — multiply a passing
+expectation down when it rains — is very probably WRONG, and wrong in the direction this
+repo keeps having to revert.
+
+**The team-level effect is already priced.** The book sets the total knowing the forecast.
+`_compute_week_environment` returns that total and `week_expectation` scales by
+`total / _env_norm`, so a wet, windy game already arrives at the model as a lower
+environment. Applying a weather multiplier on top would **double-count the same
+information** — identical in shape to the "team X will score a lot" thesis that is nearly
+always already in the line (see the season-vs-week rule).
+
+**The genuine gap is POSITIONAL, not scalar.** `_script_multiplier(pos, veg)` reads
+`total` and `spread` and nothing else. But weather's signature is differential: wind and
+rain suppress passing and place-kicking far more than rushing, and shift volume toward the
+run. A single team-total scalar cannot express a redistribution *within* a fixed total.
+That is the residual worth measuring — what the line does NOT already capture.
+
+**Measurement plan (offseason, when 2026 completes).** Adoption bar and design fixed now,
+before the data is seen, so the result cannot be fitted to a preferred answer:
+
+1. **Sample.** Every 2025 + 2026 player-week at an outdoor stadium. Historical weather is
+   free from Open-Meteo's archive endpoint; the fantasy scores are already ingested.
+2. **Control for the line first.** Regress realised points on `vegas_total / _env_norm`
+   BEFORE any weather term. Weather may only enter on the RESIDUAL. If the residual is
+   flat, the line already did the job and this finding closes as measured-and-cleared —
+   which is a perfectly good outcome and the most likely one for the team-level effect.
+3. **Per position, not pooled.** Fit separately for QB / RB / WR / TE / K. The hypothesis
+   is a redistribution, so a pooled fit would average it to nothing. K is expected to show
+   the largest and cleanest effect and is the natural first test.
+4. **Adoption bar.** A term enters `_script_multiplier` only if its coefficient is
+   significant at the position level AND survives a holdout split by season (fit 2025,
+   test 2026). Per rule 5 it ships with its derivation in the comment, or not at all.
+5. **Golden consequence.** Any adopted term is MAJOR: it changes `week_expectation` for
+   every outdoor game.
+
+**Three data-quality faults to fix BEFORE the study, not after.**
+
+- **`precip_prob` is a PROBABILITY, not an amount.** `precipitation_probability_max`
+  cannot distinguish a certain drizzle from a certain flood — both read 100. The Chicago
+  game is exactly the case it cannot see. The study needs `precipitation_sum` (and ideally
+  hourly intensity) instead.
+- **Both values are DAILY maxima, not game-time.** A 1pm kickoff inherits the whole day's
+  peak wind. For a measurement that has to detect a modest residual, that is a large
+  smear.
+- **The fetch swallows every failure** (`except Exception: pass`, the old W1 finding), so a
+  dead endpoint is indistinguishable from a calm day. Both read 0.0. That is the same
+  silent-fallback class as F52's empty ESPN blend, and it must be made loud before any
+  number derived from this field is trusted.
+
+**Standing decision until then.** Do NOT wire weather into the environment model on
+intuition. The Caleb Williams game is n = 1, and the model's 25.7 quote for him is not
+evidence that weather is unmodelled — it may simply be evidence that the line was set
+before the forecast turned.
+
+**The live hazard, which is the real reason this is OPEN rather than a nice-to-have.**
+A populated field that nothing reads is indistinguishable from a working feature. Anyone
+opening `vegas_totals.json` today sees wind and precipitation sitting beside the totals
+and will reasonably conclude weather is modelled. It is not. That is precisely how F52
+hid for a fortnight. Either the study adopts it or the fetch is removed; leaving live-
+looking dead data is the state this repo has now been burned by twice.
+
+OPEN.
