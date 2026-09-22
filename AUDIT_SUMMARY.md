@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~91 findings and tracked follow-ups** | **59 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~92 findings and tracked follow-ups** | **60 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,18 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F54** the Bayesian blend reached 157 of ~1,140 players — RESOLVED, **MAJOR**:
+  `_extract_weekly_player_scores` read `players_points`, which carries only ROSTERED
+  players, so ~750 projected players kept an untouched preseason prior — exactly the
+  pool every waiver claim is drawn from, making every free-agent comparison rigged
+  against whoever had started producing (Mahomes, Shough, Lloyd, Van Ness all missed in
+  one week). Second defect in the same area: replacement was computed three lines BEFORE
+  the blend, so VORP compared a blended mean against an unblended replacement line.
+  Fixed via a league-wide stats feed unioned under the authoritative matchup values, and
+  by moving `_calc_replacement_levels()` after `_apply_bayesian_updates()`. Blend now
+  reaches 919. RB/WR replacement falls, LB/DB rises. Goldens regenerated (week06 only;
+  wins conserved, std 147.74 -> 141.87). `pass_catchers_meta`/`nfl_position_groups`
+  remain pre-blend — the open half, not bundled.
 - **F53** the luck ledger: five pre-registered measurements — BUILT: three seasons of
   "am I actually cursed?" made answerable by fixing the definitions in writing BEFORE the
   data (`docs/LUCK_LEDGER.md`), since any specific sequence is improbable after the fact.

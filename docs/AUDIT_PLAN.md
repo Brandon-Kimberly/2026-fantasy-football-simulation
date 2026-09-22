@@ -4365,3 +4365,82 @@ shouldn't be always thinking about it."* A luck number in front of him every Sun
 invitation to read noise as persecution. It is a command he pulls when he wants it.
 
 MINOR: new capability, goldens untouched, nothing in the engine path. Suite 672 -> 690. BUILT.
+
+
+### F54 — The Bayesian blend reached 157 of ~1,140 players — RESOLVED (2026-09-22) — MAJOR
+
+**Origin.** Four waiver recommendations in two days turned out to be wrong in the same
+direction — Mahomes, Tyler Shough, Devin Lloyd and Lukas Van Ness all read as mediocre
+against the engine while their actual production said otherwise. The owner caught the
+first one by challenging a claim of mine (F52); the pattern behind all four is this.
+
+**Two defects, one root cause.** The engine's posterior refinement was being fed from a
+source that structurally cannot see most of the league.
+
+1. **`sync._extract_weekly_player_scores` reads `players_points` out of the matchup
+   payload, which by Sleeper's design contains only ROSTERED players.**
+   `weekly_actuals.json` therefore carried **157 names**; `_apply_bayesian_updates`
+   (`simulation.py:533`) updated exactly those, and **~750 projected players kept an
+   untouched preseason prior forever.** That is precisely the population every waiver
+   claim is drawn from — so free agents were ranked on frozen numbers while the owner's
+   own roster was ranked on corrected ones. A systematically rigged comparison, always
+   biased against the free agent who had started producing.
+
+2. **Replacement was computed three lines before the blend that should inform it.**
+   `__init__` called `_calc_replacement_levels()` at line 270 and
+   `_apply_bayesian_updates()` at line 273, so **VORP compared a BLENDED rostered mean
+   against an UNBLENDED replacement line** — two different quantities.
+
+**What it was worth.** Measured across the whole pool before the fix:
+
+| | |
+|---|---|
+| players the blend reached | 157 of 1,139 |
+| players it reaches after | 919 |
+| RB replacement | 11.10 -> 10.47 |
+| WR replacement | 10.14 -> 9.72 |
+| LB replacement | 11.06 -> 11.80 |
+| DB replacement | 9.24 -> 9.72 |
+
+Skill-position replacement FALLS and IDP replacement RISES: the model had been
+overstating how good a freely-available running back is, and understating how deep IDP
+is. On the owner's roster those two effects happened to cancel (net VORP change ~0.0),
+but they do not cancel in general — The Glutton moved from 7th to 4th in roster strength
+under the corrected pool, and the owner's lead over 2nd narrowed from +13.9 to +8.3.
+
+**A correction to my own working method, recorded because it was wrong all week.** The
+engine blends by **PRECISION, not by a flat 4:1 count**: `simulation.py:546` weights each
+side by `1/variance`. A pool with prior 10.0 and two observed 30.0s posts **20.00**, not
+the `(4*10 + 60)/6 = 16.67` a count-weighted blend gives. Every hand-computed "blend"
+column I quoted to the owner this week used that approximation. It got the DIRECTION
+right every time, which is why the four waiver calls were still correct, but the
+magnitudes were understated. The new tests are deliberately formula-agnostic — the
+replacement assertion compares against whatever posterior the engine actually produces —
+so they cannot drift from the implementation the way my arithmetic did.
+
+**Fix.** New `sync.fetch_league_wide_player_scores(year, week, scoring_settings)` pulls
+every player's stat line from Sleeper's stats feed and scores it under this league's own
+settings; `_extract_weekly_player_scores` gains a `league_wide=` seam and unions it in
+**underneath** the matchup values, so Sleeper's credited total stays authoritative for
+anyone rostered and the stats feed only fills gaps. Returns `{}` on any failure — a
+missing feed degrades to the old matchup-only behaviour rather than breaking a sync.
+`_calc_replacement_levels()` moves after `_apply_bayesian_updates()`.
+
+**Deliberately NOT bundled: `pass_catchers_meta` and `nfl_position_groups` are still
+built on pre-blend means.** Moving those changes vacated-volume apportionment, which is a
+separate prediction-level change with its own evidence base (F24). Recorded as the open
+half of F54 rather than smuggled in alongside.
+
+**MAJOR.** Goldens regenerated — `week06` only, the mid-season fixture with five
+completed weeks; `week01` and `week15` hash identically because with no completed weeks
+there is nothing to blend. The week06 delta is modest and conserves what it must:
+
+    sum   7560.0 -> 7560.0   (wins conserved)
+    mean   945.0 ->  945.0
+    std   147.74 -> 141.87
+    min    720.0 ->  733.0
+
+The distribution compresses slightly — a corrected replacement pool makes the league read
+as more even — and total wins are untouched, which is the invariant that had to hold.
+
+Suite 690 -> 695. RESOLVED.

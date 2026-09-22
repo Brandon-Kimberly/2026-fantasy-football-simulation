@@ -809,7 +809,37 @@ def _extract_weekly_h2h_results(wk_matchups, roster_map):
             if t2: h2h_results[t2] = 0.5
     return h2h_results
 
-def _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids=None):
+def fetch_league_wide_player_scores(year, week, league_scoring_settings, fetch=None):
+    """{player_id: points} for EVERY player with a stat line that week, scored under this
+    league's own settings.
+
+    F54. Sleeper's matchup payload carries only rostered players, so without this the
+    posterior refinement could never see the ~750 projected players nobody owns -- which
+    is exactly the pool every waiver claim is drawn from. Returns {} on any failure: a
+    missing stats feed must degrade to the old matchup-only behaviour, never break a sync.
+    """
+    fetch = fetch or (lambda u: requests.get(u, timeout=45).json())
+    out = {}
+    for pos in ("QB", "RB", "WR", "TE", "K", "DL", "DE", "DT", "LB", "OLB", "ILB",
+                "DB", "CB", "S"):
+        try:
+            rows = fetch(f"https://api.sleeper.app/stats/nfl/{year}/{int(week)}"
+                         f"?season_type=regular&position[]={pos}") or []
+        except Exception:
+            continue
+        for r in rows:
+            pid, stats = r.get("player_id"), (r.get("stats") or {})
+            if pid is None or not stats:
+                continue
+            pts = sum(float(league_scoring_settings.get(k, 0)) * float(v or 0)
+                      for k, v in stats.items() if k in league_scoring_settings)
+            if pts:
+                out[str(pid)] = float(pts)
+    return out
+
+
+def _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids=None,
+                                  league_wide=None):
     """
     Extracts real per-player weekly actual fantasy scores from a Sleeper matchups response,
     keyed by full player name (matching self.baselines' keying convention in the simulation
@@ -821,10 +851,18 @@ def _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids=None):
     production, silently, since it was written.
     """
     all_pids = [pid for entry in wk_matchups for pid in entry.get("players_points", {})]
+    all_pids += [pid for pid in (league_wide or {})]
     # Same collision rule as the baselines, so a colliding player's scores land under the
     # same key his baseline uses (see resolve_player_keys).
     keys = resolve_player_keys(all_pids, players_db, rostered_pids)
     wk_player_scores = {}
+    # F54: league-wide first, so the matchup value OVERWRITES it for anyone rostered.
+    # Sleeper's credited total is authoritative -- it is what this league actually paid --
+    # and the stats feed exists only to fill in the players no matchup payload can reach.
+    for pid, pts in (league_wide or {}).items():
+        name = keys.get(str(pid))
+        if name and pts is not None:
+            wk_player_scores[name] = float(pts)
     for entry in wk_matchups:
         for pid, pts in entry.get("players_points", {}).items():
             name = keys.get(str(pid))
@@ -992,7 +1030,15 @@ def _sync_body(sharp_polling=False):
         # refinement in the simulation engine -- previously always empty (see
         # _extract_weekly_player_scores docstring), meaning that update loop has never
         # executed against real data in production.
-        wk_player_scores = _extract_weekly_player_scores(wk_matchups, players_db, rostered_pids)
+        # F54: union in EVERY player's scored stat line, not just the rostered ones the
+        # matchup payload can carry. Without this the posterior only ever reached ~157 of
+        # ~1,140 players, and every free agent -- the entire waiver pool -- was ranked on
+        # an untouched preseason prior while rostered players were ranked on a corrected
+        # one. Degrades to {} on any failure, i.e. back to the old behaviour.
+        wk_league_wide = fetch_league_wide_player_scores(
+            str(state.get("season", "2026")), wk, scoring_settings or {})
+        wk_player_scores = _extract_weekly_player_scores(
+            wk_matchups, players_db, rostered_pids, league_wide=wk_league_wide)
         # Real head-to-head win/loss per team -- previously hardcoded to 0 for everyone, every
         # week (see _extract_weekly_h2h_results docstring for the consequence of that).
         wk_h2h_results = _extract_weekly_h2h_results(wk_matchups, roster_map)

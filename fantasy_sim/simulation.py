@@ -267,10 +267,16 @@ class FantasySimulationEngine:
         except Exception:
             self.faab_profiles = {t: dict(p) for t, p in MANAGER_PROFILES.items()}
 
-        self.replacement_levels = self._calc_replacement_levels()
         self.pass_catchers_meta = self._build_pass_catcher_hierarchy()
         self.nfl_position_groups = self._build_nfl_position_groups()
         self.calibration_report = self._apply_bayesian_updates()
+        # F54 (2026-09-22): replacement is computed AFTER the blend, not three lines
+        # before it. Previously VORP compared a BLENDED rostered mean against an
+        # UNBLENDED replacement line -- two different quantities. Note that
+        # pass_catchers_meta and nfl_position_groups above are still built on pre-blend
+        # means; moving those changes vacated-volume apportionment and is deliberately
+        # NOT bundled here (recorded as the open half of F54).
+        self.replacement_levels = self._calc_replacement_levels()
 
     def _build_nfl_position_groups(self):
         """Maps (normalized_position, real_nfl_team) -> [(player_name, baseline_mean), ...] across
