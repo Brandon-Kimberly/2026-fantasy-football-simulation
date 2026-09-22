@@ -5,6 +5,23 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v6.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.0.0) — 2026-09-22 (MAJOR)
+
+Two silent data faults, found three days apart, both of which had been quietly starving
+the model of the evidence it was built to consume. The ESPN half of the projection blend
+had been dead since week 2 — a missing `week` argument meant espn_api returned the
+inactive dummy league's scoring period, so `stats.get(1)` worked and every week after
+found nothing (F52). And the Bayesian posterior had only ever reached **157 of ~1,140
+players**, because it was fed from matchup payloads that by design contain only rostered
+players — so every free agent was ranked on a frozen preseason prior while your own
+roster was ranked on a corrected one, and replacement level was computed three lines
+before the blend that should inform it (F54).
+
+Both are fixed and the baselines regenerated, which is why this is MAJOR: the goldens
+could not have detected either one. Also ships the luck ledger (F53), five
+pre-registered measurements of schedule, opponent, close-game, absence and scoring luck,
+and records the mid-season IDP scoring change as an evaluation boundary (F49).
+
 ## [v5.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.1.0) — 2026-09-14 (MINOR)
 
 The first week of live season operation, and what it cost. Week 1's automated canonical
