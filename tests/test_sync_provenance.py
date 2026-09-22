@@ -24,6 +24,7 @@ import json
 import os
 import tempfile
 import unittest
+import unittest.mock
 
 from fantasy_sim import sync
 
@@ -51,8 +52,9 @@ class TestSyncProvenanceRow(unittest.TestCase):
         self.assertTrue(hasattr(sync, "append_sync_provenance"), "F56: see above")
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "sync_provenance.jsonl")
-            sync.append_sync_provenance(ROWS, "2026", 3, "2026-09-22T03:54:41Z", path=p)
-            lines = [json.loads(x) for x in open(p, encoding="utf-8") if x.strip()]
+            sync.append_sync_provenance(ROWS, path=p)
+            with open(p, encoding="utf-8") as fh:
+                lines = [json.loads(x) for x in fh if x.strip()]
         self.assertEqual(len(lines), 1, "one row per sync, not one per player")
         missing = REQUIRED - set(lines[0])
         self.assertEqual(missing, set(), f"provenance row is missing {missing}")
@@ -64,8 +66,9 @@ class TestSyncProvenanceRow(unittest.TestCase):
         self.assertTrue(hasattr(sync, "append_sync_provenance"), "F56: see above")
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "sync_provenance.jsonl")
-            sync.append_sync_provenance(ROWS, "2026", 3, "2026-09-22T03:54:41Z", path=p)
-            row = json.loads(open(p, encoding="utf-8").readline())
+            sync.append_sync_provenance(ROWS, path=p)
+            with open(p, encoding="utf-8") as fh:
+                row = json.loads(fh.readline())
         self.assertEqual(row["espn_rows"], 2)
         self.assertEqual(row["total_rows"], 3)
 
@@ -75,8 +78,9 @@ class TestSyncProvenanceRow(unittest.TestCase):
         self.assertTrue(hasattr(sync, "append_sync_provenance"), "F56: see above")
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "sync_provenance.jsonl")
-            sync.append_sync_provenance(ROWS, "2026", 3, ROWS[0]["synced_at"], path=p)
-            row = json.loads(open(p, encoding="utf-8").readline())
+            sync.append_sync_provenance(ROWS, path=p)
+            with open(p, encoding="utf-8") as fh:
+                row = json.loads(fh.readline())
         self.assertEqual(row["synced_at"], ROWS[0]["synced_at"])
 
     def test_appending_twice_keeps_both_syncs(self):
@@ -85,9 +89,10 @@ class TestSyncProvenanceRow(unittest.TestCase):
         self.assertTrue(hasattr(sync, "append_sync_provenance"), "F56: see above")
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "sync_provenance.jsonl")
-            sync.append_sync_provenance(ROWS, "2026", 3, "2026-09-22T03:54:41Z", path=p)
-            sync.append_sync_provenance(ROWS, "2026", 3, "2026-09-22T19:12:25Z", path=p)
-            lines = [json.loads(x) for x in open(p, encoding="utf-8") if x.strip()]
+            sync.append_sync_provenance(ROWS, path=p)
+            sync.append_sync_provenance([dict(r, synced_at="2026-09-22T19:12:25Z") for r in ROWS], path=p)
+            with open(p, encoding="utf-8") as fh:
+                lines = [json.loads(x) for x in fh if x.strip()]
         self.assertEqual([r["synced_at"] for r in lines],
                          ["2026-09-22T03:54:41Z", "2026-09-22T19:12:25Z"])
 
@@ -98,15 +103,14 @@ class TestSyncProvenanceRow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             bad = os.path.join(d, "not-a-dir.txt")
             open(bad, "w").close()
-            n = sync.append_sync_provenance(ROWS, "2026", 3, "x",
-                                            path=os.path.join(bad, "nested.jsonl"))
+            n = sync.append_sync_provenance(ROWS, path=os.path.join(bad, "nested.jsonl"))
         self.assertEqual(n, 0)
 
     def test_empty_rows_write_nothing(self):
         self.assertTrue(hasattr(sync, "append_sync_provenance"), "F56: see above")
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "sync_provenance.jsonl")
-            self.assertEqual(sync.append_sync_provenance([], "2026", 3, "x", path=p), 0)
+            self.assertEqual(sync.append_sync_provenance([], path=p), 0)
             self.assertFalse(os.path.exists(p))
 
 
@@ -132,6 +136,33 @@ class TestGitHelper(unittest.TestCase):
                         "F56: sync needs a git helper that lives in the library")
         v = storage.git_head_short()
         self.assertTrue(v is None or (isinstance(v, str) and len(v) >= 7))
+
+
+class TestTheTwoWritersAreOneOperation(unittest.TestCase):
+    """REGRESSION (found by test_zz_log_integrity during F56's own implementation).
+
+    The provenance writer first lived beside append_projection_log in
+    generate_player_baselines. tests/test_sync_handlers:177 patches append_projection_log
+    so that test does not write to the real data/logs/ -- and the unpatched provenance
+    writer then appended 735 bytes to the live sync_provenance.jsonl on every full-suite
+    run. That is the F11 class exactly, in a module written to prevent it.
+
+    The fix was structural, not a second patch in the test: provenance is written from
+    INSIDE append_projection_log, so one seam covers both and neither can be half-mocked.
+    """
+
+    def test_writing_the_log_also_writes_provenance(self):
+        with tempfile.TemporaryDirectory() as d:
+            log = os.path.join(d, "projection_log.jsonl")
+            sync.append_projection_log(ROWS, path=log)
+            prov = sync._provenance_path_for(log)
+            self.assertTrue(os.path.exists(prov),
+                            "F56: append_projection_log must also write the sidecar, or a "
+                            "caller that patches only the log writer leaves this one live")
+            with open(prov, encoding="utf-8") as fh:
+                row = json.loads(fh.readline())
+        self.assertEqual(row["synced_at"], ROWS[0]["synced_at"])
+        self.assertEqual(row["total_rows"], len(ROWS))
 
 
 if __name__ == "__main__":

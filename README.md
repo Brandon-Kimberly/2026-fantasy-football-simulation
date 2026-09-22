@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-704%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-705%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -22,8 +22,8 @@ guided tour with the outputs already rendered, start with
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~93 findings and tracked follow-ups
-across 8 audit phases: 60 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~94 findings and tracked follow-ups
+across 8 audit phases: 61 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -113,6 +113,7 @@ py -3.10 -m scripts.canonical_gate              # F36: may an unattended run quo
 py -3.10 -m scripts.draft_review                # at-draft value review of an ingested draft (--season; PROXY caveat on the page)
 py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/drop or waiver (--log-tx, --evaluate-unevaluated)
 py -3.10 -m scripts.season_retrospective        # a completed season in four measurements, no combined verdict
+py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync provenance for rows written before it existed (idempotent; --write)
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
@@ -190,7 +191,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 704 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 705 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -233,7 +234,7 @@ is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`**: seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`**: the working spec, with 55 tracked follow-ups (F1-F55), each with
+- **`docs/AUDIT_PLAN.md`**: the working spec, with 56 tracked follow-ups (F1-F56), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed, and the R1
   machine-fault investigation.
 

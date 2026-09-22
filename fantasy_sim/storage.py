@@ -173,6 +173,32 @@ WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.
 PROJECTION_LOG_FILE = _log("projection_log.jsonl")
+# F56: one row per sync describing the build that wrote that sync's projection rows.
+# Deliberately a SIDECAR rather than fields on each projection row -- golden_sync hashes
+# projection_log.jsonl byte-exactly, and a git hash inside a pinned file would break the
+# golden on every subsequent commit. Joined to the projection log on `synced_at`.
+SYNC_PROVENANCE_FILE = _log("sync_provenance.jsonl")
+
+
+def git_head_short():
+    """Short HEAD hash, or None outside a working checkout.
+
+    Lives here because sync is a library and cannot import from scripts/, where four
+    near-identical _git helpers already exist (evaluate_move, evaluate_trade,
+    run_points_backtest, and weekly_report._git_head). Those are deliberately left alone:
+    consolidating them is a refactor, not this finding. MUST return None rather than
+    raise -- a runner checkout without git history would otherwise fail a sync on a
+    provenance field, which is the opposite of what a record is for.
+    """
+    import subprocess
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                             text=True, timeout=10, check=True).stdout.strip()
+        return out or None
+    except Exception:
+        return None
+
+
 # The decision log (2026-09-01): every completed league transaction (add/drop/waiver/trade),
 # auto-ingested at sync from Sleeper's /transactions endpoint, append-only, deduped by
 # transaction_id, with each involved player's model projection at ingestion time. Tracked in

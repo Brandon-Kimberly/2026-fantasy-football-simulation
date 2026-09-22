@@ -22,6 +22,7 @@ from fantasy_sim.config import (
     BASE_URL, LEAGUE_ID, TEAM_NAME_MAP, ODDS_API_KEY, LEAGUE_AVG_PPG, DEF_RATING_SHRINKAGE_N0,
     PRESEASON_DEFENSIVE_PRIOR, NFL_TEAM_ABBREVIATIONS, OUTDOOR_STADIUMS, WEEK_1_VERIFIED_VEGAS,
     DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
+    PROJECTION_LOG_SCHEMA_VERSION,
     ANON_VOLATILITY_K, ANON_EPISTEMIC_RATE,
     derive_bye_weeks,
 )
@@ -29,6 +30,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
+    SYNC_PROVENANCE_FILE, git_head_short,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     draft_log_file, season_log_file,
 )
@@ -731,7 +733,7 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                         f"the anonymous defaults (k={ANON_VOLATILITY_K}, rate={ANON_EPISTEMIC_RATE}): %s",
                         sum(unconstrained_positions.values()), dict(sorted(unconstrained_positions.items())))
     save_json(BASELINES_FILE, baselines)
-    append_projection_log(projection_rows)
+    append_projection_log(projection_rows)   # F56: also writes the provenance sidecar
     return baselines
 
 
@@ -1342,10 +1344,83 @@ def append_projection_log(rows, path=PROJECTION_LOG_FILE):
         with open(path, "a", encoding="utf-8") as handle:
             for row in rows:
                 handle.write(json.dumps(row, sort_keys=True) + "\n")
+        # F56: the provenance sidecar for the rows just written. Called from INSIDE this
+        # function on purpose. When the two writers were separate, a test that patched
+        # only this one (test_sync_handlers:177 does exactly that) left the provenance
+        # writer live against the real data/logs/ -- the F11 class, caught by
+        # test_zz_log_integrity. One operation, one seam, impossible to half-mock.
+        append_sync_provenance(rows, path=_provenance_path_for(path))
         return len(rows)
     except Exception as ex:
         logging.warning("PROJECTION LOG: could not append %d rows to %s (%s). Projection error "
                         "for this week cannot be measured next season.", len(rows), path, ex)
+        return 0
+
+
+def _provenance_path_for(projection_log_path):
+    """The sidecar that belongs beside a given projection log.
+
+    DERIVED rather than a fixed constant so that redirecting the projection log --
+    which tests and the golden-sync harness both do -- carries the provenance file with
+    it automatically. A fixed default would bind at def time and keep writing to the
+    real data/logs/ even when the caller had redirected everything else, which is the
+    bug test_zz_log_integrity caught during this finding's own implementation.
+    """
+    return os.path.join(os.path.dirname(projection_log_path) or ".",
+                        os.path.basename(SYNC_PROVENANCE_FILE))
+
+
+def append_sync_provenance(rows, path=SYNC_PROVENANCE_FILE):
+    """
+    F56. One row per sync recording WHICH BUILD produced that sync's projection rows,
+    joined to projection_log.jsonl on `synced_at`.
+
+    The projection log records what was projected and never which code projected it. The
+    live log holds 77 distinct sync stamps, 24 inside week 2 alone, spanning the F52
+    boundary -- and January's calibration is required to partition the season at two
+    boundaries that do not coincide (F49's IDP scoring change, F52/F54's blend
+    restoration). Without this, that partition is a hand-match against git log.
+
+    `espn_rows` is the field that cannot be recovered any other way: it is the count of
+    rows whose ESPN blend actually fired, and the pre/post-F52 difference (0/152 against
+    110/150 in week 2) IS the boundary.
+
+    A SIDECAR, not columns on each projection row: golden_sync hashes
+    projection_log.jsonl byte-exactly, so widening that schema would force a MAJOR
+    regeneration, and a git hash inside a byte-pinned file changes on every commit --
+    the harness freezes datetime but has no seam for git HEAD, so the golden would pass
+    once and fail forever after.
+
+    Append-only, exactly like the log it describes. A failure here must never break a
+    sync: it logs and returns 0.
+    """
+    if not rows:
+        return 0
+    try:
+        # Row construction lives INSIDE the try on purpose: the docstring promises a
+        # failure here never breaks a sync, and a NameError or a bad week value while
+        # BUILDING the row would otherwise escape and do exactly that.
+        # season / week / synced_at are DERIVED from the rows, never passed in: that
+        # makes the join key byte-identical to the log this row describes by
+        # construction, rather than by every caller remembering to pass the same value.
+        first = rows[0]
+        row = {
+            "synced_at": first.get("synced_at"),
+            "git_commit": git_head_short(),
+            "schema_version": PROJECTION_LOG_SCHEMA_VERSION,
+            "season": str(first.get("season")),
+            "week": int(first.get("week")),
+            "espn_rows": sum(1 for r in rows if r.get("espn_mean") is not None),
+            "total_rows": len(rows),
+        }
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            handle.write(json.dumps(row, sort_keys=True) + "\n")
+        return 1
+    except Exception as ex:
+        logging.warning("SYNC PROVENANCE: could not append a row to %s (%s). That sync's "
+                        "projection rows cannot be attributed to a build, which "
+                        "January's partition needs.", path, ex)
         return 0
 
 

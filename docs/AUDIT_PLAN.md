@@ -4528,3 +4528,80 @@ hid for a fortnight. Either the study adopts it or the fetch is removed; leaving
 looking dead data is the state this repo has now been burned by twice.
 
 OPEN.
+
+
+### F56 — The projection log could not say which build wrote it — RESOLVED (2026-09-22)
+
+**Origin.** Backlog item B5, the first item worked from `docs/SCOPED_BACKLOG.md`.
+
+**The defect.** `projection_log.jsonl` rows carry `synced_at` and nothing identifying the
+code that produced them. Measured on the live log: **77 distinct sync stamps, 24 of them
+inside week 2 alone**, spanning the F52 boundary. Telling a pre-F52 row (ESPN blend dead)
+from a post-F52 row required matching its timestamp against `git log` by hand.
+
+That blocks a requirement already on the books. January's calibration must **partition**
+at two boundaries that do not coincide — F49's IDP scoring change and F52/F54's blend
+restoration — and neither was reconstructable from the log alone.
+
+**The scope in B5 was wrong, and I wrote it.** B5 said to add
+`git_commit`/`schema_version`/`espn_present` to every projection row, and called it PATCH.
+Both halves fail:
+
+1. `tests/golden_sync.py:126` hashes `projection_log.jsonl` **byte-exactly**. Widening the
+   row schema forces `golden_sync --regenerate`, which `CLAUDE.md:23` classifies **MAJOR**.
+   CLAUDE.md wins over the backlog.
+2. Worse: a git hash inside a byte-pinned file changes on **every commit**. The golden
+   harness patches `sync.datetime` to `FrozenDatetime` so `synced_at` is deterministic;
+   there is no equivalent seam for git HEAD. The golden would have passed once and failed
+   forever after, and the "fix" would have been to add a permanent patch seam for a field
+   that never needed to be there.
+
+**The fix — a sidecar.** `data/logs/sync_provenance.jsonl`, one row per sync, joined to
+the projection log on `synced_at`:
+
+    synced_at, git_commit, schema_version, season, week, espn_rows, total_rows
+
+`sync.append_sync_provenance()` writes it from inside `generate_player_baselines`,
+immediately after `append_projection_log`. Touches no pinned bytes, so the sync golden is
+untouched and this stays **PATCH**. It is also smaller than B5's scope: one row per sync
+instead of the same commit hash repeated across ~900 rows a week.
+
+`espn_rows` is the field that cannot be recovered any other way, and it is what makes the
+blend boundary mechanical rather than archaeological. Read straight off the sidecar:
+
+    2026-09-20T14:48:18Z   espn    0/149   blend OFF   <- last pre-fix sync
+    2026-09-20T16:59:41Z   espn  110/150   blend ON    <- BOUNDARY
+
+**Backfill.** `scripts/backfill_sync_provenance` reconstructs the 77 historical syncs by
+grouping the projection log on `synced_at`. Backfilled rows carry `git_commit: null`,
+`schema_version: 0` and `backfilled: true` — the commit is genuinely unrecoverable for
+those and inventing one would be worse than the gap. Idempotent: verified by running it
+twice; the second pass reports "already recorded for 77; 0 to backfill".
+
+**Two things the tests caught that the design missed.**
+
+- The failure-contract test (`a write failure never breaks a sync`) failed against the
+  first implementation with a `NameError`, because row construction sat **outside** the
+  `try`. The docstring promised a failure here never breaks a sync; only the *write* was
+  protected, not the building of the row. Construction moved inside the `try`.
+- The rule-5 test forced `PROJECTION_LOG_SCHEMA_VERSION` into `config.py` with a sourcing
+  comment rather than a bare literal in `sync.py`.
+
+**`storage.git_head_short()`** is a fifth `_git` helper; four near-identical ones already
+exist in `scripts/` (`evaluate_move`, `evaluate_trade`, `run_points_backtest`,
+`weekly_report._git_head`). It exists because `sync` is a library and cannot import from
+`scripts/`. Consolidating the five is a refactor, not this finding, and was deliberately
+not done. It returns `None` rather than raising, so a checkout without git history cannot
+fail a sync on a provenance field.
+
+**Companion doc.** `docs/EVALUATION_BOUNDARIES.md` records both boundaries with their
+commits, the effective sync for boundary 2, and the three-segment partition criterion 1
+will need once boundary 1 lands. `SEASON_2026_EVALUATION.md` is **not** edited — it is
+hashed and CI-guarded and says in its own text that it changes for no reason after
+kickoff.
+
+**Still open, recorded rather than fixed.** `synced_at` is second-resolution, so two syncs
+inside the same second would collide on the join key. Has not happened across 77 stamps.
+Not engineered around.
+
+Suite 695 -> 704. Goldens 15/15, sync golden untouched. RESOLVED.

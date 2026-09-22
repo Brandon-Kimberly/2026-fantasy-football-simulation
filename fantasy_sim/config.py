@@ -82,6 +82,14 @@ ESPN_SWID = os.getenv("ESPN_SWID", "")
 # no data for those positions at all.
 ESPN_BLEND_ELIGIBLE_POSITIONS = {"QB", "RB", "WR", "TE"}
 
+# Schema version stamped on every sync_provenance.jsonl row (F56, 2026-09-22). Version 1
+# is the first schema to exist at all: rows written before this date have no provenance
+# and are backfilled as version 0 by scripts/backfill_sync_provenance. BUMP THIS whenever
+# a field changes meaning -- January's calibration partitions the season at two
+# boundaries that do not coincide (F49's IDP scoring change, F52/F54's blend
+# restoration), and the version is how a later reader knows which fields it can trust.
+PROJECTION_LOG_SCHEMA_VERSION = 1
+
 # ==============================================================================
 # NFL REFERENCE DATA
 # ==============================================================================

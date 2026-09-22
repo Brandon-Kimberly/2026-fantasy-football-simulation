@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~93 findings and tracked follow-ups** | **60 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~94 findings and tracked follow-ups** | **61 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,18 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F56** the projection log could not say which build wrote it — RESOLVED: rows carried
+  `synced_at` and no code identity, across 77 distinct sync stamps (24 inside week 2),
+  so January's mandated partition at two non-coinciding boundaries (F49's scoring change,
+  F52/F54's blend restoration) had to be hand-matched against `git log`. Fixed with a
+  SIDECAR — `sync_provenance.jsonl`, one row per sync, joined on `synced_at` — rather
+  than the per-row fields backlog B5 specified: `golden_sync` hashes the projection log
+  byte-exactly, so widening that schema would have forced a MAJOR regeneration, and a git
+  hash inside a byte-pinned file would have broken the golden on every subsequent commit.
+  `espn_rows` makes the blend boundary mechanical (0/149 → 110/150 at
+  2026-09-20T16:59:41Z). 77 historical syncs backfilled idempotently as
+  `schema_version: 0`. Companion `docs/EVALUATION_BOUNDARIES.md`;
+  `SEASON_2026_EVALUATION.md` untouched.
 - **F55** weather is fetched every sync and read by nothing — OPEN, plan recorded: the
   Open-Meteo call at `sync.py:333-347` is live and populating `wind_mph`/`precip_prob`
   for 24 of 32 teams; every consumer site is a default-dict literal that never branches
