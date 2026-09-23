@@ -50,10 +50,17 @@ class TestProjectionCoverage(unittest.TestCase):
         base = {f"p{i}": {"mean": 10.0} for i in range(900)}
         self.assertEqual(projection_coverage(base)["verdict"], PASS)
 
-    def test_a_thin_baseline_file_is_degraded(self):
+    def test_a_slightly_short_baseline_file_is_degraded(self):
+        from fantasy_sim.data_health import projection_coverage
+        base = {f"p{i}": {"mean": 10.0} for i in range(500)}
+        self.assertEqual(projection_coverage(base)["verdict"], DEGRADED)
+
+    def test_a_badly_short_baseline_file_fails(self):
+        """300 of the ~888 a healthy sync writes is not a degradation, it is a broken
+        file -- the band matters, so both sides of it are pinned."""
         from fantasy_sim.data_health import projection_coverage
         base = {f"p{i}": {"mean": 10.0} for i in range(300)}
-        self.assertEqual(projection_coverage(base)["verdict"], DEGRADED)
+        self.assertEqual(projection_coverage(base)["verdict"], FAIL)
 
     def test_an_empty_baseline_file_fails(self):
         """F58's wipe: this is what the file looks like after it."""
@@ -127,19 +134,15 @@ class TestBlendCoverage(unittest.TestCase):
 class TestVegasHealth(unittest.TestCase):
     def test_real_lines_pass(self):
         from fantasy_sim.data_health import vegas_health
-        veg = {"_meta": {"week": 3, "source": "odds_api"},
-               "FA": {"total": 20.0}, "KC": {"total": 24.5}, "BUF": {"total": 26.0}}
+        veg = {"_meta": {"week": 3, "source": "odds_api"}, "FA": {"total": 20.0},
+               "KC": {"total": 24.5, "opponent": "BUF"},
+               "BUF": {"total": 26.0, "opponent": "KC"}}
         self.assertEqual(vegas_health(veg, week=3)["verdict"], PASS)
 
-    def test_teams_on_the_flat_fallback_are_detected_by_value(self):
-        """F52's lesson: a source can succeed and still deliver nothing usable, so this
-        looks at the NUMBERS, not at whether the sync reported an error."""
-        from fantasy_sim.data_health import vegas_health
-        veg = {"_meta": {"week": 3, "source": "odds_api"},
-               "KC": {"total": 21.5}, "BUF": {"total": 21.5}, "SF": {"total": 24.0}}
-        r = vegas_health(veg, week=3)
-        self.assertEqual(r["fallback"], 2)
-        self.assertEqual(r["verdict"], DEGRADED)
+    # A test asserting fallbacks were detected BY TOTAL == 21.5 used to sit here. It was
+    # written an hour before the tool was first run against live data, which showed DEN
+    # holding a REAL 21.5 line. Detection moved to `opponent`, and
+    # TestVegasFallbackIsDetectedByOpponentNotByTotal below supersedes it.
 
     def test_a_stale_week_stamp_fails(self):
         from fantasy_sim.data_health import vegas_health
@@ -181,3 +184,55 @@ class TestItDefersToCheckFreshness(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestVegasFallbackIsDetectedByOpponentNotByTotal(unittest.TestCase):
+    """Found by running the tool live (2026-09-23).
+
+    The first version called a team "on the fallback" whenever its total equalled 21.5.
+    DEN's real week-3 line WAS 21.5 -- with a real opponent, a 2.5 spread and live
+    weather -- so a genuine market line was reported as a fallback. That is a false
+    positive in a tool whose entire job is telling real data from filler.
+
+    The fallback path in sync.fetch_vegas_implied_totals sets `opponent: "FA"` and
+    `spread: 0.0`; a real line never does. So the opponent is the discriminator and the
+    total is not.
+    """
+
+    def test_a_real_line_that_happens_to_be_21_5_is_not_a_fallback(self):
+        from fantasy_sim.data_health import vegas_health
+        veg = {"_meta": {"week": 3, "source": "odds_api"},
+               "DEN": {"total": 21.5, "spread": 2.5, "opponent": "LAR"},
+               "KC": {"total": 24.5, "spread": -3.0, "opponent": "BUF"}}
+        r = vegas_health(veg, week=3)
+        self.assertEqual(r["fallback"], 0, "DEN has an opponent; that is a real line")
+        self.assertEqual(r["verdict"], PASS)
+
+    def test_a_team_with_no_opponent_is_a_fallback_whatever_its_total(self):
+        from fantasy_sim.data_health import vegas_health
+        veg = {"_meta": {"week": 3, "source": "odds_api"},
+               "KC": {"total": 24.5, "spread": -3.0, "opponent": "BUF"},
+               "NYJ": {"total": 21.5, "spread": 0.0, "opponent": "FA"}}
+        r = vegas_health(veg, week=3)
+        self.assertEqual(r["fallback"], 1)
+
+    def test_teams_on_bye_are_separated_from_missing_lines(self):
+        """A bye leaves a team legitimately without a game. Counting that as degraded
+        would cry wolf every single bye week -- F41's shape."""
+        from fantasy_sim.data_health import vegas_health
+        veg = {"_meta": {"week": 3, "source": "odds_api"},
+               "KC": {"total": 24.5, "spread": -3.0, "opponent": "BUF"},
+               "NYJ": {"total": 21.5, "spread": 0.0, "opponent": "FA"}}
+        r = vegas_health(veg, week=3, byes={"NYJ": 3})
+        self.assertEqual(r["on_bye"], 1)
+        self.assertEqual(r["fallback"], 0)
+        self.assertEqual(r["verdict"], PASS)
+
+    def test_a_non_bye_team_with_no_line_is_still_degraded(self):
+        from fantasy_sim.data_health import vegas_health
+        veg = {"_meta": {"week": 3, "source": "odds_api"},
+               "KC": {"total": 24.5, "spread": -3.0, "opponent": "BUF"},
+               "NYJ": {"total": 21.5, "spread": 0.0, "opponent": "FA"}}
+        r = vegas_health(veg, week=3, byes={"NYJ": 9})
+        self.assertEqual(r["fallback"], 1)
+        self.assertEqual(r["verdict"], DEGRADED)
