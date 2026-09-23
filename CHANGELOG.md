@@ -5,6 +5,42 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v6.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.1.0) — 2026-09-23 (MINOR)
+
+Fourteen backlog items worked in order, and what building them kept finding. Six new
+findings (F56-F61), none of which were on the backlog: an empty projection payload would
+have **silently overwritten every baseline** with `{}` while the manifest said `ok: true`
+(F58); a whitelisted missing asset was imputed as healthy whatever the roster said, so an
+IR'd player was simulated as available all season and every trade involving his team was
+refused (F60); and the sync recorded what WARNED but never what each source **delivered**,
+which is the gap F52 hid in for a fortnight (F57).
+
+Seven new tools — `market_sweep`, `trade_leverage`, `data_health`, `bid_review`,
+`stat_corrections`, `reprice`, `decision_scorecard`, plus `live_matchup --tail` and
+`find_trades --exhaustive`. Four are scratchpad scripts promoted with their bugs fixed:
+the market sweep named the wrong man to drop on three positions at once, the bait script
+joined draft picks **by name** across 220 colliding names, and the tail audit priced a
+finished week against today's projections.
+
+Three tools found errors in themselves the day they shipped. `data_health` called a real
+21.5 market line a fallback; `--tail` labelled a cold opponent "hot"; `decision_scorecard`
+picked its pre-kickoff record by sorting file paths, so `archive/` beat an earlier
+top-level run. Each was caught by running the thing, not by reading it.
+
+**The measurement that mattered most is a negative result.** B13 asked for a bid heuristic
+scored against the clearing price. On all 26 logged 2026 claims the correlation between a
+player's VORP and his winning bid is **−0.136** (F61): this league does not bid on model
+value, 20 of 26 claims went to players below replacement, and the biggest bid of the
+season ($25) went to a player at −2.57. No VORP-shaped rule can be scored against those
+prices, so v2 ships beside v1, both labelled unvalidated, and B14's ledger is the route to
+settling it rather than another argument.
+
+Two weekly numbers moved for the reader without the model moving at all: the live tracker
+was treating the head-to-head and median legs as independent when both turn on the same
+score — the double-loss probability was understated **2.4×** (13.3% against 5.5%) — and
+the trade screen may no longer print a "their gain" figure as though it were a
+measurement. Engine goldens byte-identical throughout; 695 → 982 tests.
+
 ## [v6.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.0.0) — 2026-09-22 (MAJOR)
 
 Two silent data faults, found three days apart, both of which had been quietly starving
