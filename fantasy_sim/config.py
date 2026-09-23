@@ -70,7 +70,11 @@ TEAM_NAME_MAP = {   # roster_id -> team label (fictional; see the F37 note above
 # degrade to a flat schedule. That state is now loud (sync warns, the engine refuses stale
 # lines and says so -- see AUDIT_PHASE_3_FINDINGS.md finding 1) but it is not correct; the
 # key is the fix. Free tier at https://the-odds-api.com covers one sync per week comfortably.
-ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
+# .strip() for the same reason LEAGUE_ID has it (2026-09-23): a secret set through a
+# shell pipe or pasted from a dashboard carries a trailing newline, and an odds key with
+# one fails as a 401 that sync reports as "VEGAS FALLBACK: odds API request failed" --
+# indistinguishable from the API being down.
+ODDS_API_KEY = os.getenv("ODDS_API_KEY", "").strip()
 
 # Dedicated, real ESPN Fantasy Football league (created specifically for this integration, with
 # scoring settings manually configured to match this Sleeper league as closely as ESPN's UI
@@ -93,8 +97,8 @@ ODDS_API_KEY = os.getenv("ODDS_API_KEY", "")
 # "SWID" cookie values). Verified live: this specific league connects fine with neither set, so
 # leave both blank unless/until the league is made private.
 ESPN_LEAGUE_ID = os.getenv("ESPN_LEAGUE_ID", "").strip()   # F37: env-only, same reasoning as SLEEPER_LEAGUE_ID
-ESPN_S2 = os.getenv("ESPN_S2", "")
-ESPN_SWID = os.getenv("ESPN_SWID", "")
+ESPN_S2 = os.getenv("ESPN_S2", "").strip()      # .strip(): browser cookies get pasted with whitespace
+ESPN_SWID = os.getenv("ESPN_SWID", "").strip()  # .strip(): same
 # Kicker and IDP scoring categories could not be matched exactly between Sleeper and ESPN's
 # platforms (confirmed manually by the user configuring this league) -- comparing point totals
 # computed under genuinely different rules would corrupt the disagreement-driven epistemic
