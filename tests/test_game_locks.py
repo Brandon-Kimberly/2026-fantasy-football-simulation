@@ -217,3 +217,48 @@ class TestTheGate(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheWeeklyReportBanner(unittest.TestCase):
+    """B3's stated acceptance: "Weekly report mid-week carries the 'N players locked, live
+    view' banner." Rendering is pure over the result dict, so no engine is needed."""
+
+    LU_MIDWEEK = {"expected_total": 150.0, "unfilled": [], "pinned": 3, "locked_excluded": 2,
+                  "lineup": [{"slot": "QB", "name": "A", "pos": "QB", "flag": "",
+                              "expected": 20.0, "p10": 10.0, "p50": 19.0, "p90": 30.0,
+                              "p_zero": 0.05, "alternative": None, "margin": 0.0}],
+                  "bench": [], "questionable_starters": []}
+
+    def _lu(self, **kw):
+        # render_digest/render_html take the orchestrator's report, whose tool outputs
+        # live under "results".
+        return {"results": {"lineup": dict(self.LU_MIDWEEK, **kw)}}
+
+    def test_markdown_carries_the_banner_mid_week(self):
+        from fantasy_sim.weekly_report import render_digest
+        md = render_digest(self._lu(), "Quantum Ferrets", 3)
+        self.assertIn("Mid-week view", md)
+        self.assertIn("3 lineup slot(s) are pinned", md)
+        self.assertIn("2 bench player(s) are ruled out", md)
+        self.assertIn("live_matchup", md,
+                      "the banner must point at the tool that has the reachable number")
+
+    def test_html_carries_the_banner_mid_week(self):
+        from fantasy_sim.weekly_report import render_html
+        html = render_html(self._lu(), "Quantum Ferrets", 3)
+        self.assertIn("Mid-week view", html)
+
+    def test_pre_kickoff_reports_carry_no_banner(self):
+        """0/0 is a free solve and must render exactly as it always did."""
+        from fantasy_sim.weekly_report import render_digest, render_html
+        pre = self._lu(pinned=0, locked_excluded=0)
+        self.assertNotIn("Mid-week view", render_digest(pre, "Quantum Ferrets", 3))
+        self.assertNotIn("Mid-week view", render_html(pre, "Quantum Ferrets", 3))
+
+    def test_a_report_predating_b3_renders_without_the_keys(self):
+        """An archived result dict has no `pinned` key at all; rendering must not raise."""
+        from fantasy_sim.weekly_report import render_digest
+        old = dict(self.LU_MIDWEEK)
+        old.pop("pinned"); old.pop("locked_excluded")
+        md = render_digest({"results": {"lineup": old}}, "Quantum Ferrets", 3)
+        self.assertNotIn("Mid-week view", md)

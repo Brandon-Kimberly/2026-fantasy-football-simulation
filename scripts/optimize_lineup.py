@@ -13,7 +13,7 @@ data/current/ only; writes one JSON record under data/decisions/.
 import argparse
 import datetime as _dt
 
-from fantasy_sim.decisions import optimize_lineup
+from fantasy_sim.decisions import optimize_lineup, locked_nfl_teams, should_respect_locks
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_week_path, save_json
 
@@ -27,14 +27,43 @@ def main(argv=None):
     ap.add_argument("--canonical", action="store_true", help="a scheduled/deliberate run: write to week_NN/ instead of week_NN/archive/")
     ap.add_argument("--sims", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=None)
+    # B3. Default AUTO: locks apply only for the current week and only once something has
+    # actually kicked off -- gated on game_clocks, never on the day of the week.
+    ap.add_argument("--respect-locks", dest="locks", action="store_true", default=None,
+                    help="force ON: pin starters whose game has begun (default: auto)")
+    ap.add_argument("--no-respect-locks", dest="locks", action="store_false",
+                    help="force OFF: the free pre-kickoff solve, even mid-week")
     args = ap.parse_args(argv)
 
     engine = FantasySimulationEngine()
     week = args.week or engine.current_week
-    r = optimize_lineup(engine, args.team, week, sims=args.sims, seed=args.seed)
+
+    # B3: kickoffs make a mid-week lineup partly unchangeable. Fetched here, in the
+    # script, so fantasy_sim.decisions stays pure and the suite stays hermetic (F48).
+    locked, starters_now, lock_note = frozenset(), set(), ""
+    if args.locks is not False:
+        try:
+            from scripts.live_matchup import game_clocks, current_starters_for
+            clocks = game_clocks(week)
+            if args.locks or should_respect_locks(week, engine.current_week, clocks):
+                locked = locked_nfl_teams(clocks)
+                starters_now = current_starters_for(args.team, week)
+        except Exception as ex:
+            # Never fail the optimizer over the scoreboard: fall back to the pre-kickoff
+            # answer, which is what this tool printed all of last season, and say so.
+            lock_note = f"  (locks unavailable: {type(ex).__name__}; showing the pre-kickoff solve)"
+
+    r = optimize_lineup(engine, args.team, week, sims=args.sims, seed=args.seed,
+                        locked_teams=locked, current_starters=starters_now)
 
     print(f"\n{args.team} -- week {week} optimal lineup   expected total {r['expected_total']:.1f}"
           + (f"   UNFILLED: {r['unfilled']}" if r['unfilled'] else ""))
+    if r.get("pinned") or r.get("locked_excluded"):
+        print(f"  MID-WEEK: {r['pinned']} slot(s) pinned (already playing or played) and "
+              f"{r['locked_excluded']} bench player(s) ruled out.")
+        print("  This is the REACHABLE lineup, not a fresh-week solve.")
+    elif lock_note:
+        print(lock_note)
     print(f"  {'slot':5s} {'player':26s} {'pos':4s} {'flag':12s} {'exp':>5s} {'p10':>5s} {'p50':>5s} {'p90':>5s} {'zero':>5s} {'margin':>7s}  alternative")
     for row in r["lineup"]:
         print(f"  {row['slot']:5s} {row['name'][:26]:26s} {row['pos']:4s} {row.get('flag', '')[:12]:12s} "

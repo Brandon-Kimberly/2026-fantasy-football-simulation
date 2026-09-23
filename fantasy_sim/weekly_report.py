@@ -477,6 +477,18 @@ def gate_export_fresh(week, step_started):
 
 
 # ---------------------------------------------------------------------------- digest
+# B3: printed whenever the report is rendered after kickoff. The lineup section is
+# already constrained to what can still be set; the MATCHUP section is not -- it is a
+# fresh-week solve that ignores banked points, which is exactly the gap that had the
+# report saying P(win) 72.1% while the live tracker said 57.8% on 2026-09-20.
+MIDWEEK_BANNER = (
+    "**Mid-week view.** {pinned} lineup slot(s) are pinned (those players' games have "
+    "started) and {excluded} bench player(s) are ruled out, so the lineup above is the "
+    "REACHABLE one, not a fresh-week solve. The matchup numbers below are still a "
+    "fresh-week solve and ignore points already banked -- for the live figure run "
+    "`py -3.10 -m scripts.live_matchup`.")
+
+
 # B4: the standing caveat printed beside every Questionable starter.
 QUESTIONABLE_NOTE = (
     'A Questionable designation is **not priced into any number above**. The Sleeper projection already reflects expected usage, so this is not a second discount to apply -- it is the risk carried by starting him (F51). Check the Saturday designations before kickoff.')
@@ -572,6 +584,9 @@ def render_digest(report, team, week):
                             f"{x['fallback_expected']:.1f}" if x["fallback"] else "-",
                             f"{x['give_up']:.1f}" if x["fallback"] else "-"] for x in q]), ""]
             md += [QUESTIONABLE_NOTE, ""]
+        if lu.get("pinned") or lu.get("locked_excluded"):
+            md += [MIDWEEK_BANNER.format(pinned=lu.get("pinned", 0),
+                                         excluded=lu.get("locked_excluded", 0)), ""]
         if lu.get("bench"):
             md += ["Bench: " + ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"]), ""]
 
@@ -926,6 +941,9 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
                                     f"{x['fallback_expected']:.1f}" if x["fallback"] else "-",
                                     f"{x['give_up']:.1f}" if x["fallback"] else "-"] for x in q]))
             out.append('<p class="note">' + T(QUESTIONABLE_NOTE) + '</p>')
+        if lu.get("pinned") or lu.get("locked_excluded"):
+            out.append('<div class="degraded">' + T(MIDWEEK_BANNER.format(
+                pinned=lu.get("pinned", 0), excluded=lu.get("locked_excluded", 0))) + '</div>')
         if lu.get("bench"):
             bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
             out.append(f"<p>Bench: {T(bench)}</p>")

@@ -119,6 +119,37 @@ def game_clocks(week, fetch=None):
     return out
 
 
+def current_starters_for(team, week, fetch=None):
+    """The set of player NAMES `team` currently has in its starting lineup, from Sleeper.
+
+    B3. The optimizer needs this to tell a locked STARTER (who cannot be benched) from a
+    locked BENCH player (who cannot be promoted) -- the two constraints point opposite
+    ways and the distinction is the whole point.
+
+    Names, not slots: Sleeper's `starters` array is index-aligned to its own
+    `roster_positions` order, which is NOT config.REQUIRED_STARTING_SLOTS' order, so
+    carrying a slot across would silently mis-slot people. decisions.optimize_lineup
+    re-solves the pinned men's slots itself.
+    """
+    fetch = fetch or _fetch_json
+    if not LEAGUE_ID:
+        raise SystemExit("SLEEPER_LEAGUE_ID is not set -- lock detection needs the league.")
+    rosters = fetch(f"{BASE_URL}/league/{LEAGUE_ID}/rosters")
+    names = {str(r["roster_id"]): TEAM_NAME_MAP.get(str(r["roster_id"]), f"roster {r['roster_id']}")
+             for r in rosters}
+    players = load_json("data/current/sleeper_players_cache.json")
+    out = set()
+    for m in fetch(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{int(week)}") or []:
+        if names.get(str(m.get("roster_id"))) != team:
+            continue
+        for pid in (m.get("starters") or []):
+            info = players.get(str(pid)) or {}
+            nm = f"{info.get('first_name','')} {info.get('last_name','')}".strip()
+            if nm:
+                out.add(nm)
+    return out
+
+
 def week_projections(engine, week, expect=week_expectation):
     """pid -> {'mean': this week's expectation, 'sd': predictive sd}, for the tracker.
 

@@ -28,7 +28,7 @@ from unittest.mock import patch
 
 import numpy as np
 
-from fantasy_sim.config import normalize_position, SIM_CONFIG, ANON_EPISTEMIC_RATE
+from fantasy_sim.config import normalize_position, SIM_CONFIG, ANON_EPISTEMIC_RATE, REQUIRED_STARTING_SLOTS
 from fantasy_sim.simulation import FantasySimulationEngine
 
 
@@ -232,6 +232,36 @@ def questionable_count(engine, team):
     """
     return sum(1 for n in engine.rosters.get(team, [])
                if injury_flag(_entry(engine, n)) == "Questionable")
+
+
+def locked_nfl_teams(clocks):
+    """NFL abbreviations whose game has already started, from live_matchup.game_clocks().
+
+    B3. `clocks` is {abbr: (fraction_remaining, label)} where the label is "pregame",
+    "final", or a live "Q3 05:22". Anything that is not pregame is LOCKED: the fantasy
+    lineup for those players can no longer be changed.
+
+    An abbreviation MISSING from the scoreboard, or carrying the "unknown" label, reads
+    as UNLOCKED on purpose. An absent clock is ignorance, not a kickoff, and silently
+    freezing a player out of his owner's lineup is the worse of the two failures.
+    """
+    return frozenset(abbr for abbr, v in (clocks or {}).items()
+                     if isinstance(v, (tuple, list)) and len(v) >= 2
+                     and str(v[1]) not in ("pregame", "unknown"))
+
+
+def should_respect_locks(week, current_week, clocks):
+    """Whether a lineup solve for `week` must honour kickoffs.
+
+    B3's trap, verbatim: "Gate on game_clocks, not on the day of the week." A solve for a
+    FUTURE week is a planning exercise and is never constrained; a solve for the current
+    week is constrained only once something has actually kicked off. If the scoreboard
+    could not be fetched (`clocks` falsy) locks stay OFF -- the pre-kickoff answer is the
+    safe one and is what the tool printed all of last season.
+    """
+    if clocks is None or int(week) != int(current_week):
+        return False
+    return bool(locked_nfl_teams(clocks))
 
 
 def roster_gaps(engine, team, weeks):
@@ -680,19 +710,70 @@ def _slot_positions(slot):
     return _SLOT_POSITIONS.get(slot, (slot,))
 
 
-def optimize_lineup(engine, team, week, sims=1000, seed=None):
+def optimize_lineup(engine, team, week, sims=1000, seed=None,
+                    locked_teams=None, current_starters=None):
+    """The engine's optimal lineup for `team` in `week`.
+
+    B3: `locked_teams` (NFL abbreviations whose game has kicked off, from
+    locked_nfl_teams()) and `current_starters` ({player name: slot}, what Sleeper says is
+    started right now) together make the answer REACHABLE mid-week:
+
+      - a locked player who is already STARTING is PINNED to his slot -- he cannot be
+        benched, so proposing it is proposing a lineup that cannot be set;
+      - a locked player who is on the BENCH is excluded entirely -- he cannot be started,
+        and must not be offered as an alternative either.
+
+    Both default to None, and with no locks the solve is bit-for-bit what it always was
+    (B3's trap: the pre-kickoff optimizer is correct and must not change). The caller
+    decides whether locks apply -- see should_respect_locks().
+    """
     if team not in engine.rosters:
         raise KeyError(f"unknown team {team!r}")
     names = list(engine.rosters[team])
     exp = {n: week_expectation(engine, n, week) for n in names}
     available = {n: not (_entry(engine, n).get('bye') == week or _unavailable_now(_entry(engine, n))) for n in names}
-    cands = [(n, _opts(engine, n), exp[n]) for n in names if available[n]]
-    assigned, unfilled = engine._solve_optimal_assignment(cands)
+
+    locked_teams = frozenset(locked_teams or ())
+    started_now = set(current_starters or ())          # names; any iterable, incl. a dict
+    is_locked = {n: (_entry(engine, n).get('team') or 'FA') in locked_teams for n in names}
+    # Pinned: locked AND currently in the lineup -- he cannot be benched.
+    pinned_names = [n for n in names
+                    if n in started_now and is_locked.get(n) and available[n]]
+    # Excluded: locked AND not currently starting -- his game is gone, he cannot come in.
+    excluded = {n for n in names if is_locked.get(n) and n not in pinned_names}
+
+    if pinned_names or excluded:
+        # TWO PHASES, and the reason matters: Sleeper's `starters` array is aligned to its
+        # own roster_positions order, which is NOT REQUIRED_STARTING_SLOTS' order, so
+        # index-aligning a slot onto each locked starter would silently mis-slot him.
+        # Instead let the solver place the pinned men optimally among all slots, then fill
+        # what remains. Nothing depends on the caller knowing which slot anyone occupies.
+        pinned_assigned, _ = engine._solve_optimal_assignment(
+            [(n, _opts(engine, n), exp[n]) for n in pinned_names])
+        taken = {n for n, _, _ in pinned_assigned}
+        free_slots = list(REQUIRED_STARTING_SLOTS)
+        for _, _, slot in pinned_assigned:
+            if slot in free_slots:
+                free_slots.remove(slot)
+        # A locked starter the solver could not place (no eligible slot left) is still
+        # started in reality; he is simply not represented, and is counted as excluded
+        # from the free solve so he cannot also be offered as an alternative.
+        excluded |= {n for n in pinned_names if n not in taken}
+        cands = [(n, _opts(engine, n), exp[n]) for n in names
+                 if available[n] and n not in taken and n not in excluded]
+        assigned, unfilled = engine._solve_optimal_assignment(cands, slots=free_slots)
+        assigned = list(assigned) + list(pinned_assigned)
+        pinned = taken
+    else:
+        cands = [(n, _opts(engine, n), exp[n]) for n in names if available[n]]
+        assigned, unfilled = engine._solve_optimal_assignment(cands)
+        pinned = set()
     started = {n for n, _, _ in assigned}
 
     lineup = []
     for i, (n, value, slot) in enumerate(sorted(assigned, key=lambda a: (a[2], -a[1]))):
         eligible = [m for m in names if m not in started and available[m]
+                    and m not in excluded          # B3: his game has already been played
                     and any(p in _slot_positions(slot) for p in _opts(engine, m))]
         alt = max(eligible, key=lambda m: exp[m]) if eligible else None
         s = summarise_scores(sample_week_scores(engine, n, week, sims, seed=None if seed is None else seed + i))
@@ -730,6 +811,8 @@ def optimize_lineup(engine, team, week, sims=1000, seed=None):
         })
     return {"team": team, "week": week, "lineup": lineup, "unfilled": sorted(unfilled), "bench": bench,
             "questionable_starters": questionable_starters,
+            # B3: how constrained this answer is. 0/0 means a free pre-kickoff solve.
+            "pinned": len(pinned), "locked_excluded": len(excluded),
             "expected_total": float(sum(r["expected"] for r in lineup)),
             "note": ("lineup = the engine's optimal assignment on this week's pre-game expectations (mean x "
                      "environment x script; bye/out = 0); p10/p50/p90 from independent per-player draws; "
