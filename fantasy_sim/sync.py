@@ -1512,8 +1512,26 @@ def append_designations(live_rosters, players_db, baselines, week, path=DESIGNAT
     that became a Sunday Out, which is the transition worth studying, and no dedupe at
     all writes a row per sync (twenty-four of them in week 2 alone).
 
-    Only players carrying a designation are written. A row per healthy man per week is
-    150 rows of "nothing happened", and the question is about designations, not roll call.
+    THE ROLL CALL IS WRITTEN TOO, healthy men included with a null `injury_status`
+    (F63, 2026-09-23). This function used to skip them, reasoning that "a row per healthy
+    man per week is 150 rows of 'nothing happened', and the question is about
+    designations, not roll call." That is backwards for the one study this log exists to
+    feed. B10 asks whether a designation predicts a later DNP **above the base rate**,
+    and a base rate is a rate among the UNDESIGNATED -- who were never recorded, and are
+    not recoverable afterwards, because `live_rosters.json` is overwritten every sync and
+    the players cache holds only today.
+
+    Without the roll call the study has to borrow its denominator from the LEAGUE-WIDE
+    scored feed (~800 players a week against the ~152 rostered), where players nobody
+    tracked sit in the "undesignated" group carrying designations that were never logged.
+    That contaminates the comparison group and biases the measured lift DOWNWARD -- a
+    study that can only understate its effect. The price of fixing it is about 2,700 rows
+    a season.
+
+    The dedupe rule carries the roll call without inflating it: a healthy player's
+    (week, pid, None) key is written once and every later sync that week is a no-op, and
+    if he is listed Questionable on Friday that is a DISTINCT key, so the transition is
+    still captured.
 
     Returns rows appended. Never raises: a record is not a dependency.
     """
@@ -1541,9 +1559,8 @@ def append_designations(live_rosters, players_db, baselines, week, path=DESIGNAT
                 rec = (players_db or {}).get(str(pid))
                 if not rec:
                     continue
-                status = rec.get("injury_status")
-                if not status:
-                    continue
+                # F63: a healthy man is a roll-call row (status None), not a skip.
+                status = rec.get("injury_status") or None
                 key = (int(week), str(pid), status)
                 if key in seen:
                     continue

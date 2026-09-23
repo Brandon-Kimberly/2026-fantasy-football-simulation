@@ -4968,3 +4968,46 @@ change scoped to the Bayesian blend. B8 moved `week06` and `week15` goldens and 
 check saw nothing.
 
 Suite 997 → 1004. Goldens 15/15, sync golden byte-identical. RESOLVED.
+
+### F63 — B21's designation log could not answer the one question it was built for — RESOLVED (2026-09-23)
+
+**Origin.** Not from the backlog. Found while working B10, the study B21 exists to feed.
+
+**The defect.** B10's test is *"does designation-count predict subsequent DNP **above the
+positional base rate**"*. A base rate is a rate among the UNDESIGNATED.
+`sync.append_designations` wrote only players carrying a designation, deliberately:
+
+> Only players carrying a designation are written. A row per healthy man per week is 150
+> rows of "nothing happened", and the question is about designations, not roll call.
+
+The healthy men *are* the question — they are the comparison group. And the roll call is
+not recoverable after the fact: `live_rosters.json` is overwritten on every sync and
+`sleeper_players_cache.json` holds only today's status. Each week that passed under the
+old behaviour is a week whose denominator is gone for good.
+
+**Why it would have gone unnoticed.** The study still *runs* without a roll call — it
+borrows the denominator from `first_recorded_scores.jsonl`, the LEAGUE-WIDE stats feed
+(~800 players a week against the ~152 rostered). Players nobody was tracking land in the
+"undesignated" arm while possibly carrying designations that were never written down,
+which inflates that arm's DNP rate and biases the measured lift **downward**. The failure
+mode is a plausible, quietly understated number — not an error.
+
+**Fixed.** The roll call is written: every rostered player, healthy ones with
+`injury_status: null`. The existing dedupe on `(week, pid, status)` carries it without
+inflating the file — one row per healthy player per week, and a Friday Questionable
+remains a DISTINCT key, so the transition B21 was designed to capture still survives.
+Cost ~152 rows/week, ~2,700 a season. `fantasy_sim.durability.study` reports
+`population_source` (`roll_call` vs `scored_feed`) so a reader can tell which number they
+have, and `scripts.durability_study` refuses to treat pre-F63 weeks as a roster.
+
+**Two committed tests had pinned the defect as if it were the requirement** —
+`test_a_healthy_player_writes_nothing`, and an `n == 2` assertion reading *"only the two
+with a designation"*. Both were amended in place with the reason recorded, not deleted.
+
+**What this does not fix.** Weeks already logged without a roll call stay without one.
+Week 3 is the only such week, and the first usable study pair is week 3 → 4, so the
+practical cost is that the very first pair's denominator must come from the scored feed
+and reads as a lower bound. Every pair from week 4 on is clean.
+
+Suite 1004 → 1025. Goldens 15/15, sync golden byte-identical. No prediction changed —
+nothing in the engine imports `fantasy_sim.durability`. RESOLVED.

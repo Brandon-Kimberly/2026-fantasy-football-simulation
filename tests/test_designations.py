@@ -57,23 +57,38 @@ def _read(p):
 
 
 class TestItRecordsRosteredPlayers(unittest.TestCase):
-    def test_one_row_per_rostered_player_with_a_designation(self):
+    def test_one_row_per_rostered_player(self):
+        """AMENDED BY F63 (2026-09-23), and the amendment is the point.
+
+        This asserted `n == 2`, "only the two with a designation". That was the defect,
+        pinned as if it were the requirement: B10 needs the UNDESIGNATED as its base
+        rate, and a log of only the designated has none. The roll call is now written
+        too, so the count is 3 -- every rostered player, healthy ones with a null status.
+        See TestTheRollCall below for why the old assertion could not stand.
+        """
         from fantasy_sim.sync import append_designations
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "des.jsonl")
             n = append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
             rows = _read(p)
-        self.assertEqual(n, 2, "only the two with a designation")
-        self.assertEqual({r["name"] for r in rows}, {"Hurt Guy", "Out Guy"})
+        self.assertEqual(n, 3, "the roll call, not only the designated")
+        self.assertEqual({r["name"] for r in rows},
+                         {"Hurt Guy", "Out Guy", "Fine Guy"})
+        self.assertEqual({r["name"] for r in rows if r["injury_status"]},
+                         {"Hurt Guy", "Out Guy"})
 
-    def test_a_healthy_player_writes_nothing(self):
-        """A row per healthy player every week would be 150 rows a week of 'nothing
-        happened', and the question is about designations, not roll call."""
+    def test_a_designation_is_distinguishable_from_a_roll_call_row(self):
+        """The whole file is worthless if the two cannot be told apart. `injury_status`
+        is the discriminator, and it is None -- not "", not "Healthy" -- for a roll-call
+        row, so a falsy test is the right test everywhere downstream."""
         from fantasy_sim.sync import append_designations
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, "des.jsonl")
             append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
-            self.assertNotIn("Fine Guy", {r["name"] for r in _read(p)})
+            rows = _read(p)
+        fine = next(r for r in rows if r["name"] == "Fine Guy")
+        self.assertIsNone(fine["injury_status"])
+        self.assertFalse(fine["injury_status"])
 
     def test_each_row_carries_the_body_part_and_practice_status(self):
         from fantasy_sim.sync import append_designations

@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~100 findings and tracked follow-ups** | **67 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~101 findings and tracked follow-ups** | **68 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,20 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F63** B21's designation log could not answer the one question it was built for —
+  RESOLVED: found while working B10, the study B21 exists to feed. B10's test is "above
+  the positional BASE RATE", a rate among the UNDESIGNATED, and `append_designations`
+  wrote only players carrying a designation — deliberately, calling a healthy row "150
+  rows of 'nothing happened'". The healthy men ARE the comparison group, and the roll
+  call is unrecoverable afterwards (`live_rosters.json` is overwritten every sync, the
+  players cache holds only today). It would not have surfaced as an error: the study
+  still runs by borrowing a denominator from the LEAGUE-WIDE scored feed (~800/week vs
+  ~152 rostered), where untracked players sit in the undesignated arm carrying unlogged
+  designations — biasing the lift DOWNWARD. A plausible, quietly understated number.
+  Fixed by writing the roll call (healthy = `injury_status: null`); the `(week, pid,
+  status)` dedupe carries it at ~2,700 rows/season and still captures a Friday
+  Questionable as a distinct key. Two committed tests had pinned the defect as the
+  requirement and were amended in place with the reason, not deleted.
 - **F62** the behavioral drift check calls Monte Carlo noise an engine behavior change —
   RESOLVED: found while regenerating the baseline for B7+B8, the act the check exists to
   police. It reported six drifted mechanics as "an engine behavior change"; at least two

@@ -22,8 +22,8 @@ guided tour with the outputs already rendered, start with
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~100 findings and tracked follow-ups
-across 8 audit phases: 67 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~101 findings and tracked follow-ups
+across 8 audit phases: 68 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -119,6 +119,7 @@ py -3.10 -m scripts.live_matchup --tail         # B12: how improbable is today? 
 py -3.10 -m scripts.decision_scorecard          # B24: the week's start/sit calls scored against the PRE-KICKOFF record, one row per alternative (five slots = one decision)
 py -3.10 -m scripts.reprice                     # B22: price a PROPOSED scoring change before the vote -- per-player and per-team deltas on Sleeper's own stat lines (--scoring '{"idp_sack": 2.0}')
 py -3.10 -m scripts.stat_corrections            # B19: what Sleeper FIRST reported vs what it reports now -- weekly_actuals is rewritten every sync and overwrites its own evidence
+py -3.10 -m scripts.durability_study           # B10: does a Questionable tag predict a later DNP above the base rate? -- measures only; reports what data is still missing
 py -3.10 -m scripts.bid_review                  # B14: what I suggested vs bid vs what it cost; --add records a claim AT BID TIME (the decision log holds only wins)
 py -3.10 -m scripts.data_health                 # B12: every source PASS/DEGRADED/FAIL against what is on disk -- per-week ESPN coverage, F54 blend reach, Vegas fallbacks by value (sync status is check_freshness)
 py -3.10 -m scripts.market_sweep                 # B12: every starting slot vs the best free agent, on engine values -- upgrades, the drop (a different man), dead weight
