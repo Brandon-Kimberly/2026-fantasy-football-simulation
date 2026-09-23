@@ -183,9 +183,22 @@ def classify(metric, sim_value):
 
 
 def compare_to_baseline(metrics, baseline, rel_tol=0.02):
-    """The drift check: every metric must match the committed baseline within rel_tol
-    (the run is deterministic; the tolerance only absorbs float formatting). Returns the
-    list of drifted metrics -- empty means no behavioral drift since the baseline."""
+    """The drift check: every metric must match the committed baseline within rel_tol.
+    Returns the list of drifted metrics -- empty means nothing moved since the baseline.
+
+    F62 (2026-09-23): `rel_tol` is NOT just float-formatting slack, which is what this
+    docstring used to claim. The run is deterministic for a FIXED model, but any change
+    that alters how many draws the score sampler consumes re-phases the shared numpy
+    stream, and every later draw becomes a different sample of the same distribution.
+    Measured on the week01 scenario's 30 seasons: per-season `faab_spent` has sd 72.86,
+    so SE 13.30 -- about 2.1%, which is LARGER than this tolerance. A drift under a few
+    percent is therefore not evidence of a behavior change.
+
+    `rel_tol` is deliberately left at 0.02 anyway. Raising it past one standard error
+    would silence the noise and any real change of the size this repo's constants
+    actually make. The honesty belongs in the report, which names the alternative
+    explanation instead of asserting causation.
+    """
     drifted = []
     for k, v in metrics.items():
         if k in ("scenario", "n_sims"):
@@ -225,10 +238,25 @@ def render_report(metrics, drifted, baseline_exists):
     if not baseline_exists:
         lines.append("BASELINE: none committed for this scenario -- run with --regenerate.")
     elif drifted:
-        lines.append("DRIFT vs committed baseline (an engine behavior change -- regenerate "
-                     "deliberately, in its own commit, with the deltas explained):")
+        lines.append("DRIFT vs committed baseline -- regenerate deliberately, in its own "
+                     "commit, with the deltas explained:")
         for k, base, cur in drifted:
-            lines.append(f"  {k}: baseline {base} -> current {cur}")
+            delta = f"{cur - base:+g}" if isinstance(base, (int, float)) else "?"
+            lines.append(f"  {k}: baseline {base} -> current {cur}  ({delta})")
+        # F62: this used to say "an engine behavior change", which it cannot know.
+        lines.append("")
+        lines.append("  BEFORE READING THAT AS A BEHAVIOR CHANGE (F62): any change that "
+                     "alters how many draws the")
+        lines.append("  score sampler consumes re-phases the shared numpy stream, so every "
+                     "later draw resamples the")
+        lines.append("  same distribution. Measured on this scenario's 30 seasons, "
+                     "per-season faab_spent has a")
+        lines.append("  standard error of +/- 2.1% -- larger than the 2% tolerance above. "
+                     "Monte Carlo noise and a")
+        lines.append("  real behavior change are not distinguishable here. Attribute each "
+                     "delta by asking what the")
+        lines.append("  metric actually READS (FAAB bid sizing, for one, reads no baseline "
+                     "and no variance at all).")
     else:
         lines.append("No drift vs the committed baseline: behavioral rates are exactly the "
                      "accepted ones (known gaps included -- they are the baseline, not failures).")

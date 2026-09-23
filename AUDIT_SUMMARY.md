@@ -329,6 +329,19 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F62** the behavioral drift check calls Monte Carlo noise an engine behavior change —
+  RESOLVED: found while regenerating the baseline for B7+B8, the act the check exists to
+  police. It reported six drifted mechanics as "an engine behavior change"; at least two
+  cannot be. `_compute_faab_bid` reads a budget, an externally-drawn normal, a
+  2025-derived aggression multiplier and the league average — no baseline, no variance,
+  no replacement level. B7/B8 change how many draws the score sampler consumes, which
+  **re-phases the shared numpy stream**, so later draws resample the same distribution.
+  Measured over 30 seasons / 3,263 bids: per-season `faab_spent` sd 72.86, SE ±2.1% —
+  LARGER than the 2% tolerance. The two biggest deltas are 1.84 SE and 0.83 SE. Fixed in
+  the REPORT, not the threshold: `rel_tol` stays 0.02 (pinned by a test, because raising
+  it past one SE would hide real changes of the size these constants make) and the drift
+  block now names the re-phasing alternative with its measured scale. Not claimed: that
+  all six deltas are noise — only that the check cannot tell and said otherwise.
 - **F61** this league's FAAB bids do not track model value — MEASURED: on all 26 logged
   2026 claims, using each claim's own FROZEN projection snapshot, correlation(VORP,
   winning bid) = **-0.136**; 20 of 26 claims went to players at VORP <= 0, 12 of those

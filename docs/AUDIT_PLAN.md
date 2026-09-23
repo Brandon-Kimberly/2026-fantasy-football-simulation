@@ -4910,3 +4910,61 @@ one is recorded here instead of guessed at in code.
 
 Suite 902 → 918. Goldens 15/15, sync golden byte-identical. MEASURED; B13's tool built
 and shipped labelled, its acceptance criterion retired as unmeetable with the evidence.
+
+### F62 — The behavioral drift check calls Monte Carlo noise an engine behavior change — RESOLVED (2026-09-23)
+
+**Origin.** Not from the backlog. Found while regenerating `baseline_week01.json` for
+B7 + B8, which is exactly the act the check exists to police.
+
+**What it reported.** Six drifted mechanics under the message *"DRIFT vs committed
+baseline (an engine behavior change ...)"*:
+
+| mechanic | baseline | current |
+|---|---|---|
+| faab_spent | 665.60 | 641.14 |
+| bid_mean | 6.025 | 5.895 |
+| bid_p95 | 22.778 | 21.13 |
+| early_claim_share | 0.2511 | 0.2409 |
+| trade_offer_events | 5.17 | 5.5 |
+| lineup_zero_share | 0.0872 | 0.0844 |
+
+**Why at least two of those are not behavior changes.**
+`FantasySimulationEngine._compute_faab_bid(remaining_faab, raw_normal_draw, aggression,
+avg_league_faab)` reads a budget, an externally-sampled standard normal, a 2025-derived
+aggression multiplier and the league average. No baseline, no variance, no replacement
+level — nothing B7 or B8 touched. The number of bids comes from lineup deficits driven by
+injuries and byes, likewise independent of aleatoric spread. What B7 and B8 change is how
+many draws the score sampler consumes, which **re-phases the shared numpy stream**: every
+later draw becomes a different sample of the same distribution.
+
+**Measured**, on the same 30 seasons the check itself runs, 3,263 bids:
+
+| | sd | SE | observed shift |
+|---|---|---|---|
+| per-season `faab_spent` | 72.86 | 13.30 (±2.1%) | 24.46 = **1.84 SE** |
+| `bid_mean` | 8.969 | 0.157 | 0.130 = **0.83 SE** |
+
+**So the tolerance is smaller than the noise.** `rel_tol` is 0.02 and one standard error
+on `faab_spent` is 2.1%. The check will report drift on essentially any MAJOR that
+re-phases the stream, and will describe that drift as a behavior change. A check that
+cries drift on every MAJOR teaches itself to be ignored — the same failure `CLAUDE.md`
+names when it explains why the release reminder is not a commit-time gate.
+
+**The fix is the report, not the threshold.** `rel_tol` deliberately STAYS at 0.02, and a
+test pins it there: raising it past one standard error would silence the noise and any
+real change of the size this repo's constants actually make. Instead the drift block now
+prints the per-metric delta, names the re-phasing alternative with the measured ±2.1%,
+and tells the reader to attribute each delta by asking what the metric actually reads.
+The `compare_to_baseline` docstring's claim that the tolerance "only absorbs float
+formatting" — true for a fixed model, false across the event being policed — is corrected.
+
+**What is NOT claimed.** Not that all six deltas are noise. That the check cannot tell,
+and asserted otherwise. Per-metric attribution needs a noise scale the harness does not
+compute; adding one is not done and not scheduled.
+
+**A second, smaller weakness recorded while here**, already noted in F54: the check runs
+the `week01` scenario, which has zero completed weeks, so it reports "no drift" on any
+change scoped to the Bayesian blend. B8 moved `week06` and `week15` goldens and this
+check saw nothing.
+
+Suite 997 → 1004. Goldens 15/15, sync golden byte-identical. RESOLVED.
