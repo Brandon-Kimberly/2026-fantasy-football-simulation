@@ -72,11 +72,18 @@ def _fs():
     # the CB of the same name is UNROSTERED, so sync keys him "Name (pid)"
     base[f"{COLLIDE} ({CB_PID})"] = _p(4.0, "DB", CB_PID)
 
-    # The RIVAL starts a genuinely awful DB -- a below-replacement starting slot.
+    # The RIVAL's ONLY DB is awful, so the optimal assignment has to start him: a
+    # genuine below-replacement starting slot. Giving him a second, better DB would have
+    # the assignment bench this one -- correctly -- and there would be no hole to find.
+    for entry in rosters[RIVAL]:
+        if entry["pos"] == "DB":
+            entry["name"] = "Rival_Bad_DB"
     base["Rival_Bad_DB"] = _p(2.0, "DB", "9901")
-    rosters[RIVAL].append({"name": "Rival_Bad_DB", "pos": "DB", "team": "DET"})
-    # ...and I own a spare DB better than him.
-    base["My_Spare_DB"] = _p(11.0, "DB", "9902")
+    # ...and I own a spare DB: WORSE than my own DB starter (9.0), so he is genuine
+    # surplus, but far better than the rival's 2.0. At 11.0 he would be my STARTER and
+    # the tool would rightly refuse to offer him -- sending a starter is a downgrade,
+    # not leverage.
+    base["My_Spare_DB"] = _p(7.0, "DB", "9902")
     rosters[ME].append({"name": "My_Spare_DB", "pos": "DB", "team": "DET"})
 
     # depth so replacement levels land on real players rather than the worst man
@@ -181,8 +188,9 @@ class TestLeverage(_Case):
         from fantasy_sim.leverage import leverage
         gaps = {g["team"]: g for g in leverage(self.engine, ME, week=1)}
         holes = {h["pos"]: h for h in gaps[RIVAL]["holes"]}
-        self.assertEqual(holes["DB"]["i_could_send"], "My_Spare_DB")
-        self.assertAlmostEqual(holes["DB"]["upgrade_for_them"], 11.0 - 2.0)
+        self.assertEqual(holes["DB"]["i_could_send"], "My_Spare_DB",
+                         "my bench DB, not my starting one")
+        self.assertAlmostEqual(holes["DB"]["upgrade_for_them"], 7.0 - 2.0)
 
     def test_surplus_means_a_player_i_do_not_start(self):
         """Offering my own starter is not leverage, it is a downgrade."""
@@ -201,11 +209,19 @@ class TestLeverage(_Case):
 
     def test_flex_is_respected_so_starters_come_from_the_assignment(self):
         """sweep3/bait both used a fixed per-position count and missed FLEX starters."""
+        import ast
         import inspect
         from fantasy_sim import leverage as mod
-        src = inspect.getsource(mod)
-        self.assertIn("starters_by_position", src)
-        self.assertNotIn('"RB": 2', src)
+        tree = ast.parse(inspect.getsource(mod))
+        # Strip the module docstring: it QUOTES the scratchpad's SLOTS dict while
+        # explaining the bug, and a naive substring check trips on its own explanation.
+        body = [n for n in tree.body
+                if not (isinstance(n, ast.Expr) and isinstance(n.value, ast.Constant)
+                        and isinstance(n.value.value, str))]
+        code = " ; ".join(ast.unparse(n) for n in body)
+        self.assertIn("starters_by_position", code)
+        self.assertNotIn('"RB": 2', code)
+        self.assertNotIn("'RB': 2", code)
 
 
 if __name__ == "__main__":

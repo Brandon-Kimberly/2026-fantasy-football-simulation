@@ -113,6 +113,7 @@ py -3.10 -m scripts.canonical_gate              # F36: may an unattended run quo
 py -3.10 -m scripts.draft_review                # at-draft value review of an ingested draft (--season; PROXY caveat on the page)
 py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/drop or waiver (--log-tx, --evaluate-unevaluated)
 py -3.10 -m scripts.season_retrospective        # a completed season in four measurements, no combined verdict
+py -3.10 -m scripts.trade_leverage              # B12: sell-high candidates (league draft pick + preseason vs corrected) and rivals' below-replacement slots my surplus could fix
 py -3.10 -m scripts.market_sweep                 # B12: every starting slot vs the best free agent, on engine values -- upgrades, the drop (a different man), dead weight
 py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync provenance for rows written before it existed (idempotent; --write)
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
