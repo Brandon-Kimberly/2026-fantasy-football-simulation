@@ -5144,3 +5144,80 @@ yet built.
 
 Suite 1033 → 1045. Goldens 15/15, sync golden byte-identical. No prediction changed.
 RESOLVED.
+
+### F66 — Five HTTP boundaries had no test of what they ASK for — RESOLVED for the top three (2026-09-23)
+
+**Origin.** Backlog item B26, whose scope is a sweep rather than a defect: *"for every
+patch of a function in `sync.py`, `clients/`, or `live_matchup.py` that fetches or
+extracts, ask: is there a test anywhere that exercises the real function's contract?"*
+
+**Why the question is worth asking.** F50 and F52 shared a shape — correct, passing tests
+that patched the function whose *input* was wrong, then asserted arithmetic on the input
+the test itself supplied. Neither could catch a bad request, because the request never
+ran. F52 hid for a fortnight that way.
+
+**The sweep.** 25 patched boundary targets across the suite; 12 functions actually make an
+HTTP call. Each was scored on two properties: does a test pin **what it asks for**, and
+does one pin **what it returns when the payload is empty**?
+
+| boundary | request pinned | empty return | |
+|---|---|---|---|
+| `generate_nfl_schedule` | yes | yes | |
+| `fetch_vegas_implied_totals` | yes | yes | |
+| `generate_player_baselines` | yes | yes | |
+| `ingest_season` | yes | yes | |
+| `generate_playoff_bracket` | yes | yes | |
+| `update_player_cache` | yes | yes | |
+| `fetch_espn_projection_data` | yes | yes | F52 built this one |
+| `generate_league_schedule` | **no** | yes | **gap** |
+| `fetch_league_wide_player_scores` | **no** | yes | **gap — fixed** |
+| `ingest_transactions` | **no** | **no** | **gap — fixed** |
+| `ingest_drafts` | **no** | **no** | **gap** |
+| `live_matchup._fetch_json` | **no** | **no** | **gap — fixed, had no test of any kind** |
+
+**The three fixed, and why these three.** Each is a boundary whose silent failure is
+already known to be expensive here:
+
+- **`fetch_league_wide_player_scores`** is F54's feed, the one that took the Bayesian
+  blend from 157 players to 919. It returns `{}` on failure *by design* so a dead feed
+  cannot break a sync — correct, and exactly why the REQUEST is the thing that needs
+  pinning. A wrong season or week reverts every free-agent comparison to a preseason
+  prior, invisibly. Now pinned: season, week, `season_type=regular`, and all fourteen
+  positions including IDP.
+- **`ingest_transactions`** feeds the decision log, which the bid ledger reconciles
+  against. Its second contract is **F65's root cause, now written down**: the recorded
+  `week` is Sleeper's `leg`, not the loop counter, so a claim submitted before a week
+  rolled over carries the earlier week. The behaviour is right; the unwritten assumption
+  cost a day. Also pinned: every week 1..current is swept, and only `complete`
+  transactions are kept (B14's premise that this log is a record of WINS ONLY).
+- **`live_matchup._fetch_json`** had **no test of any kind**. It is the transport under
+  `game_clocks`, and B3's locks are computed from those clocks.
+  `decisions.locked_nfl_teams` deliberately treats a missing clock as UNLOCKED — *"an
+  absent clock is ignorance, not a kickoff"* — which is the right call ONLY because a
+  failed fetch raises here instead of returning an empty scoreboard. Were it ever to
+  swallow errors, every game would read pregame, locks would switch off league-wide, and
+  the optimizer would return to proposing lineups that cannot be set.
+
+**These are COVERAGE, not regression tests, and the difference is stated rather than
+blurred (rule 1).** No defect is being fixed; all three boundaries are believed correct
+today and the tests passed on first run. A test written after the code proves nothing on
+its own, so each was verified load-bearing **by mutation**:
+
+| mutation | test |
+|---|---|
+| `{int(week)}` → `{int(week) - 1}` in the stats URL | red |
+| `tx.get("leg", wk)` → `wk` | red |
+| wrap `_fetch_json` in `try/except: return {}` | red |
+
+All three mutations were reverted and the suite re-run clean.
+
+**NOT done, and recorded rather than dropped:** `generate_league_schedule` (missing a
+request-pin) and `ingest_drafts` (missing both). Draft data is historical and static, and
+the league schedule has empty-return coverage, so both rank below the three above — but
+they are gaps, and B26 asked for the list, not just the fixes.
+
+**The goal was never to remove mocks.** Hermetic tests are a design requirement
+(`CLAUDE.md` environment section; F48). All three patch `requests.get` — the transport,
+the lowest thing there is — and let the real function build the URL and parse the reply.
+
+Suite 1073 → 1085. Goldens 15/15. No production code changed. RESOLVED for the top three.

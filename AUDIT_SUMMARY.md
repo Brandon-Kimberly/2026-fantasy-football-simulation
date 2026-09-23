@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~103 findings and tracked follow-ups** | **70 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~104 findings and tracked follow-ups** | **71 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,19 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F66** five HTTP boundaries had no test of what they ASK for — RESOLVED for the top
+  three: B26's sweep, prompted by F50/F52 sharing a shape (passing tests that patched the
+  function whose INPUT was wrong, then asserted arithmetic on the input the test supplied).
+  Of 12 functions that make an HTTP call, five lacked a request-pin, and three of those
+  lacked an empty-return test too. Fixed: `fetch_league_wide_player_scores` (F54's feed —
+  returns {} on failure BY DESIGN, so the request is the only thing left to pin; a wrong
+  week silently reverts every free-agent comparison to a preseason prior),
+  `ingest_transactions` (whose `week` is Sleeper's `leg` not the loop counter — F65's root
+  cause, now written down), and `live_matchup._fetch_json`, which had NO test of any kind
+  and whose raise-on-failure is what makes `locked_nfl_teams` safe to treat a missing clock
+  as unlocked. COVERAGE, not regression tests — stated plainly, and each verified
+  load-bearing by mutation (all three went red, all reverted). Still open and recorded
+  rather than dropped: `generate_league_schedule` and `ingest_drafts`.
 - **F65** the bid ledger could never resolve a claim: Sleeper counts the week
   differently — RESOLVED: two waivers were WON and `bid_review` still printed
   `resolved 0`, silently. The ledger stamps `current_week` at BID time (3); Sleeper
