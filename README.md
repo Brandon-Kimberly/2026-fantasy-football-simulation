@@ -22,8 +22,8 @@ guided tour with the outputs already rendered, start with
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~98 findings and tracked follow-ups
-across 8 audit phases: 65 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~99 findings and tracked follow-ups
+across 8 audit phases: 66 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -239,7 +239,7 @@ is recorded:
 - **`docs/audit/AUDIT_PHASE_0_FINDINGS.md` … `docs/audit/AUDIT_PHASE_7_FINDINGS.md`**: seven phase reports
   (reproducibility harness; conservation and invariants; the statistical core; data ingestion
   integrity; decision logic; season and playoff mechanics + outputs; calibration).
-- **`docs/AUDIT_PLAN.md`**: the working spec, with 60 tracked follow-ups (F1-F60), each with
+- **`docs/AUDIT_PLAN.md`**: the working spec, with 61 tracked follow-ups (F1-F61), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed, and the R1
   machine-fault investigation.
 - **`docs/WAIVER_MECHANICS.md`**: whether a claim can *land* — on-waivers vs free-agent and

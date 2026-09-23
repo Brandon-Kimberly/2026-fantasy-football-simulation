@@ -4831,3 +4831,59 @@ needed a non-fictional string now uses a neutral placeholder. Nothing had been p
 the one commit involved was amended rather than left in history.
 
 Suite 728 → 734. Goldens 15/15, sync golden byte-identical. RESOLVED.
+
+
+### F61 — This league's FAAB bids do not track model value — MEASURED (2026-09-23)
+
+**Origin.** Backlog item B13, whose acceptance criterion was *"on the logged 2026 claims
+to date, v2's suggested bid is closer to the clearing price than the old heuristic on more
+than half of them."* Building v2 was easy. Testing it produced a result that makes the
+criterion unmeetable, and the result is worth more than the tool.
+
+**The measurement.** All 26 logged 2026 waiver claims carrying a bid, each player's VORP
+taken from the **frozen projection snapshot** in his own decision-log row:
+
+| | |
+|---|---|
+| correlation(VORP, winning bid) | **−0.136** |
+| claims won by a player with VORP ≤ 0 | **20 of 26** |
+| ...of those, bids above $1 | **12** |
+| largest bid | **$25** on a player at VORP **−2.57** |
+
+The correlation is not weak-positive. It is **zero, with a negative tilt**. The three
+biggest bids in the league this season all went to players the model prices *below
+replacement*.
+
+**What that means, stated carefully.** It does NOT mean the model is wrong about those
+players — it means the eight managers here are not bidding on season-mean value. They bid
+on news, on a vacated role, on a Sunday-night highlight. Those are real signals that
+arrive *before* a projection moves, and the model is explicitly a projection model.
+
+**The consequence for B13.** No VORP-based heuristic can be scored against these prices,
+because the prices are not a function of VORP. B13's acceptance criterion cannot be met by
+v1, by v2, or by anything of that shape. Tuning v2 until it "passed" would be fitting
+noise with n=26 and r=−0.136, which is the exact failure this repo keeps a golden master
+to prevent.
+
+**So v2 ships unvalidated, beside v1, and says so.** Both appear in `waiver_targets`, and
+the `basis` string carries this measurement rather than leaving the reader to assume
+either number is calibrated. B13 itself anticipated this: *"keep the old heuristic printed
+beside it, labelled, until a season of claims lets B14's ledger compare them."* That is
+now the only route, and B14 is next.
+
+**A methodological error I made and corrected mid-measurement**, recorded because it is
+the same one F-numbered elsewhere today. My first pass scored week-1 and week-2 claims
+against **today's** replacement levels, which made almost every VORP negative and floored
+both heuristics at $1 — producing a meaningless "v2 closer on 0 of 26". The decision log
+freezes a projection snapshot per claim precisely so contemporaneous value is
+recoverable; the corrected measurement uses it. This is the same stale-projection
+contamination caught in `live_matchup --tail` the same day.
+
+**Not adopted, and why.** An obvious extension is to count a rival as a *bidder* when he
+is THIN at a position (one healthy starter) rather than only when he is BELOW replacement
+there — B13's own Mahomes reasoning is of that shape. It is plausible and unvalidatable
+on this data, so `_rivals_needing` keeps the strict below-replacement test and the looser
+one is recorded here instead of guessed at in code.
+
+Suite 902 → 918. Goldens 15/15, sync golden byte-identical. MEASURED; B13's tool built
+and shipped labelled, its acceptance criterion retired as unmeetable with the evidence.

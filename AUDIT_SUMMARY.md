@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~98 findings and tracked follow-ups** | **65 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~99 findings and tracked follow-ups** | **66 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,17 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F61** this league's FAAB bids do not track model value — MEASURED: on all 26 logged
+  2026 claims, using each claim's own FROZEN projection snapshot, correlation(VORP,
+  winning bid) = **-0.136**; 20 of 26 claims went to players at VORP <= 0, 12 of those
+  above $1, and the largest bid ($25) went to a player at VORP -2.57. The managers here
+  bid on news and vacated roles, not on season-mean value. B13's acceptance criterion --
+  "v2 closer to the clearing price than v1 on more than half" -- is therefore unmeetable
+  by ANY VORP-based rule, and tuning v2 until it passed would be fitting noise at n=26.
+  v2 ships beside v1, both labelled unvalidated, with this measurement in the `basis`
+  string; B14's ledger is the only route to settling it. A first pass scored old claims
+  against TODAY's replacement levels and was discarded as contaminated -- the same
+  stale-projection error caught in `live_matchup --tail` the same day.
 - **F60** a whitelisted missing asset was imputed as healthy and available, whatever the
   roster said — RESOLVED: found live while evaluating a three-way trade that `apply_trade`
   refused, claiming a team was over the active-roster limit before any trade. A rostered

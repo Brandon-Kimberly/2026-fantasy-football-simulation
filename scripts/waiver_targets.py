@@ -24,6 +24,12 @@ from fantasy_sim.storage import decisions_week_path, save_json
 from fantasy_sim.config import MY_TEAM as DEFAULT_TEAM
 
 
+def _v2(t):
+    """B13's v2 bid range, printed BESIDE v1 and never instead of it."""
+    v = (t.get("bid") or {}).get("v2") or {}
+    return f"{v['low']}-{v['high']}" if v else "-"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--team", default=DEFAULT_TEAM)
@@ -45,7 +51,7 @@ def main(argv=None):
     print(f"  holes this week: {r['holes'] or 'none'}   next week: {r['holes_next_week'] or 'none'}")
     print(f"  {'#':>2s} {'szn#':>4s} {'player':26s} {'pos':4s} {'tier':>4s} {'szn mean':>8s} {'szn VORP':>8s} "
           f"{'WK MEAN':>7s} {'p10':>5s} {'p50':>5s} {'p90':>5s} "
-          f"{'zero':>5s} {'fills':8s} {'bid':>4s} {'model':>5s}  incumbent / P(beats)")
+          f"{'zero':>5s} {'fills':8s} {'bid':>4s} {'model':>5s} {'v2 range':>9s}  incumbent / P(beats)")
     depth_header_shown = False
     for i, t in enumerate(r["targets"], 1):
         if t["fills"] == "depth" and not depth_header_shown:
@@ -59,7 +65,10 @@ def main(argv=None):
         print(f"  {i:2d} {t.get('season_rank', 0):4d} {t['name'][:26]:26s} {t['pos']:4s} {str(t['tier'] or '-'):>4s} "
               f"{t['mean']:8.1f} {t['vorp']:+8.1f} {w['mean']:7.1f} "
               f"{w['p10']:5.1f} {w['p50']:5.1f} {w['p90']:5.1f} {100 * w['p_zero']:4.0f}% {t['fills']:8s} "
-              f"{t['bid']['suggested']:4d} {t['bid']['typical_manager_model']:5.1f}  {inc}")
+              f"{t['bid']['suggested']:4d} {t['bid']['typical_manager_model']:5.1f} "
+              f"{_v2(t):>9s}  {inc}")
+    if r.get("targets"):
+        print(f"  BIDS: {r['targets'][0]['bid']['basis']}")
     print("  RANKED BY WK MEAN -- the week the claim lands in. szn#/szn mean/szn VORP are "
           "SEASON-level (no matchup, no Vegas total): they decide which players are worth "
           "sampling, not which to claim. A row whose # is far above its szn# is a matchup "

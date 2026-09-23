@@ -334,6 +334,130 @@ def suggest_bid(vorp, fills, remaining_faab, league_avg_faab, min_bid=1):
     return int(max(min_bid, min(bid, int(remaining_faab))))
 
 
+# B13 constants. All UNVERIFIED: they shape a SUGGESTION a human then overrides, and
+# nothing downstream consumes them. Each is anchored to the two week-3 misses that
+# motivated the function rather than pulled from the air.
+BID_UNCONTESTED_SHARE = 0.10   # with no rival needing the position, pay a token for the
+                               # option -- Roquan went uncontested and $15 bought nothing
+BID_CONTESTED_SHARE = 0.55     # with the league chasing him, most of the marginal value
+BID_BROKE_FAAB = 5             # a rival under this cannot meaningfully bid
+BID_RANGE_WIDTH = 0.35         # +-35% around the point estimate, because this is a
+                               # suggestion with real uncertainty, not a price
+
+
+def suggest_bid_v2(claim_value, fallback_value, rivals_needing, rival_faab, my_faab,
+                   rival_aggression=None, min_bid=1):
+    """A bid RANGE built from marginal value over the fallback and actual competition.
+
+    B13. The v1 heuristic and the market comparable both price RAW value against MY
+    budget, and both were badly wrong twice in week 3:
+
+      * Roquan: comparable said ~$22, the owner bid $15, and nobody else bid at all.
+      * Mahomes: comparable said ~$35; the right bid was $15-18, because the fallback was
+        worth 7.63 of his 12.60 and only three rivals carried one QB, all healthy.
+
+    Two inputs fix both. `claim_value - fallback_value` is what is actually being bought:
+    if the man you would claim anyway is worth 60% of the man you want, you are bidding
+    for the other 40%. And a player only costs what someone else will pay, so rivals who
+    do not need the position, or cannot afford him, are not bidders.
+
+    `rival_faab` is the budget of each rival WHO NEEDS THE POSITION (len() need not equal
+    `rivals_needing`; the caller may know the count without the budgets).
+    `rival_aggression` is their MANAGER_PROFILES faab_agg, 2025-derived priors (F31) and
+    never optimiser-tuned; 1.0 when unknown.
+
+    Returns low/point/high plus the components, so the number can be argued with.
+    """
+    marginal = max(0.0, float(claim_value) - float(fallback_value))
+    budget = max(0.0, float(my_faab))
+    if marginal <= 0.0 or budget <= 0.0:
+        return {"low": min_bid, "point": min_bid, "high": min_bid, "marginal": marginal,
+                "competition_factor": 0.0, "bidders": 0,
+                "reasoning": ("the fallback is as good as the claim, so nothing is being "
+                              "bought: bid the minimum. Marginal value over the fallback "
+                              "is what a rival would have to outbid you for.")}
+
+    # Who is actually bidding: a rival who needs the position AND can pay.
+    funded = [f for f in (rival_faab or []) if float(f) >= BID_BROKE_FAAB]
+    bidders = min(int(rivals_needing), len(funded)) if rival_faab else int(rivals_needing)
+    aggr = list(rival_aggression or [])
+    mean_aggr = (sum(float(a) for a in aggr) / len(aggr)) if aggr else 1.0
+
+    # Competition scales the share of marginal value worth paying, between the
+    # uncontested floor and the contested ceiling.
+    if bidders <= 0:
+        share = BID_UNCONTESTED_SHARE
+    else:
+        reach = min(1.0, bidders / 3.0) * max(0.25, min(2.0, mean_aggr))
+        share = BID_UNCONTESTED_SHARE + (BID_CONTESTED_SHARE - BID_UNCONTESTED_SHARE) * min(1.0, reach)
+
+    # Marginal value is in points per week; a point of weekly edge is worth a share of
+    # the remaining budget. 4% per point is v1's rate, kept so the two are comparable.
+    point = budget * min(1.0, 0.04 * marginal) * share
+    point = int(max(min_bid, min(round(point), budget)))
+    low = int(max(min_bid, min(round(point * (1 - BID_RANGE_WIDTH)), budget)))
+    high = int(max(min_bid, min(round(point * (1 + BID_RANGE_WIDTH)), budget)))
+    return {
+        "low": low, "point": point, "high": high,
+        "marginal": marginal, "competition_factor": share, "bidders": bidders,
+        "reasoning": (
+            f"marginal over the fallback {marginal:.2f}/wk (claim {float(claim_value):.2f} "
+            f"minus fallback {float(fallback_value):.2f}); {bidders} rival(s) need the "
+            f"position and can pay (aggression {mean_aggr:.2f}), so pay {share:.0%} of it. "
+            f"Rivals who do not need the position, or hold under ${BID_BROKE_FAAB}, are "
+            f"not bidders."),
+    }
+
+
+def score_bid_suggestion(suggested, winning_bid, i_won):
+    """Was a suggested bid wrong, given what the log can actually tell us?
+
+    B13's trap: clearing prices are CENSORED. The winning bid is visible; the runner-up
+    never is. So the four cases are genuinely different questions and averaging one
+    absolute distance across them would be meaningless:
+
+      won,  suggested <= winning : NOT an error. The true price was at most my bid, and
+                                   the suggestion may well have won too.
+      won,  suggested >  winning : an overpay of the difference -- I know it was winnable
+                                   for less because I won for less.
+      lost, suggested <  winning : a shortfall of the difference; that bid would have lost.
+      lost, suggested >= winning : NOT an error -- that bid would have won.
+    """
+    s, w = float(suggested), float(winning_bid)
+    if i_won:
+        if s <= w:
+            return {"error": False, "miss": 0.0,
+                    "note": f"won at {w:.0f}; the true price was at most that, so a "
+                            f"suggestion of {s:.0f} is not shown to be wrong"}
+        return {"error": True, "miss": s - w,
+                "note": f"overpay: won at {w:.0f}, suggested {s:.0f}"}
+    if s >= w:
+        return {"error": False, "miss": 0.0,
+                "note": f"a rival won at {w:.0f}; {s:.0f} would have won it"}
+    return {"error": True, "miss": w - s,
+            "note": f"shortfall: a rival won at {w:.0f}, suggested {s:.0f}"}
+
+
+def _rivals_needing(engine, team, pos):
+    """Rivals whose best player at `pos` is below replacement -- the ones who would
+    actually bid -- with their budget and 2025-derived aggression prior (F31)."""
+    from fantasy_sim.config import MANAGER_PROFILES
+    rep = float(engine.replacement_levels.get(pos, 0.0))
+    out = []
+    for other in engine.rosters:
+        if other == team:
+            continue
+        best = max((float((_entry(engine, n) or {}).get("mean") or 0.0)
+                    for n in engine.rosters[other]
+                    if normalize_position((_entry(engine, n) or {}).get("pos") or "") == pos),
+                   default=0.0)
+        if best < rep:
+            out.append({"team": other,
+                        "faab": float(engine.current_faab.get(other, 100.0)),
+                        "aggression": float(MANAGER_PROFILES.get(other, {}).get("faab_agg", 1.0))})
+    return out
+
+
 def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, positions=None):
     """Rank free agents for `team` in `week`: hole-fillers first (a slot no rostered player can
     fill), then upgrades over the weakest incumbent at a slot, then DEPTH upgrades -- a free
@@ -435,13 +559,29 @@ def rank_waiver_targets(engine, team, week, top_n=15, sims=2000, seed=None, posi
     for i, t in enumerate(pool):
         s = sample_week_scores(engine, t["name"], week, sims, seed=None if seed is None else seed + i)
         t["week"] = summarise_scores(s)
+        # B13: v2 beside v1, both labelled. v1 is NOT removed -- B13 keeps it until
+        # B14's ledger has a season of claims to score them with, and the measurement
+        # below says why that ledger is the only way this gets settled.
+        rivals = _rivals_needing(engine, team, t["pos"])
+        v2 = suggest_bid_v2(claim_value=t["vorp"],
+                            fallback_value=float(t.get("fallback_vorp") or 0.0),
+                            rivals_needing=len(rivals),
+                            rival_faab=[r["faab"] for r in rivals],
+                            my_faab=remaining,
+                            rival_aggression=[r["aggression"] for r in rivals])
         t["bid"] = {
             "suggested": suggest_bid(t["vorp"], t["fills"], remaining, league_avg),
+            "v2": v2,
             "typical_manager_model": round(float(engine._compute_faab_bid(
                 remaining, 0.0, agg, league_avg)), 1),
             "remaining_faab": remaining,
             "basis": "UNVERIFIED value heuristic (see suggest_bid); the model bid is what a typical "
-                     "manager would pay.",
+                     "manager would pay. v2 (see suggest_bid_v2) prices the MARGIN over the "
+                     "fallback against actual competition. NEITHER is validated: measured on "
+                     "the 26 logged 2026 claims, the correlation between a player's VORP and "
+                     "his winning bid is -0.136 -- this league does not bid on model value, so "
+                     "no VORP-based rule can be scored against these prices. B14's ledger is "
+                     "the only thing that will settle it.",
         }
         if t["incumbent"] is not None:
             inc = sample_week_scores(engine, t["incumbent"], week, sims, seed=None if seed is None else seed + 1000 + i)
