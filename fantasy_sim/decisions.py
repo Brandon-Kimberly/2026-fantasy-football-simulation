@@ -1028,6 +1028,42 @@ def _package(engine, d_team, r_team, p1, p2, p3):
     return d_list, r_list, tent_d, tent_r, d_gives, r_gives
 
 
+def selection_order(candidates):
+    """The order --evaluate should spend its paired sims in: MY screen gain, descending.
+
+    B2. The screen decides which candidates the simulation ever sees. Ranking them by a
+    rule that misranks -- and `their_screen_gain` is the part that misranks worst, being
+    a one-week proxy applied to someone else's roster -- filters the good ones out before
+    the sim gets a look. So the counterparty's side is not used for selection at all; the
+    sim decides it.
+    """
+    return sorted(candidates, key=lambda c: -float(c.get("my_screen_gain") or 0.0))
+
+
+def screen_sim_disagreement(my_screen_gain, sim_champ_delta):
+    """Do the cheap screen and the paired simulation point the same way?
+
+    B2 scope 3. When they differ in SIGN that is the most informative thing on the page,
+    and it must be stated rather than quietly resolved -- four week-3 recommendations
+    went out on screen numbers the sim then reversed.
+
+    The simulation wins. It measures championship odds on paired seasons; the screen is a
+    single-week lineup proxy with a 0.1x bench weight that cannot express injury or bye
+    cover across a season.
+    """
+    if sim_champ_delta is None:
+        return {"disagree": False, "verdict": "unsimulated",
+                "note": "unsimulated -- this is a screen number only, not a measurement"}
+    a, b = float(my_screen_gain or 0.0), float(sim_champ_delta)
+    if (a > 0) == (b > 0):
+        return {"disagree": False, "verdict": "screen and sim agree",
+                "note": f"screen {a:+.2f}, sim champ {b:+.2f} -- same direction"}
+    return {"disagree": True, "verdict": "the sim wins",
+            "note": (f"DISAGREEMENT: screen says {a:+.2f} and the sim says "
+                     f"{b:+.2f} champ%. The screen is a one-week lineup proxy and "
+                     f"cannot price injury or bye cover; trust the sim.")}
+
+
 def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=35.0, top_n=10,
                        evaluate_top=0, batches=3, sims=1000):
     from fantasy_sim.config import MANAGER_PROFILES
@@ -1060,8 +1096,16 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
                 "buried_behind": max(behind)[1] if behind else None,
                 "fills_my_slot": min(elig)[1] if elig else None,
                 "i_give": i_give, "i_get": i_get,
-                "my_gain": float(my_gain), "their_gain": float(their_gain),
+                # B2: both are SCREEN numbers and are named so. `their_screen_gain` is a
+                # one-week proxy applied to someone else's roster and must never be
+                # printed as a finding without a paired sim behind it.
+                "my_screen_gain": float(my_gain), "their_screen_gain": float(their_gain),
+                "my_gain": float(my_gain), "their_gain": float(their_gain),   # legacy keys
+                # Worth PROPOSING is about me. Whether they accept is theirs to decide
+                # and the sim's to measure -- the old `acceptable` claimed both.
+                "worth_proposing": bool(my_gain > 0),
                 "acceptable": bool(my_gain > 0 and their_gain > 0),
+                "simulated": False, "sim_champ_delta": None,
                 "their_playoff_pct": float(pp["Playoff_Pct"]) if pp else None,
                 "their_expected_wins": float(pp["Expected_Wins"]) if pp else None,
                 "seller": (float(pp["Playoff_Pct"]) < seller_threshold) if pp else None,
@@ -1075,20 +1119,36 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
             d_list, r_list, tent_d, tent_r, they_give, they_want = _package(engine, other, team, p1, p2, p3)
             their_gain, my_gain = gos(tent_d) - gos(d_list), gos(tent_r) - gos(r_list)
             sell.append({"buyer": other, "they_want": they_want, "they_give": they_give,
+                         "my_screen_gain": float(my_gain),
+                         "their_screen_gain": float(their_gain),
                          "my_gain": float(my_gain), "their_gain": float(their_gain),
+                         "worth_proposing": bool(my_gain > 0),
                          "acceptable": bool(my_gain > 0 and their_gain > 0),
+                         "simulated": False, "sim_champ_delta": None,
                          "their_playoff_pct": float(pp["Playoff_Pct"]) if pp else None,
                          "willingness": MANAGER_PROFILES.get(other, {}).get('trade_will')})
     buy.sort(key=lambda b: (0 if b["acceptable"] else 1, -b["my_gain"]))
     sell.sort(key=lambda s_: (0 if s_["acceptable"] else 1, -s_["my_gain"]))
     buy, sell = buy[:top_n], sell[:top_n]
-    for b in buy[:evaluate_top]:
-        b["evaluation"] = evaluate_trade(engine, team, b["i_give"], b["with"], b["i_get"], batches=batches, sims=sims)
+    # B2 scope 2(b): spend the sims on MY best candidates, not on the ones the screen
+    # guesses the counterparty likes.
+    for b in selection_order(buy)[:evaluate_top]:
+        b["evaluation"] = evaluate_trade(engine, team, b["i_give"], b["with"], b["i_get"],
+                                         batches=batches, sims=sims)
+        mine = (b["evaluation"].get("teams") or {}).get(team) or {}
+        delta = ((mine.get("champ_pct") or {}).get("delta"))
+        b["simulated"] = True
+        b["sim_champ_delta"] = float(delta) if delta is not None else None
+        b["disagreement"] = screen_sim_disagreement(b["my_screen_gain"], b["sim_champ_delta"])
     return {"team": team, "week": week, "buy": buy, "sell": sell, "contention_note": contention_note,
             "note": ("buy = F2's offer constructor with my roster as the desperate side (their buried bench "
                      "player who starts at my weakest fillable slot, for my cheapest player that upgrades one "
                      "of their starters, 2-for-2 with the throw-in); sell = the mirror. Gains = the engine's "
-                     "acceptance rule (optimal score incl. 0.1 x bench). Need-driven, not best-available. "
+                     "acceptance rule (optimal score incl. 0.1 x bench) and are SCREEN numbers, not "
+                     "measurements: a one-week lineup proxy that cannot price injury or bye cover across a "
+                     "season (B2). their_screen_gain is the least reliable of them -- a guess about another "
+                     "roster -- so it never decides what gets simulated, and anything without a paired "
+                     "evaluation is labelled unsimulated. Need-driven, not best-available. "
                      "willingness = MANAGER_PROFILES trade_will, modelled and of unverified provenance, never "
                      "a filter.")}
 

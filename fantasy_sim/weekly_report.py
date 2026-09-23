@@ -477,6 +477,11 @@ def gate_export_fresh(week, step_started):
 
 
 # ---------------------------------------------------------------------------- digest
+# B2: the standing caveat on every screen-derived trade number.
+SCREEN_ONLY_NOTE = (
+    "**These are SCREEN numbers, not measurements** (B2). The acceptance rule is a one-week optimal-lineup proxy with a 0.1x bench weight; it cannot price injury cover or bye cover across a season, and in week 3 it disagreed with the paired simulation four times out of four. `Their screen gain` is the least reliable of them -- a guess about another manager's roster. Run `py -3.10 -m scripts.evaluate_trade` before acting on anything here.")
+
+
 # B3: printed whenever the report is rendered after kickoff. The lineup section is
 # already constrained to what can still be set; the MATCHUP section is not -- it is a
 # fresh-week solve that ignores banked points, which is exactly the gap that had the
@@ -641,12 +646,18 @@ def render_digest(report, team, week):
         if not tr.get("buy"):
             md += ["No trades to propose: no buy-side candidates met both sides' acceptance rule this week.", ""]
         else:
-            md += [_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My gain", "Their gain", "Acceptable", "Playoff%", "Seller", "Willingness"],
+            md += [_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My screen gain", "Their screen gain", "Paired sim", "Playoff%", "Seller", "Willingness"],
                       [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
-                        ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
+                        ", ".join(b["i_get"]), f"{b.get('my_screen_gain', b.get('my_gain', 0.0)):+.1f}", f"{b.get('their_screen_gain', b.get('their_gain', 0.0)):+.1f}",
+                        (f"sim {b['sim_champ_delta']:+.2f}" if b.get("simulated") and b.get("sim_champ_delta") is not None else "UNSIMULATED"),
                         (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
                             ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
                            for b in tr.get("buy", [])]), ""]
+            md += [SCREEN_ONLY_NOTE, ""]
+            dis = [b for b in tr.get("buy", []) if (b.get("disagreement") or {}).get("disagree")]
+            if dis:
+                md += [f"**Screen/sim disagreement on {len(dis)} candidate(s):**", ""]
+                md += [f"- {', '.join(b['i_get'])}: {b['disagreement']['note']}" for b in dis] + [""]
         if tr.get("sell"):
             md += ["Sell side:", ""]
             md += [_table(["From", "Target", "I give", "I get", "My gain", "Their gain"],
@@ -1024,12 +1035,20 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
             out.append("<p class=\"note\">No trades to propose: no buy-side candidates met both "
                        "sides' acceptance rule this week.</p>")
         else:
-            out.append(html_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My gain", "Their gain", "Acceptable", "Playoff%", "Seller", "Willingness"],
+            out.append(html_table(["From", "Target", "Buried behind", "Slot", "I give", "I get", "My screen gain", "Their screen gain", "Paired sim", "Playoff%", "Seller", "Willingness"],
                               [[b["with"], b["target"], b.get("buried_behind") or "-", b.get("fills_my_slot") or "-", ", ".join(b["i_give"]),
-                                ", ".join(b["i_get"]), f"{b['my_gain']:+.1f}", f"{b['their_gain']:+.1f}", "yes" if b["acceptable"] else "no",
+                                ", ".join(b["i_get"]), f"{b.get('my_screen_gain', b.get('my_gain', 0.0)):+.1f}", f"{b.get('their_screen_gain', b.get('their_gain', 0.0)):+.1f}",
+                                (f"sim {b['sim_champ_delta']:+.2f}" if b.get("simulated") and b.get("sim_champ_delta") is not None else "UNSIMULATED"),
                                 (f"{b['their_playoff_pct']:.0f}" if b.get("their_playoff_pct") is not None else "-"),
                                     ("yes" if b.get("seller") else "no") if b.get("seller") is not None else "-", b.get("willingness", "-")]
-                                   for b in tr.get("buy", [])], signed_cols=("My gain", "Their gain")))
+                                   for b in tr.get("buy", [])],
+                              signed_cols=("My screen gain", "Their screen gain")))
+            out.append('<div class="degraded">' + T(SCREEN_ONLY_NOTE) + "</div>")
+            dis = [b for b in tr.get("buy", []) if (b.get("disagreement") or {}).get("disagree")]
+            if dis:
+                out.append(f"<h3>Screen/sim disagreement on {len(dis)} candidate(s)</h3><ul>"
+                           + "".join(f"<li>{T(', '.join(b['i_get']))}: {T(b['disagreement']['note'])}</li>"
+                                     for b in dis) + "</ul>")
         if tr.get("sell"):
             out.append("<h3>Sell side</h3>")
             out.append(html_table(["From", "Target", "I give", "I get", "My gain", "Their gain"],

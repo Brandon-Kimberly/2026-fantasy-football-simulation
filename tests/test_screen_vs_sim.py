@@ -61,6 +61,21 @@ def _fs():
             base[n] = _p(mu, pos)
             entries.append({"name": n, "pos": pos, "team": "DET"})
         rosters[t] = entries
+    # ASYMMETRY, or the offer constructor finds nothing: it looks for THEIR buried bench
+    # player who would start at MY weakest fillable slot. With four identical rosters
+    # nobody is buried and nobody is desperate.
+    for e in rosters[ME]:
+        if e["pos"] == "LB":
+            e["name"] = "My_Weak_LB"
+    base["My_Weak_LB"] = _p(3.0, "LB")
+    base["Their_Buried_LB"] = _p(8.5, "LB")     # behind their 9.0 starter, ahead of my 3.0
+    rosters[TEAMS[1]].append({"name": "Their_Buried_LB", "pos": "LB", "team": "DET"})
+    # _construct_trade_offers returns nothing unless the RICH side has at least two bench
+    # players (simulation.py: `if len(r_bench) < 2: return []`), so a second buried body
+    # is required for the constructor to run at all.
+    base["Their_Buried_DB"] = _p(8.0, "DB")
+    rosters[TEAMS[1]].append({"name": "Their_Buried_DB", "pos": "DB", "team": "DET"})
+
     for i in range(26):
         base[f"POOL_WR_{i:02d}"] = _p(9.5 - 0.15 * i, "WR")
     return {
