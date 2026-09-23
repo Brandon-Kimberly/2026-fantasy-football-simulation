@@ -30,7 +30,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
-    SYNC_PROVENANCE_FILE, git_head_short,
+    SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     draft_log_file, season_log_file,
 )
@@ -1184,6 +1184,10 @@ def _sync_body(sharp_polling=False):
 
     record_source("sleeper_matchups", rows=len(all_weeks_actuals))
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
+    # B19: freeze what was FIRST reported, before a correction can overwrite it.
+    n_first = append_first_recorded_scores(all_weeks_actuals, current_nfl_week, baselines)
+    if n_first:
+        print(f"[FIRST SCORES] {n_first} score(s) recorded for the first time.")
     n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db, standings=standings_payload)
     if n_tx:
         print(f"[DECISION LOG] {n_tx} new transaction(s) ingested.")
@@ -1489,6 +1493,73 @@ def append_projection_log(rows, path=PROJECTION_LOG_FILE):
     except Exception as ex:
         logging.warning("PROJECTION LOG: could not append %d rows to %s (%s). Projection error "
                         "for this week cannot be measured next season.", len(rows), path, ex)
+        return 0
+
+
+def append_first_recorded_scores(weekly_actuals, current_week, baselines=None,
+                                 path=FIRST_SCORES_FILE):
+    """B19. One row per scored player per COMPLETED week, written once, never updated.
+
+    `weekly_actuals.json` is rewritten every sync, so a stat correction destroys the
+    number it corrected. This is the only record of what was ORIGINALLY reported.
+
+    Three rules, each of which would destroy the evidence if broken:
+
+      * the CURRENT week is skipped -- it is still accruing, and freezing a half-played
+        week would make every later update look like a correction;
+      * a (week, name) already present is left alone, including when the score has
+        CHANGED. That difference is the finding;
+      * a player with no baseline is still recorded, with a null pid, because dropping
+        him loses the very score a correction might later move.
+
+    Keyed on (week, name): those names come from resolve_player_keys and are already
+    disambiguated, a colliding player being stored "Name (pid)". The pid is carried
+    alongside so the log outlives the naming convention.
+
+    Returns rows appended. Never raises: a record is not a dependency.
+    """
+    try:
+        seen = set()
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    seen.add((r.get("week"), r.get("name")))
+
+        stamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        bl = baselines or {}
+        new_rows = []
+        for wk_key, payload in (weekly_actuals or {}).items():
+            try:
+                wk = int(str(wk_key).split("_")[-1])
+            except ValueError:
+                continue
+            if wk >= int(current_week):
+                continue
+            for name, pts in ((payload or {}).get("player_scores") or {}).items():
+                if (wk, name) in seen:
+                    continue
+                entry = bl.get(name) or {}
+                pid = entry.get("player_id")
+                new_rows.append({"week": wk, "name": name,
+                                 "player_id": str(pid) if pid is not None else None,
+                                 "points": float(pts or 0.0), "recorded_at": stamp})
+                seen.add((wk, name))
+        if not new_rows:
+            return 0
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for r in sorted(new_rows, key=lambda x: (x["week"], x["name"])):
+                handle.write(json.dumps(r, sort_keys=True) + "\n")
+        return len(new_rows)
+    except Exception as ex:
+        logging.warning("FIRST SCORES: could not append to %s (%s). Stat corrections for "
+                        "these weeks will not be detectable.", path, ex)
         return 0
 
 

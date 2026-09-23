@@ -210,6 +210,12 @@ DECISION_LOG_FILE = _log("decision_log.jsonl")
 # so a claim I LOST never appears there, and the losses are the half that
 # calibrates a bid.
 BID_LEDGER_FILE = _log("bid_ledger.jsonl")
+# B19: the FIRST score recorded for each player in each completed week, written
+# once and never touched again. weekly_actuals.json is regenerated every sync, so a
+# Tuesday stat correction overwrites the number it corrected; this is the only copy
+# of what was originally reported, and the only way January's REALIZED side can be
+# held still while it is being measured against.
+FIRST_SCORES_FILE = _log("first_recorded_scores.jsonl")
 # F15 ingestion row: one immutable document per season -- the league's real completed draft,
 # picks resolved to team names at ingestion (sync.ingest_drafts; a file that exists is never
 # rewritten). Tracked in git like the other logs: Sleeper ages drafts out, so the on-disk

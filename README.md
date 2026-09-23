@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-943%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-941%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -116,6 +116,7 @@ py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/dr
 py -3.10 -m scripts.season_retrospective        # a completed season in four measurements, no combined verdict
 py -3.10 -m scripts.trade_leverage              # B12: sell-high candidates (league draft pick + preseason vs corrected) and rivals' below-replacement slots my surplus could fix
 py -3.10 -m scripts.live_matchup --tail         # B12: how improbable is today? per-player and team z against what should have been scored BY NOW, clock-adjusted
+py -3.10 -m scripts.stat_corrections            # B19: what Sleeper FIRST reported vs what it reports now -- weekly_actuals is rewritten every sync and overwrites its own evidence
 py -3.10 -m scripts.bid_review                  # B14: what I suggested vs bid vs what it cost; --add records a claim AT BID TIME (the decision log holds only wins)
 py -3.10 -m scripts.data_health                 # B12: every source PASS/DEGRADED/FAIL against what is on disk -- per-week ESPN coverage, F54 blend reach, Vegas fallbacks by value (sync status is check_freshness)
 py -3.10 -m scripts.market_sweep                 # B12: every starting slot vs the best free agent, on engine values -- upgrades, the drop (a different man), dead weight
@@ -197,7 +198,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 943 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 941 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
