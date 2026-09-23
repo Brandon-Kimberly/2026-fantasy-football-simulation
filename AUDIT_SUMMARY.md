@@ -415,8 +415,11 @@ than "fixed": the measurement said the code was right.
   Fixed via a league-wide stats feed unioned under the authoritative matchup values, and
   by moving `_calc_replacement_levels()` after `_apply_bayesian_updates()`. Blend now
   reaches 919. RB/WR replacement falls, LB/DB rises. Goldens regenerated (week06 only;
-  wins conserved, std 147.74 -> 141.87). `pass_catchers_meta`/`nfl_position_groups`
-  remain pre-blend — the open half, not bundled.
+  wins conserved, std 147.74 -> 141.87). **Open half CLOSED 2026-09-23** (backlog B8):
+  `pass_catchers_meta`/`nfl_position_groups` now build below the blend, so vacated
+  injury volume is apportioned on posterior rather than preseason means. The
+  mean-weighted WEIGHTING RULE is untouched and pinned by a test — F24 measured it
+  correct and CLAUDE.md lists it as deliberate; B8 changed its inputs, not the rule.
 - **F53** the luck ledger: five pre-registered measurements — BUILT: three seasons of
   "am I actually cursed?" made answerable by fixing the definitions in writing BEFORE the
   data (`docs/LUCK_LEDGER.md`), since any specific sequence is improbable after the fact.

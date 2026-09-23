@@ -4433,6 +4433,29 @@ built on pre-blend means.** Moving those changes vacated-volume apportionment, w
 separate prediction-level change with its own evidence base (F24). Recorded as the open
 half of F54 rather than smuggled in alongside.
 
+**The open half is now CLOSED (2026-09-23, backlog B8, commits `1cc5c93` / `ce9fa59`).**
+Both builders moved below `_apply_bayesian_updates()`. A starter's vacated volume is now
+apportioned on posterior means, so a backup who has been producing for three weeks gets a
+larger share than one who has not — before, both carried an identical preseason number
+and the posterior that knew the difference had not run yet.
+
+*What this did NOT change, because it is the trap:* the WEIGHTING RULE. F24 measured
+mean-weighted apportionment as correct on 8 real 2025 lead-RB absences and `CLAUDE.md`
+lists it as a deliberate decision. B8 changed what that rule READS, never the rule, and a
+test asserts `depth_chart_order` appears nowhere in the engine so a later session that
+finds itself editing the weighting knows it has gone wrong.
+
+Goldens regenerated for `week06` and `week15` only; `week01` has zero completed weeks, so
+there is nothing to blend and it hashed identically — mechanical proof the change is
+scoped to the blend. Note `scripts.run_behavior_check` reports "no drift" on this class of
+change because it runs the `week01` scenario; that is a real weakness of the check, not
+evidence of no effect.
+
+*Rule 8 was broken here and is being recorded rather than quietly fixed:* commit `ce9fa59`
+closed the finding in code without updating this file or `AUDIT_SUMMARY.md` in the same
+commit. Both were updated one commit later, alongside B7. The rule exists because F27
+found the summary stale on eighteen findings; a same-sitting repair is still a miss.
+
 **MAJOR.** Goldens regenerated — `week06` only, the mid-season fixture with five
 completed weeks; `week01` and `week15` hash identically because with no completed weeks
 there is nothing to blend. The week06 delta is modest and conserves what it must:
