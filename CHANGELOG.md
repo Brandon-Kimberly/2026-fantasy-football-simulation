@@ -5,6 +5,48 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v7.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v7.0.0) — 2026-09-23 (MAJOR)
+
+**Every probability this model states is now wider, because the old ones were wrong.**
+Measured over 240 team-weeks of the real 2025 season, the 80% interval covered 67% of
+outcomes and the 50% interval covered 36%. `INTERVAL_INFLATION = 1.41` on `std_aleatoric`
+brings that to 0.80 and 0.46, with `sd_z_opt` 1.27 → 1.005.
+
+The factor is 1.41 and not 1.27 for a reason worth stating: aleatoric is only part of the
+variance, so inflating it alone cannot scale the total by the full amount. Two backtest
+runs pinned the split — aleatoric is 62.5% of team-week variance — which makes the
+required factor `sqrt((1.27² − 0.375)/0.625) = 1.408`. Epistemic is untouched and pinned
+by a test: it is drawn once per season on purpose, to carry parameter uncertainty into
+season outcomes.
+
+**The honest residual, not tuned away:** the 50% band still covers only 0.45. One scale
+factor repairs the 80% band and leaves the 50% band narrow, which says the predictive
+shape is not Gaussian. That is a shape problem and this was a scale fix.
+
+**Smaller than advertised.** The backlog warned that every champ% would collapse toward
+12.5%. Measured at 6 × 300 sims, the three leaders lose 0.3 / 0.7 / 1.4 points and
+best-to-worst spread narrows 26.1 → 25.5. A championship is a season aggregate, and
+season aggregates are dominated by the once-per-season epistemic draw and by roster
+quality. Weekly numbers — where `live_matchup`, `compare_players` and every stated win
+probability live — move considerably more.
+
+Also in this tag: **vacated injury volume now reads the Bayesian posterior** rather than
+preseason means, closing the open half of F54. When a starter goes down, a backup who has
+produced for three weeks now inherits a larger share than one who has not; previously both
+carried an identical preseason number. The mean-weighted apportionment *rule* is untouched
+and pinned by a test — F24 measured it correct and it stays a deliberate decision.
+
+**One new finding, F62, found by doing the release.** Regenerating the behavioral baseline
+reported six "engine behavior changes". At least two cannot be: FAAB bid sizing reads a
+budget, a normal draw and a 2025-derived aggression multiplier — no baseline, no variance.
+What moved was the *phase* of the shared numpy stream. Measured at ±2.1% standard error on
+`faab_spent`, which is larger than the check's own 2% tolerance. The tolerance deliberately
+stays where it is; the *report* was corrected to stop asserting a cause it cannot know.
+
+Goldens regenerated deliberately, and all three scenarios moved including `week01` — the
+mechanical signature of an init-time constant, where B8 alone moved only the two fixtures
+with completed weeks. Suite 997 → 1004.
+
 ## [v6.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.1.0) — 2026-09-23 (MINOR)
 
 Fourteen backlog items worked in order, and what building them kept finding. Six new
