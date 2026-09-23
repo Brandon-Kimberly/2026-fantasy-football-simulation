@@ -4605,3 +4605,105 @@ inside the same second would collide on the join key. Has not happened across 77
 Not engineered around.
 
 Suite 695 -> 704. Goldens 15/15, sync golden untouched. RESOLVED.
+
+
+### F57 — A source that returned EMPTY was indistinguishable from one with nothing to say — RESOLVED (2026-09-22)
+
+**Origin.** Backlog item B6, worked second.
+
+**The defect.** The sync manifest records WARNINGS (`degraded`). It recorded no positive
+statement of what each external source actually *delivered* — so "no warning" and "the
+source returned an empty payload" produced an identical manifest. That gap is exactly
+where **F52 lived for a fortnight**: ESPN returned an empty payload every sync, the
+points-level mean blend went dead, the `source_disagreement` epistemic signal went dead,
+and F29's K/IDP subscore channel went dead, and all four looked from outside like "ESPN
+had nothing to say this week".
+
+**The fix — the positive half.** A source ledger in `sync.py`
+(`reset_sources` / `record_source` / `collected_sources`), a `sources` block on the
+manifest — `{name: {ok, rows, fallback}}` — and `freshness.assess` reading it: **a source
+that delivered zero rows is DEGRADED whether or not anything warned.** `check_freshness`
+prints the full inventory, healthy sources included, because a healthy row count is a
+positive statement rather than the absence of a complaint.
+
+Twelve sources are inventoried: `sleeper_players`, `sleeper_league`, `sleeper_rosters`,
+`nfl_schedule`, `sleeper_projections`, `espn_projections`, `espn_subscores`,
+`player_baselines`, `vegas_odds`, `weather`, `sleeper_stats`, `sleeper_matchups`. The
+Sleeper core calls have no `try` at all — they raise and leave no manifest, which is the
+right contract — and are recorded anyway so the block is a COMPLETE inventory. "Is
+`espn_projections` the only name missing?" is a far harder question than "`espn_projections`
+says 0 rows".
+
+**B6's named trap, made structural.** Four sites sit inside loops — 32 teams for weather,
+14 positions for the stats feed, ~2000 players for the ESPN parse. `record_source`
+ACCUMULATES rather than appends, so the trap is closed by the ledger's design instead of
+by every call site remembering. The warnings aggregate the same way: one line naming the
+count, never one per iteration.
+
+**The six sites.** Five made loud, one deliberately left silent:
+
+| site | disposition |
+|---|---|
+| `espn.py` League construction | WARNING naming league id and cause |
+| `espn.py` `free_agents()` — **the F52 site** | WARNING; this call supplies essentially every ESPN row |
+| `espn.py` `ImportError` | WARNING — `espn_api` is in `requirements.txt`; missing it at sync time is a real degradation |
+| `espn.py` per-player parse | ONE aggregated line with the count |
+| `sync.py` weather | counted, ONE line after the loop; a non-200 never raised at all, so it fell through to zeros without even reaching the handler — the quietest of the six |
+| `sync.py` team rosters | **left silent, deliberately.** The ESPN league is a dedicated dummy with an empty draft, so the loop's expected yield is zero players and its failure costs nothing measurable. Warning on a path whose success and failure are indistinguishable by construction is the cry-wolf shape F41 was filed for. Revisit if the dummy league is ever drafted. |
+
+`_espn_league()` was extracted as a seam: the construction was inline inside a bare
+`except Exception: return {}, {}`, which made the failure both silent *and* untestable.
+
+Suite 705 → 721. Goldens 15/15. **PATCH.**
+
+---
+
+### F58 — An empty projection payload silently overwrote every baseline — RESOLVED (2026-09-22)
+
+**Origin.** Found while enumerating B6's six sites. **B6's own grep was wrong**:
+`except Exception:\s*$` requires the handler to end the line, so it missed three inline
+`except Exception: pass` handlers. Two of them guard the **primary** projection source.
+
+**The defect, and it is not an F52-class quality degradation.**
+
+```
+both Sleeper projection fetches return 503 (or raise, or return an empty body)
+  -> `projections` is {}
+  -> the `for pid, proj_data in projections.items()` loop body never runs
+  -> `baselines` stays {}
+  -> save_json(BASELINES_FILE, {})  OVERWRITES player_baselines.json WITH NOTHING
+```
+
+Nothing raised, so `sync_all` wrote an `ok: True` manifest. `player_baselines.json` had a
+**fresh mtime**, so `check_freshness` reported OK. Every downstream tool then read an
+empty file. The one warning emitted was about **ESPN** — a different source — and said
+"every player falls back to Sleeper-only", which is false and points at the wrong thing.
+
+Neither fetch logged anything, and a non-200 did not even reach the handler.
+
+**Demonstrated before the fix**, not inferred: patching both endpoints to 503 returned
+`{}` and wrote 0 entries to the baselines path.
+
+**Why the existing test did not catch it.**
+`test_both_projection_endpoints_failing_yields_no_baselines_not_a_crash` asserted
+`out == {}`. Its stated property — *"no projections → no invented baselines"* — is correct
+and is preserved. But the test's `_gen` helper **patches `save_json`**, so it observed the
+return value while the damage happened at the write. The assertion and the defect never
+met. That test has been tightened (raises, and the message must name what it protects),
+and the rewrite says so in its own docstring rather than quietly changing colour.
+
+**The fix.** `generate_player_baselines` **refuses** — raises — when the projection payload
+is empty, naming both endpoints' failure reasons. Degrading is not available here: there
+is no partial answer, only a wiped file. Raising is the documented contract for a sync that
+cannot complete (`sync_all`: an exception "leaves no fresh manifest — `check_freshness`
+reads that absence as 'sync did not complete'"). The previous sync's baselines are left
+untouched.
+
+Both fetches now log a `PROJECTIONS` warning naming the endpoint and the HTTP status or
+exception, and record into F57's ledger (including the season-long fallback when the
+weekly endpoint is the one that failed).
+
+**Never fired in production** — the live baselines file holds 888 entries and the failure
+requires both Sleeper endpoints down at once. It was a loaded gun, not a wound.
+
+Suite 721 → 724. Goldens 15/15. **PATCH.**

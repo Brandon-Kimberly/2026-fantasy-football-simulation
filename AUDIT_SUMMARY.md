@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~94 findings and tracked follow-ups** | **61 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~96 findings and tracked follow-ups** | **63 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,25 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F58** an empty projection payload silently overwrote every baseline — RESOLVED:
+  found while enumerating B6's sites, whose grep (`except Exception:\s*$`) required the
+  handler to end the line and so missed three inline `except Exception: pass` — two of
+  them guarding the PRIMARY source. Both Sleeper projection endpoints failing left
+  `projections` empty, so the baseline loop never ran and `save_json` overwrote
+  `player_baselines.json` with `{}` — while nothing raised, so the manifest said ok:True
+  and `check_freshness`, seeing a freshly-written file, said OK. The existing test asserted
+  the right property (`no projections -> no invented baselines`) but patched `save_json`,
+  so it watched the return value while the damage happened at the write. Now REFUSES
+  (raises, naming both endpoints' causes); the previous sync's baselines survive. Never
+  fired in production.
+- **F57** an empty source and a quiet source produced the same manifest — RESOLVED: the
+  manifest recorded warnings but no positive statement of what each source DELIVERED, which
+  is the gap F52 hid in for a fortnight. Added a source ledger, a `sources` block
+  (`{name: {ok, rows, fallback}}`) covering 12 sources, and `assess()` reading zero rows as
+  DEGRADED with or without a warning. Five of B6's six silent fallbacks made loud, one
+  (the dummy league's roster loop) deliberately left silent with the reason recorded —
+  its success and failure are indistinguishable by construction, the F41 cry-wolf shape.
+  Loop sites aggregate: one notice per source per sync, never one per iteration.
 - **F56** the projection log could not say which build wrote it — RESOLVED: rows carried
   `synced_at` and no code identity, across 77 distinct sync stamps (24 inside week 2),
   so January's mandated partition at two non-coinciding boundaries (F49's scoring change,

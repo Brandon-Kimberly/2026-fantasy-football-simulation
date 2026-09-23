@@ -7,6 +7,8 @@ replaced an earlier raw-HTTP approach against ESPN's undocumented generic API (t
 live diagnostics found real, serious problems with that approach -- see the conversation
 history this project was built from for the full account).
 """
+import logging
+
 from fantasy_sim.config import ESPN_LEAGUE_ID, ESPN_S2, ESPN_SWID, ESPN_BLEND_ELIGIBLE_POSITIONS
 
 
@@ -115,16 +117,28 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
     always be able to fall back to Sleeper-only data.
     """
     try:
-        from espn_api.football import League
+        league = _espn_league(year)
     except ImportError:
+        # F57: espn_api is IN requirements.txt. Missing it at sync time is a real
+        # degradation (the whole blend dies), not a configuration choice -- the three
+        # tests that skip without it are a different situation from a live sync.
+        logging.warning("ESPN: espn_api is not installed, so no ESPN projections this sync. "
+                        "The mean blend, the source_disagreement epistemic signal and F29's "
+                        "K/IDP subscore channel all fall back to Sleeper-only. "
+                        "py -3.10 -m pip install -r requirements.txt")
         return {}, {}
-
-    try:
-        if ESPN_S2 and ESPN_SWID:
-            league = League(league_id=ESPN_LEAGUE_ID, year=int(year), espn_s2=ESPN_S2, swid=ESPN_SWID)
-        else:
-            league = League(league_id=ESPN_LEAGUE_ID, year=int(year))
-    except Exception:
+    except Exception as ex:
+        # F57 (was a silent `return {}, {}`). An auth failure or a renamed league id used
+        # to be indistinguishable from "ESPN had nothing to say", which is exactly how F52
+        # survived a fortnight.
+        # The league id is deliberately NOT in this message. F37 made league ids env-only,
+        # and this warning lands in the sync manifest's `degraded` list -- which
+        # make_sample_report scans as forbidden content. Relying on that downstream leak
+        # check to scrub a value this line chose to emit is backwards; there is exactly
+        # one ESPN league, so naming it adds nothing an operator does not already know.
+        logging.warning("ESPN: could not open the projection league for %s (%s). Falling "
+                        "back to Sleeper-only projections for every player this sync. "
+                        "Check ESPN_LEAGUE_ID / ESPN_S2 / ESPN_SWID.", year, ex)
         return {}, {}
 
     all_players = []
@@ -135,11 +149,23 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
         # 0 for this deliberately inactive dummy league. That returned weeks [0, 1], so
         # stats.get(1) worked and every later week silently found nothing.
         all_players.extend(league.free_agents(week=week_int, size=2000))
-    except Exception:
-        pass
+    except Exception as ex:
+        # F57. THE F52 SITE. free_agents() is where essentially every ESPN row comes from
+        # -- the dummy league has nobody rostered -- so a failure here empties the blend.
+        # It used to `pass` in silence.
+        logging.warning("ESPN: free_agents(week=%d) failed (%s). This is the call that "
+                        "supplies essentially every ESPN row; the blend is Sleeper-only "
+                        "this sync.", week_int, ex)
     # Defensive extra coverage: also pull rostered players from each team, in case the dummy
     # league ever has anyone drafted/added (free_agents() only returns UNrostered players).
     # Wrapped separately so a failure here never loses the free_agents() results above.
+    #
+    # F57 reviewed this as one of B6's six silent fallbacks and deliberately left it SILENT,
+    # the only one of the six: the ESPN league is a dedicated dummy with an empty draft, so
+    # this loop's expected yield is ZERO players and its failure costs nothing measurable.
+    # Warning here would fire on a path whose success and failure are indistinguishable by
+    # construction -- the cry-wolf shape F41 was filed for. The free_agents() call above is
+    # the one that matters, and it is loud. If the dummy league is ever drafted, revisit.
     try:
         for team in league.teams:
             all_players.extend(team.roster)
@@ -148,6 +174,7 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
 
     projections = {}
     subscores = {}
+    unreadable = 0          # F57: counted, then reported ONCE (B6's trap: ~2000 players)
     for p in all_players:
         try:
             pos = getattr(p, 'position', None)
@@ -179,6 +206,26 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
                 if sub > 0:
                     subscores.setdefault(key, round(sub, 2))
         except Exception:
+            unreadable += 1
             continue
 
+    # F57. One aggregated line, never one per player. A handful of malformed entries is
+    # routine ESPN noise; ALL of them is the blend silently dying, and the two used to look
+    # identical from the manifest.
+    if unreadable:
+        logging.warning("ESPN: %d of %d player entries were unreadable and skipped "
+                        "(%d projections, %d subscores kept).",
+                        unreadable, len(all_players), len(projections), len(subscores))
     return projections, subscores
+
+
+def _espn_league(year):
+    """Construct the espn_api League. A SEAM, extracted by F57: the construction used to be
+    inline inside a bare `except Exception: return {}, {}`, which made the failure both
+    silent and untestable. Raises ImportError when espn_api is absent (handled separately
+    by the caller -- a missing dependency and a bad credential deserve different messages).
+    """
+    from espn_api.football import League
+    if ESPN_S2 and ESPN_SWID:
+        return League(league_id=ESPN_LEAGUE_ID, year=int(year), espn_s2=ESPN_S2, swid=ESPN_SWID)
+    return League(league_id=ESPN_LEAGUE_ID, year=int(year))

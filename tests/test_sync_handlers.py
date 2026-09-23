@@ -200,9 +200,31 @@ class TestBaselineFetchHandlers(_BaselineFixtures, unittest.TestCase):
         out = self._gen(get)
         self.assertAlmostEqual(out["Test Backer"]["mean"], 6.0, "96 pts / 16 games via the season fallback")
 
-    def test_both_projection_endpoints_failing_yields_no_baselines_not_a_crash(self):
-        out = self._gen(lambda url, timeout=None: (_ for _ in ()).throw(OSError("all down")))
-        self.assertEqual(out, {}, "no projections -> no invented baselines")
+    def test_both_projection_endpoints_failing_refuses_rather_than_writing_nothing(self):
+        """CHANGED BY F58 (2026-09-22), and the change is a TIGHTENING, not a loosening.
+
+        This test used to assert `out == {}` -- "no projections -> no invented baselines".
+        That PROPERTY still holds and still matters: nothing is fabricated. What the test
+        also pinned, silently, was the MECHANISM: returning {} quietly.
+
+        The mechanism was the defect. With projections empty the caller went straight on
+        to `save_json(BASELINES_FILE, {})`, OVERWRITING player_baselines.json with an
+        empty dict -- and since nothing raised, sync_all wrote an ok:True manifest and
+        check_freshness saw a freshly-written file and said OK.
+
+        This test could never have caught that, because `_gen` patches `save_json`. The
+        assertion looked at the return value while the damage happened at the write. That
+        is exactly why it survived.
+
+        Refusing is the documented contract for a sync that cannot complete (sync_all:
+        an exception "leaves no fresh manifest -- check_freshness reads that absence as
+        'sync did not complete'"). There is no partial answer available here.
+        """
+        with self.assertRaises(RuntimeError) as ctx:
+            self._gen(lambda url, timeout=None: (_ for _ in ()).throw(OSError("all down")))
+        self.assertIn("PROJECTIONS", str(ctx.exception))
+        self.assertIn("overwrite", str(ctx.exception),
+                      "the refusal must say what it is protecting, not just that it failed")
 
     def test_espn_failure_degrades_to_sleeper_only(self):
         # fetch_espn_projection_data raises in every test above (the patch); this asserts

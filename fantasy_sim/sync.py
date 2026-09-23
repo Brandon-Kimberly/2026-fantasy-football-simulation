@@ -270,6 +270,7 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
         # UNVERIFIED: 2026-09-09 is assumed to be the regular-season kickoff. If the real
         # kickoff is earlier, week-1 games would run on the verified table (fine); if later,
         # the API is polled during the preseason (harmless, returns no games -> loud fallback).
+        record_source("vegas_odds", ok=True, rows=len(WEEK_1_VERIFIED_VEGAS))
         return _write_vegas(WEEK_1_VERIFIED_VEGAS, current_nfl_week, "week1_verified_table")
 
     if not ODDS_API_KEY:
@@ -277,6 +278,7 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
             "VEGAS FALLBACK (week %d): ODDS_API_KEY is not set. Every team gets a flat 21.5 "
             "total with no opponent; matchup and defensive-tier effects are OFF. Set ODDS_API_KEY "
             "(see config.py) for real lines.", current_nfl_week)
+        record_source("vegas_odds", ok=False, rows=0, fallback="flat 21.5 totals, no opponents")
         return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_no_api_key")
 
     url = f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey={ODDS_API_KEY}&regions=us&markets=spreads,totals&bookmakers=draftkings"
@@ -288,6 +290,7 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
         logging.warning(
             "VEGAS FALLBACK (week %d): odds API request failed (%s: %s). Every team gets a flat "
             "21.5 total with no opponent for this run.", current_nfl_week, type(e).__name__, e)
+        record_source("vegas_odds", ok=False, rows=0, fallback="flat 21.5 totals, no opponents")
         return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_api_error")
 
     if not games:
@@ -295,9 +298,11 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
             "VEGAS FALLBACK (week %d): odds API returned no games (market not posted, or wrong "
             "window). Every team gets a flat 21.5 total with no opponent for this run.",
             current_nfl_week)
+        record_source("vegas_odds", ok=False, rows=0, fallback="flat 21.5 totals, no opponents")
         return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_empty_payload")
 
     implied_totals = {"FA": {"total": 20.0, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}}
+    _wx_failures, _wx_ok = [], 0   # F57 (B6): accumulated here, reported ONCE after the loop
     for game in games:
         home_team = NFL_TEAM_ABBREVIATIONS.get(game.get("home_team"))
         away_team = NFL_TEAM_ABBREVIATIONS.get(game.get("away_team"))
@@ -347,8 +352,18 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
                     if wind_kmh: wind_mph = round(wind_kmh * 0.621371, 2)
                     precip_api = wx_resp.json().get("daily", {}).get("precipitation_probability_max", [0])[0]
                     if precip_api: precip_prob = float(precip_api)
-            except Exception:
-                pass
+                    _wx_ok += 1
+                else:
+                    # F57: a non-200 never raised, so it fell through to zeros WITHOUT
+                    # even reaching the except below -- the quietest of the six.
+                    _wx_failures.append(f"{home_team} (HTTP {wx_resp.status_code})")
+            except Exception as _wx_ex:
+                # F57 (B6): counted here, reported ONCE after the loop. This runs per
+                # outdoor game, so warning inline would emit up to 16 near-identical
+                # lines a sync. The fallback is wind=0/precip=0, which reads downstream
+                # as PERFECT conditions -- see F55: nothing consumes these yet, so the
+                # cost today is a silently useless field rather than a biased projection.
+                _wx_failures.append(f"{home_team} ({type(_wx_ex).__name__})")
 
         implied_totals[home_team] = {"total": round((over_under / 2.0) - (home_spread / 2.0), 2), "spread": home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": away_team}
         implied_totals[away_team] = {"total": round((over_under / 2.0) + (home_spread / 2.0), 2), "spread": -home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": home_team}
@@ -363,6 +378,18 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
             "VEGAS (week %d): %d teams had no usable line and got the flat 21.5 / no-opponent "
             "fallback: %s", current_nfl_week, len(unfilled), ", ".join(sorted(unfilled)))
 
+    # F57 (B6): ONE weather line per sync, not one per outdoor game.
+    if _wx_failures:
+        logging.warning(
+            "WEATHER (week %d): the forecast lookup failed for %d game(s) [%s]; those carry "
+            "wind=0 / precip=0, which reads downstream as PERFECT conditions rather than as "
+            "unknown. Nothing consumes these fields yet (F55), so today this is a dead field, "
+            "not a biased projection -- that stops being true the moment F55's plan lands.",
+            current_nfl_week, len(_wx_failures), ", ".join(_wx_failures))
+    record_source("weather", ok=not _wx_failures, rows=_wx_ok,
+                  fallback="wind=0, precip=0" if _wx_failures else None)
+    record_source("vegas_odds", ok=not unfilled, rows=len(implied_totals) - len(unfilled),
+                  fallback="flat 21.5 / no opponent" if unfilled else None)
     return _write_vegas(implied_totals, current_nfl_week, "odds_api")
 
 def _player_name(player):
@@ -503,11 +530,20 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
     logged_projections = None   # F7 log, read lazily only if a carried prior is needed
 
     projections = {}
+    # F58: both of these were `except Exception: pass` with no log line, and a non-200 did
+    # not even reach the handler -- so the PRIMARY projection source failing was completely
+    # invisible. B6's grep missed them because it required the `except` to end the line.
+    _proj_why = []
     url_weekly = f"{BASE_URL}/projections/nfl/regular/{current_year}/{week}"
     try:
         r = requests.get(url_weekly, timeout=8)
-        if r.status_code == 200 and r.json(): projections = r.json()
-    except Exception: pass
+        if r.status_code == 200 and r.json():
+            projections = r.json()
+        else:
+            _proj_why.append(f"weekly: HTTP {r.status_code}"
+                             + ("" if r.status_code != 200 else " with an empty body"))
+    except Exception as ex:
+        _proj_why.append(f"weekly: {type(ex).__name__}: {ex}")
 
     fallback_season = False
     if not projections:
@@ -517,7 +553,36 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             if r.status_code == 200 and r.json():
                 projections = r.json()
                 fallback_season = True
-        except Exception: pass
+            else:
+                _proj_why.append(f"season: HTTP {r.status_code}"
+                                 + ("" if r.status_code != 200 else " with an empty body"))
+        except Exception as ex:
+            _proj_why.append(f"season: {type(ex).__name__}: {ex}")
+
+    if _proj_why:
+        logging.warning("PROJECTIONS (week %s): Sleeper's projection endpoint did not serve "
+                        "usable data [%s].%s", week, "; ".join(_proj_why),
+                        "" if projections else " NOTHING to build baselines from.")
+    record_source("sleeper_projections", ok=not _proj_why, rows=len(projections),
+                  fallback=("season-long projections" if fallback_season else
+                            ("none -- the sync refuses to continue" if not projections else None)))
+
+    if not projections:
+        # F58. THE DESTRUCTIVE CASE, and the reason this refuses instead of degrading.
+        # With projections empty the loop below never executes, `baselines` stays {}, and
+        # save_json would OVERWRITE player_baselines.json with an empty dict -- while
+        # nothing raised, so sync_all wrote an ok:True manifest and check_freshness saw a
+        # freshly-written file and reported OK. Every downstream tool then read nothing.
+        #
+        # Raising is the documented contract for a sync that cannot complete (sync_all:
+        # "an exception anywhere propagates and leaves no fresh manifest -- check_freshness
+        # reads that absence as 'sync did not complete'"). Degrading is NOT available here:
+        # there is no partial answer, only a wiped file.
+        raise RuntimeError(
+            f"PROJECTIONS (week {week}): Sleeper returned no usable projection data "
+            f"[{'; '.join(_proj_why) or 'empty payload'}]. Refusing to continue: building "
+            f"baselines from an empty payload would overwrite player_baselines.json with "
+            f"nothing. The previous sync's baselines are left untouched -- re-run the sync.")
 
     # Second, independent projection source (free, see fetch_espn_projections docstring). A
     # failure here must never break baseline generation -- espn_projections simply stays {}
@@ -541,6 +606,11 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
         logging.warning("ESPN BLEND: zero usable projections returned for week %s; every "
                         "player falls back to Sleeper-only this sync and std_epistemic "
                         "loses the source-disagreement signal.", week)
+    # F57: the positive record. F52 lived in the gap between "no warning" and "it worked".
+    record_source("espn_projections", ok=bool(espn_projections), rows=len(espn_projections),
+                  fallback=None if espn_projections else "Sleeper-only mean, no disagreement signal")
+    record_source("espn_subscores", ok=bool(espn_subscores), rows=len(espn_subscores),
+                  fallback=None if espn_subscores else "no K/IDP epistemic channel (F29)")
 
     keys = resolve_player_keys(projections.keys(), players_db, rostered_pids)
     colliding_names = {_player_name(players_db[p]) for p, k in keys.items() if k != _player_name(players_db[p])}
@@ -822,12 +892,15 @@ def fetch_league_wide_player_scores(year, week, league_scoring_settings, fetch=N
     """
     fetch = fetch or (lambda u: requests.get(u, timeout=45).json())
     out = {}
-    for pos in ("QB", "RB", "WR", "TE", "K", "DL", "DE", "DT", "LB", "OLB", "ILB",
-                "DB", "CB", "S"):
+    positions = ("QB", "RB", "WR", "TE", "K", "DL", "DE", "DT", "LB", "OLB", "ILB",
+                 "DB", "CB", "S")
+    failed = []      # F57 (B6): 14 positions, ONE aggregated notice
+    for pos in positions:
         try:
             rows = fetch(f"https://api.sleeper.app/stats/nfl/{year}/{int(week)}"
                          f"?season_type=regular&position[]={pos}") or []
-        except Exception:
+        except Exception as ex:
+            failed.append(f"{pos} ({type(ex).__name__})")
             continue
         for r in rows:
             pid, stats = r.get("player_id"), (r.get("stats") or {})
@@ -837,6 +910,17 @@ def fetch_league_wide_player_scores(year, week, league_scoring_settings, fetch=N
                       for k, v in stats.items() if k in league_scoring_settings)
             if pts:
                 out[str(pid)] = float(pts)
+    # F57. This feed is what took F54's posterior from 157 players to ~1,018. Losing it
+    # silently drops every unrostered player -- the entire waiver pool -- back onto an
+    # untouched preseason prior while rostered players keep a corrected one, which is a
+    # systematic ranking bias, not a missing nicety. Name it once, with the count.
+    if failed:
+        logging.warning("STATS (week %s): the league-wide stats feed failed for %d of %d "
+                        "positions [%s]. The Bayesian posterior sees only the players those "
+                        "positions would have carried; unrostered players fall back to the "
+                        "preseason prior.", week, len(failed), len(positions), ", ".join(failed))
+    record_source("sleeper_stats", ok=not failed, rows=len(out),
+                  fallback="matchup-only posterior (rostered players only)" if failed else None)
     return out
 
 
@@ -914,6 +998,43 @@ class _WarningCollector(logging.Handler):
         self.messages.append(f"{record.levelname} | {record.getMessage()}")
 
 
+# ------------------------------------------------------------------ the source ledger
+# F57 (B6). The manifest's `degraded` list records what went WRONG. It records nothing
+# about what went RIGHT, so "no warning" and "the source returned an empty payload" are
+# the same manifest -- which is precisely how F52 hid for a fortnight. This is the
+# positive half: every external source states what it actually delivered, and
+# check_freshness reads zero rows as DEGRADED whether or not anything warned.
+#
+# Module-level rather than threaded through _sync_body because the recording sites are
+# four calls deep (clients/espn.py has no handle on the sync). Reset at the top of
+# sync_all, read by write_sync_manifest, so one sync's ledger cannot leak into the next.
+_SOURCE_LEDGER = {}
+
+
+def reset_sources():
+    """Called at the start of every sync. See _SOURCE_LEDGER."""
+    _SOURCE_LEDGER.clear()
+
+
+def record_source(name, ok=True, rows=0, fallback=None):
+    """Record what one external source delivered. ACCUMULATES: calling this once per team
+    (weather, 32x), per position (the stats feed, 14x) or per player (the ESPN parse,
+    ~2000x) yields ONE entry whose `rows` is the total -- B6's named trap, made structural
+    rather than left to each call site to remember. A source is `ok` only if no call fell
+    back; the first fallback taken is kept, since 30 identical ones say nothing more."""
+    entry = _SOURCE_LEDGER.setdefault(name, {"ok": True, "rows": 0, "fallback": None})
+    entry["rows"] += int(rows)
+    if not ok:
+        entry["ok"] = False
+        if entry["fallback"] is None:
+            entry["fallback"] = fallback
+
+
+def collected_sources():
+    """A copy -- callers must not be able to mutate the ledger through the manifest."""
+    return {k: dict(v) for k, v in _SOURCE_LEDGER.items()}
+
+
 def _is_routine_notice(message):
     """A warning that is the pipeline working as designed, not a degradation: the F1
     collision guard announcing same-named UNROSTERED players (130 of them on a real sync --
@@ -936,6 +1057,9 @@ def write_sync_manifest(started_at, current_week, season, warnings, sharp_pollin
         "season": season, "current_week": int(current_week), "sharp_polling": bool(sharp_polling),
         "degraded": degraded, "notices_count": len(notices), "notices_sample": notices[:5],
         "player_cache_age_days": cache_age_days, "files": files, "ok": True,
+        # F57: what each external source actually DELIVERED. `degraded` says what went
+        # wrong; without this, an empty payload and a clean run are the same manifest.
+        "sources": collected_sources(),
     })
 
 
@@ -944,6 +1068,7 @@ def sync_all(sharp_polling=False):
     exception anywhere propagates and leaves no fresh manifest -- the orchestrator and
     check_freshness read that absence as "sync did not complete", never as stale-but-usable."""
     started_at = datetime.utcnow()
+    reset_sources()   # F57: one sync's ledger must not leak into the next
     collector = _WarningCollector()
     root = logging.getLogger()
     root.addHandler(collector)
@@ -969,6 +1094,13 @@ def _sync_body(sharp_polling=False):
     save_json(LEAGUE_STATE_FILE, {"current_week": current_nfl_week})
 
     rosters = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/rosters").json()
+    # F57: the Sleeper core calls have no try/except -- a failure raises and leaves no
+    # manifest, which is the right contract. They are recorded anyway so the sources block
+    # is a COMPLETE inventory: "espn_projections is the only name missing" is a much
+    # harder question to answer than "espn_projections says 0 rows".
+    record_source("sleeper_players", rows=len(players_db or {}))
+    record_source("sleeper_league", rows=len(league_info or {}))
+    record_source("sleeper_rosters", rows=len(rosters or []))
     # F37 (2026-09-05): keyed by roster_id directly. The old display-name hop published
     # real usernames in config and broke whenever a manager renamed themselves; roster_id
     # is stable, opaque, and meaningless without the (env-only) league id.
@@ -997,6 +1129,7 @@ def _sync_body(sharp_polling=False):
     generate_league_schedule(roster_map)
     generate_playoff_bracket(league_info, roster_map)
     completed_results = generate_nfl_schedule(current_nfl_week)
+    record_source("nfl_schedule", rows=len(load_json(NFL_SCHEDULE_FILE).get(str(current_nfl_week), {}) or {}))
     generate_defensive_ratings(completed_results)
     # Bye weeks come from the schedule just written (its _meta.byes), so every baseline
     # carries the same value the engine will read.
@@ -1004,6 +1137,7 @@ def _sync_body(sharp_polling=False):
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
     baselines = generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
                               rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids)
+    record_source("player_baselines", ok=bool(baselines), rows=len(baselines or {}))
     _wk_sched = {}
     try:
         _wk_sched = (load_json(NFL_SCHEDULE_FILE) or {}).get(str(current_nfl_week), {}) or {}
@@ -1048,6 +1182,7 @@ def _sync_body(sharp_polling=False):
         t_res = {t: {"points_scored": score, "h2h_win": wk_h2h_results.get(t, 0.0), "median_win": 1 if score >= median_cut else 0, "remaining_faab": standings_payload[t]["remaining_faab"]} for t, score in wk_scores.items()}
         all_weeks_actuals[f"week_{wk}"] = {"median_cutoff": median_cut, "team_results": t_res, "player_scores": wk_player_scores}
 
+    record_source("sleeper_matchups", rows=len(all_weeks_actuals))
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
     n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db, standings=standings_payload)
     if n_tx:

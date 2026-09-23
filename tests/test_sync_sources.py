@@ -212,5 +212,79 @@ class TestTheSixSitesAreLoud(unittest.TestCase):
         self.assertEqual(len(feed), 1, f"one aggregated line, got {len(feed)}: {feed}")
 
 
+class TestTheProjectionFetchCannotWipeTheBaselines(unittest.TestCase):
+    """F58, found while enumerating B6's six sites -- B6's own grep
+    (`except Exception:\\s*$`) required end-of-line and so MISSED three inline
+    `except Exception: pass` handlers. Two of them guard the Sleeper projection fetch,
+    which is the PRIMARY source, and this is not an F52-class quality degradation:
+
+        both fetches return 503 (or raise, or return an empty body)
+          -> `projections` is {}
+          -> the `for pid, proj_data in projections.items()` loop body never runs
+          -> `baselines` is {}
+          -> save_json(BASELINES_FILE, {}) OVERWRITES the whole file with nothing
+
+    Nothing raised, so sync_all wrote a manifest with ok:True. player_baselines.json had
+    a FRESH mtime, so check_freshness read OK. Every downstream tool then read an empty
+    file. The one warning emitted was about ESPN -- a different source -- and said "every
+    player falls back to Sleeper-only", which is false and points at the wrong thing.
+
+    Demonstrated live before the fix: returned {} and wrote 0 entries.
+    """
+
+    def _run(self, status_code, existing=None):
+        written = {}
+
+        class _Resp:
+            status_code = None
+
+            def json(self):
+                return {}
+
+        _Resp.status_code = status_code
+        with unittest.mock.patch.object(sync, "requests") as rq, \
+             unittest.mock.patch.object(sync, "save_json",
+                                        side_effect=lambda p, d: written.__setitem__(str(p), d)), \
+             unittest.mock.patch.object(sync, "append_projection_log", return_value=0), \
+             unittest.mock.patch.object(sync, "fetch_espn_projection_data", return_value=({}, {})), \
+             unittest.mock.patch.object(sync.os.path, "exists", return_value=False):
+            rq.get.return_value = _Resp()
+            sync.generate_player_baselines(
+                {"pts_ppr": 1.0},
+                {"1": {"first_name": "A", "last_name": "B", "position": "WR", "team": "SF"}},
+                {}, "2026", 3)
+        return written
+
+    def test_an_empty_projection_payload_must_not_write_baselines_at_all(self):
+        with self.assertRaises(Exception) as ctx:
+            self._run(503)
+        self.assertIn("projection", str(ctx.exception).lower(),
+                      f"the refusal must name the cause, got: {ctx.exception}")
+
+    def test_the_baselines_file_is_never_written_empty(self):
+        """The property that actually matters: whatever the failure mode, an empty
+        baselines dict must never reach disk."""
+        try:
+            written = self._run(503)
+        except Exception:
+            return          # refused before writing -- the correct outcome
+        for path, payload in written.items():
+            if "baseline" in path.lower():
+                self.fail(f"wrote {len(payload)} baselines to {path} from an empty payload")
+
+    def test_the_sleeper_projection_fetch_failure_is_named(self):
+        """It used to be `except Exception: pass` with no log line at all, and a non-200
+        never even reached the handler."""
+        with self.assertLogs(level=logging.WARNING) as cm:
+            try:
+                self._run(503)
+            except Exception:
+                pass
+        # Deliberately NOT `or "Sleeper" in m`: the pre-fix ESPN warning contains the word
+        # "Sleeper-only" and would have made this pass green against the broken behaviour.
+        self.assertTrue(any("PROJECTIONS" in m for m in cm.output),
+                        f"the PRIMARY source failing must name itself, got {cm.output}")
+
+
 if __name__ == "__main__":
     unittest.main()

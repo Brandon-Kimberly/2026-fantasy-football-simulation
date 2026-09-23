@@ -32,6 +32,21 @@ def main(argv=None):
     for r in reasons:
         print(f"  {label} {r}" if r is reasons[0] else f"  {' ' * len(label)} {r}")
 
+    # F57 (B6): the per-source inventory. `degraded` above says what WARNED; this says what
+    # each external source actually delivered, so a source that returned an empty payload
+    # without raising -- F52's exact shape, invisible for a fortnight -- is readable at a
+    # glance. Printed for every source, not just the failing ones: the whole point is that
+    # a healthy row count is a positive statement, not merely the absence of a complaint.
+    sources = (m.get("sources") or {})
+    if sources:
+        print("  sources:")
+        for name, s in sorted(sources.items()):
+            mark = "ok  " if s.get("ok", True) and s.get("rows", 0) else "FELL BACK"
+            note = f"  <- {s['fallback']}" if s.get("fallback") else ""
+            print(f"    {mark:<10} {name:<22} {s.get('rows', 0):>6} row(s){note}")
+    elif m:
+        print("  sources: not recorded (manifest predates F57)")
+
     # The log-push discipline, made mechanical (2026-09-04): the logs under data/logs are
     # the only unrecoverable season data, and R1 makes "appended locally, never pushed" a
     # real loss mode. Canonical runs push automatically (weekly_report); this line is the

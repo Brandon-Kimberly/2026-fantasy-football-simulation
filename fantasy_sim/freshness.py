@@ -62,6 +62,20 @@ def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week
     if nfl_week is not None and nfl_week != week:
         reasons.append(f"week rolled: sync is for week {week}, Sleeper reports week {nfl_week} -- re-run the sync")
     degraded = list(manifest.get("degraded") or [])
+    # F57 (B6): the positive half. `degraded` lists what warned; this lists what a source
+    # actually delivered, so a source that returned an empty payload without raising --
+    # F52's exact shape, and it hid for a fortnight -- is DEGRADED with no warning needed.
+    # A manifest written before F57 has no `sources` key at all; that must read as
+    # "nothing to say", never as "every source failed", or every archived manifest
+    # retroactively becomes a degraded sync.
+    for name, s in sorted((manifest.get("sources") or {}).items()):
+        rows, fell_back = s.get("rows", 0), not s.get("ok", True)
+        if rows == 0:
+            degraded.append(f"source {name} delivered 0 rows -- the sync fell back "
+                            f"({s.get('fallback') or 'unspecified fallback'})")
+        elif fell_back:
+            degraded.append(f"source {name} delivered {rows} row(s) but fell back at least "
+                            f"once ({s.get('fallback') or 'unspecified fallback'})")
     if reasons:
         # STALE outranks DEGRADED, but the tolerated failures are still worth seeing.
         return STALE, reasons + [f"degraded: {d}" for d in degraded]
