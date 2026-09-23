@@ -244,6 +244,62 @@ def median_leg(states, sims=40000, seed=20260913):
     return {n: float((matrix[i] > med).mean()) for i, n in enumerate(names)}, matrix, names
 
 
+def joint_legs(matrix, names, team, opponent):
+    """P(2-0) / P(1-1) / P(0-2) for the week's two legs, from ONE set of draws.
+
+    B11. The head-to-head leg and the median leg are not independent: both turn on the
+    same score. A big day wins both and a bad day loses both, so multiplying the two
+    marginals understates 2-0 and 0-2 and overstates 1-1. `median_leg()` already draws
+    every roster jointly, so this is arithmetic on draws that exist -- no new model.
+
+    `matrix` is (teams x draws) and `names` labels its rows, exactly as median_leg()
+    returns them. Pure: no RNG, no network.
+
+    The marginals returned here are computed FROM THIS MATRIX, not from
+    `win_probability()`. That closed form is a normal approximation on the margin, while
+    these draws are per-player normals truncated at zero, so the two need not agree --
+    most visibly when a remaining player's mean is small next to his sd. Reporting the
+    matrix's own margins keeps the three cells consistent with the numbers beside them;
+    the caller prints the closed form separately and labelled.
+
+    `opponent=None` (a bye, or no scheduled opponent) returns the median leg alone with
+    every head-to-head field None, rather than inventing a second leg.
+    """
+    import numpy as np
+    idx = {n: i for i, n in enumerate(names)}
+    if team not in idx:
+        raise KeyError(f"{team!r} is not in the drawn league: {sorted(idx)}")
+    mine = np.asarray(matrix)[idx[team]]
+    med = np.median(np.asarray(matrix), axis=0)
+    beat_median = mine > med
+    p_median = float(beat_median.mean())
+
+    if opponent is None:
+        return {"p_h2h": None, "p_median": p_median,
+                "p_2_0": None, "p_1_1": None, "p_0_2": None,
+                "p_median_only": None, "p_h2h_only": None,
+                "p_2_0_independent": None, "p_0_2_independent": None,
+                "expected_wins": p_median, "n": int(mine.size)}
+    if opponent not in idx:
+        raise KeyError(f"{opponent!r} is not in the drawn league: {sorted(idx)}")
+
+    beat_opp = mine > np.asarray(matrix)[idx[opponent]]
+    p_h2h = float(beat_opp.mean())
+    p_2_0 = float((beat_opp & beat_median).mean())
+    p_0_2 = float((~beat_opp & ~beat_median).mean())
+    p_h2h_only = float((beat_opp & ~beat_median).mean())
+    p_median_only = float((~beat_opp & beat_median).mean())
+    return {
+        "p_h2h": p_h2h, "p_median": p_median,
+        "p_2_0": p_2_0, "p_1_1": p_h2h_only + p_median_only, "p_0_2": p_0_2,
+        "p_h2h_only": p_h2h_only, "p_median_only": p_median_only,
+        # what the old line printed, kept so the correction is visible beside it
+        "p_2_0_independent": p_h2h * p_median,
+        "p_0_2_independent": (1.0 - p_h2h) * (1.0 - p_median),
+        "expected_wins": p_h2h + p_median, "n": int(mine.size),
+    }
+
+
 def _fetch_json(url, timeout=30):
     r = requests.get(url, timeout=timeout)
     r.raise_for_status()
@@ -295,6 +351,8 @@ def main(argv=None):
     opp = states.get(opp_name) if opp_name else None
 
     med, _matrix, _names = median_leg(states, sims=args.sims, seed=args.seed)
+    # B11: the two legs share my score, so the joint comes from the SAME draws.
+    joint = joint_legs(_matrix, _names, args.team, opp_name if opp else None)
     p_h2h = (win_probability(me["proj"], me["rem_sd"], opp["proj"], opp["rem_sd"])
              if opp else float("nan"))
     p_infl = (win_probability(me["proj"], me["rem_sd"], opp["proj"], opp["rem_sd"],
@@ -308,6 +366,7 @@ def main(argv=None):
             "starters_left": me["left"],
             "p_head_to_head": p_h2h, "p_head_to_head_inflated": p_infl,
             "p_beat_median": med.get(args.team),
+            "joint_legs": joint,          # B11
             "league": {t: {"banked": s["banked"], "projected": s["proj"],
                            "left": s["left"], "p_beat_median": med.get(t)}
                        for t, s in states.items()},
@@ -345,10 +404,18 @@ def main(argv=None):
               "yourself.")
     print(f"  P(beat league median) = {med.get(args.team, float('nan')):6.1%}")
     if opp:
-        both = p_h2h * med.get(args.team, 0.0)
-        neither = (1 - p_h2h) * (1 - med.get(args.team, 0.0))
-        print(f"  expected wins this week: {p_h2h + med.get(args.team, 0.0):.2f} of 2 "
-              f"(2-0 ~{both:.0%}, 0-2 ~{neither:.0%}; legs treated as independent)")
+        print(f"  expected wins this week: {joint['expected_wins']:.2f} of 2")
+        print(f"    2-0 {joint['p_2_0']:5.1%}   1-1 {joint['p_1_1']:5.1%}   "
+              f"0-2 {joint['p_0_2']:5.1%}"
+              f"   (independent would say {joint['p_2_0_independent']:.1%} / "
+              f"{joint['p_0_2_independent']:.1%})")
+        print("    Both legs turn on MY score, so a big day wins both and a bad day "
+              "loses both (B11).")
+        print(f"    From the same {joint['n']:,} joint draws as the median leg; their "
+              f"H2H margin is {joint['p_h2h']:.1%}, which need not equal the "
+              f"{p_h2h:.1%} above --")
+        print("    that one is a closed-form normal on the margin, these are per-player "
+              "draws truncated at zero.")
 
     print(f"\n  {'team':28s} {'banked':>8} {'left':>5} {'proj':>8} {'P(median)':>10}")
     for t, s in sorted(states.items(), key=lambda kv: -kv[1]["proj"]):
