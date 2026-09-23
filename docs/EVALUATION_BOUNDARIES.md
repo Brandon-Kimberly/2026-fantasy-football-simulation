@@ -19,11 +19,39 @@ receiving touchdown. The league voted to cut `idp_sack` to **2.0** and `idp_qb_h
 
 **Recorded at.** `bb80127` — *F49: mid-season IDP scoring change — the evaluation boundary*
 
-**Effective date.** **Not yet live as of 2026-09-22.** Verified against the league object
-that same day: still 4.0 / 1.0. **Whoever observes the change take effect must append the
-first `synced_at` that carries the new values to this file.** `sync.py:916` reads scoring
-live from the league object, so no code change marks it — the only trace will be in the
-baselines and in the sidecar's timestamp.
+**Effective date.** **LIVE. Observed 2026-09-23** while working backlog item B1, which
+needed the scoring to fit an IDP constant. The league object now serves `idp_sack` 2.0
+and `idp_qb_hit` 0.5. As instructed above, the boundary sync is appended here:
+
+```
+2026-09-22T19:12:11Z   mean IDP projection 9.58 (n=33)   <- last pre-change sync
+2026-09-23T17:17:34Z   mean IDP projection 8.85 (n=31)   <- BOUNDARY
+```
+
+**Confirmed as the scoring change and not roster churn**, on the 27 IDP players present
+in BOTH syncs: **26 of 27 fell**, mean **-8.4%**. The offensive control over the same
+pair of syncs moved **-0.4% on n = 111** -- i.e. nothing. And the losses are ordered
+exactly as a sack cut predicts, which is the signature that settles it:
+
+| player | pos | before | after | |
+|---|---|---|---|---|
+| Micah Parsons | LB | 6.68 | 4.99 | -25.3% |
+| Greg Rousseau | DE | 8.53 | 6.60 | -22.6% |
+| Aidan Hutchinson | DL | 11.62 | 9.15 | -21.3% |
+| Tuli Tuipulotu | DL | 9.28 | 7.42 | **-20.0%** |
+| ... | | | | |
+| Cole Bishop | DB | 9.50 | 9.32 | -1.9% |
+| Calen Bullock | DB | 6.85 | 6.81 | -0.6% |
+
+Edge rushers take the whole cut; coverage defensive backs barely move.
+
+**F49's own prediction is thereby validated.** `scripts.reprice` (B22) priced Tuipulotu as
+the league's biggest loser at **-19.5%** before the vote landed. Realised: **-20.0%**. That
+is the repricing tool checking out against reality, recorded here because a tool that was
+right once in advance is worth trusting the next time.
+
+**The prediction was made on the OLD `idp_sack` 4.0; the realised number is the NEW 2.0.**
+Both are recorded so the comparison is auditable rather than remembered.
 
 **What the January analysis must do.**
 - **Criterion 1 (calibration): PARTITION.** Quotes made before the change were correct
