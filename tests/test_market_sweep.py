@@ -56,7 +56,7 @@ def _fs():
     FOURTH is genuinely buried. So:
         WR starters        = WR_A (20), WR_B (14), WR_C (11, via FLEX)
         slot-losing WR     = WR_C at 11   (the weakest STARTER)
-        worst WR / the drop= WR_D at 3    (a different man)
+        worst WR / the drop= WR_D at 1    (benched, a different man)
     A free-agent WR at 13 therefore upgrades nobody's slot... but one at 16 upgrades WR_C.
     """
     base, rosters = {}, {}
@@ -69,13 +69,27 @@ def _fs():
             base[n] = _p(mu, pos)
             entries.append({"name": n, "pos": pos, "team": "DET"})
         rosters[t] = entries
-    for nm, mu in (("WR_A", 20.0), ("WR_B", 14.0), ("WR_C", 11.0), ("WR_D", 3.0)):
+    for nm, mu in (("WR_A", 20.0), ("WR_B", 14.0), ("WR_C", 11.0), ("WR_D", 1.0)):
         base[nm] = _p(mu, "WR")
         rosters[ME].append({"name": nm, "pos": "WR", "team": "DET"})
+    # Two more FLEX-eligible bodies, so the three FLEX slots are filled by WR_C and these
+    # two and WR_D is genuinely BENCHED. Without them the roster is thinner than the 13
+    # slots and every WR starts, which would make the slot-loser and the drop the same
+    # man for a reason that has nothing to do with the logic under test.
+    for nm, mu in (("RB_X", 13.0), ("RB_Y", 12.0)):
+        base[nm] = _p(mu, "RB")
+        rosters[ME].append({"name": nm, "pos": "RB", "team": "DET"})
     # free agents (on nobody's roster)
     base["FA_WR_GOOD"] = _p(16.0, "WR")
     base["FA_WR_MEH"] = _p(6.0, "WR")
     base["FA_DL_GOOD"] = _p(14.0, "DL")
+    # A WR pool DEEPER THAN THE REPLACEMENT CUTOFF. simulation._calc_replacement_levels
+    # takes the 24th-best WR (depths['WR'] = 24), falling back to the WORST when fewer
+    # exist -- so in a thin fixture WR_D would BE the replacement level and his VORP
+    # would be 0 by construction, making the dead-weight assertion vacuous rather than
+    # wrong. 26 bodies put the cutoff on a real player.
+    for i in range(26):
+        base[f"FA_WR_POOL_{i:02d}"] = _p(9.5 - 0.15 * i, "WR")
     return {
         LEAGUE_STATE_FILE: {"current_week": 1},
         LEAGUE_STANDINGS_FILE: {t: {"remaining_faab": 100} for t in TEAMS},
@@ -135,7 +149,7 @@ class TestTheDropIsNotTheSlotLoser(_Case):
         rows, _ = self._rows()
         self.assertEqual(rows["WR"]["drop"], "WR_D",
                          "B12: the drop is the WORST at the position")
-        self.assertAlmostEqual(rows["WR"]["drop_mean"], 3.0)
+        self.assertAlmostEqual(rows["WR"]["drop_mean"], 1.0)
 
     def test_the_drop_and_the_slot_loser_are_reported_separately(self):
         rows, _ = self._rows()
@@ -158,7 +172,7 @@ class TestUpgradesAndDeadWeight(_Case):
     def test_dead_weight_is_named_against_replacement(self):
         _, r = self._rows()
         dead = {d["name"]: d for d in r["dead_weight"]}
-        self.assertIn("WR_D", dead, "3.0 is far below any WR replacement level")
+        self.assertIn("WR_D", dead, "1.0 is far below any WR replacement level")
         self.assertLess(dead["WR_D"]["vorp"], 0.0)
         self.assertNotIn("WR_A", dead)
 
@@ -199,3 +213,34 @@ class TestEdges(_Case):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestAnIrPlayerIsNotADropCandidate(_Case):
+    """Found by running the tool live (2026-09-23): it named an IR'd QB as the drop.
+
+    B16 measured the mechanic: `reserve_slots` sit ON TOP of the 19 active spots, and
+    `decisions._active_count` excludes anyone `on_ir`. So dropping an IR'd player frees
+    no active slot and buys nothing -- naming him is advice that cannot help. The drop
+    must be the worst ACTIVE man at the position.
+    """
+
+    def setUp(self):
+        super().setUp()
+        # bench WR_D to IR: worst at the position, but not occupying an active slot
+        self.engine.baselines["WR_D"]["on_ir"] = True
+        self.engine.baselines["WR_D"]["injury_status"] = "IR"
+
+    def test_the_drop_skips_the_ir_player_for_the_worst_active_man(self):
+        rows, _ = self._rows()
+        self.assertNotEqual(rows["WR"]["drop"], "WR_D",
+                            "an IR'd player occupies no active slot; dropping him frees "
+                            "nothing")
+        self.assertEqual(rows["WR"]["drop"], "WR_C",
+                         "the worst ACTIVE WR, who is also the slot-losing starter here")
+
+    def test_an_ir_player_is_not_listed_as_dead_weight_to_cut(self):
+        _, r = self._rows()
+        dead = {d["name"] for d in r["dead_weight"]}
+        self.assertNotIn("WR_D", dead,
+                         "he is stashed, not carried -- the dead-weight list is about "
+                         "active roster spots")
