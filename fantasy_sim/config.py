@@ -359,10 +359,44 @@ TEAM_MAE_HEALTH_THRESHOLD = 18.0
 # STALENESS DEPENDENCY: this is fitted to the CURRENT model. B1 (the unverified IDP
 # epistemic rate of 0.15) would change the variance structure and this constant would
 # need re-deriving from a fresh backtest. B7 says as much: do it after B1, or the two
-# confound. B1 is unstarted, so this is fitted to the model as it stands today.
+# confound. B1 RAN on 2026-09-23 and cleared 0.15 unchanged
+# (docs/audit/B1_IDP_EPISTEMIC_RATE.md), so this dependency is DISCHARGED: the variance
+# structure did not move and 1.41 stands on the model it was fitted to.
 INTERVAL_INFLATION = 1.41
 
 VOLATILITY_CONSTANTS = {'QB': 1.65, 'RB': 1.98, 'WR': 1.8, 'TE': 2.0, 'K': 1.45, 'DL': 2.16, 'LB': 1.67, 'DB': 1.58}
+
+# `std_epistemic = EPISTEMIC_ERROR_RATES[pos] * mean` -- the prior sd on a player's TRUE
+# weekly mean. It sets `prior_var` in `_apply_bayesian_updates`, so it decides how far a
+# season's observed games may move a preseason projection.
+#
+# QB/RB/WR/TE/K were tuned with `backtest_player` on 2025 under the n_0 = 4 form
+# (docs/audit/AUDIT_PHASE_7_FINDINGS.md, item 2+3). A joint change moving them to their
+# own variance-component values was built, gated and REVERTED: worse on the points
+# backtest in both configurations tested.
+#
+# DL/LB/DB = 0.15 was a CARRIED number until 2026-09-23. It is now MEASURED --
+# docs/audit/B1_IDP_EPISTEMIC_RATE.md (backlog B1), on 2025 weekly stat lines scored under
+# this league's post-F49 settings, top 24 per position:
+#
+#   variance components   DL fitted 0.153 against this 0.15; LB and DB DEGENERATE
+#                         (sampling noise exceeds the observed spread -- at the startable
+#                         population the top LBs and DBs are not distinguishable at all)
+#   held-out MSE          fit weeks 1-7, predict 8-14: DL/LB/DB all monotone INCREASING
+#                         in the rate, best at the 0.05 floor. QB's optimum came out at
+#                         0.30, exactly its shipped value, which is the check that the
+#                         method reproduces how these were tuned.
+#
+# So 0.15 is already LOOSER than optimal for IDP, not tighter: B1's hypothesis that the
+# model "cannot learn about linebackers" is refuted. Startable defenders genuinely cluster
+# (top-24 season-mean range: LB 1.47x, DB 1.36x, against DL 2.28x and much more on
+# offence), because tackle volume is role-determined. A stiff prior is correct there, and
+# a two-game outlier really is mostly noise.
+#
+# DO NOT RAISE THESE because the blend looks inert. It is measured as appropriate.
+# Open and NOT acted on: the same measurement says RB wants ~1.00 against 0.63 and WR
+# ~0.20 against 0.55. That is Phase 7's reverted pair and a far larger MAJOR than B1
+# authorised; it is recorded in the entry above, not fixed here.
 EPISTEMIC_ERROR_RATES = {
     'QB': 0.30, 'RB': 0.63, 'WR': 0.55, 'TE': 0.50,
     'K': 0.40, 'DL': 0.15, 'LB': 0.15, 'DB': 0.15, 'FLEX': 0.18
