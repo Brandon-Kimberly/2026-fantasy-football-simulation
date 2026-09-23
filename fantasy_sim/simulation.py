@@ -293,15 +293,25 @@ class FantasySimulationEngine:
         except Exception:
             self.faab_profiles = {t: dict(p) for t, p in MANAGER_PROFILES.items()}
 
+        # EVERYTHING DOWNSTREAM OF THE BLEND GOES BELOW IT. F54 (2026-09-22) moved
+        # replacement levels here; B8 (2026-09-23) moved the other two, closing that
+        # finding's open half.
+        self.calibration_report = self._apply_bayesian_updates()
+
+        # B8: built AFTER the blend, so vacated injury volume is apportioned on
+        # CORRECTED means. Both builders snapshot p_info['mean'] into a sorted list, so
+        # running them first shared a downed starter's volume out on PRESEASON numbers --
+        # a backup who had produced for three weeks got the same slice as one who had
+        # not, because the posterior that knows the difference had not run yet.
+        #
+        # This changes the INPUTS to the apportionment, never the rule. F24 measured
+        # mean-weighting as correct on 8 real 2025 lead-RB absences and CLAUDE.md lists
+        # it as a deliberate decision; tests/test_vacated_volume_inputs.py guards that
+        # the weighting itself is untouched.
         self.pass_catchers_meta = self._build_pass_catcher_hierarchy()
         self.nfl_position_groups = self._build_nfl_position_groups()
-        self.calibration_report = self._apply_bayesian_updates()
-        # F54 (2026-09-22): replacement is computed AFTER the blend, not three lines
-        # before it. Previously VORP compared a BLENDED rostered mean against an
-        # UNBLENDED replacement line -- two different quantities. Note that
-        # pass_catchers_meta and nfl_position_groups above are still built on pre-blend
-        # means; moving those changes vacated-volume apportionment and is deliberately
-        # NOT bundled here (recorded as the open half of F54).
+        # F54: replacement compared a BLENDED rostered mean against an UNBLENDED
+        # replacement line -- two different quantities.
         self.replacement_levels = self._calc_replacement_levels()
 
     def _build_nfl_position_groups(self):
