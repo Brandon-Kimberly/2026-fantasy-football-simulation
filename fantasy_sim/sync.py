@@ -30,7 +30,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
-    SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE,
+    SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     draft_log_file, season_log_file,
 )
@@ -1188,6 +1188,10 @@ def _sync_body(sharp_polling=False):
     n_first = append_first_recorded_scores(all_weeks_actuals, current_nfl_week, baselines)
     if n_first:
         print(f"[FIRST SCORES] {n_first} score(s) recorded for the first time.")
+    # B21: the designation series the player cache overwrites every sync.
+    n_des = append_designations(live_rosters_payload, players_db, baselines, current_nfl_week)
+    if n_des:
+        print(f"[DESIGNATIONS] {n_des} new designation(s) recorded.")
     n_tx = ingest_transactions(roster_map, current_nfl_week, baselines, players_db, standings=standings_payload)
     if n_tx:
         print(f"[DECISION LOG] {n_tx} new transaction(s) ingested.")
@@ -1493,6 +1497,72 @@ def append_projection_log(rows, path=PROJECTION_LOG_FILE):
     except Exception as ex:
         logging.warning("PROJECTION LOG: could not append %d rows to %s (%s). Projection error "
                         "for this week cannot be measured next season.", len(rows), path, ex)
+        return 0
+
+
+def append_designations(live_rosters, players_db, baselines, week, path=DESIGNATIONS_FILE):
+    """B21. The injury-designation series `sleeper_players_cache.json` throws away.
+
+    That file holds TODAY's status and is overwritten every sync, so "how many weeks was
+    this player Questionable" has no answer. B10 needs it, and it is the evidence B4
+    would require before PRICING a designation rather than merely surfacing it.
+
+    Deduped on (week, pid, injury_status) -- the first appearance of each DISTINCT status
+    in a week. The alternatives are both worse: (week, pid) loses a Friday Questionable
+    that became a Sunday Out, which is the transition worth studying, and no dedupe at
+    all writes a row per sync (twenty-four of them in week 2 alone).
+
+    Only players carrying a designation are written. A row per healthy man per week is
+    150 rows of "nothing happened", and the question is about designations, not roll call.
+
+    Returns rows appended. Never raises: a record is not a dependency.
+    """
+    try:
+        seen = set()
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue
+                    seen.add((r.get("week"), r.get("player_id"), r.get("injury_status")))
+
+        stamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        rows = []
+        for team, players in (live_rosters or {}).items():
+            for p in players or []:
+                name = p.get("name")
+                pid = ((baselines or {}).get(name) or {}).get("player_id")
+                if pid is None:
+                    continue
+                rec = (players_db or {}).get(str(pid))
+                if not rec:
+                    continue
+                status = rec.get("injury_status")
+                if not status:
+                    continue
+                key = (int(week), str(pid), status)
+                if key in seen:
+                    continue
+                seen.add(key)
+                rows.append({"week": int(week), "player_id": str(pid), "name": name,
+                             "team": team, "injury_status": status,
+                             "injury_body_part": rec.get("injury_body_part"),
+                             "practice_participation": rec.get("practice_participation"),
+                             "recorded_at": stamp})
+        if not rows:
+            return 0
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for r in sorted(rows, key=lambda x: (x["team"], x["name"])):
+                handle.write(json.dumps(r, sort_keys=True) + "\n")
+        return len(rows)
+    except Exception as ex:
+        logging.warning("DESIGNATIONS: could not append to %s (%s). The injury-history "
+                        "series will have a gap at week %s.", path, ex, week)
         return 0
 
 

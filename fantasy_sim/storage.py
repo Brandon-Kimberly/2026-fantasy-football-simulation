@@ -216,6 +216,11 @@ BID_LEDGER_FILE = _log("bid_ledger.jsonl")
 # of what was originally reported, and the only way January's REALIZED side can be
 # held still while it is being measured against.
 FIRST_SCORES_FILE = _log("first_recorded_scores.jsonl")
+# B21: the injury-designation series the player cache throws away. One row per
+# rostered player per DISTINCT status per week -- enough to answer "how many weeks
+# was he Questionable", which B10 needs and which is the evidence B4 would require
+# before pricing a designation rather than merely surfacing it.
+DESIGNATIONS_FILE = _log("designations.jsonl")
 # F15 ingestion row: one immutable document per season -- the league's real completed draft,
 # picks resolved to team names at ingestion (sync.ingest_drafts; a file that exists is never
 # rewritten). Tracked in git like the other logs: Sleeper ages drafts out, so the on-disk
