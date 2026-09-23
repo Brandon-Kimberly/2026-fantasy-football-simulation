@@ -346,7 +346,7 @@ BID_RANGE_WIDTH = 0.35         # +-35% around the point estimate, because this i
 
 
 def suggest_bid_v2(claim_value, fallback_value, rivals_needing, rival_faab, my_faab,
-                   rival_aggression=None, min_bid=1):
+                   rival_aggression=None, min_bid=1, basis="vorp"):
     """A bid RANGE built from marginal value over the fallback and actual competition.
 
     B13. The v1 heuristic and the market comparable both price RAW value against MY
@@ -361,6 +361,14 @@ def suggest_bid_v2(claim_value, fallback_value, rivals_needing, rival_faab, my_f
     for the other 40%. And a player only costs what someone else will pay, so rivals who
     do not need the position, or cannot afford him, are not bidders.
 
+    CURRENCY MATTERS, and getting it wrong understates the answer badly. B13 specifies
+    PAIRED-SIM values here. `rank_waiver_targets` feeds VORP instead, because running a
+    paired simulation for each of fifteen ranked targets is not affordable -- so the
+    range it prints is a CHEAP PROXY, labelled `basis="vorp"`. The two are not
+    interchangeable: measured 2026-09-23, Mahomes over Shough is +2.40 in season mean but
+    **+5.47 champ%** on paired sims, so the VORP-fed range said $1-3 for a claim the
+    simulation values highly. Pass `basis="paired_sim"` when a real number exists.
+
     `rival_faab` is the budget of each rival WHO NEEDS THE POSITION (len() need not equal
     `rivals_needing`; the caller may know the count without the budgets).
     `rival_aggression` is their MANAGER_PROFILES faab_agg, 2025-derived priors (F31) and
@@ -372,7 +380,7 @@ def suggest_bid_v2(claim_value, fallback_value, rivals_needing, rival_faab, my_f
     budget = max(0.0, float(my_faab))
     if marginal <= 0.0 or budget <= 0.0:
         return {"low": min_bid, "point": min_bid, "high": min_bid, "marginal": marginal,
-                "competition_factor": 0.0, "bidders": 0,
+                "competition_factor": 0.0, "bidders": 0, "basis": basis,
                 "reasoning": ("the fallback is as good as the claim, so nothing is being "
                               "bought: bid the minimum. Marginal value over the fallback "
                               "is what a rival would have to outbid you for.")}
@@ -398,14 +406,15 @@ def suggest_bid_v2(claim_value, fallback_value, rivals_needing, rival_faab, my_f
     low = int(max(min_bid, min(round(point * (1 - BID_RANGE_WIDTH)), budget)))
     high = int(max(min_bid, min(round(point * (1 + BID_RANGE_WIDTH)), budget)))
     return {
-        "low": low, "point": point, "high": high,
+        "low": low, "point": point, "high": high, "basis": basis,
         "marginal": marginal, "competition_factor": share, "bidders": bidders,
         "reasoning": (
             f"marginal over the fallback {marginal:.2f}/wk (claim {float(claim_value):.2f} "
             f"minus fallback {float(fallback_value):.2f}); {bidders} rival(s) need the "
             f"position and can pay (aggression {mean_aggr:.2f}), so pay {share:.0%} of it. "
             f"Rivals who do not need the position, or hold under ${BID_BROKE_FAAB}, are "
-            f"not bidders."),
+            f"not bidders. Values are in '{basis}' units -- a VORP-fed range is a cheap "
+            f"proxy and understates a claim the paired sim rates highly."),
     }
 
 
