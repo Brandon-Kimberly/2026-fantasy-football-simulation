@@ -140,5 +140,49 @@ class TestTheJointIsLabelledNotAsserted(unittest.TestCase):
                                      {"z": 1.0, "p_this_bad": 0.8}))
 
 
+
+
+class TestTheJointLabelMatchesTheSign(unittest.TestCase):
+    """Found by running --tail on a completed week.
+
+    The output read "me this cold AND them this hot" while the opponent was running at
+    z -0.12, i.e. cold. The arithmetic was right -- P(mine <= z) * P(theirs >= z) -- but
+    the sentence described the wrong world, and a number with a wrong label is worse than
+    no number.
+    """
+
+    def test_a_hot_opponent_is_described_as_hot(self):
+        from scripts.live_matchup import tail_joint
+        j = tail_joint({"z": -2.0, "p_this_bad": NORM(-2.0)},
+                       {"z": 1.5, "p_this_bad": NORM(1.5)})
+        self.assertIn("hot", j["label"])
+
+    def test_a_cold_opponent_is_not_described_as_hot(self):
+        from scripts.live_matchup import tail_joint
+        j = tail_joint({"z": -2.0, "p_this_bad": NORM(-2.0)},
+                       {"z": -0.12, "p_this_bad": NORM(-0.12)})
+        self.assertNotIn("this hot", j["label"])
+        self.assertIn("cold", j["label"])
+
+
+class TestStaleProjectionsOnAPastWeek(unittest.TestCase):
+    """Also found by running it: `--tail --week 2` scored a completed week against
+    TODAY's expectations. A quarterback who has since gone on IR carried a week-2
+    expectation of 0.00, so a 8.72-point game read as +1.13 sigma ABOVE expectation.
+
+    The tool is built for live use, where this cannot arise. For a past week it must say
+    so rather than quietly present contaminated z-scores.
+    """
+
+    def test_a_past_week_is_flagged_as_using_todays_projections(self):
+        from scripts.live_matchup import tail_caveat
+        self.assertIsNotNone(tail_caveat(week=2, current_week=3))
+        self.assertIn("today", tail_caveat(week=2, current_week=3).lower())
+
+    def test_the_current_week_needs_no_caveat(self):
+        from scripts.live_matchup import tail_caveat
+        self.assertIsNone(tail_caveat(week=3, current_week=3))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -19,6 +19,7 @@ itself a random variable.
 
   py -3.10 -m scripts.live_matchup                    # my matchup + median leg + league
   py -3.10 -m scripts.live_matchup --team "Polar Yetis"
+  py -3.10 -m scripts.live_matchup --tail             # how improbable is today? clock-adjusted z
   py -3.10 -m scripts.live_matchup --review           # every roster: over/under, benched
   py -3.10 -m scripts.live_matchup --json
 
@@ -244,6 +245,106 @@ def median_leg(states, sims=40000, seed=20260913):
     return {n: float((matrix[i] > med).mean()) for i, n in enumerate(names)}, matrix, names
 
 
+def _normal_cdf(z):
+    return 0.5 * math.erfc(-z / math.sqrt(2))
+
+
+def tail_audit(state):
+    """How far below expectation is this roster, given how much has actually been played?
+
+    B12. Scoring accrues over game time, so a player's expectation scales LINEARLY with
+    elapsed time and his sd with its SQUARE ROOT:
+
+        played          = 1 - frac          (frac = fraction of his game remaining)
+        expected_by_now = mean * played
+        sd_by_now       = sd * sqrt(played)
+        z               = (points so far - expected_by_now) / sd_by_now
+
+    Pure, over the rows `team_states` already returns -- which carry `scored`, `mean`,
+    `sd` and `frac`, are keyed by pid, and come from `week_projections` (F50). The
+    scratchpad version rebuilt each name from the raw player cache and looked it up in
+    engine.baselines, which is the B17 collision path across 220 colliding names; nothing
+    here touches the cache.
+
+    Players whose games have not kicked off are EXCLUDED: there is nothing to judge yet,
+    and counting them as a 0.0 shortfall would manufacture a disaster out of a 1pm slate.
+
+    The team total is Sleeper's own `banked` figure rather than a sum of the rows: it is
+    authoritative, and summing would silently drop anything it counts that the starter
+    rows do not.
+    """
+    rows = []
+    exp_now = var_now = 0.0
+    for r in (state or {}).get("rows", []):
+        played = 1.0 - float(r.get("frac", 1.0))
+        if played <= 0.01:
+            continue
+        mu, sd = float(r.get("mean") or 0.0), float(r.get("sd") or 0.0)
+        emu, esd = mu * played, sd * math.sqrt(played)
+        got = float(r.get("scored") or 0.0)
+        z = ((got - emu) / esd) if esd > 0 else 0.0
+        rows.append({"pid": r.get("pid"), "name": r.get("name"), "pos": r.get("pos"),
+                     "status": r.get("status"), "played": played,
+                     "scored": got, "expected_by_now": emu, "sd_by_now": esd,
+                     "z": z, "p_this_bad": _normal_cdf(z)})
+        exp_now += emu
+        var_now += esd ** 2
+    rows.sort(key=lambda x: x["z"])          # the man to be angry about goes first
+
+    scored = float((state or {}).get("banked") or 0.0)
+    sd_now = math.sqrt(var_now)
+    if not rows or sd_now <= 0:
+        return {"players": rows, "scored": scored, "expected_by_now": exp_now,
+                "sd_by_now": sd_now, "z": None, "p_this_bad": None, "one_in": None}
+    z = (scored - exp_now) / sd_now
+    p = _normal_cdf(z)
+    return {"players": rows, "scored": scored, "expected_by_now": exp_now,
+            "sd_by_now": sd_now, "z": z, "p_this_bad": p,
+            "one_in": (1.0 / p) if p > 0 else float("inf")}
+
+
+def tail_joint(mine, theirs):
+    """P(I am this cold AND they are this hot), with the assumption named.
+
+    The two rosters are DISJOINT player sets, so independence is defensible here -- this
+    is not B11's error, where both legs turned on the same score. It is still not exact:
+    players sharing an NFL game are correlated, which is what --inflate exists for. The
+    caveat travels with the number rather than being left to the reader.
+    """
+    if not mine or not theirs or mine.get("p_this_bad") is None or theirs.get("p_this_bad") is None:
+        return None
+    p = float(mine["p_this_bad"]) * (1.0 - float(theirs["p_this_bad"]))
+    # The LABEL has to follow the opponent's sign. The first version always said "them
+    # this hot" and printed it against an opponent running at z -0.12, i.e. cold. The
+    # arithmetic -- P(mine <= z) x P(theirs >= z) -- was right; the sentence described a
+    # different world, and a correct number under a wrong label is worse than no number.
+    theirs_z = float(theirs.get("z") or 0.0)
+    side = "this hot" if theirs_z > 0 else "no colder than this"
+    return {"p_joint": p, "one_in": (1.0 / p) if p > 0 else float("inf"),
+            "label": f"me this cold AND them {side}"
+                     + ("" if theirs_z > 0 else "  (they are cold too)"),
+            "caveat": ("the two rosters are treated as INDEPENDENT -- they are disjoint "
+                       "player sets, so this is defensible, but players in the same NFL "
+                       "game are correlated and that is unpriced here")}
+
+
+def tail_caveat(week, current_week):
+    """A warning when --tail is pointed at a week that is already over, or None.
+
+    Found by running it: `--tail --week 2` scored a finished week against TODAY's
+    expectations. A quarterback who has since gone on IR carried a week-2 expectation of
+    0.00, so an 8.72-point game read as +1.13 sigma ABOVE expectation. The tool is built
+    for live use, where this cannot arise; for a past week it must say so rather than
+    quietly present contaminated z-scores.
+    """
+    if int(week) == int(current_week):
+        return None
+    return (f"week {week} is not the current week ({current_week}): these z-scores use "
+            f"TODAY's projections, not the ones that applied then. A player who has since "
+            f"been injured or benched carries a depressed expectation, which flatters his "
+            f"z. Read this as indicative, not as the contemporaneous number.")
+
+
 def joint_legs(matrix, names, team, opponent):
     """P(2-0) / P(1-1) / P(0-2) for the week's two legs, from ONE set of draws.
 
@@ -334,6 +435,9 @@ def main(argv=None):
     ap.add_argument("--seed", type=int, default=20260913)
     ap.add_argument("--inflate", type=float, default=1.3,
                     help="margin-sd multiplier reported alongside the independent number")
+    ap.add_argument("--tail", action="store_true",
+                    help="how improbable is today? per-player and team z against what "
+                         "should have been scored BY NOW, clock-adjusted")
     ap.add_argument("--review", action="store_true",
                     help="every roster: biggest over/under performers and benched points")
     ap.add_argument("--json", action="store_true")
@@ -416,6 +520,37 @@ def main(argv=None):
               f"{p_h2h:.1%} above --")
         print("    that one is a closed-form normal on the margin, these are per-player "
               "draws truncated at zero.")
+
+    if args.tail:
+        # B12: the 4pm-on-a-Sunday question. Clock-adjusted, so a 1pm slate that has not
+        # kicked off cannot masquerade as a disaster.
+        mine_t = tail_audit(me)
+        print("\n  TAIL -- only players whose games have started")
+        print(f"  {'player':22s} {'game':12s} {'have':>7s} {'by now':>8s} {'z':>6s} {'P(this bad)':>12s}")
+        for x in mine_t["players"]:
+            print(f"  {x['name'][:22]:22s} {str(x['status'])[:12]:12s} {x['scored']:7.2f} "
+                  f"{x['expected_by_now']:8.2f} {x['z']:+6.2f} {x['p_this_bad'] * 100:11.1f}%")
+        if mine_t["z"] is None:
+            print("  nothing has kicked off yet -- there is nothing to judge.")
+        else:
+            print(f"  {'-- TEAM --':22s} {'':12s} {mine_t['scored']:7.2f} "
+                  f"{mine_t['expected_by_now']:8.2f} {mine_t['z']:+6.2f} "
+                  f"{mine_t['p_this_bad'] * 100:11.2f}%   (sd {mine_t['sd_by_now']:.1f})")
+            print(f"  a week this cold is about 1 in {mine_t['one_in']:.0f}")
+            if opp:
+                theirs_t = tail_audit(opp)
+                if theirs_t["z"] is not None:
+                    hot = "ABOVE" if theirs_t["z"] > 0 else "below"
+                    print(f"  {show(opp_name)} is running {hot} expectation at "
+                          f"z {theirs_t['z']:+.2f}")
+                    j = tail_joint(mine_t, theirs_t)
+                    if j:
+                        print(f"  {j['label']}: {j['p_joint'] * 100:.2f}% "
+                              f"~ 1 in {j['one_in']:.0f}")
+                        print(f"  NOTE: {j['caveat']}")
+            stale = tail_caveat(week, engine.current_week)
+            if stale:
+                print(f"  NOTE: {stale}")
 
     print(f"\n  {'team':28s} {'banked':>8} {'left':>5} {'proj':>8} {'P(median)':>10}")
     for t, s in sorted(states.items(), key=lambda kv: -kv[1]["proj"]):
