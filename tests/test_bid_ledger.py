@@ -119,10 +119,16 @@ class TestReconciliation(unittest.TestCase):
 
 class TestCalibration(unittest.TestCase):
     def test_it_scores_both_heuristics_through_the_censoring_rule(self):
+        """AMENDED BY F64 (2026-09-23). Both rows were `_row()` with no override, so both
+        carried player_id 4046 in week 3 -- ONE claim, asserted to be simultaneously won
+        and lost, which cannot happen. It passed only because calibration scored rows
+        rather than claims. The two rows are now two distinct claims, which is what the
+        test always meant."""
         from fantasy_sim.bid_ledger import calibration
         rows = [dict(_row(suggested_v1=30, suggested_v2_point=20), won=True,
                      winning_bid_if_visible=25),
-                dict(_row(suggested_v1=5, suggested_v2_point=22), won=False,
+                dict(_row(player_id="12545", player="Tyler Shough",
+                          suggested_v1=5, suggested_v2_point=22), won=False,
                      winning_bid_if_visible=20)]
         c = calibration(rows)
         self.assertEqual(c["n"], 2)

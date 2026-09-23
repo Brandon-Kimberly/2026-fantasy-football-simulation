@@ -26,6 +26,14 @@ explicitly:
 3. **The censoring survives.** A winning bid is an upper bound on the price, never the
    price, so scoring goes through `decisions.score_bid_suggestion` rather than averaging
    an absolute distance that means four different things.
+4. **A RAISED bid is one claim, not two** (F64, 2026-09-23). The owner placed $25, then
+   raised to $29 before the daily run. Both rows are appended, both match the same
+   `(player_id, week)`, and both were being reconciled and scored against one outcome --
+   once at a price that was never live. `live_rows` collapses each `(player_id, week)` to
+   its LATEST row by `placed_at`; the earlier ones survive in the file and are readable
+   through `superseded_rows`, because "how often is a bid revised, and which way" is a
+   question this ledger should still be able to answer. Append-only stays append-only:
+   nothing is mutated or deleted.
 """
 import json
 import logging
@@ -64,6 +72,39 @@ def record_bid(row, path=BID_LEDGER_FILE):
         return 0
 
 
+def _claim_key(row):
+    return (str(row.get("player_id")), row.get("week"))
+
+
+def _placed_sort_key(row):
+    """Later sorts higher. A row with no `placed_at` sorts LOWEST, so it can never
+    supersede one that has a timestamp -- an undated row cannot be shown to be later.
+    """
+    stamp = row.get("placed_at")
+    return (stamp is not None, stamp or "")
+
+
+def live_rows(rows):
+    """One row per (player_id, week): the LATEST bid placed on that claim.
+
+    F64. Ordered by `placed_at`, not by file order -- rows arrive in order today, but an
+    append-only log read by timestamp survives a backfill, and sorting by arrival instead
+    of by time is the exact mistake `decision_scorecard` made with file paths.
+    """
+    latest = {}
+    for row in rows or []:
+        key = _claim_key(row)
+        if key not in latest or _placed_sort_key(row) > _placed_sort_key(latest[key]):
+            latest[key] = row
+    return list(latest.values())
+
+
+def superseded_rows(rows):
+    """The earlier bids on claims that were revised. Kept, never scored."""
+    live = {id(r) for r in live_rows(rows)}
+    return [r for r in (rows or []) if id(r) not in live]
+
+
 def reconcile(ledger_rows, decision_rows):
     """Fill `won` and `winning_bid_if_visible` from completed transactions.
 
@@ -99,9 +140,13 @@ def calibration(rows):
     Only RESOLVED rows count. An unresolved claim is not evidence either way, and
     counting it as correct is how a heuristic gets to look good by saying nothing.
     """
-    resolved = [r for r in (rows or [])
+    # F64: score the CLAIM, not the row. A bid raised before the waiver run is one claim,
+    # and counting it twice would score a price that was never live.
+    claims = live_rows(rows)
+    resolved = [r for r in claims
                 if r.get("won") is not None and r.get("winning_bid_if_visible") is not None]
-    out = {"n": len(resolved), "unresolved": len(rows or []) - len(resolved)}
+    out = {"n": len(resolved), "unresolved": len(claims) - len(resolved),
+           "superseded": len(rows or []) - len(claims)}
     for key, field in (("v1", "suggested_v1"), ("v2", "suggested_v2_point")):
         scored = [score_bid_suggestion(r.get(field) or 0, r["winning_bid_if_visible"],
                                        bool(r["won"])) for r in resolved]

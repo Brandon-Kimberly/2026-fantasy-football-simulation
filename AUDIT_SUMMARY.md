@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~101 findings and tracked follow-ups** | **68 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~102 findings and tracked follow-ups** | **69 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,19 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F64** a raised bid was two claims in the ledger, scored at a price that was never
+  live — RESOLVED: found by using it. The owner raised a QB bid from $25 to $29 before
+  the daily run; `record_bid` appends and `calibration` scored every ROW, so one claim
+  would reconcile against one outcome twice. It matters because this ledger is recorded
+  as "the only route to settling" B13 after F61 (correlation(VORP, winning bid) −0.136),
+  and double-scoring a revision biases toward whichever price was typed first —
+  systematically the LOWER one, since bids get raised far more than lowered. Fixed by
+  SUPERSESSION, not mutation: `live_rows` keeps the latest row per (player_id, week) by
+  `placed_at`, `superseded_rows` returns the rest, and the earlier row stays in the file
+  because "how often is a bid revised, and which way" is a question worth keeping.
+  Ordering is by timestamp, not file order — the mistake `decision_scorecard` made with
+  paths the same day. An existing test had passed on an impossible fixture: two bare
+  `_row()` calls sharing one player_id and week, asserted both won and lost.
 - **F63** B21's designation log could not answer the one question it was built for —
   RESOLVED: found while working B10, the study B21 exists to feed. B10's test is "above
   the positional BASE RATE", a rate among the UNDESIGNATED, and `append_designations`

@@ -5011,3 +5011,43 @@ and reads as a lower bound. Every pair from week 4 on is clean.
 
 Suite 1004 → 1025. Goldens 15/15, sync golden byte-identical. No prediction changed —
 nothing in the engine imports `fantasy_sim.durability`. RESOLVED.
+
+### F64 — A raised bid was two claims in the ledger, scored at a price that was never live — RESOLVED (2026-09-23)
+
+**Origin.** Not from the backlog. Found by using the tool: the owner placed $25 on a QB,
+reconsidered on fresh paired-sim evidence, and raised to $29 before the daily waiver run.
+
+**The defect.** `record_bid` appends, `reconcile` matches on `(player_id, week)`, and
+`calibration` scored every ROW. So one claim would be reconciled against one outcome
+twice and scored twice — once at $25, a price that was never live when the run happened.
+
+**Why it matters more than a double count.** This ledger has exactly one purpose. F61
+measured correlation(VORP, winning bid) = −0.136 across 26 claims, which makes B13's
+acceptance unmeetable by any VORP-shaped rule, and this plan records B14's ledger as
+*"the only route to settling it"*. A dataset that scores a revised bid twice at two
+different prices for one outcome cannot settle anything, and it biases toward whichever
+number the owner happened to type first — systematically the LOWER one, since bids get
+raised far more often than lowered.
+
+**Fixed by supersession, not mutation.** `live_rows` collapses each `(player_id, week)` to
+its latest row by `placed_at`; `superseded_rows` returns the rest. The earlier row stays
+in the file — it is true that the bid was $25 at that hour, and *"how often is a bid
+revised, and in which direction"* is a question this ledger should still be able to
+answer. Append-only stays append-only: nothing is edited or deleted.
+`calibration` now reports a `superseded` count alongside `n` and `unresolved`, and
+`scripts.bid_review` lists superseded rows separately from claims.
+
+**Ordering is by `placed_at`, not file order**, and an undated row can never supersede a
+dated one. Rows arrive in order today, but a log read by timestamp survives a backfill —
+and sorting by arrival rather than by time is the exact mistake `decision_scorecard` made
+with file paths earlier the same day.
+
+**An existing test had been passing on an impossible fixture.**
+`test_it_scores_both_heuristics_through_the_censoring_rule` built both rows with a bare
+`_row()`, so both carried `player_id` 4046 in week 3 — ONE claim, asserted to be
+simultaneously won and lost. It passed only because calibration scored rows rather than
+claims. Amended to two distinct claims, which is what it always meant, with the reason
+recorded in place.
+
+Suite 1025 → 1033. Goldens 15/15, sync golden byte-identical. No prediction changed.
+RESOLVED.
