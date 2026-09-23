@@ -2159,8 +2159,9 @@ manager actually drafted against who was realistically available at that pick --
 league's real draft history. **Confirmed not ingested anywhere in this project:** a grep of
 every `.py` and `.md` for "draft" finds only a DraftKings odds URL in `sync.py` and prose.
 Sleeper has it: `/league/{id}/drafts` returns one completed snake draft per season
-(2026: `draft_id` 1310010483046109184, 19 rounds x 8 teams, position limits enforced; 2025:
-1253869356119506944), and `/draft/{draft_id}/picks` returns every pick with `round`, `pick_no`,
+(one `draft_id` per season, 19 rounds x 8 teams, position limits enforced; the ids are
+league identifiers and are not written down here -- F37, and B20's repo-wide guard refuses
+them), and `/draft/{draft_id}/picks` returns every pick with `round`, `pick_no`,
 `draft_slot`, `roster_id`, `picked_by`, `player_id`, `is_keeper` and a `metadata` block
 (name, position, NFL team at pick time). Probed 2026-09-01: **152 picks (2026), 128 (2025)**.
 
@@ -4351,9 +4352,10 @@ and 2026, against the owner's standing "my receivers are always hurt" reading.
    stopped setting lineups, so its starters score 0.00 in bulk and inflate the league
    average to 2.12/game against the owner's 0.43.
 3. **The renewal chain is broken at 2025** — `previous_league_id` is `None`, so `--all`
-   silently reaches only 2026 and 2025. 2024 is orphaned and needs
-   `--league-id 1134957276114178048`. Found while backfilling; the flag exists because of
-   it.
+   silently reaches only 2026 and 2025. 2024 is orphaned. Found while backfilling; the
+   `--league-id` flag exists because of it. **Closed by B20 (2026-09-23)**: the id moved to
+   `SLEEPER_LEAGUE_ID_2024` and `config.KNOWN_LEAGUE_IDS`, and `fantasy_sim.league_chain`
+   fills the gap for both walkers.
 
 **Refereeing and negated plays are not measured at all.** Sleeper does not log calls that
 came back. The owner's most-repeated grievance is therefore outside this instrument

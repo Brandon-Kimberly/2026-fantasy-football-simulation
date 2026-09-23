@@ -28,7 +28,8 @@ from collections import defaultdict
 
 import requests
 
-from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP
+from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP, KNOWN_LEAGUE_IDS
+from fantasy_sim.league_chain import resolve_chain
 from fantasy_sim.luck_ledger import direction, ledger, two_sided_p
 from fantasy_sim.weekly_report import real_name_overlay
 
@@ -40,14 +41,22 @@ def _get(url):
 
 
 def _league_chain():
-    """(season, league_id) for every season, newest first, via previous_league_id."""
-    out, lid, seen = [], LEAGUE_ID, set()
-    while lid and lid not in seen:
-        seen.add(lid)
-        info = _get(f"{BASE_URL}/league/{lid}") or {}
-        out.append((str(info.get("season")), lid, info))
-        lid = info.get("previous_league_id")
-    return out
+    """(season, league_id, info) for every season, newest first.
+
+    B20: walks previous_league_id AND falls back to config.KNOWN_LEAGUE_IDS, because this
+    league's chain is broken at 2025 -- without the map, --all silently stopped one season
+    short. The shared walker lives in fantasy_sim.league_chain so this and
+    scripts.season_retrospective cannot drift apart.
+    """
+    seen = {}
+
+    def fetch(lid):
+        seen[str(lid)] = info = _get(f"{BASE_URL}/league/{lid}") or {}
+        return info
+
+    pairs = resolve_chain(LEAGUE_ID, fetch=fetch, known=KNOWN_LEAGUE_IDS)
+    # Seasons supplied by the map were never fetched by the walk; fetch them now.
+    return [(season, lid, seen.get(str(lid)) or fetch(lid)) for season, lid in pairs]
 
 
 def _team_names(lid, info):
@@ -166,8 +175,10 @@ def main(argv=None):
     ap.add_argument("--all", action="store_true", help="every season in the renewal chain")
     ap.add_argument("--league-id", default=None, dest="league_id",
                     help="score a league the renewal chain cannot reach. 2025 carries a "
-                         "null previous_league_id, so 2024 is orphaned and must be named "
-                         "explicitly (id 1134957276114178048).")
+                         "null previous_league_id, so 2024 is orphaned. Normally you do "
+                         "not need this: set SLEEPER_LEAGUE_ID_2024 and --all picks it up "
+                         "via config.KNOWN_LEAGUE_IDS (B20). The flag remains for a league "
+                         "that is in no map at all.")
     ap.add_argument("--team", default=None)
     ap.add_argument("--week", type=int, default=None, help="only count through this week")
     ap.add_argument("--json", action="store_true")

@@ -28,6 +28,27 @@ import re
 LEAGUE_ID = os.getenv("SLEEPER_LEAGUE_ID", "").strip()   # .strip(): a secret set via a shell pipe carries a trailing newline (bit the first Pages run, 2026-09-05)
 BASE_URL = "https://api.sleeper.app/v1"
 
+# B20 (2026-09-23): season -> league id, for the tools that walk the renewal chain.
+#
+# WHY IT IS NEEDED. Sleeper links seasons by `previous_league_id`, and THIS LEAGUE'S CHAIN
+# IS BROKEN AT 2025: the 2025 league's previous_league_id is null, so 2024 is orphaned and
+# every chain-walker (scripts.luck_ledger --all, scripts.season_retrospective) silently
+# stopped one season short. This map is the documented fallback for exactly that.
+#
+# ENV-ONLY, like every other league identifier (F37). Values are read from the
+# environment and a season with no variable set simply does not appear -- no blanks, no
+# defaults, and no id in this file. Before this, the 2024 id was a literal in
+# scripts/luck_ledger.py and three docs; tests/test_league_chain.py now refuses any
+# Sleeper-shaped id anywhere in the repository.
+#
+# The live chain WINS where the two disagree: this is a fallback for seasons the chain
+# cannot reach, not an override. A disagreement warns, because it means a stale variable.
+KNOWN_LEAGUE_IDS = {season: value for season, value in (
+    ("2024", os.getenv("SLEEPER_LEAGUE_ID_2024", "").strip()),
+    ("2025", os.getenv("SLEEPER_LEAGUE_ID_2025", "").strip()),
+    ("2026", LEAGUE_ID),
+) if value}
+
 TEAM_NAME_MAP = {   # roster_id -> team label (fictional; see the F37 note above)
     "1": "Neon Walruses",
     "2": "Rocket Pandas",

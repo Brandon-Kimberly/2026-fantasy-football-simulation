@@ -58,9 +58,10 @@ This is why `scoring_luck` compares `my_mean_z` to `league_mean_z` rather than t
   stopped setting lineups, so its starters score 0.00 in bulk and the league-average DNP
   rate is inflated (2.12/game against 0.43 for the owner). Read 2024's DNP row as
   unusable, not as good luck.
-- **The renewal chain is broken at 2025.** `previous_league_id` is `None` there, so
-  `--all` reaches only 2026 and 2025. 2024 must be named explicitly:
-  `--league-id 1134957276114178048`.
+- **The renewal chain is broken at 2025.** `previous_league_id` is `None` there, so the
+  chain alone reaches only 2026 and 2025. Set **`SLEEPER_LEAGUE_ID_2024`** and `--all`
+  picks 2024 up through `config.KNOWN_LEAGUE_IDS` (B20). League ids are environment-only
+  (F37) and are never written down here.
 - **Refereeing, negated touchdowns and similar are not measured at all.** Sleeper does not
   log plays that were called back. That grievance is real and this tool is silent on it;
   it is not evidence either way.
@@ -86,7 +87,7 @@ is the point of writing it down and waiting.
 py -3.10 -m scripts.luck_ledger                                  # current season
 py -3.10 -m scripts.luck_ledger --season 2025
 py -3.10 -m scripts.luck_ledger --all                            # renewal chain
-py -3.10 -m scripts.luck_ledger --league-id 1134957276114178048  # orphaned 2024
+py -3.10 -m scripts.luck_ledger --all                            # 2024 needs SLEEPER_LEAGUE_ID_2024
 py -3.10 -m scripts.luck_ledger --json
 ```
 

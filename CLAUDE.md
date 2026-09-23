@@ -49,7 +49,9 @@ mechanism, flipped to a guard when `AUDIT_PLAN.md` F2 commit 1 landed on 2026-09
 (verified not to be the example database); revisit on a later 3.10.x.
 
 **Environment (F37, 2026-09-05):** the league identifiers are env-only --
-`SLEEPER_LEAGUE_ID`, `ESPN_LEAGUE_ID`, `SLEEPER_LEAGUE_ID_2025` (backtests) -- plus
+`SLEEPER_LEAGUE_ID`, `ESPN_LEAGUE_ID`, `SLEEPER_LEAGUE_ID_2025` (backtests),
+`SLEEPER_LEAGUE_ID_2024` (B20: the renewal chain is broken at 2025, so the 2024
+league is unreachable without it -- `config.KNOWN_LEAGUE_IDS`) -- plus
 `ODDS_API_KEY` for real lines. The test suite needs NONE of them (hermetic by design --
 F48: keep it that way, the real-name default lives in `scripts.weekly_report`, never in
 the library, or rendering starts fetching live data mid-test);

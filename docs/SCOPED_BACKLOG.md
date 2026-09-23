@@ -570,7 +570,7 @@ runs. Corrections, if any, are listed with magnitude.
 
 **What.** The 2025 league's `previous_league_id` is `None`, so any tool that walks the
 chain (`luck_ledger --all`, `season_retrospective`) silently stops one season short.
-2024 is `1134957276114178048`. Right now that ID lives in a scratchpad script and a
+2024 is reachable only by id. Right now that ID lives in a scratchpad script and a
 `--league-id` flag.
 
 **Scope.** `config.py`: `KNOWN_LEAGUE_IDS = {"2024": "...", "2025": "...", "2026": ...}`

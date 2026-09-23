@@ -19,22 +19,30 @@ import os
 
 import requests
 
-from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM
+from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, KNOWN_LEAGUE_IDS
+from fantasy_sim.league_chain import resolve_chain
 from fantasy_sim.season_retrospective import season_retrospective
 from fantasy_sim.storage import PLAYER_CACHE_FILE, decisions_season_path, load_json, save_json, season_log_file
 from fantasy_sim.sync import ingest_season
 
 
 def _league_id_for_season(season):
-    """Walks the previous_league_id chain from the current league to the requested season."""
-    lid, seen = LEAGUE_ID, set()
-    while lid and lid not in seen:
-        seen.add(lid)
-        info = requests.get(f"{BASE_URL}/league/{lid}", timeout=10).json() or {}
-        if str(info.get("season")) == str(season):
+    """The league id for `season`.
+
+    B20: walks previous_league_id AND consults config.KNOWN_LEAGUE_IDS, because this
+    league's chain is broken at 2025 and 2024 is otherwise unreachable. Shares
+    fantasy_sim.league_chain with scripts.luck_ledger so the two cannot drift.
+    """
+    def fetch(lid):
+        return requests.get(f"{BASE_URL}/league/{lid}", timeout=10).json() or {}
+
+    for s, lid in resolve_chain(LEAGUE_ID, fetch=fetch, known=KNOWN_LEAGUE_IDS):
+        if str(s) == str(season):
             return lid
-        lid = info.get("previous_league_id")
-    raise SystemExit(f"no league found for season {season} in the renewal chain")
+    raise SystemExit(
+        f"no league found for season {season} in the renewal chain or in "
+        f"KNOWN_LEAGUE_IDS. If that season predates the chain break, set "
+        f"SLEEPER_LEAGUE_ID_{season} (F37: league ids are env-only).")
 
 
 def _positions(players_db):
