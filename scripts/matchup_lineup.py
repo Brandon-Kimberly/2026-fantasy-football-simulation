@@ -59,7 +59,8 @@ def main(argv=None):
     best = r["ranking_by_p_beat_opponent"][0]
     print(f"\n  best by P(beat opponent): {best}")
     for row in r["constructions"][best]["lineup"]:
-        print(f"    {row['slot']:5s} {row['name'][:26]:26s} {row['nfl_team'] or '-':4s} exp {row['expected']:5.1f}  sd {row['sd']:4.1f}")
+        print(f"    {row['slot']:5s} {row['name'][:26]:26s} {row['nfl_team'] or '-':4s} "
+              f"{(row.get('flag') or '')[:12]:12s} exp {row['expected']:5.1f}  sd {row['sd']:4.1f}")
     diff = [(a, b) for a, b in zip(r["constructions"]["max_mean"]["lineup"], r["constructions"][best]["lineup"]) if a["name"] != b["name"]]
     if best != "max_mean" and diff:
         print("  changes vs max_mean: " + "; ".join(f"{a['slot']}: {a['name']} -> {b['name']}" for a, b in diff))

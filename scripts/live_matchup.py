@@ -45,7 +45,7 @@ from datetime import datetime, timezone
 import requests
 
 from fantasy_sim.config import ANON_EPISTEMIC_RATE, BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP
-from fantasy_sim.decisions import week_expectation
+from fantasy_sim.decisions import week_expectation, questionable_count
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import load_json
 from fantasy_sim.weekly_report import real_name_overlay
@@ -231,8 +231,11 @@ def gather(week=None, fetch=None):
     clocks = game_clocks(week, fetch=fetch)
     players = load_json("data/current/sleeper_players_cache.json")
     # F50: the engine, not the baselines file -- see week_projections().
-    projections = week_projections(FantasySimulationEngine(), week)
-    return week, team_states(matchups, rosters, clocks, players, projections)
+    # B4: the engine is returned as well, so the caller can count Questionable starters
+    # without paying for a second init (R1: one engine at a time).
+    engine = FantasySimulationEngine()
+    projections = week_projections(engine, week)
+    return week, team_states(matchups, rosters, clocks, players, projections), engine
 
 
 def main(argv=None):
@@ -249,7 +252,7 @@ def main(argv=None):
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
-    week, states = gather(args.week)
+    week, states, engine = gather(args.week)
     overlay = real_name_overlay()
     show = (lambda t: f"{overlay[t]}" if t in overlay else t)
 
@@ -296,6 +299,19 @@ def main(argv=None):
               f"{math.hypot(me['rem_sd'], opp['rem_sd']):.1f}")
         print(f"  P(win head-to-head) = {p_h2h:6.1%}   "
               f"at sd x{args.inflate} (same-game correlation) = {p_infl:.1%}")
+        # B4 scope 3 + F51. No availability discount is applied to a pre-game starter, so
+        # this number reads "if everyone plays" for BOTH teams. That optimism only cancels
+        # when the two rosters carry comparable Questionable counts -- so print them.
+        q_me = questionable_count(engine, args.team)
+        q_opp = questionable_count(engine, opp_name)
+        print(f"  Questionable: {show(args.team)} {q_me}, {show(opp_name)} {q_opp}"
+              + ("   (comparable -- the optimism cancels)" if q_me == q_opp else
+                 f"   ASYMMETRIC by {abs(q_me - q_opp)}: the margin flatters "
+                 f"{show(args.team if q_me > q_opp else opp_name)}"))
+        print("  No availability discount is applied to a pre-game starter (F51): the "
+              "margin is trustworthy")
+        print("  only when these counts are comparable. Check the Saturday designations "
+              "yourself.")
     print(f"  P(beat league median) = {med.get(args.team, float('nan')):6.1%}")
     if opp:
         both = p_h2h * med.get(args.team, 0.0)

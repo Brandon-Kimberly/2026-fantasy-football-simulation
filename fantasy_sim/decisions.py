@@ -203,6 +203,37 @@ def _unavailable_now(entry):
     return entry.get('injury_status') in SIM_CONFIG["INITIAL_ABSENCE_STATUSES"] or bool(entry.get('on_ir', False))
 
 
+def injury_flag(entry):
+    """The player's injury designation for DISPLAY, or "" when there is nothing to say.
+
+    B4. `Questionable` is in no absence set (`INITIAL_ABSENCE_STATUSES`), and deliberately
+    so: the Sleeper projection the baseline derives from already reflects expected usage
+    for a Questionable player, so discounting again would double-count, and in-week
+    availability is a call the owner hedges by hand off the Saturday designations (F51).
+
+    The defect B4 names is that the tools never SAID so. This is the surfacing half and it
+    changes no number anywhere -- it is read only by renderers.
+
+    Returns "" rather than None so a format string needs no None check.
+    """
+    if not isinstance(entry, dict):
+        return ""
+    if entry.get("injury_status"):
+        return str(entry["injury_status"])
+    return "IR" if entry.get("on_ir") else ""
+
+
+def questionable_count(engine, team):
+    """How many of `team`'s players carry a Questionable designation.
+
+    B4 scope 3: live_matchup prints this for BOTH rosters, because F51's optimism -- no
+    availability discount on a pre-game starter -- only cancels out between two teams when
+    their Questionable counts are comparable.
+    """
+    return sum(1 for n in engine.rosters.get(team, [])
+               if injury_flag(_entry(engine, n)) == "Questionable")
+
+
 def roster_gaps(engine, team, weeks):
     """{week: {'unfilled': [slot, ...], 'starters': {slot: [(name, expected), ...]}}} for the
     team's REAL roster: the engine's optimal assignment over players who are neither on bye
@@ -668,6 +699,7 @@ def optimize_lineup(engine, team, week, sims=1000, seed=None):
         lineup.append({"slot": slot, "name": n, "pos": normalize_position(_entry(engine, n).get('pos', 'FLEX')),
                        "expected": float(value), "p10": s["p10"], "p50": s["p50"], "p90": s["p90"],
                        "p_zero": s["p_zero"], "alternative": alt,
+                       "flag": injury_flag(_entry(engine, n)),   # B4: display only
                        "margin": float(value - (exp[alt] if alt else 0.0))})
     bench = []
     for n in names:
@@ -676,9 +708,28 @@ def optimize_lineup(engine, team, week, sims=1000, seed=None):
         e = _entry(engine, n)
         reason = "bye" if e.get('bye') == week else ("out" if _unavailable_now(e) else "")
         bench.append({"name": n, "pos": normalize_position(e.get('pos', 'FLEX')), "expected": exp[n],
-                      "available": available[n], "reason": reason})
+                      "available": available[n], "reason": reason,
+                      "flag": injury_flag(e)})   # B4: display only
     bench.sort(key=lambda b: -b["expected"])
+    # B4 scope 2: the starters carrying unpriced in-week risk, each with the best AVAILABLE
+    # bench alternative eligible for his slot, by week expectation. The fallback is what
+    # makes the block actionable at 12:55 on a Sunday; the numbers themselves are untouched.
+    questionable_starters = []
+    for row in lineup:
+        if row["flag"] != "Questionable":
+            continue
+        eligible = [b for b in bench if b["available"]
+                    and any(p in _slot_positions(row["slot"]) for p in _opts(engine, b["name"]))]
+        best = max(eligible, key=lambda b: b["expected"], default=None)
+        questionable_starters.append({
+            "name": row["name"], "slot": row["slot"], "pos": row["pos"],
+            "expected": row["expected"],
+            "fallback": (best or {}).get("name", ""),
+            "fallback_expected": float((best or {}).get("expected", 0.0)),
+            "give_up": float(row["expected"] - float((best or {}).get("expected", 0.0))),
+        })
     return {"team": team, "week": week, "lineup": lineup, "unfilled": sorted(unfilled), "bench": bench,
+            "questionable_starters": questionable_starters,
             "expected_total": float(sum(r["expected"] for r in lineup)),
             "note": ("lineup = the engine's optimal assignment on this week's pre-game expectations (mean x "
                      "environment x script; bye/out = 0); p10/p50/p90 from independent per-player draws; "
@@ -809,6 +860,7 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
         med = np.median(np.column_stack([my, opp_total] + other_totals), axis=1)
         p = float(np.mean(my > opp_total))
         return {"lineup": [{"slot": s, "name": nm, "expected": exp[nm], "sd": sd[nm],
+                            "flag": injury_flag(_entry(engine, nm)),   # B4: display only
                             "nfl_team": _entry(engine, nm).get('team', 'FA')} for nm, s in sorted(lineup, key=lambda x: x[1])],
                 "mean": float(my.mean()), "sd": float(my.std()),
                 "p_beat_opponent": p, "se": float(np.sqrt(max(p * (1 - p), 1e-12) / sims)),
@@ -1356,6 +1408,7 @@ def league_week_outlook(engine, week, sims=5000, seed=None, cross=True):
             "expected_pre_total": float(sum(exp[nm] for nm, _ in lineups[t])),
             "sd_total": float(totals[t].std()),
             "lineup": [{"slot": s_, "name": nm, "expected": exp[nm], "sd": sd[nm],
+                        "flag": injury_flag(_entry(engine, nm)),   # B4: display only
                         "nfl_team": _entry(engine, nm).get('team', 'FA')} for nm, s_ in sorted(lineups[t], key=lambda x: x[1])],
         }
     return {"week": week, "n": sims, "cross": cross, "matchups": matchups, "teams": team_rows,

@@ -477,6 +477,11 @@ def gate_export_fresh(week, step_started):
 
 
 # ---------------------------------------------------------------------------- digest
+# B4: the standing caveat printed beside every Questionable starter.
+QUESTIONABLE_NOTE = (
+    'A Questionable designation is **not priced into any number above**. The Sleeper projection already reflects expected usage, so this is not a second discount to apply -- it is the risk carried by starting him (F51). Check the Saturday designations before kickoff.')
+
+
 def _table(headers, rows):
     out = ["| " + " | ".join(headers) + " |", "|" + "|".join("---" for _ in headers) + "|"]
     for r in rows:
@@ -554,10 +559,19 @@ def render_digest(report, team, week):
     lu = res.get("lineup")
     if lu:
         md += [f"## Lineup -- expected total {lu['expected_total']:.1f}" + (f", UNFILLED: {lu['unfilled']}" if lu.get("unfilled") else ""), ""]
-        md += [_table(["Slot", "Player", "Position", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
-                      [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
+        md += [_table(["Slot", "Player", "Position", "Flag", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
+                      [[r["slot"], r["name"], r["pos"], r.get("flag") or "-", f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
                         f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
                        for r in lu["lineup"]]), ""]
+        # B4 scope 2: the starters carrying risk the model does not price.
+        q = lu.get("questionable_starters") or []
+        if q:
+            md += [f"### Questionable starters ({len(q)})", ""]
+            md += [_table(["Player", "Slot", "Expected", "Best bench fallback", "Fallback expected", "Give up"],
+                          [[x["name"], x["slot"], f"{x['expected']:.1f}", x["fallback"] or "(none eligible)",
+                            f"{x['fallback_expected']:.1f}" if x["fallback"] else "-",
+                            f"{x['give_up']:.1f}" if x["fallback"] else "-"] for x in q]), ""]
+            md += [QUESTIONABLE_NOTE, ""]
         if lu.get("bench"):
             md += ["Bench: " + ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"]), ""]
 
@@ -899,10 +913,19 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     if lu:
         unfilled = f' <span class="note">UNFILLED: {T(lu["unfilled"])}</span>' if lu.get("unfilled") else ""
         out.append(f'<h2 id="lineup">Lineup -- expected total {lu["expected_total"]:.1f}{unfilled}</h2>')
-        out.append(html_table(["Slot", "Player", "Position", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
-                              [[r["slot"], r["name"], r["pos"], f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
+        out.append(html_table(["Slot", "Player", "Position", "Flag", "Expected", "p10", "p50", "p90", "P(zero)", "Margin", "Alternative"],
+                              [[r["slot"], r["name"], r["pos"], r.get("flag") or "-", f"{r['expected']:.1f}", f"{r['p10']:.1f}", f"{r['p50']:.1f}", f"{r['p90']:.1f}",
                                 f"{100 * r['p_zero']:.0f}%", (f"{r['margin']:+.1f}" if r.get("alternative") else "-"), r.get("alternative") or "-"]
                                for r in lu["lineup"]], signed_cols=("Margin",)))
+        # B4 scope 2.
+        q = lu.get("questionable_starters") or []
+        if q:
+            out.append(f'<h3>Questionable starters ({len(q)})</h3>')
+            out.append(html_table(["Player", "Slot", "Expected", "Best bench fallback", "Fallback expected", "Give up"],
+                                  [[x["name"], x["slot"], f"{x['expected']:.1f}", x["fallback"] or "(none eligible)",
+                                    f"{x['fallback_expected']:.1f}" if x["fallback"] else "-",
+                                    f"{x['give_up']:.1f}" if x["fallback"] else "-"] for x in q]))
+            out.append('<p class="note">' + T(QUESTIONABLE_NOTE) + '</p>')
         if lu.get("bench"):
             bench = ", ".join(f"{b['name']} ({b['expected']:.1f}{', ' + b['reason'] if b.get('reason') else ''})" for b in lu["bench"])
             out.append(f"<p>Bench: {T(bench)}</p>")
