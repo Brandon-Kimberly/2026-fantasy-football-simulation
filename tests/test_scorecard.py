@@ -172,3 +172,34 @@ class TestNoLookahead(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheEarliestRecordIsChosenByTime(unittest.TestCase):
+    """Found by running it: the first version sorted candidate files by PATH, and
+    'week_01/archive/lineup_...' sorts before 'week_01/lineup_...', so a later archived
+    run was selected over an earlier top-level one.
+
+    For a tool whose entire premise is "score against the PRE-KICKOFF record", picking by
+    filename ordering rather than by time is the wrong rule -- it can silently select a
+    record written after games began (B3 made mid-week runs a real thing), which is the
+    lookahead CLAUDE.md forbids.
+    """
+
+    def test_it_picks_the_earliest_timestamp_not_the_first_path(self):
+        from scripts.decision_scorecard import _earliest
+        cands = [("z/archive/lineup_b.json", {"timestamp_utc": "20260905T202727Z"}),
+                 ("a/lineup_a.json", {"timestamp_utc": "20260902T215239Z"})]
+        path, rec = _earliest(cands)
+        self.assertEqual(rec["timestamp_utc"], "20260902T215239Z")
+        self.assertEqual(path, "a/lineup_a.json")
+
+    def test_a_record_with_no_timestamp_sorts_last_rather_than_first(self):
+        """An undated record cannot be shown to be pre-kickoff, so it must not win by
+        default."""
+        from scripts.decision_scorecard import _earliest
+        cands = [("x.json", {}), ("y.json", {"timestamp_utc": "20260902T215239Z"})]
+        self.assertEqual(_earliest(cands)[0], "y.json")
+
+    def test_no_candidates_yields_nothing(self):
+        from scripts.decision_scorecard import _earliest
+        self.assertEqual(_earliest([]), (None, None))
