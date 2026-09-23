@@ -962,6 +962,13 @@ def optimize_lineup(engine, team, week, sims=1000, seed=None,
             "questionable_starters": questionable_starters,
             # B3: how constrained this answer is. 0/0 means a free pre-kickoff solve.
             "pinned": len(pinned), "locked_excluded": len(excluded),
+            # B23: whether ANY game has kicked off, which is a different question from
+            # whether MINE have. The two above are owner-scoped -- right for "what can I
+            # still change" and wrong for "is the matchup number stale", because the
+            # opponent's banked points are in that number too. An early-slate opponent
+            # against a late-slate roster leaves pinned/excluded at 0 with the matchup
+            # already decided in part. Derived from locked_teams, never from pinned.
+            "locks_active": bool(locked_teams),
             "expected_total": float(sum(r["expected"] for r in lineup)),
             "note": ("lineup = the engine's optimal assignment on this week's pre-game expectations (mean x "
                      "environment x script; bye/out = 0); p10/p50/p90 from independent per-player draws; "

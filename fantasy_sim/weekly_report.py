@@ -489,9 +489,34 @@ SCREEN_ONLY_NOTE = (
 MIDWEEK_BANNER = (
     "**Mid-week view.** {pinned} lineup slot(s) are pinned (those players' games have "
     "started) and {excluded} bench player(s) are ruled out, so the lineup above is the "
-    "REACHABLE one, not a fresh-week solve. The matchup numbers below are still a "
-    "fresh-week solve and ignore points already banked -- for the live figure run "
+    "REACHABLE one, not a fresh-week solve. For the live scoreboard run "
     "`py -3.10 -m scripts.live_matchup`.")
+
+# B23. The matchup caveat used to live in MIDWEEK_BANNER above, which renders only when
+# the OWNER's own slots are pinned. That is the wrong gate for it: an early-slate opponent
+# against a late-slate roster leaves `pinned` at 0 while the opponent has already banked
+# points, so the report stated a matchup probability as though nothing had happened.
+# Each caveat now renders in the section it actually describes.
+MATCHUP_PREKICKOFF_NOTE = (
+    "_Pre-kickoff view: a fresh-week solve. It ignores points already banked and applies "
+    "no availability discount (F51) -- it is what this matchup looks like if both rosters "
+    "play from zero._")
+MATCHUP_LIVE_NOTE = (
+    "**Games have already kicked off this week**, so the numbers above are stale: they "
+    "still ignore every point already banked, on both sides. For the live figure run "
+    "`py -3.10 -m scripts.live_matchup`.")
+
+
+def _locks_active(results):
+    """Has ANY game kicked off this week? B23.
+
+    `locks_active` is the league-wide fact and is what makes a MATCHUP number stale.
+    `pinned`/`locked_excluded` are owner-scoped and are kept as a fallback only for a
+    lineup record written before `locks_active` existed -- they can be zero while games
+    are under way, which is the defect this function exists to stop repeating.
+    """
+    lu = (results or {}).get("lineup") or {}
+    return bool(lu.get("locks_active") or lu.get("pinned") or lu.get("locked_excluded"))
 
 
 # B4: the standing caveat printed beside every Questionable starter.
@@ -607,6 +632,10 @@ def render_digest(report, team, week):
         md += ["_P(beats opponent) is computed on this section's own joint sample, independent of the League "
                "table's matchup row; the two estimates differ by sampling noise (SE ~ +-0.7 points), "
                "not signal._", ""]
+        # B23: always say what this is; escalate once any game has kicked off.
+        md += [MATCHUP_PREKICKOFF_NOTE, ""]
+        if _locks_active(res):
+            md += [MATCHUP_LIVE_NOTE, ""]
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
         if len(lineups) == 1:
             md += ["All four constructions pick the same lineup: **no variance lever on this roster this week** "
@@ -975,6 +1004,10 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         out.append("<p class=\"note\">P(beats opponent) is computed on this section's own joint sample, "
                    "independent of the League table's matchup row; the two estimates differ by "
                    "sampling noise (SE ~ +-0.7 points), not signal.</p>")
+        # B23: always say what this is; escalate once any game has kicked off.
+        out.append('<p class="note">' + T(MATCHUP_PREKICKOFF_NOTE.strip("_")) + '</p>')
+        if _locks_active(res):
+            out.append('<div class="degraded">' + T(MATCHUP_LIVE_NOTE) + '</div>')
         lineups = {tuple(sorted(x["name"] for x in v["lineup"])) for v in c.values()}
         if len(lineups) == 1:
             out.append("<p><b>All four constructions pick the same lineup: no variance lever on this roster this week</b> "
