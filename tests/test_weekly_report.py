@@ -816,7 +816,9 @@ class TestLocalReportsUseRealNames(unittest.TestCase):
     matters is the other half: a RUNNER must never produce them, because those artifacts
     are downloaded, attached to releases and published. That is what these tests pin."""
 
-    OVERLAY = {"Quantum Ferrets": "Legion of Coom", "Polar Yetis": "Drunk Racist Cats"}
+    # Deliberately NOT the owner's real names: any non-fictional string proves the
+    # substitution, and real league identities must never live in the repo.
+    OVERLAY = {"Quantum Ferrets": "Local Alias One", "Polar Yetis": "Local Alias Two"}
 
     def test_a_runner_never_gets_real_names_even_with_the_flag_set(self):
         """The runner is the publish path. An owner who exports the variable into a CI
@@ -884,8 +886,8 @@ class TestLocalReportsUseRealNames(unittest.TestCase):
         md = ("# Weekly report -- Quantum Ferrets, week 2\n"
               "| Quantum Ferrets | 87.2 |\n| Polar Yetis | 79.8 |\n")
         out = localize_names(md, self.OVERLAY, kind="md")
-        self.assertIn("Legion of Coom", out)
-        self.assertIn("Drunk Racist Cats", out)
+        self.assertIn("Local Alias One", out)
+        self.assertIn("Local Alias Two", out)
         self.assertNotIn("Quantum Ferrets", out, "the fictional name must be GONE, not keyed")
         self.assertNotIn("Polar Yetis", out)
 

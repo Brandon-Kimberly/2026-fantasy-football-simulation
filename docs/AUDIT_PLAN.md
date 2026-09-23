@@ -4405,7 +4405,7 @@ source that structurally cannot see most of the league.
 Skill-position replacement FALLS and IDP replacement RISES: the model had been
 overstating how good a freely-available running back is, and understating how deep IDP
 is. On the owner's roster those two effects happened to cancel (net VORP change ~0.0),
-but they do not cancel in general — The Glutton moved from 7th to 4th in roster strength
+but they do not cancel in general — Cosmic Badgers moved from 7th to 4th in roster strength
 under the corrected pool, and the owner's lead over 2nd narrowed from +13.9 to +8.3.
 
 **A correction to my own working method, recorded because it was wrong all week.** The
@@ -4772,3 +4772,60 @@ says so in those words.
 
 Suite 724 → 728. Goldens 15/15, sync golden byte-identical. RESOLVED (hygiene); the VALUE
 remains **UNVERIFIED, carried over**, with a measurement plan.
+
+
+### F60 — A whitelisted missing asset was imputed as healthy and available, whatever the roster said — RESOLVED (2026-09-23)
+
+**Origin.** Not from the backlog. Found live on 2026-09-22 while evaluating a real
+three-way trade: `decisions.apply_trade` refused every leg with *"Turbo Llamas would carry
+20 active players (limit 19)"* — **before any trade was applied**. That team's real Sleeper
+roster is 20 players with one on IR, i.e. 19 active, which is legal.
+
+**The defect.** A rostered player with no usable projection is imputed at engine init from
+`SIM_CONFIG['KNOWN_MISSING_ASSETS']` (`simulation.py:213-225`). That whitelist is
+hand-typed and has **no availability fields**, and `self.meta` is built with only `pos` and
+`team` — so `on_ir` and `injury_status` reached `engine.baselines` **from nowhere**. Both
+read as healthy.
+
+Two consequences, of very different severity:
+
+1. **Visible.** `decisions._active_count` reads `on_ir` off `engine.baselines`, so a team
+   carrying an imputed IR player counted one over `ACTIVE_ROSTER_LIMIT` and **every legal
+   trade involving that team was refused.** One of eight teams was affected.
+2. **Distributional, and the one that matters.** `_initial_absence_clock`
+   (`simulation.py:~1120`) reads `p_meta` first and falls back to the baselines — and
+   `meta` has no such key — so the player received **no absence clock** and was simulated
+   as fully available for the whole season. Measured on the live roster after the fix: the
+   affected player now draws a **15-week** absence clock. Before it: zero.
+
+**The precedent the fix follows.** The same imputation block already refuses to trust the
+whitelist for `bye`, taking it from `nfl_schedule._meta.byes`, and cross-checks `team` and
+`pos` against the roster file "from Sleeper", warning on mismatch. Availability is the same
+class of fact with the same authority. The fix adds `raw_by_team` (the raw roster entries,
+which `self.meta` deliberately discards) and writes `on_ir` / `injury_status` from it.
+
+Written **unconditionally, not with `setdefault`**: a stale hand-typed `on_ir` in config
+must not outlive the player's activation. A test pins that direction specifically.
+
+**Release class: PATCH, checked rather than assumed.** The three engine golden fixtures
+(week01/06/15) carry the imputed player with `on_ir: None`, so nothing moves — verified
+15/15 byte-identical. The `golden_sync` fixture *does* mark him on IR, but that harness
+runs the sync stage, not engine init; the sync golden is byte-identical too. Live
+predictions **do** change slightly: the affected player (mean 6.5) leaves one rival's
+available pool. He was never in their optimal lineup, so the effect is a thin bench, not a
+lineup change.
+
+**Coverage gap, stated plainly.** No test would have caught this before, and no *existing*
+test could have: the engine goldens' fixtures never exercise the case, and the only
+fixture that does belongs to a harness that does not run this code path. The new module
+supplies the missing case directly.
+
+**Also cleaned in the same sitting**, unrelated to the defect but found by the same scan:
+four tracked files contained real league identities (`docs/AUDIT_PLAN.md`,
+`docs/SCOPED_BACKLOG.md`, `tests/test_weekly_report.py`, and the F60 test I had just
+written). Real names belong in conversation output only, never in the repository — the
+repo is pushed and its Actions artifacts are published. The test-overlay fixture that
+needed a non-fictional string now uses a neutral placeholder. Nothing had been pushed, so
+the one commit involved was amended rather than left in history.
+
+Suite 728 → 734. Goldens 15/15, sync golden byte-identical. RESOLVED.

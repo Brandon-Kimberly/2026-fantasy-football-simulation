@@ -41,7 +41,7 @@ Recorded so a later reader can judge the backlog against where the roster actual
 - One DL (Tuipulotu, bye 7). **Week 7 is a DL hole.** Claim in week 6. Not a pass rusher
   (F49: the sack cut deflates edges ~20%).
 - Three LBs (Bolton 12.6, Roquan 12.0, Warner 11.5) for one slot. Roquan is on the block.
-  Four rivals have an LB starting below replacement; The Glutton by 3.0.
+  Four rivals have an LB starting below replacement; Cosmic Badgers by 3.0.
 - Shakir (7.24, −3.00 vs replacement) is the only true dead weight. He is the drop.
 - Every drafted player on the roster is outperforming his preseason projection. There
   are **no** sell-high candidates. Do not go looking for one.
@@ -124,7 +124,7 @@ They disagreed, repeatedly, and always in the same direction:
 
 | swap | cheap screen | paired sim |
 |---|---|---|
-| Warner + Bolton → Walker + Coker | +1.54 for The Glutton | **−16.07 playoff%** |
+| Warner + Bolton → Walker + Coker | +1.54 for Cosmic Badgers | **−16.07 playoff%** |
 | Hooker for Bishop | +0.82 (mean) | **−1.87 champ%** |
 | Lloyd for Bolton | +3.66 (mean) | Lloyd measured *worse* than Bolton |
 | Van Ness for Tuipulotu | +1.63 (mean) | Van Ness 3.70 *below* Tuipulotu |
@@ -501,7 +501,7 @@ a piece they need more."
 rosters on engine values, filters where both sides gain on the screen, then hands the top
 N to the paired sim (B2's rule). Cap at 2-for-2; 3-for-3 is combinatorially useless.
 
-**Traps.** The first exhaustive scan silently skipped The Glutton because a hardcoded
+**Traps.** The first exhaustive scan silently skipped Cosmic Badgers because a hardcoded
 19-man roster cap rejected their 20-man roster. Compare against `len(their_roster)`,
 never a literal.
 

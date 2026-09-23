@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~97 findings and tracked follow-ups** | **64 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~98 findings and tracked follow-ups** | **65 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,17 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F60** a whitelisted missing asset was imputed as healthy and available, whatever the
+  roster said — RESOLVED: found live while evaluating a three-way trade that `apply_trade`
+  refused, claiming a team was over the active-roster limit before any trade. A rostered
+  player with no projection is imputed from the hand-typed `KNOWN_MISSING_ASSETS`, which
+  has no availability fields, and `self.meta` carries only pos/team — so `on_ir` and
+  `injury_status` reached `engine.baselines` from nowhere. `_active_count` then overcounted
+  the team (every trade involving it refused), and `_initial_absence_clock` gave the player
+  NO absence clock, simulating an IR'd player as available all season (he now draws a
+  15-week clock). Fixed by taking availability from the roster file, the same authority the
+  block already uses for `bye` and cross-checks `team`/`pos` against. PATCH: the three
+  engine golden fixtures carry `on_ir: None` so nothing moves (15/15 byte-identical).
 - **F59** the model-health verdict threshold was an unsourced literal, and it is
   unreachable — RESOLVED (hygiene; the VALUE stays unverified with a measurement plan):
   `'Calibrated & Learning' if mae < 18.0` cited nothing (rule 5). Moved to

@@ -206,6 +206,11 @@ class FantasySimulationEngine:
         self.rosters = {t: [p['name'] for p in data] for t, data in self.rosters_raw.items()}
         self.meta = {t: {p['name']: {'pos': p['pos'], 'team': p.get('team', 'FA')} for p in data} for t, data in self.rosters_raw.items()}
 
+        # F60: the RAW roster entries, keyed by team then name. self.meta deliberately
+        # carries only pos/team, but the imputation below needs the availability fields
+        # Sleeper actually reported -- see the on_ir/injury_status block inside it.
+        raw_by_team = {t: {p['name']: p for p in data} for t, data in self.rosters_raw.items()}
+
         missing_players = []
         for t, p_dict in self.meta.items():
             for p_name, meta in p_dict.items():
@@ -230,6 +235,26 @@ class FantasySimulationEngine:
                         # (the golden fixtures) yields bye 0 -- exactly as its baselines do.
                         byes = self.nfl_schedule.get('_meta', {}).get('byes', {}) if isinstance(self.nfl_schedule, dict) else {}
                         self.baselines[p_name]['bye'] = byes.get(self.baselines[p_name].get('team'), 0)
+                        # F60 (2026-09-22). AVAILABILITY COMES FROM THE ROSTER FILE, never
+                        # from the whitelist -- the same precedence the bye line above
+                        # applies, and for the same reason: the whitelist is hand-typed and
+                        # has no field for this, so without it on_ir/injury_status reach
+                        # engine.baselines from NOWHERE and read as "healthy and available".
+                        #
+                        # Two things broke. decisions._active_count reads on_ir off
+                        # baselines, so a team carrying an imputed IR player counted one
+                        # over ACTIVE_ROSTER_LIMIT and apply_trade refused every legal trade
+                        # involving it (found live, 2026-09-22, on a real three-way). And
+                        # _initial_absence_clock (below, ~line 1120) reads p_meta first and
+                        # falls back to baselines -- meta has no such key -- so the player
+                        # got NO absence clock and was simulated as available all season.
+                        # That second one moves the distribution.
+                        #
+                        # Written unconditionally, not with setdefault: a stale hand-typed
+                        # on_ir in config must not outlive the player's activation.
+                        _raw = raw_by_team.get(t, {}).get(p_name, {})
+                        self.baselines[p_name]['on_ir'] = bool(_raw.get('on_ir', False))
+                        self.baselines[p_name]['injury_status'] = _raw.get('injury_status')
                         print(f"[INFO] Imputed whitelisted missing asset: {p_name} ({t})")
                         # The whitelist is hand-typed and drifts from Sleeper's record. The
                         # roster file is built from that record, so compare against it and
