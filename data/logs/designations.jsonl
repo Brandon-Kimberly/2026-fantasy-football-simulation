@@ -175,3 +175,6 @@
 {"injury_body_part": null, "injury_status": null, "name": "Jordan Love", "player_id": "6804", "practice_participation": null, "recorded_at": "2026-09-23T17:59:15Z", "team": "Quantum Ferrets", "week": 3}
 {"injury_body_part": "Knee", "injury_status": "Questionable", "name": "Chamarri Conner", "player_id": "10949", "practice_participation": null, "recorded_at": "2026-09-23T17:59:15Z", "team": "Rocket Pandas", "week": 3}
 {"injury_body_part": "Undisclosed", "injury_status": "Questionable", "name": "Jaylen Warren", "player_id": "8228", "practice_participation": null, "recorded_at": "2026-09-23T17:59:15Z", "team": "Rocket Pandas", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Malik Mustapha", "player_id": "11731", "practice_participation": null, "recorded_at": "2026-09-23T18:21:01Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Tyler Bass", "player_id": "7042", "practice_participation": null, "recorded_at": "2026-09-23T18:21:01Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Jordan Love", "player_id": "6804", "practice_participation": null, "recorded_at": "2026-09-23T18:21:01Z", "team": "Quantum Ferrets", "week": 3}

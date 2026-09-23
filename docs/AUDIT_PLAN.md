@@ -4471,7 +4471,7 @@ as more even — and total wins are untouched, which is the invariant that had t
 Suite 690 -> 695. RESOLVED.
 
 
-### F55 — Weather is fetched every sync and read by nothing — OPEN, measurement plan recorded (2026-09-22)
+### F55 — Weather is fetched every sync and read by nothing — OPEN, measurement plan recorded (2026-09-22); the three data faults FIXED (2026-09-23)
 
 **Origin.** Caleb Williams posted 8.72 against a 25.7 expectation in a Chicago downpour
 (the game finished 9-3) before leaving injured. The owner asked whether the weather code
@@ -4539,6 +4539,38 @@ before the data is seen, so the result cannot be fitted to a preferred answer:
   dead endpoint is indistinguishable from a calm day. Both read 0.0. That is the same
   silent-fallback class as F52's empty ESPN blend, and it must be made loud before any
   number derived from this field is trusted.
+
+**The three faults are FIXED (2026-09-23, backlog B18)** — the repair only, never the
+study, which B18 holds until the season ends.
+
+| fault | was | now |
+|---|---|---|
+| amount | `precipitation_probability_max` | `precip_in`, accumulation over the game window, in inches. `precip_prob` is KEPT beside it as the window max — the two answer different questions and the study wants both |
+| timing | daily maxima | hourly, averaged (wind) and summed (precipitation) over the 3 hours from kickoff |
+| honesty | a failed fetch stored `0.0` | `weather_source` plus NULLs: `forecast` / `dome` / `unavailable` / `no_game` |
+
+`weather_source` is what closes the LIVE HAZARD below without removing the fetch. A reader
+opening `vegas_totals.json` can now tell a real forecast from an indoor game from a failed
+lookup without going to the sync log. Verified live: 24 `forecast`, 8 `dome`, 1 `no_game`,
+0 unlabelled.
+
+**Two things the three faults did not name, both found by doing the work.**
+
+*A night kickoff spans two API days.* A Sunday-night game starts 00:20Z the NEXT day and
+its window can cross midnight, so a single-date hourly request drops the late hours — and
+with them every night game, which is exactly the population where wind matters most.
+`weather_request_dates` returns both dates.
+
+*Indoors is not the same as unknown.* A dome really is 0.0 wind, and that is a FACT. Had
+it been folded in with failures as a null, the study would have thrown away a third of its
+clean control group. `dome_weather()` and `unknown_weather()` are separate for that reason.
+
+*A partially covered window returns None*, not an average of whatever hours arrived.
+Silently shrinking the window and reporting the result as a full game is the same class of
+degradation as fault 3.
+
+**Still OPEN, and the reason is unchanged:** nothing reads these fields. The data is now
+worth studying; the study has not run.
 
 **Standing decision until then.** Do NOT wire weather into the environment model on
 intuition. The Caleb Williams game is n = 1, and the model's 25.7 quote for him is not

@@ -210,3 +210,27 @@ class TestTheStudyIsNotStarted(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestEveryEntryIsLabelled(unittest.TestCase):
+    """Found by running it: 24 forecast, 8 dome, and ONE entry with no label at all --
+    the `FA` free-agent pseudo-team, seeded before the game loop and never touched by it.
+
+    An unlabelled entry is the exact ambiguity `weather_source` exists to remove, so the
+    guarantee has to be total: every entry says where its weather came from, or the field
+    cannot be trusted as a filter by anything reading it back.
+    """
+
+    def test_the_free_agent_pseudo_team_is_labelled_no_game(self):
+        import inspect
+        from fantasy_sim import sync
+        src = inspect.getsource(sync.fetch_vegas_implied_totals)
+        self.assertIn('unknown_weather("no_game")', src,
+                      "FA plays no game; it must not read as a calm afternoon")
+
+    def test_a_bye_team_and_the_pseudo_team_agree(self):
+        """Both are 'no game', and spelling them differently would make a reader wonder
+        which one meant something."""
+        from fantasy_sim.sync import unknown_weather
+        self.assertEqual(unknown_weather("no_game")["weather_source"], "no_game")
+        self.assertIsNone(unknown_weather("no_game")["wind_mph"])

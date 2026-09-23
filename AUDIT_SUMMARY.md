@@ -458,8 +458,19 @@ than "fixed": the measurement said the code was right.
   redistributes within a total rather than scaling it. Offseason study designed and its
   adoption bar fixed in the entry. Three data faults to fix first: `precip_prob` is a
   probability not an amount, both values are daily maxima not game-time, and the fetch
-  swallows failures so a dead endpoint reads as a calm day. Live hazard: a populated
-  field nothing reads looks exactly like a working feature — how F52 hid.
+  swallows failures so a dead endpoint reads as a calm day. **All three FIXED
+  2026-09-23 (B18), the repair only and not the study:** `precip_in` is an accumulation
+  in inches over the 3-hour window from kickoff (`precip_prob` kept beside it as the
+  window max, since the two answer different questions); wind is the window MEAN, not the
+  day's peak; and a failed lookup now stores NULLs with `weather_source` one of
+  `forecast` / `dome` / `unavailable` / `no_game`, which also closes the live hazard
+  without removing the fetch. Two things the fault list missed, both found by doing it: a
+  night kickoff spans two API days (a single-date request would have dropped every night
+  game, the population where wind matters most), and a DOME is known-calm rather than
+  unknown — folding it in with failures would have discarded a third of the study's clean
+  control group. Verified live: 24 forecast, 8 dome, 1 no_game, 0 unlabelled. Still OPEN
+  because nothing reads the fields: the data is now worth studying; the study has not
+  run. Live hazard: a populated field nothing reads looks exactly like a working feature — how F52 hid.
 - **F54** the Bayesian blend reached 157 of ~1,140 players — RESOLVED, **MAJOR**:
   `_extract_weekly_player_scores` read `players_points`, which carries only ROSTERED
   players, so ~750 projected players kept an untouched preseason prior — exactly the

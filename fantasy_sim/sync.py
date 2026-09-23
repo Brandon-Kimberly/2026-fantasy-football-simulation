@@ -12,7 +12,7 @@ import json
 import logging
 import math
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import numpy as np
 import requests
@@ -301,7 +301,10 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
         record_source("vegas_odds", ok=False, rows=0, fallback="flat 21.5 totals, no opponents")
         return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_empty_payload")
 
-    implied_totals = {"FA": {"total": 20.0, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}}
+    # B18: FA is the free-agent pseudo-team, not a club. It plays no game, so it
+    # carries `no_game` like a bye rather than an implied calm afternoon.
+    implied_totals = {"FA": dict({"total": 20.0, "spread": 0.0, "opponent": "FA"},
+                                 **unknown_weather("no_game"))}
     _wx_failures, _wx_ok = [], 0   # F57 (B6): accumulated here, reported ONCE after the loop
     for game in games:
         home_team = NFL_TEAM_ABBREVIATIONS.get(game.get("home_team"))
@@ -337,40 +340,62 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
                 home_spread = outcome.get("point", 0.0)
                 break
 
-        wind_mph = 0.0
-        precip_prob = 0.0
         commence_time = game.get("commence_time", "")
-        date_str = commence_time.split("T")[0] if commence_time else ""
-        
-        if home_team in OUTDOOR_STADIUMS and date_str:
-            lat, lon = OUTDOOR_STADIUMS[home_team]
-            try:
-                wx_url = f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&daily=wind_speed_10m_max,precipitation_probability_max&timezone=America%2FNew_York&start_date={date_str}&end_date={date_str}"
-                wx_resp = requests.get(wx_url, timeout=3)
-                if wx_resp.status_code == 200:
-                    wind_kmh = wx_resp.json().get("daily", {}).get("wind_speed_10m_max", [0])[0]
-                    if wind_kmh: wind_mph = round(wind_kmh * 0.621371, 2)
-                    precip_api = wx_resp.json().get("daily", {}).get("precipitation_probability_max", [0])[0]
-                    if precip_api: precip_prob = float(precip_api)
-                    _wx_ok += 1
-                else:
-                    # F57: a non-200 never raised, so it fell through to zeros WITHOUT
-                    # even reaching the except below -- the quietest of the six.
-                    _wx_failures.append(f"{home_team} (HTTP {wx_resp.status_code})")
-            except Exception as _wx_ex:
-                # F57 (B6): counted here, reported ONCE after the loop. This runs per
-                # outdoor game, so warning inline would emit up to 16 near-identical
-                # lines a sync. The fallback is wind=0/precip=0, which reads downstream
-                # as PERFECT conditions -- see F55: nothing consumes these yet, so the
-                # cost today is a silently useless field rather than a biased projection.
-                _wx_failures.append(f"{home_team} ({type(_wx_ex).__name__})")
 
-        implied_totals[home_team] = {"total": round((over_under / 2.0) - (home_spread / 2.0), 2), "spread": home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": away_team}
-        implied_totals[away_team] = {"total": round((over_under / 2.0) + (home_spread / 2.0), 2), "spread": -home_spread, "wind_mph": wind_mph, "precip_prob": precip_prob, "opponent": home_team}
+        # B18 (F55's three data faults). Indoors is KNOWN calm; a failed lookup is
+        # UNKNOWN. They used to be spelled identically -- wind=0, precip=0 -- so the
+        # offseason study would have read a dead endpoint as a perfect day.
+        if home_team not in OUTDOOR_STADIUMS:
+            wx = dome_weather()
+        else:
+            wx = unknown_weather()
+            dates = weather_request_dates(commence_time)
+            lat, lon = OUTDOOR_STADIUMS[home_team]
+            if dates is None:
+                _wx_failures.append(f"{home_team} (no kickoff time)")
+            else:
+                try:
+                    # HOURLY, not daily: fault 2. The window spans two dates whenever a
+                    # night game runs past midnight UTC, which is why both are requested.
+                    wx_url = (
+                        f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
+                        f"&hourly=wind_speed_10m,precipitation,precipitation_probability"
+                        f"&timezone=UTC&start_date={dates[0]}&end_date={dates[1]}"
+                    )
+                    wx_resp = requests.get(wx_url, timeout=5)
+                    if wx_resp.status_code == 200:
+                        got = game_window_weather(wx_resp.json().get("hourly") or {},
+                                                  commence_time)
+                        if got is None:
+                            # The payload parsed but did not cover the game window. A
+                            # partial window is not a game, so it stays unknown.
+                            _wx_failures.append(f"{home_team} (window not covered)")
+                        else:
+                            wx, _wx_ok = got, _wx_ok + 1
+                    else:
+                        # F57: a non-200 never raised, so it fell through to zeros WITHOUT
+                        # even reaching the except below -- the quietest of the six.
+                        _wx_failures.append(f"{home_team} (HTTP {wx_resp.status_code})")
+                except Exception as _wx_ex:
+                    # F57 (B6): counted here, reported ONCE after the loop. This runs per
+                    # outdoor game, so warning inline would emit up to 16 near-identical
+                    # lines a sync.
+                    _wx_failures.append(f"{home_team} ({type(_wx_ex).__name__})")
+
+        _wx_fields = {k: v for k, v in wx.items() if k != "hours_used"}
+        implied_totals[home_team] = dict(
+            {"total": round((over_under / 2.0) - (home_spread / 2.0), 2),
+             "spread": home_spread, "opponent": away_team}, **_wx_fields)
+        implied_totals[away_team] = dict(
+            {"total": round((over_under / 2.0) + (home_spread / 2.0), 2),
+             "spread": -home_spread, "opponent": home_team}, **_wx_fields)
 
     unfilled = [team for team in NFL_TEAM_ABBREVIATIONS.values() if team not in implied_totals]
     for team in unfilled:
-        implied_totals[team] = {"total": 21.5, "spread": 0.0, "wind_mph": 0.0, "precip_prob": 0.0, "opponent": "FA"}
+        # B18: a bye team has no game, so its weather is not unknown -- it is absent.
+        # `no_game` says that rather than implying a calm afternoon somewhere.
+        implied_totals[team] = dict({"total": 21.5, "spread": 0.0, "opponent": "FA"},
+                                    **unknown_weather("no_game"))
     if unfilled:
         # A bye week legitimately leaves a few teams without a game; more than that means the
         # market payload was partial (missing bookmaker / market / unrecognised team name).
@@ -382,15 +407,128 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
     if _wx_failures:
         logging.warning(
             "WEATHER (week %d): the forecast lookup failed for %d game(s) [%s]; those carry "
-            "wind=0 / precip=0, which reads downstream as PERFECT conditions rather than as "
-            "unknown. Nothing consumes these fields yet (F55), so today this is a dead field, "
-            "not a biased projection -- that stops being true the moment F55's plan lands.",
+            "weather_source='unavailable' with NULL wind and precipitation (B18 fault 3), so "
+            "a dead endpoint no longer reads as a calm day. Nothing consumes these fields yet "
+            "(F55) -- today this is a dead field, not a biased projection, and that stops "
+            "being true the moment F55's offseason study adopts a term.",
             current_nfl_week, len(_wx_failures), ", ".join(_wx_failures))
     record_source("weather", ok=not _wx_failures, rows=_wx_ok,
-                  fallback="wind=0, precip=0" if _wx_failures else None)
+                  fallback="weather_source=unavailable (nulls)" if _wx_failures else None)
     record_source("vegas_odds", ok=not unfilled, rows=len(implied_totals) - len(unfilled),
                   fallback="flat 21.5 / no opponent" if unfilled else None)
     return _write_vegas(implied_totals, current_nfl_week, "odds_api")
+
+# B18 / F55. What a team entry's `weather_source` may say, so a reader of
+# vegas_totals.json can tell a real forecast from a dome from a failed lookup WITHOUT
+# going to the sync log. F55's live hazard is that "a populated field that nothing reads
+# is indistinguishable from a working feature"; this is the label that distinguishes them.
+WEATHER_SOURCES = ("forecast", "dome", "unavailable", "no_game")
+
+# An NFL game runs about three hours. Wind is AVERAGED over that window and precipitation
+# is SUMMED over it -- the two are different physical quantities and averaging rainfall
+# would understate a cloudburst that stops at halftime.
+GAME_WINDOW_HOURS = 3
+
+
+def dome_weather():
+    """Indoor: genuinely calm, and that is a FACT, not a fallback.
+
+    It must not be spelled the same way as a failed lookup, or the offseason study cannot
+    tell "no wind" from "no data" -- which is fault 3 in a different coat.
+    """
+    return {"wind_mph": 0.0, "precip_in": 0.0, "precip_prob": 0.0,
+            "weather_source": "dome"}
+
+
+def unknown_weather(source="unavailable"):
+    """Weather we do not have. NULLS, not zeros (B18 fault 3).
+
+    F57 made the sync LOG loud about a failed forecast, which was half the fix. The stored
+    value stayed `0.0`, so anyone reading the file -- including F55's offseason study
+    reading it back months later, long after the log has gone -- sees a perfect day.
+    """
+    return {"wind_mph": None, "precip_in": None, "precip_prob": None,
+            "weather_source": source}
+
+
+def weather_request_dates(commence_time):
+    """The (start_date, end_date) an hourly forecast request must cover, UTC.
+
+    A Sunday-night kickoff is 00:20Z the NEXT day and its window can run past midnight, so
+    a single-date request silently drops the late hours -- and with them every night game,
+    the population where wind matters most.
+    """
+    start = _parse_kickoff(commence_time)
+    if start is None:
+        return None
+    end = start + timedelta(hours=GAME_WINDOW_HOURS)
+    return (start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d"))
+
+
+def _parse_kickoff(commence_time):
+    """An ISO-8601 UTC kickoff to a datetime floored to the hour, or None."""
+    if not commence_time or not isinstance(commence_time, str):
+        return None
+    text = commence_time.strip().replace("Z", "")
+    for fmt in ("%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M"):
+        try:
+            return datetime.strptime(text, fmt).replace(minute=0, second=0, microsecond=0)
+        except ValueError:
+            continue
+    return None
+
+
+def game_window_weather(hourly, commence_time, window_hours=GAME_WINDOW_HOURS):
+    """Weather over the GAME, from an Open-Meteo hourly payload. None when unknown.
+
+    B18 faults 1 and 2, together:
+
+      * `wind_mph` is the MEAN over the kickoff window, not the day's peak. The old
+        `wind_speed_10m_max` handed a 1pm kickoff the 10pm gale.
+      * `precip_in` is the ACCUMULATION over the window, in inches. The old
+        `precipitation_probability_max` read 100 for a certain drizzle and 100 for a
+        certain flood, so the one game that prompted all of this was invisible to it.
+      * `precip_prob` is kept beside it as the window MAX -- not replaced. The two answer
+        different questions and the study wants both.
+
+    A window the data does not FULLY cover returns None. Averaging the hours that happen
+    to be present would quietly shrink the window and report the result as if it were a
+    full game, which is the same class of silent degradation as fault 3.
+
+    `hourly` is Open-Meteo's `hourly` block requested with `timezone=UTC`; wind arrives in
+    km/h and precipitation in mm.
+    """
+    start = _parse_kickoff(commence_time)
+    if start is None or not isinstance(hourly, dict):
+        return None
+    times = hourly.get("time") or []
+    index = {t: i for i, t in enumerate(times)}
+
+    wanted = [(start + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00")
+              for h in range(int(window_hours))]
+    idxs = [index.get(t) for t in wanted]
+    if any(i is None for i in idxs):
+        return None
+
+    def _col(key):
+        series = hourly.get(key) or []
+        try:
+            return [float(series[i]) for i in idxs]
+        except (IndexError, TypeError, ValueError):
+            return None
+
+    winds, precs, probs = _col("wind_speed_10m"), _col("precipitation"), _col("precipitation_probability")
+    if winds is None or precs is None:
+        return None
+
+    return {
+        "wind_mph": round(sum(winds) / len(winds) * 0.621371, 2),
+        "precip_in": round(sum(precs) / 25.4, 3),
+        "precip_prob": (round(max(probs), 1) if probs else None),
+        "hours_used": len(idxs),
+        "weather_source": "forecast",
+    }
+
 
 def _player_name(player):
     return f"{player.get('first_name', '')} {player.get('last_name', '')}".strip()
