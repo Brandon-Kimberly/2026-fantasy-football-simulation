@@ -534,7 +534,7 @@ MANAGER_PROFILES = {
     'Cosmic Badgers': {'faab_agg': 1.71, 'faab_activity': 0.40, 'trade_will': 0.40, 'style': 'Average'},
     'Crimson Marmots': {'faab_agg': 0.72, 'faab_activity': 1.54, 'trade_will': 0.30, 'style': 'Casual'},
     'Turbo Llamas': {'faab_agg': 1.11, 'faab_activity': 1.05, 'trade_will': 0.10, 'style': 'Passive / Autopilot'},
-    'Iron Wombats': {'faab_agg': 0.96, 'faab_activity': 1.29, 'trade_will': 0.05, 'style': 'Autodraft'},
+    'Iron Wombats': {'faab_agg': 0.96, 'faab_activity': 1.29, 'trade_will': 0.05, 'style': 'Autopilot'},
 }
 
 # ==============================================================================

@@ -689,8 +689,9 @@ class TestLeagueWeekOutlook(_EngineCase):
             self.assertAlmostEqual(m["p_a"] + m["p_b"] + m["p_tie"], 1.0, places=9)
             for k in ("margin_mean", "margin_sd", "a_expected", "b_expected"):
                 self.assertIn(k, m)
-        legion = r["matchups"][0]
-        self.assertGreater(legion["p_a"], 0.7, "a 20-point QB beats a 15-point QB's team most weeks")
+        lopsided = r["matchups"][0]
+        self.assertGreater(lopsided["p_a"], 0.7,
+                           "a 20-point QB beats a 15-point QB's team most weeks")
         even = r["matchups"][1]
         self.assertAlmostEqual(even["p_a"], even["p_b"], delta=0.06, msg="identical rosters are a coin flip")
 

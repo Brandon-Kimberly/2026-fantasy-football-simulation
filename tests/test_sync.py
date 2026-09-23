@@ -658,8 +658,8 @@ class TestSeasonIngestion(unittest.TestCase):
                 "previous_league_id": None,
                 "roster_positions": ["QB", "FLEX", "BN"],
                 "settings": {"playoff_week_start": 3, "league_average_match": 0}}
-        users = [{"user_id": "u1", "display_name": "brandon.kimberly"},
-                 {"user_id": "u2", "display_name": "clanker_han"}]
+        users = [{"user_id": "u1", "display_name": "ferret_wrangler"},
+                 {"user_id": "u2", "display_name": "walrus_fan_99"}]
         rosters = [{"roster_id": 1, "owner_id": "u1",
                     "settings": {"wins": 1, "losses": 1, "fpts": 200, "fpts_decimal": 50}},
                    {"roster_id": 2, "owner_id": "u2",
