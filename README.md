@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-734%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-740%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -191,7 +191,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 734 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 740 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -237,6 +237,10 @@ is recorded:
 - **`docs/AUDIT_PLAN.md`**: the working spec, with 60 tracked follow-ups (F1-F60), each with
   Origin / Scope / Acceptance criterion / When, and its outcome when closed, and the R1
   machine-fault investigation.
+- **`docs/WAIVER_MECHANICS.md`**: whether a claim can *land* — on-waivers vs free-agent and
+  the UI tell, how to make only one of several alternative claims succeed, and the IR rules
+  (an open IR slot removes the need for a drop; `NA` and `Sus` are not IR-eligible). League
+  settings verified live, not transcribed; these are mechanics, not what a claim is worth.
 
 Beyond the summary line above: a **real-data backtest gate** on this league's 2025 season
 (points bias, mean z, coverage, logged per commit and interpreter) that every
