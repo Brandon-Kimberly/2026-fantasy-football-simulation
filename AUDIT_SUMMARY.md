@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~96 findings and tracked follow-ups** | **63 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~97 findings and tracked follow-ups** | **64 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,18 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F59** the model-health verdict threshold was an unsourced literal, and it is
+  unreachable — RESOLVED (hygiene; the VALUE stays unverified with a measurement plan):
+  `'Calibrated & Learning' if mae < 18.0` cited nothing (rule 5). Moved to
+  `config.TEAM_MAE_HEALTH_THRESHOLD` with the derivation B9 asked for, and that derivation
+  answers B9's open question: `team_scoring_mae` sums the first 13 players in ARBITRARY
+  Sleeper roster order against SEASON means with no week adjustment, making it far cruder
+  than the full simulation — whose own 2025 team-week MAE on the same target is 22.36
+  (naive baseline 26.54). 18.0 therefore asks the crude estimator to beat the whole engine
+  by 4.4 pts/team-week, so the favourable verdict is close to unreachable and the live
+  29.64 at n=2 is NOT evidence of a sick model. Value deliberately unchanged so the commit
+  moves the number without moving the verdict; not golden-pinned (the golden hashes the 17
+  stage-A args and FIXTURE_INPUTS, and model_learning_report is neither), so PATCH.
 - **F58** an empty projection payload silently overwrote every baseline — RESOLVED:
   found while enumerating B6's sites, whose grep (`except Exception:\s*$`) required the
   handler to end the line and so missed three inline `except Exception: pass` — two of

@@ -233,6 +233,43 @@ PRESEASON_DEFENSIVE_PRIOR = {
 #      single k is mean-range-dependent: k spans [1.99, 2.27] across mean-floors 5->10;
 #   LB 1.67 [1.58, 1.76] n=72 -- floor-stable, exponent consistent with sqrt;
 #   DB 1.58 [1.51, 1.65] n=67 -- mild floor sensitivity (1.53 -> 1.68).
+# F59 (B9, 2026-09-22). The cutoff for the season's headline self-assessment:
+#   team_scoring_mae < this  ->  "Calibrated & Learning"
+#   otherwise                ->  "High Variance / Volatile"
+#
+# VALUE UNVERIFIED, CARRIED OVER. 18.0 was a bare literal in simulation.py citing
+# nothing, and it is preserved here unchanged so this commit moves the number without
+# moving the verdict. What IS now recorded is what the number has to be read against,
+# because that turns out to matter more than the number:
+#
+# `team_scoring_mae` = mean |real team week points - sum(baselines[p]['mean'] for the
+# first 13 players in self.rosters[team])|. Two properties of that estimator:
+#   - 13 is REQUIRED_STARTING_SLOTS' length, so it intends "the starting lineup" --
+#     but `[:13]` takes Sleeper's arbitrary roster order, not an optimal or an actual
+#     lineup, so it mixes bench players in and leaves starters out;
+#   - it compares against SEASON means with no week adjustment (no vegas total, no
+#     script multiplier), unlike anything the engine actually predicts with.
+# It is therefore a much CRUDER estimator of team-week points than the simulation is.
+#
+# The same quantity measured properly: run_points_backtest scores the full simulation's
+# team-week mean against real team-week points on 2025 and reports engine MAE **22.36**,
+# against a projections-only naive baseline of 26.54 (docs/AUDIT_PLAN.md).
+#
+# So 18.0 asks a deliberately cruder estimator to beat, by 4.4 points per team-week,
+# what the whole engine managed over a full season of real data. The favourable verdict
+# is close to unreachable by construction, which means "High Variance / Volatile" is
+# the expected reading and carries no information. The live 29.64 at n=2 (two weeks
+# banked, 2026-09-22) is consistent with that and is NOT evidence of a sick model.
+#
+# DO NOT read this verdict as a model-health signal until the threshold is measured.
+# The measurement: replay 2025 through this same [:13]-roster-order estimator, take the
+# distribution of team-week MAE, and set the cutoff at a quantile of it -- i.e. calibrate
+# the threshold against the estimator that is actually used, not against a better one.
+# Changing the value is a deliberate act with a user-visible effect; it is not pinned by
+# any golden (the golden hashes the 17 stage-A args and the fixture inputs, and
+# model_learning_report_<week>.json is neither), so it is PATCH, not MAJOR.
+TEAM_MAE_HEALTH_THRESHOLD = 18.0
+
 VOLATILITY_CONSTANTS = {'QB': 1.65, 'RB': 1.98, 'WR': 1.8, 'TE': 2.0, 'K': 1.45, 'DL': 2.16, 'LB': 1.67, 'DB': 1.58}
 EPISTEMIC_ERROR_RATES = {
     'QB': 0.30, 'RB': 0.63, 'WR': 0.55, 'TE': 0.50,

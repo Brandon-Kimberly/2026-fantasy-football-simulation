@@ -4707,3 +4707,68 @@ weekly endpoint is the one that failed).
 requires both Sleeper endpoints down at once. It was a loaded gun, not a wound.
 
 Suite 721 → 724. Goldens 15/15. **PATCH.**
+
+
+### F59 — The model-health verdict threshold was an unsourced literal, and it is unreachable — RESOLVED (2026-09-22)
+
+**Origin.** Backlog item B9, worked third. B9 filed it as *config hygiene, P2, low effort*:
+move `18.0` out of `simulation.py:538` into `config.py` with a derivation or the words
+"unverified, carried over". That part was small. The measurement B9 asked for was not.
+
+**B9's open question, answered.** B9 wrote: *"Current value with two weeks banked: 29.64 →
+'High Variance'. Whether that is alarming or expected at n=2 is unknowable without knowing
+where 18.0 came from."* It is knowable, and the answer is that **the favourable verdict is
+close to unreachable by construction**, so "High Variance / Volatile" carries no
+information and 29.64 is not evidence of a sick model.
+
+**What `team_scoring_mae` actually measures.**
+
+```python
+baseline_exp = sum(self.baselines.get(p, {}).get('mean', 8.0)
+                   for p in self.rosters.get(t_name, [])[:13])
+team_errors.append(abs(actual_pts - baseline_exp))
+```
+
+Two properties of that estimator:
+
+- `13` is `len(REQUIRED_STARTING_SLOTS)`, so it *intends* "the starting lineup" — but
+  `[:13]` takes **Sleeper's arbitrary roster order**, not an optimal or an actual lineup.
+  It mixes bench players in and leaves starters out.
+- It compares against **season** means with no week adjustment — no vegas total, no script
+  multiplier — unlike anything the engine actually predicts with.
+
+It is therefore a materially **cruder** estimator of team-week points than the simulation
+itself is.
+
+**The number it has to be read against.** `run_points_backtest` scores the *full
+simulation's* team-week mean against real team-week points on 2025 — the same unit, the
+same target — and reports **engine MAE 22.36**, against a projections-only naive baseline
+of **26.54** (`docs/AUDIT_PLAN.md`, the F2 gate A/B).
+
+So `18.0` asks a deliberately cruder estimator to beat, by 4.4 points per team-week, what
+the whole engine managed across a full season of real data. B9's guess — *"is 18.0 meant to
+be below [22.36]?"* — was the right question; being below it is precisely the problem.
+
+**What changed, and what deliberately did not.** `TEAM_MAE_HEALTH_THRESHOLD` now lives in
+`config.py` carrying the whole derivation above, and `_apply_bayesian_updates` reads it.
+**The value is unchanged at 18.0**, so this commit moves the number without moving the
+verdict — confirmed: 17.9 → "Calibrated & Learning", 18.0 / 22.36 / 29.64 → "High Variance
+/ Volatile", exactly as before.
+
+Changing the value is a separate, deliberate act with a user-visible effect, and it wants a
+measurement rather than a guess — replacing one unsourced literal with a second one would
+be the same defect wearing a config constant. **The measurement is recorded in the
+constant's comment**: replay 2025 through this same `[:13]`-roster-order estimator, take
+the distribution of team-week MAE, and set the cutoff at a quantile of *that* — calibrating
+the threshold against the estimator actually in use, not against a better one.
+
+**Release class.** PATCH, and checked rather than assumed: the golden master hashes the 17
+stage-A arguments to `export_and_visualize` plus `FIXTURE_INPUTS`, and
+`model_learning_report_<week>.json` is neither. The verdict string is not golden-pinned.
+
+**Standing caveat, now written down where it is read.** Until the threshold is measured,
+`model_health_verdict` must not be read as a model-health signal. The constant's comment
+says so in those words.
+
+Suite 724 → 728. Goldens 15/15, sync golden byte-identical. RESOLVED (hygiene); the VALUE
+remains **UNVERIFIED, carried over**, with a measurement plan.

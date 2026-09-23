@@ -32,6 +32,7 @@ from fantasy_sim.config import (
     FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA, FAAB_LEAGUE_MEAN_BID_2025,
     ANON_EPISTEMIC_RATE,
     FAAB_UPGRADE_RATES, FAAB_PROFILE_PRIOR_WEIGHT,
+    TEAM_MAE_HEALTH_THRESHOLD,
 )
 from fantasy_sim.storage import DECISION_LOG_FILE
 from fantasy_sim.storage import (
@@ -535,7 +536,13 @@ class FantasySimulationEngine:
         if team_errors:
             mae = float(np.mean(team_errors))
             report['team_scoring_mae'] = round(mae, 2)
-            report['model_health_verdict'] = 'Calibrated & Learning' if mae < 18.0 else 'High Variance / Volatile'
+            # F59 (B9): the threshold is config.TEAM_MAE_HEALTH_THRESHOLD, which records
+            # that 18.0 is unverified AND that it sits below the full simulation's own
+            # 2025 team-week MAE (22.36) while this estimator is cruder -- so the
+            # favourable verdict is close to unreachable and carries no information.
+            report['model_health_verdict'] = ('Calibrated & Learning'
+                                              if mae < TEAM_MAE_HEALTH_THRESHOLD
+                                              else 'High Variance / Volatile')
 
         for p_name, data in self.baselines.items():
             if p_name in player_history:

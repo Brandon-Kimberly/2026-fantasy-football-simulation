@@ -60,16 +60,18 @@ class TestTheThresholdIsANamedSourcedConstant(unittest.TestCase):
                         "F59: the comment must say where the number came from, or say "
                         "plainly that it is unverified")
 
-    def test_the_verdict_line_no_longer_holds_a_bare_literal(self):
-        """B9's acceptance criterion: no bare numeric threshold in the verdict."""
-        from fantasy_sim import simulation
-        src = _read(simulation)
-        verdict_lines = [ln for ln in src.splitlines() if "model_health_verdict" in ln
-                         and "Calibrated" in ln]
-        self.assertEqual(len(verdict_lines), 1, f"expected one verdict line, got {verdict_lines}")
-        line = verdict_lines[0]
-        self.assertNotIn("18.0", line, "F59: the bare literal is still there")
-        self.assertIn("TEAM_MAE_HEALTH_THRESHOLD", line,
+    def test_apply_bayesian_updates_holds_no_bare_threshold(self):
+        """B9's acceptance criterion, checked at the scope B9 states it in: 'No bare
+        numeric threshold in _apply_bayesian_updates'. Scoped to the function rather than
+        to one line, so wrapping the expression across lines cannot satisfy it by
+        accident -- and so an 18.0 reintroduced anywhere in that method is caught."""
+        import inspect
+        from fantasy_sim.simulation import FantasySimulationEngine
+        fn_src = inspect.getsource(FantasySimulationEngine._apply_bayesian_updates)
+        self.assertIn("model_health_verdict", fn_src)
+        code = " ".join(ln.split("#", 1)[0] for ln in fn_src.splitlines())
+        self.assertNotIn("18.0", code, "F59: the bare literal is still there")
+        self.assertIn("TEAM_MAE_HEALTH_THRESHOLD", code,
                       "F59: the verdict must read the named constant")
 
 
