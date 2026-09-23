@@ -205,6 +205,11 @@ def git_head_short():
 # git for the same reason the projection log is: the projection snapshots cannot be
 # reconstructed after the fact.
 DECISION_LOG_FILE = _log("decision_log.jsonl")
+# B14: what I suggested, what I bid, and whether I got him -- written at BID time.
+# It cannot live in the decision log: that file holds only COMPLETED transactions,
+# so a claim I LOST never appears there, and the losses are the half that
+# calibrates a bid.
+BID_LEDGER_FILE = _log("bid_ledger.jsonl")
 # F15 ingestion row: one immutable document per season -- the league's real completed draft,
 # picks resolved to team names at ingestion (sync.ingest_drafts; a file that exists is never
 # rewritten). Tracked in git like the other logs: Sleeper ages drafts out, so the on-disk
