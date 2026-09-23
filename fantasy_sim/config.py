@@ -295,6 +295,73 @@ PRESEASON_DEFENSIVE_PRIOR = {
 # model_learning_report_<week>.json is neither), so it is PATCH, not MAJOR.
 TEAM_MAE_HEALTH_THRESHOLD = 18.0
 
+# B7 (2026-09-23). Every predictive interval this model quotes was too NARROW, so every
+# probability it stated was sharper than the data supports.
+#
+# MEASURED, in data/logs/points_backtest.jsonl (the entry logged after B8, 240 team-weeks
+# across checkpoints 3/6/9/12 of the real 2025 season):
+#
+#     cover80   0.67   against a nominal 0.80
+#     cover50   0.36   against a nominal 0.50
+#     sd_z_opt  1.27   against a nominal 1.00
+#
+# sd_z_opt is the standard deviation of the z-scores against the hindsight-OPTIMAL lineup
+# target (F25's corrected target: the sim never claimed to predict managers' start/sit
+# errors). A value of 1.27 says the realised spread is 27% wider than the simulated one.
+#
+# WHY 1.41 AND NOT 1.27. Inflating ALEATORIC alone cannot scale total variance by the
+# full factor, because epistemic contributes too. Measured rather than assumed, in two
+# backtest runs, both logged to data/logs/points_backtest.jsonl:
+#
+#     aleatoric x1.00  ->  sd_z_opt 1.27
+#     aleatoric x1.27  ->  sd_z_opt 1.08     (sim sd rose x1.176, variance x1.383)
+#
+# Solving k^2*r + (1-r) = 1.383 gives r = 0.625: aleatoric is 62.5% of team-week
+# variance and epistemic 37.5%. To scale total sd by the 1.27 the first run demanded,
+# the aleatoric factor must be sqrt((1.27^2 - 0.375)/0.625) = 1.408. Confirmed:
+#
+#     aleatoric x1.41  ->  sd_z_opt 1.00, cover80c 0.80, mean z +0.110
+#
+# which is B7's acceptance exactly (cover80 in 0.78-0.82, sd_z_opt near 1.0, mean z
+# unchanged in sign).
+#
+# AN HONEST RESIDUAL: cover50c reaches only 0.45 against a nominal 0.50. Scaling one
+# standard deviation repairs the 80% band and leaves the 50% band narrow, which says the
+# predictive shape is not purely Gaussian. That is a SHAPE problem and this is a SCALE
+# fix; it belongs to B7's deferred option (b).
+#
+# THE FIX IS GLOBAL, AND THAT IS A CHOICE. B7 offered two: (a) one constant on
+# std_aleatoric, (b) find WHICH variance is understated -- per-player aleatoric, the
+# environment draw's 0.10 sd, or the same-game correlation the score draw omits (F16).
+# (b) is the better fix and is DEFERRED: attributing it needs F25's week 5-6 data, and
+# (a) repairs every probability quoted this season. Revisit after week 6.
+#
+# APPLIED TO ALEATORIC ONLY. Epistemic variance is drawn ONCE per simulated season and
+# held fixed, on purpose, to propagate parameter uncertainty into season-level outcomes
+# (see the statistical conventions in CLAUDE.md). Widening that term would widen season
+# outcomes through a different mechanism than the one this backtest measured.
+#
+# WHAT IT DOES TO THE OUTPUT: every win probability moves toward 50% and every champ%
+# toward 12.5%. Numbers read LOWER and less exciting. They are the honest ones.
+#
+# HOW MUCH, MEASURED rather than asserted -- 6 batches x 300 sims at 1.00 vs 1.41, on the
+# live week-3 roster state. The direction is exactly as predicted and the SIZE is much
+# smaller than B7's warning implies: the three leaders lose 0.3 / 0.7 / 1.4 points of
+# champ%, everyone below gains, and best-to-worst spread narrows only 26.1 -> 25.5. The
+# reason is structural and worth recording: a championship is a SEASON aggregate, and
+# season outcomes are dominated by the once-per-season epistemic draw and by real roster
+# quality, neither of which this constant touches. Weekly numbers -- which is where
+# `live_matchup`, `compare_players` and every stated win probability live -- move much
+# more, and playoff odds sit in between (one 8th-place team went 2.5% -> 3.6%). So this
+# repairs the intervals where they were measured wrong without pretending it has
+# flattened the league.
+#
+# STALENESS DEPENDENCY: this is fitted to the CURRENT model. B1 (the unverified IDP
+# epistemic rate of 0.15) would change the variance structure and this constant would
+# need re-deriving from a fresh backtest. B7 says as much: do it after B1, or the two
+# confound. B1 is unstarted, so this is fitted to the model as it stands today.
+INTERVAL_INFLATION = 1.41
+
 VOLATILITY_CONSTANTS = {'QB': 1.65, 'RB': 1.98, 'WR': 1.8, 'TE': 2.0, 'K': 1.45, 'DL': 2.16, 'LB': 1.67, 'DB': 1.58}
 EPISTEMIC_ERROR_RATES = {
     'QB': 0.30, 'RB': 0.63, 'WR': 0.55, 'TE': 0.50,

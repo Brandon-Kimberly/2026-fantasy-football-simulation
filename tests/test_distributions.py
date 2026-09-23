@@ -42,7 +42,9 @@ from unittest.mock import patch
 
 import numpy as np
 
-from fantasy_sim.config import NFL_TEAMS, SIM_CONFIG, REGULAR_SEASON_WEEKS
+from fantasy_sim.config import (
+    NFL_TEAMS, SIM_CONFIG, REGULAR_SEASON_WEEKS, INTERVAL_INFLATION,
+)
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import (
     LEAGUE_STATE_FILE, LEAGUE_STANDINGS_FILE, VEGAS_FILE, LIVE_ROSTERS_FILE, BASELINES_FILE,
@@ -56,6 +58,22 @@ ENV_NOISE_SD = 0.10          # env_var ~ N(v_tot / env_norm, 0.10), inline in ru
 # fallback, the normaliser (mean implied total over the simulated schedule) is 21.5, and the
 # environment multiplier is exactly 1. Before the finding-1 fix it was 21.5 / 22.0 = 0.977.
 CONTROLLED_ENV_MULTIPLIER = 1.0
+
+
+def effective_std_a(std_a):
+    """The aleatoric sd the SAMPLER sees, which is not the one the fixture file holds.
+
+    B7 (2026-09-23) inflates `std_aleatoric` by INTERVAL_INFLATION at engine init, so every
+    analytic prediction below has to be built from the inflated value or it predicts a
+    distribution the engine no longer draws from. The tolerances are untouched -- what
+    changed is the engine's parameter, not the strictness of the check.
+
+    The posterior tests further down deliberately keep the RAW fixture value: the blend runs
+    BEFORE the inflation, and that ordering is what makes B7 an interval change rather than
+    a mean change. Both facts stay separately observable because the two groups use
+    different numbers on purpose.
+    """
+    return std_a * INTERVAL_INFLATION
 
 TEAMS = ["A", "B", "C", "D", "E", "F", "G", "H"]
 SLOT_POSITIONS = ["QB", "K", "DB", "DL", "LB", "RB", "RB", "RB", "WR", "WR", "WR", "TE", "TE"]
@@ -150,7 +168,7 @@ class TestWeeklyDrawMoments(unittest.TestCase):
 
     def test_team_weekly_variance_matches_the_stacked_lognormal_times_env_model(self):
         """With epistemic off and no correlation, Var[team] = 13 * Var[base * env]."""
-        expected = 13 * player_weekly_var(self.MEAN, self.STD_A)
+        expected = 13 * player_weekly_var(self.MEAN, effective_std_a(self.STD_A))
         observed = float(self.W.var())
         # SE of a sample variance ~ var * sqrt(2 / n)
         se = observed * np.sqrt(2.0 / self.W.size)
@@ -181,7 +199,7 @@ class TestEpistemicStructure(unittest.TestCase):
     def test_epistemic_draw_is_held_within_a_season(self):
         e_mu = CONTROLLED_ENV_MULTIPLIER
         held_var = 13 * self.STD_E ** 2 * e_mu ** 2          # season-level shift, 13 players
-        week_var = 13 * player_weekly_var(self.MEAN, self.STD_A)
+        week_var = 13 * player_weekly_var(self.MEAN, effective_std_a(self.STD_A))
         predicted_corr = held_var / (held_var + week_var)
         observed = self.within_season_corr(self.W_on)
         self.assertGreater(observed, 0.6 * predicted_corr,

@@ -103,7 +103,21 @@ class TestTheConstant(unittest.TestCase):
         src = inspect.getsource(config)
         m = re.search(r"^INTERVAL_INFLATION\s*=", src, re.M)
         self.assertIsNotNone(m)
-        block = src[max(0, m.start() - 2200):m.start()]
+        # The CONTIGUOUS comment block immediately above it, not a fixed byte window. The
+        # first version took the preceding 2200 characters and broke the moment the
+        # sourcing comment grew -- which is the wrong failure for a test whose subject is
+        # "is this constant sourced": a longer derivation made it fail.
+        lines = src[:m.start()].splitlines()
+        block_lines = []
+        for ln in reversed(lines):
+            if ln.startswith("#"):
+                block_lines.append(ln)
+            elif ln.strip() == "" and block_lines:
+                break
+            elif ln.strip():
+                break
+        block = "\n".join(reversed(block_lines))
+        self.assertTrue(block_lines, "no comment block above the constant at all")
         self.assertIn("sd_z_opt", block, "name the statistic it was derived from")
         self.assertIn("cover80", block, "and the coverage it is meant to repair")
         self.assertIn("points_backtest", block, "and the log entry it came from")

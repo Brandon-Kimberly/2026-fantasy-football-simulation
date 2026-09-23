@@ -30,7 +30,7 @@ from fantasy_sim.config import (
     REGULAR_SEASON_WEEKS,
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
     FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA, FAAB_LEAGUE_MEAN_BID_2025,
-    ANON_EPISTEMIC_RATE,
+    ANON_EPISTEMIC_RATE, INTERVAL_INFLATION,
     FAAB_UPGRADE_RATES, FAAB_PROFILE_PRIOR_WEIGHT,
     TEAM_MAE_HEALTH_THRESHOLD,
 )
@@ -177,6 +177,22 @@ def blend_faab_profiles(priors, observed, prior_weight=FAAB_PROFILE_PRIOR_WEIGHT
 
 
 
+def _inflate_aleatoric(baselines, factor):
+    """B7. Widen every stored `std_aleatoric` by `factor`, in place.
+
+    A separate function so it is testable and so `factor=1.0` is a visible no-op -- the
+    constant alone must account for the difference between this model and the last one.
+    A player with no aleatoric term is left untouched rather than given a default: an
+    invented spread is worse than an absent one.
+    """
+    if not factor or factor == 1.0:
+        return baselines
+    for entry in (baselines or {}).values():
+        if isinstance(entry, dict) and entry.get("std_aleatoric"):
+            entry["std_aleatoric"] = float(entry["std_aleatoric"]) * float(factor)
+    return baselines
+
+
 class FantasySimulationEngine:
     def __init__(self):
         # F10: first thing, before any load -- the run's earliest warning (VEGAS STALE) is
@@ -292,6 +308,12 @@ class FantasySimulationEngine:
             self.faab_profiles = blend_faab_profiles(MANAGER_PROFILES, read_faab_observations())
         except Exception:
             self.faab_profiles = {t: dict(p) for t, p in MANAGER_PROFILES.items()}
+
+        # B7: widen the predictive intervals BEFORE anything reads them. Measured at
+        # sd_z_opt 1.27 against a nominal 1.0 -- see config.INTERVAL_INFLATION for the
+        # backtest entry and why this is aleatoric-only. Applied to self.baselines, which
+        # every consumer reads, so the tools and the engine cannot disagree about spread.
+        _inflate_aleatoric(self.baselines, INTERVAL_INFLATION)
 
         # EVERYTHING DOWNSTREAM OF THE BLEND GOES BELOW IT. F54 (2026-09-22) moved
         # replacement levels here; B8 (2026-09-23) moved the other two, closing that
