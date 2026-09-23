@@ -18,7 +18,8 @@ import argparse
 import datetime as _dt
 import os
 
-from fantasy_sim.decisions import find_trade_targets
+from fantasy_sim.decisions import find_trade_targets, screen_sim_disagreement, evaluate_trade
+from fantasy_sim.swaps import describe, exhaustive_swaps
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_week_path, save_json, load_json, syndicate_comprehensive_matrix_path
 
@@ -43,11 +44,54 @@ def main(argv=None):
     ap.add_argument("--evaluate", type=int, default=0)
     ap.add_argument("--batches", type=int, default=3)
     ap.add_argument("--sims", type=int, default=1000)
+    ap.add_argument("--exhaustive", action="store_true",
+                    help="B15: scan EVERY 1-for-1 and (bounded) 2-for-2 across the league, "
+                         "not just their bench player who fills my weakest slot")
+    ap.add_argument("--require-mutual", action="store_true",
+                    help="with --exhaustive: keep only swaps the SCREEN thinks they also "
+                         "gain from. Off by default -- B2: that number is the least "
+                         "reliable one here and can discard a deal the sim would like")
     args = ap.parse_args(argv)
 
     engine = FantasySimulationEngine()
     week = args.week or engine.current_week
     outcomes = _outcomes(week)
+    if args.exhaustive:
+        # B15: the need-driven finder cannot see "their starter I could displace with a
+        # piece they need more", which is where three of week 3's real deals lived.
+        swaps = exhaustive_swaps(engine, args.team, week=week, top_n=args.top,
+                                 require_mutual=args.require_mutual)
+        print(f"\n{args.team} -- week {week} EXHAUSTIVE swap scan")
+        print(f"  {'#':>2s} {'with':18s} {'I give':34s} {'I get':34s} {'my scrn':>8s} {'thr scrn':>9s}")
+        for i, sw in enumerate(swaps, 1):
+            print(f"  {i:2d} {sw['with'][:18]:18s} {', '.join(sw['i_give'])[:34]:34s} "
+                  f"{', '.join(sw['i_get'])[:34]:34s} {sw['my_screen_gain']:+8.2f} "
+                  f"{sw['their_screen_gain']:+9.2f}")
+        # B2: spend the sims on MY best, and say what is unmeasured.
+        for sw in swaps[:args.evaluate]:
+            ev = evaluate_trade(engine, args.team, sw["i_give"], sw["with"], sw["i_get"],
+                                batches=args.batches, sims=args.sims)
+            mine = (ev.get("teams") or {}).get(args.team) or {}
+            delta = (mine.get("champ_pct") or {}).get("delta")
+            sw["simulated"], sw["sim_champ_delta"] = True, (float(delta) if delta is not None else None)
+            sw["disagreement"] = screen_sim_disagreement(sw["my_screen_gain"], sw["sim_champ_delta"])
+            print(f"\n  SIM  {', '.join(sw['i_give'])} -> {', '.join(sw['i_get'])} with {sw['with']}")
+            print(f"       me Champ {mine['champ_pct']['delta']:+.2f}+-{mine['champ_pct']['se']:.2f} "
+                  f"Playoff {mine['playoff_pct']['delta']:+.2f}+-{mine['playoff_pct']['se']:.2f}")
+            if sw["disagreement"]["disagree"]:
+                print(f"       {sw['disagreement']['note']}")
+        if not args.evaluate:
+            print("  ALL UNSIMULATED -- screen numbers only; add --evaluate N")
+        if not args.require_mutual and swaps and swaps[0]["their_screen_gain"] < 0:
+            # Ranked by MY gain alone (B2), the top of the list is "give me your two best
+            # players" -- correct as an answer to "what would help me most", useless as a
+            # list of proposals. Say so instead of letting it read as advice.
+            print("  NOTE: ranked by MY gain only, so the leaders here are offers nobody "
+                  "would accept.")
+            print("        --require-mutual for a proposable list (its cost is above).")
+        print(f"\n  {describe(swaps)}")
+        return {"exhaustive": swaps}
+
     r = find_trade_targets(engine, args.team, outcomes=outcomes, week=week, seller_threshold=args.seller_threshold,
                            top_n=args.top, evaluate_top=args.evaluate, batches=args.batches, sims=args.sims)
 

@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-903%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-902%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -95,6 +95,7 @@ season exports. The engine is not modified. The one extraction made for them
 | Who should I claim, and what should I bid? Roster gaps against the free-agent pool, ranked by value over replacement, with P(beats my incumbent). | `py -3.10 -m scripts.waiver_targets [--positions RB,WR]` |
 | Is this specific trade good for me? Two paired full simulations on the same seeds, and the Champ%/Playoff% delta for both sides and every bystander. | `py -3.10 -m scripts.evaluate_trade --team-a ... --a-gives ... --team-b ... --b-gives ...` |
 | Who should I be trading for, and who wants what I have? Buried bench players who would start for me, and my surplus that has a buyer. | `py -3.10 -m scripts.find_trades [--evaluate N]` |
+| What would ANY swap do? Every 1-for-1 and bounded 2-for-2 across the league on engine values, ranked by my gain, every row labelled unsimulated (B2/B15). | `py -3.10 -m scripts.find_trades --exhaustive [--require-mutual] [--evaluate N]` |
 | How good is each roster, really? Tier and VORP per position and overall, and a league table by lineup VORP. | `py -3.10 -m scripts.roster_grades [--team ...]` |
 
 ## Or run the pieces individually
@@ -195,7 +196,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 903 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 902 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

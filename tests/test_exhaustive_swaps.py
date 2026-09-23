@@ -149,10 +149,21 @@ class TestTheRosterCapTrap(_Case):
                         "B15: compare against len(their_roster), never a literal 19")
 
     def test_no_literal_nineteen_in_the_module(self):
+        """Executable code only. The module and its functions DESCRIBE the 19-vs-20 trap
+        in prose, so docstrings and comments are stripped before looking -- otherwise the
+        explanation of the bug trips the guard against the bug."""
+        import ast
         import inspect
         from fantasy_sim import swaps
-        code = "".join(ln.split("#", 1)[0] for ln in inspect.getsource(swaps).splitlines())
-        self.assertNotIn("19", code)
+
+        tree = ast.parse(inspect.getsource(swaps))
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)) and ast.get_docstring(node):
+                node.body = node.body[1:]
+        code = ast.unparse(tree)
+        self.assertNotIn("19", code,
+                         "B15: compare against len(their_roster), never a literal")
 
 
 class TestRankingFollowsB2(_Case):
