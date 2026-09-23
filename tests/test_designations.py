@@ -153,3 +153,67 @@ class TestItNeverBreaksASync(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestTheRollCall(unittest.TestCase):
+    """F63 (2026-09-23), found while working B10.
+
+    B21 exists to feed B10, and B10's test is *"does designation-count predict subsequent
+    DNP **above the positional base rate**"*. A base rate is a rate among the
+    UNDESIGNATED. This log wrote only the designated, on purpose -- the docstring called
+    a healthy row "150 rows of 'nothing happened'" -- so the denominator was never
+    recorded, and it is not recoverable afterwards: `live_rosters.json` is overwritten
+    every sync and the players cache holds only today's status.
+
+    Without the roll call the study has to borrow its denominator from
+    `first_recorded_scores`, which is the LEAGUE-WIDE stats feed (~800 players a week,
+    not the ~152 rostered). Players nobody tracked then sit in the "undesignated" group
+    carrying designations that were never logged, which contaminates the comparison
+    group and biases the measured lift DOWNWARD. A study that can only understate its
+    effect is not a study worth running.
+
+    Cost of fixing it: ~152 rows a week instead of ~28, about 2,700 rows a season. That
+    is the whole price of having a denominator.
+    """
+
+    def test_a_healthy_rostered_player_is_recorded_with_a_null_status(self):
+        from fantasy_sim.sync import append_designations
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "des.jsonl")
+            append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
+            rows = _read(p)
+        fine = [r for r in rows if r["name"] == "Fine Guy"]
+        self.assertEqual(len(fine), 1, "the roll call is the denominator B10 needs")
+        self.assertIsNone(fine[0]["injury_status"])
+
+    def test_the_roll_call_covers_every_rostered_player(self):
+        from fantasy_sim.sync import append_designations
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "des.jsonl")
+            append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
+            rows = _read(p)
+        self.assertEqual({r["name"] for r in rows},
+                         {"Hurt Guy", "Fine Guy", "Out Guy"})
+
+    def test_a_healthy_player_still_writes_only_once_a_week(self):
+        """The dedupe rule has to keep holding, or the roll call turns the file into one
+        row per player per SYNC -- twenty-four of them in week 2 alone."""
+        from fantasy_sim.sync import append_designations
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "des.jsonl")
+            append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
+            second = append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
+        self.assertEqual(second, 0)
+
+    def test_a_healthy_player_who_becomes_questionable_writes_a_second_row(self):
+        """The transition is the thing worth studying, and the roll-call row must not
+        swallow it."""
+        from fantasy_sim.sync import append_designations
+        hurt = {"Quantum Ferrets": [{"name": "Fine Guy", "pos": "RB", "team": "DET"}]}
+        cache2 = dict(CACHE, **{"2": dict(CACHE["2"], injury_status="Questionable")})
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, "des.jsonl")
+            append_designations(ROSTERS, CACHE, BASELINES, week=3, path=p)
+            append_designations(hurt, cache2, BASELINES, week=3, path=p)
+            got = [r["injury_status"] for r in _read(p) if r["name"] == "Fine Guy"]
+        self.assertEqual(got, [None, "Questionable"])
