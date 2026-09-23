@@ -103,14 +103,17 @@ def main(argv=None):
         print('    py -3.10 -m scripts.bid_review --add "Patrick Mahomes" --bid 25')
         return cal
     print(f"  {'wk':>2s} {'player':24s} {'pos':4s} {'v1':>4s} {'v2':>7s} {'bid':>4s} "
-          f"{'won':>4s} {'price':>6s}")
+          f"{'won':>4s} {'price':>6s}  note")
     for r in rows:
         won = "-" if r["won"] is None else ("yes" if r["won"] else "no")
         price = "-" if r["winning_bid_if_visible"] is None else str(r["winning_bid_if_visible"])
         v2 = f"{r.get('suggested_v2_low')}-{r.get('suggested_v2_high')}"
+        # F65: the ledger records what I meant to bid, Sleeper records what it charged.
+        note = ("" if r.get("bid_mismatch") is None
+                else f"recorded ${r.get('bid_placed')}, CHARGED ${r['bid_mismatch']}")
         print(f"  {r.get('week', 0):2d} {str(r.get('player'))[:24]:24s} {str(r.get('pos')):4s} "
               f"{r.get('suggested_v1', 0):4d} {v2:>7s} {r.get('bid_placed', 0):4d} "
-              f"{won:>4s} {price:>6s}")
+              f"{won:>4s} {price:>6s}  {note}")
 
     if superseded:
         print(f"\n  {len(superseded)} superseded row(s) -- a bid RAISED before the waiver "

@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~102 findings and tracked follow-ups** | **69 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~103 findings and tracked follow-ups** | **70 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,21 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F65** the bid ledger could never resolve a claim: Sleeper counts the week
+  differently — RESOLVED: two waivers were WON and `bid_review` still printed
+  `resolved 0`, silently. The ledger stamps `current_week` at BID time (3); Sleeper
+  stamps the `leg` at SUBMISSION (2), and with `daily_waivers: 1` a claim routinely sits
+  across a week boundary, so the offset is this league's NORMAL case. `reconcile` matched
+  on (player_id, week) and found nothing. Worst possible place for a silent failure: the
+  empty result is character-for-character the honest "no waiver run yet" state this
+  module was built to show, so it would have looked right all season while collecting
+  nothing — and the plan records this ledger as "the only route to settling" B13 after
+  F61. Fixed by matching on player_id plus TIME PROXIMITY (±4 days). Widening the week to
+  ±1 was rejected: it breaks F64's rule that the same player a week apart is a different
+  claim. Proximity NOT ordering, because `created` is the submission time and survives an
+  edit — the real transaction predated its own ledger row by 18 hours. Also surfaced: the
+  K was recorded at $1 and charged $2, so `bid_mismatch` now reports a won claim whose
+  charge differs rather than scoring a bid that was never placed.
 - **F64** a raised bid was two claims in the ledger, scored at a price that was never
   live — RESOLVED: found by using it. The owner raised a QB bid from $25 to $29 before
   the daily run; `record_bid` appends and `calibration` scored every ROW, so one claim

@@ -3149,8 +3149,8 @@ existed).** The implementation, owner-approved design with both judgment calls s
   won-streamer-value fix is not re-opened.
 - *Two-parameter manager model* (owner's call): `faab_agg` (mean bid / league mean) and
   `faab_activity` (claims / league mean) derived per manager from attributed claims —
-  visibly separate dimensions (Cosmic Badgers 0.40 activity / 1.71 aggression; Marmots
-  Killers 1.54 / 0.72). Several old guesses were contradicted outright (Quantum Ferrets
+  visibly separate dimensions (Cosmic Badgers 0.40 activity / 1.71 aggression; Crimson
+  Marmots 1.54 / 0.72). Several old guesses were contradicted outright (Quantum Ferrets
   guessed 0.15, measured the league's most aggressive at 1.36; Iron Wombats guessed
   0.10, measured 0.96). **2025-derived PRIORS, not facts**: blended at engine init with
   this season's decision-log claims, prior worth ~one season (weight 12), decaying as
@@ -5050,4 +5050,65 @@ claims. Amended to two distinct claims, which is what it always meant, with the 
 recorded in place.
 
 Suite 1025 → 1033. Goldens 15/15, sync golden byte-identical. No prediction changed.
+RESOLVED.
+
+### F65 — The bid ledger could never resolve a claim: Sleeper counts the week differently — RESOLVED (2026-09-23)
+
+**Origin.** Found the morning after the first real claims were recorded. Two waivers were
+WON — a QB at $29 and a K at $2, both confirmed on the roster — and `scripts.bid_review`
+still printed `resolved 0`. Nothing errored.
+
+**The defect.**
+
+| | week |
+|---|---|
+| ledger row | **3** — `league_state.current_week` when the bid was placed |
+| Sleeper transaction | **2** — the `leg` when the claim was SUBMITTED |
+
+`reconcile` matched on `(player_id, week)`. With `daily_waivers: 1` a claim routinely sits
+from submission until the next 09:00 run, and the league's week advances in between — so
+the offset is the NORMAL case in this league, not an edge. Every claim placed on
+2026-09-23 was logged as week 3 and returned by Sleeper as week 2.
+
+**Why this was the worst possible place for a silent failure.** This plan records B14's
+ledger as *"the only route to settling"* B13, after F61 measured correlation(VORP, winning
+bid) = −0.136. A ledger that resolves nothing reports `no resolved claims yet` — which is
+character-for-character the honest empty state the module was carefully built to show when
+a waiver run has not happened. It would have looked correct for the rest of the season
+while collecting nothing.
+
+**Fixed: match on `player_id` plus TIME PROXIMITY.**
+
+*Widening the week to ±1 was rejected.* It would let two claims a week apart on the same
+player cross-match, breaking F64's rule that those are different claims. Time separates
+them and the week cannot.
+
+*Proximity, not ordering.* A transaction's `created` is its SUBMISSION and survives an
+edit, so a bid RAISED before the run leaves the transaction stamped BEFORE the ledger row
+carrying the live price — the real case had the transaction 18 hours earlier. Any "the
+transaction must come after the bid" rule would reject exactly the claim it was written
+for.
+
+`MATCH_WINDOW_DAYS = 4`: a claim waits for the next daily run and may be raised in
+between, and one observed rival claim sat two days before processing. Four covers that and
+stays well inside the seven days separating one week's claim on a player from the next. A
+row with no `placed_at` (written before F64 added one) falls back to an exact week match,
+so old rows keep resolving rather than silently stopping.
+
+**A second, smaller thing this surfaced.** The K was recorded at $1 and Sleeper charged
+$2. The ledger records INTENT; the transaction records the price. Scoring a heuristic
+against a bid that was never placed is a quiet corruption of the same dataset, so
+`reconcile` now sets `bid_mismatch` on a won claim whose charge differs, and `bid_review`
+prints `recorded $1, CHARGED $2` rather than absorbing it. A LOSS never flags: a rival's
+winning price is not my bid and is not supposed to match it.
+
+**First real calibration data, now that it resolves** (3 claims, well under the 15 needed
+to name a winner): a QB won at $29 against two rival bids of $21 and $20 — so the clearing
+price was $21 and the winning margin was $8. A second QB in the same window cleared at $30
+elsewhere, and the one this roster lost went at $5 against a $3 bid. v1 missed by $2 total,
+v2 by $3. Recorded because the LOSING bids are visible in this league and turn a censored
+upper bound into an exact clearing price — worth capturing systematically, which is not
+yet built.
+
+Suite 1033 → 1045. Goldens 15/15, sync golden byte-identical. No prediction changed.
 RESOLVED.
