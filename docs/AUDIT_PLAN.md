@@ -6172,3 +6172,61 @@ be compared against a recomputed one across a scoring-settings change.** If
 from `fpts`.
 
 Suite unchanged (no code changed). RECORDED, not fixed.
+
+### F84 — The engine banked a record the league does not recognise — RESOLVED (2026-09-24)
+
+**Origin.** F70's recorded follow-up, made live by F83. `actual_wins_banked` and
+`actual_points` were summed from `weekly_actuals.json`, which sync writes from Sleeper's
+`/matchups` — an endpoint that **derives** a completed week's points rather than storing
+them, recomputing stat lines against the league's CURRENT scoring settings on every call.
+After F83's mid-season change the two permanently disagree. Measured live: **3 recomputed
+wins against a banked 2**, and `scripts.luck_ledger` had been saying so since C4.
+
+**ONLY THE STANDINGS QUANTITIES MOVE, and that distinction is the finding.** The Bayesian
+posterior keeps reading the recomputed weekly scores, and that is correct — it asks how
+good a player is under the rules that apply in FUTURE weeks, which is exactly what the
+re-scored weeks measure. The banked record has no per-player detail and could not feed it.
+What changes is total wins and points: the week-15 seeding key and the exported
+`actual_wins_banked`. A green-by-design test pins that the blend is untouched.
+
+**THE BANKED RECORD IS NOT BLINDLY TRUSTED, and that is what makes this safe.** The golden
+fixtures' `league_standings.json` is not a coherent banked record — week15's is
+byte-for-byte week06's, claiming 3 wins against 14 completed weeks. Reading it blindly
+would have moved every golden onto fixture data that is itself wrong. `banked_league_record`
+uses it only when it ACCOUNTS FOR the weeks: two decisions per team per week here, so
+league-wide wins must equal `teams x weeks` (halved when `MEDIAN_SCORING_ENABLED` is off,
+as in the 2025 backtest). Ties split 0.5/0.5 and leave the sum intact, so they do not trip
+it. Measured:
+
+```
+week01 fixture    0 banked vs   0 expected  -> credible, identical to recomputed
+week06 fixture   20 banked vs  40 expected  -> STALE, falls back
+week15 fixture   20 banked vs 112 expected  -> STALE, falls back
+live league      16 banked vs  16 expected  -> credible, and it DISAGREES
+```
+
+**Goldens 15/15 byte-identical**, which is the criterion doing its job rather than luck.
+
+**A GOLDEN REGRESSION I CAUSED AND CAUGHT, worth recording.** The first version added
+`banked_record_source` to the dict `_apply_bayesian_updates` returns — which is exported as
+the model-learning report and **is hashed**. week06 and week15 moved; week01 did not,
+because it returns early with no completed weeks, and that asymmetry is what identified the
+cause. A new key in a hashed artifact is a golden regeneration, i.e. MAJOR, for a
+diagnostic string. It was removed: the source lives on the engine and in the warning
+emitted when the two records disagree, which is where a reader needs it.
+
+**Live effect, verified:** two teams' banked wins differ from the recompute (2 vs 3, and
+2 vs 1) and every team's banked points sit above the recomputed ones, because weeks 1–2
+were banked under the richer IDP scoring. The engine now seeds from the record the league
+actually keeps.
+
+**Mutation-tested, and one mutation exposed a real coverage gap.** Removing the credibility
+check, ignoring the median flag, and zeroing the recomputed comparison each turned the suite
+red. Accepting a PARTIAL record did not — because dropping a team with wins also drops the
+league-wide sum below the expectation, so the sum check caught it incidentally. A winless
+team contributes nothing to that sum, so its absence is invisible there, and treating it as
+0 wins and **0.0 points** would silently wipe a real points total that feeds the seeding
+tiebreak. A test for exactly that case now exists and the guard is genuinely load-bearing.
+
+Suite 1364 → 1377 (characterisation, 12 red) → 1378. Goldens 15/15, sync golden
+byte-identical. RESOLVED.

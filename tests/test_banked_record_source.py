@@ -102,6 +102,27 @@ class TestTheCredibilityCriterion(unittest.TestCase):
         del partial[TEAMS[-1]]
         self.assertIsNone(banked_league_record(partial, TEAMS, 2, median_enabled=True))
 
+    def test_a_missing_team_with_ZERO_wins_is_refused_too(self):
+        """The case the sum check cannot see, and the reason the explicit guard exists.
+
+        Found by mutation: removing the guard left the previous test green, because
+        dropping a team with 2 wins also drops the league-wide sum below the expectation.
+        A winless team contributes nothing to that sum, so its absence is invisible there —
+        and treating it as 0 wins and 0.0 POINTS would silently wipe a real points total
+        that feeds the seeding tiebreak.
+        """
+        from fantasy_sim.simulation import banked_league_record
+        wins = {t: 2 for t in TEAMS}
+        wins[TEAMS[-1]] = 0
+        wins[TEAMS[0]] = 4                       # sum still teams x weeks = 16
+        full = _standings(wins)
+        self.assertIsNotNone(banked_league_record(full, TEAMS, 2, median_enabled=True),
+                             "the full record must be credible, or this proves nothing")
+        del full[TEAMS[-1]]
+        self.assertIsNone(banked_league_record(full, TEAMS, 2, median_enabled=True),
+                          "a winless team's absence leaves the sum intact; only the "
+                          "explicit guard can catch it")
+
     def test_an_empty_or_missing_standings_file_refuses(self):
         from fantasy_sim.simulation import banked_league_record
         self.assertIsNone(banked_league_record({}, TEAMS, 2, median_enabled=True))

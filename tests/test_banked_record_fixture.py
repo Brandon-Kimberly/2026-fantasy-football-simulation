@@ -38,15 +38,19 @@ def _fs(banked_wins, recomputed_wins, banked_points, credible):
             entries.append({"name": nm, "pos": pos, "team": "DET"})
         rosters[t] = entries
 
-    # Two completed weeks. ME is given `recomputed_wins` decisions across them; every other
-    # team gets exactly 2, so the league-wide RECOMPUTED total is whatever ME's makes it.
+    # Two completed weeks, so ME has four decision slots (h2h and median in each). Fill
+    # exactly `recomputed_wins` of them, in order -- an earlier version used a condition per
+    # slot and silently awarded four when three were asked for, which failed the test for a
+    # fixture reason rather than a code one.
+    slots = [(1, "h2h"), (1, "med"), (2, "h2h"), (2, "med")]
+    won = set(slots[:int(recomputed_wins)])
     actuals = {}
     for wk in (1, 2):
         rows = {}
         for t in TEAMS:
             if t == ME:
-                h2h = 1 if (wk == 1 or recomputed_wins > 2) else 0
-                med = 1 if recomputed_wins >= 2 else 0
+                h2h = 1 if (wk, "h2h") in won else 0
+                med = 1 if (wk, "med") in won else 0
             else:
                 h2h, med = 1, 1
             rows[t] = {"points_scored": 150.0 + TEAMS.index(t),

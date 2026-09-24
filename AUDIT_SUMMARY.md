@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~121 findings and tracked follow-ups** | **87 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~122 findings and tracked follow-ups** | **88 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,22 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F84** the engine banked a record the league does not recognise — RESOLVED: F70's
+  follow-up, made live by F83. `actual_wins_banked` and `actual_points` were summed from
+  `/matchups`, which DERIVES a completed week's points against CURRENT scoring settings, so
+  after the mid-season change the recompute permanently disagreed with the banked record — 3
+  wins against a banked 2, live. **Only the standings quantities move**: the Bayesian
+  posterior correctly keeps the recomputed scale (it asks how good a player is under the rules
+  that apply in FUTURE weeks), and a green-by-design test pins that. The banked record is used
+  only when it ACCOUNTS FOR the completed weeks (league-wide wins == teams x weeks, halved
+  when median scoring is off) — necessary because the golden fixtures' standings are stale
+  (week15's file is byte-for-byte week06's), so blind trust would have moved every golden onto
+  wrong fixture data. **Goldens 15/15 byte-identical.** A golden regression caused and caught
+  en route: adding a diagnostic key to the exported model-learning report is a hashed-artifact
+  change, i.e. MAJOR for a string — removed, and the asymmetry (week01 unmoved because it
+  returns early) is what identified it. One mutation exposed a real gap: a PARTIAL record with
+  a winless team missing leaves the sum check intact, and treating it as 0 points would wipe a
+  real total feeding the seeding tiebreak.
 - **F83** a mid-week scoring change re-priced one completed week and not the other —
   RESOLVED at source; the banked/recomputed split is permanent. Originally recorded as `settings.fpts` equals week 1 at the ORIGINAL scoring plus week 2 at the RE-SCORED
   scoring — six of eight teams match that construction to the cent, a seventh to a penny —

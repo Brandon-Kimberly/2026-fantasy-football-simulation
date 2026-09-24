@@ -193,6 +193,51 @@ def _inflate_aleatoric(baselines, factor):
     return baselines
 
 
+def banked_league_record(standings, team_names, regular_weeks_banked, median_enabled):
+    """({team: wins}, {team: points}) from the league's BANKED record, or None.
+
+    F70/F83. Sleeper's `/matchups` recomputes a completed week's points against the
+    league's CURRENT scoring settings every call, so after a mid-season change the
+    recomputed record permanently disagrees with what the league actually banked. The
+    standings hold the banked truth — but only when they are a COMPLETE record of the
+    weeks in question, which is why this returns None rather than a partial answer.
+
+    THE CREDIBILITY CHECK, and it is not optional. The golden fixtures'
+    `league_standings.json` is not a coherent banked record: week15's file is byte-for-byte
+    week06's, claiming 3 wins against 14 completed weeks. Trusting it blindly would move
+    every golden onto fixture data that is itself wrong. So the record is used only when it
+    ACCOUNTS FOR the weeks: this league awards two decisions per team per week
+    (head-to-head plus median), so league-wide wins must equal `teams x weeks`. With median
+    scoring off — the 2025 backtest runs pure H2H — a week awards one decision per team and
+    the expectation halves. A tie splits 0.5/0.5 and leaves the sum unchanged, so ties do
+    not trip it.
+
+    THE FIELD IS MISNAMED AND IT IS LOAD-BEARING. `league_standings.h2h_wins` is Sleeper's
+    `settings.wins`: TOTAL wins, both legs of a median-scoring week, not head-to-head wins.
+    F70 recorded the trap; comparing it against h2h alone would reject every correct record.
+    """
+    if not standings or not team_names:
+        return None
+    try:
+        rows = [standings[t] for t in team_names]
+    except (KeyError, TypeError):
+        return None                      # a partial record is not a banked record
+    per_week = len(team_names) if median_enabled else len(team_names) / 2.0
+    expected = float(regular_weeks_banked) * per_week
+    try:
+        wins = {t: float(standings[t].get("h2h_wins", 0) or 0) for t in team_names}
+        points = {t: float(standings[t].get("points_scored", 0) or 0) for t in team_names}
+    except (AttributeError, TypeError, ValueError):
+        return None
+    if abs(sum(wins.values()) - expected) > 1e-6:
+        logging.debug("BANKED RECORD: standings account for %g decisions, %g expected over "
+                      "%d week(s); falling back to the recomputed record.",
+                      sum(wins.values()), expected, regular_weeks_banked)
+        return None
+    del rows
+    return wins, points
+
+
 class FantasySimulationEngine:
     def __init__(self):
         # F10: first thing, before any load -- the run's earliest warning (VEGAS STALE) is
@@ -300,6 +345,12 @@ class FantasySimulationEngine:
         self.actual_h2h_wins = {t: 0 for t in self.team_names}
         self.actual_median_wins = {t: 0 for t in self.team_names}
         self.actual_points = {t: 0.0 for t in self.team_names}
+        # F70/F83: the STANDINGS quantities. Default to the recomputed sums so an engine
+        # whose posterior never runs (no actuals on disk) still has them; the posterior
+        # replaces them with the league's banked record where that record is credible.
+        self.actual_total_wins = {t: 0 for t in self.team_names}
+        self.actual_total_points = {t: 0.0 for t in self.team_names}
+        self.banked_record_source = "recomputed"
         self.current_faab = {t: self.standings.get(t, {}).get('remaining_faab', 100.0) for t in self.team_names}
         # F31: two-parameter FAAB behavior (aggression x activity) -- 2025-derived priors
         # blended with this season's attributed claims from the decision log. An absent or
@@ -551,6 +602,50 @@ class FantasySimulationEngine:
             pc[t].sort(key=lambda x: x[1], reverse=True)
         return pc
 
+    def _adopt_banked_record(self, regular_weeks_banked):
+        """Prefer the league's BANKED wins and points over the recomputed ones (F70/F83).
+
+        Sleeper's `/matchups` DERIVES a completed week's points rather than storing them:
+        it recomputes stat lines against the league's CURRENT scoring settings on every
+        call. After a mid-season scoring change, weeks played under the old rules come back
+        re-priced for good, while the standings keep what was actually banked. Summing the
+        recomputed weeks therefore describes a record the league does not recognise — live,
+        3 wins against a banked 2.
+
+        ONLY THE STANDINGS QUANTITIES MOVE. The posterior above keeps reading the recomputed
+        weekly scores, and that is correct: it asks how good a player is under the rules
+        that apply in FUTURE weeks, which is exactly what the re-scored weeks measure. The
+        banked record has no per-player detail and could not feed it anyway.
+
+        The recomputed totals are kept in `actual_h2h_wins` / `actual_median_wins` /
+        `actual_points` rather than overwritten — the disagreement between the two is the
+        signal C4 reports, and discarding one side would make it unmeasurable.
+        """
+        recomputed_wins = {t: self.actual_h2h_wins[t] + self.actual_median_wins[t]
+                           for t in self.team_names}
+        banked = banked_league_record(self.standings, self.team_names, regular_weeks_banked,
+                                      SIM_CONFIG.get('MEDIAN_SCORING_ENABLED', True))
+        if banked is None:
+            self.actual_total_wins = recomputed_wins
+            self.actual_total_points = dict(self.actual_points)
+            self.banked_record_source = "recomputed"
+            return
+        wins, points = banked
+        self.actual_total_wins = wins
+        self.actual_total_points = points
+        self.banked_record_source = "league"
+        disagree = {t: (wins[t], recomputed_wins[t]) for t in self.team_names
+                    if abs(float(wins[t]) - float(recomputed_wins[t])) > 1e-9}
+        if disagree:
+            logging.warning(
+                "BANKED RECORD: using the league's banked wins over the recomputed ones for "
+                "%d team(s) -- %s. Sleeper re-prices completed weeks under current scoring "
+                "settings, so the recompute describes a record the league does not "
+                "recognise (F70/F83). The posterior still uses the recomputed scores, which "
+                "is the right basis for forecasting.",
+                len(disagree), {t: f"banked {w:g} vs recomputed {r:g}"
+                                for t, (w, r) in sorted(disagree.items())})
+
     def _apply_bayesian_updates(self):
         report = {
             'completed_weeks_evaluated': 0,
@@ -619,6 +714,7 @@ class FantasySimulationEngine:
                 self.baselines[p_name]['mean'] = float(post_mean)
                 self.baselines[p_name]['std_epistemic'] = float(np.sqrt(post_var))
 
+        banked_weeks = 0
         for wk_key in completed_weeks:
             # F3: standings are a REGULAR-SEASON quantity. Sleeper returns matchup_ids for the
             # playoff weeks too (semifinals plus consolation games), and sync banks every
@@ -631,10 +727,24 @@ class FantasySimulationEngine:
             except ValueError:
                 pass
             wk_data = actuals[wk_key]
+            banked_weeks += 1
             for t_name, stats_dict in wk_data['team_results'].items():
                 self.actual_h2h_wins[t_name] += stats_dict.get('h2h_win', 0)
                 self.actual_median_wins[t_name] += stats_dict.get('median_win', 0)
                 self.actual_points[t_name] += stats_dict.get('points_scored', 0.0)
+
+        # F70/F83: the league's banked record wins over the recomputed one where it is
+        # credible. `banked_weeks` counts the REGULAR-SEASON weeks that fed the loop above,
+        # not every completed week -- F3 caps standings at the regular season, and the
+        # credibility check must be against the same span it is comparing.
+        # Deliberately NOT added to `report`: this dict is exported as the model-learning
+        # report and is hashed by the golden master, so a new key there is a golden
+        # regeneration — MAJOR, for a diagnostic. The source is on the engine
+        # (`banked_record_source`) and in the warning when the two records disagree, which
+        # is where a reader needs it. Confirmed by the goldens: week06 and week15 moved on
+        # the report key alone and went byte-identical again when it was removed, while
+        # week01 never moved because it returns above with no completed weeks.
+        self._adopt_banked_record(banked_weeks)
 
         return report
 
@@ -1050,7 +1160,7 @@ class FantasySimulationEngine:
         (top4, ranked, round1_winners) where round1_winners is (w1, w2) when the bracket
         records them (current_week >= 16) and (None, None) otherwise."""
         ranked = sorted(self.team_names,
-                        key=lambda t: (self.actual_h2h_wins[t] + self.actual_median_wins[t], self.actual_points[t]),
+                        key=lambda t: (self.actual_total_wins[t], self.actual_total_points[t]),
                         reverse=True)
         top4 = ranked[:4]
         w1 = w2 = None
@@ -1188,8 +1298,8 @@ class FantasySimulationEngine:
                 # the streamer discarded at the week boundary, and the hole bid for again.
                 carried_streamers = {t: [] for t in self.team_names}
 
-                sim_wins = {t: float(self.actual_h2h_wins[t] + self.actual_median_wins[t]) for t in self.team_names}
-                sim_points = {t: float(self.actual_points[t]) for t in self.team_names}
+                sim_wins = {t: float(self.actual_total_wins[t]) for t in self.team_names}
+                sim_points = {t: float(self.actual_total_points[t]) for t in self.team_names}
                 top4 = list(seeded_top4)
                 w1, w2 = seeded_w1, seeded_w2
                 if self.current_week > REGULAR_SEASON_WEEKS:
@@ -1995,7 +2105,7 @@ class FantasySimulationEngine:
             # 0.5. int() truncated it, so a team with 2.5 banked exported 2 while
             # expected_final_wins kept the half and the record no longer added up.
             # AUDIT_PHASE_5_6_FINDINGS.md finding 2.
-            banked = float(self.actual_h2h_wins[t] + self.actual_median_wins[t])
+            banked = float(self.actual_total_wins[t])
             exp_future = exp_w - banked
             # 16 of 28 decisions as the playoff lock is an UNSOURCED heuristic (finding 6,
             # deferred to Phase 7); the field is labelled approximate for that reason.
@@ -2004,7 +2114,7 @@ class FantasySimulationEngine:
             diagnostics[t] = {
                 'current_state': {
                     'actual_wins_banked': banked,
-                    'actual_points_banked': round(float(self.actual_points[t]), 2),
+                    'actual_points_banked': round(float(self.actual_total_points[t]), 2),
                     'remaining_faab': float(self.current_faab[t]),
                 },
                 'forecast': {
