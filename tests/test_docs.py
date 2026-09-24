@@ -230,3 +230,36 @@ class TestFingerprintIsNewlineInsensitive(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNoStrayRunLogsAreTracked(unittest.TestCase):
+    """H3. A `git add -A` after a piped run sweeps up whatever `> foo.log` left behind.
+    This has happened three times: `w.log` (removed one commit later), then `collins.log`
+    and `ev.log`, both committed unnoticed and both containing nothing but simulation
+    chatter.
+
+    The `.gitignore` rule is the fix; this is the guard that says so out loud, because the
+    rule is easy to lose in a file whose first line is "All runtime output" followed by
+    twenty deliberate exceptions.
+
+    `data/logs/*.jsonl` are the real, deliberately-tracked records (projection log,
+    decision log, bid ledger, and so on). They are `.jsonl`, not `.log`, and the root
+    anchor keeps them out of scope either way.
+    """
+
+    def test_no_dot_log_file_is_tracked(self):
+        import subprocess
+        tracked = subprocess.run(["git", "ls-files"], capture_output=True, text=True,
+                                 cwd=ROOT).stdout.split()
+        strays = [f for f in tracked if f.lower().endswith(".log")]
+        self.assertEqual(strays, [],
+                         f"stray run log(s) committed: {strays}. Delete them and check "
+                         f".gitignore's root *.log rule.")
+
+    def test_the_gitignore_rule_exists_and_is_root_anchored(self):
+        """Root-anchored on purpose: an unanchored `*.log` would also swallow anything
+        under data/logs/ if a future record is ever written with that extension."""
+        with open(os.path.join(ROOT, ".gitignore"), encoding="utf-8") as fh:
+            body = fh.read()
+        self.assertIn("/*.log", body,
+                      "the root *.log rule is what stops a piped run being committed")

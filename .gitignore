@@ -60,3 +60,9 @@ venv/
 # Pages by .github/workflows/pages-sample.yml, never committed (9MB per copy was
 # growing the repo permanently). Local generations land here and stay untracked.
 docs/sample/
+
+# H3: stray run logs. A `git add -A` after `py -3.10 -m ... > foo.log` sweeps these up;
+# it has happened three times (w.log, collins.log, ev.log). ROOT-ANCHORED on purpose --
+# an unanchored *.log would also swallow anything under data/logs/ if a future record is
+# ever written with that extension. tests/test_docs pins both halves.
+/*.log
