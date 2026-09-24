@@ -859,6 +859,45 @@ def _slot_positions(slot):
     return _SLOT_POSITIONS.get(slot, (slot,))
 
 
+def streamer_mean(engine, pos):
+    """What the ENGINE assumes a hole at `pos` is worth (C2).
+
+    Copied deliberately from `run_simulation`'s roster-hole injection rather than invented
+    here: `max(replacement * 0.8, BASE_STREAMER_MEANS[pos])`, the first streamer of the
+    week (no decay). Borrowing it is what makes the week tools and the season simulation
+    agree about the same roster instead of contradicting each other.
+
+    Whether the constant itself is right is a separate question -- C5 measures it, and at
+    QB it looks low against the actual free-agent pool. This must NOT become a second
+    place that assumption is set.
+    """
+    from fantasy_sim.config import BASE_STREAMER_MEANS
+    return max(float(engine.replacement_levels.get(pos, 4.0)) * 0.8,
+               float(BASE_STREAMER_MEANS.get(pos, 8.0)))
+
+
+def streamer_fill(engine, unfilled, sims, rng=None):
+    """Draws for every slot a roster could not fill. Returns (totals, described).
+
+    `totals` is an array of length `sims` to ADD to that roster's weekly total; `described`
+    is `[{"slot", "mean"}]` so a caller can say "modelled at the streamer, not zero"
+    instead of silently moving a number.
+
+    The draw matches the engine's: `max(0, N(m_str, 2.2))`, independently per slot. An
+    opponent who cannot fill a slot claims somebody off the wire before kickoff -- scoring
+    it as a zero is the one thing that is certainly wrong.
+    """
+    draw = rng if rng is not None else np.random
+    extra = np.zeros(sims)
+    described = []
+    for slot in (unfilled or []):
+        pos = normalize_position(slot)
+        m = streamer_mean(engine, pos)
+        extra = extra + np.maximum(0.0, draw.normal(m, 2.2, sims))
+        described.append({"slot": pos, "mean": m})
+    return extra, described
+
+
 def optimize_lineup(engine, team, week, sims=1000, seed=None,
                     locked_teams=None, current_starters=None):
     """The engine's optimal lineup for `team` in `week`.
@@ -1076,26 +1115,57 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
     sd = {nm: float(M[:, idx[nm]].std()) for nm in names}
     avail = {nm: not (_entry(engine, nm).get('bye') == week or _unavailable_now(_entry(engine, nm))) for nm in names}
 
-    def assign(roster, score):
-        cands = [(nm, _opts(engine, nm), score(nm)) for nm in roster if avail[nm]]
-        assigned, _ = engine._solve_optimal_assignment(cands)
-        return [(nm, slot) for nm, _v, slot in assigned]
+    # C2: a roster that cannot fill a slot does NOT take a zero -- it streams. `unfilled`
+    # used to be discarded here, which scored an opponent's empty DL slot as nothing and
+    # overstated this roster's edge by 2.7 points of win probability on live data.
+    #
+    # SYMMETRIC, and the first version of this fix was not: it streamed the opponent and
+    # the bystanders but left MY holes at zero, which would have swung every comparison
+    # the other way. Both sides field thirteen men.
+    #
+    # The draw is CACHED on the multiset of unfilled slots, so the four constructions are
+    # compared against the same streamer sample rather than four independent ones --
+    # otherwise `safe` could beat `stack` on streamer noise alone.
+    streamed = {}
+    _fill_cache = {}
 
-    def total(lineup):
-        return M[:, [idx[nm] for nm, _ in lineup]].sum(axis=1) if lineup else np.zeros(sims)
+    def _fill(unfilled):
+        key = tuple(sorted(unfilled or ()))
+        if key not in _fill_cache:
+            _fill_cache[key] = streamer_fill(engine, key, sims)
+        return _fill_cache[key]
+
+    def assign(roster, score, team_name=None):
+        cands = [(nm, _opts(engine, nm), score(nm)) for nm in roster if avail[nm]]
+        assigned, unfilled = engine._solve_optimal_assignment(cands)
+        lineup = [(nm, slot) for nm, _v, slot in assigned]
+        if team_name is not None and unfilled:
+            streamed[team_name] = _fill(unfilled)[1]
+        return lineup, list(unfilled)
+
+    def total(lineup, unfilled=()):
+        base = M[:, [idx[nm] for nm, _ in lineup]].sum(axis=1) if lineup else np.zeros(sims)
+        return base + _fill(unfilled)[0] if unfilled else base
 
     if opponent_lineup:
         bad = [nm for nm in opponent_lineup if nm not in engine.rosters[opponent]]
         if bad:
             raise ValueError(f"{bad} not on {opponent}'s roster")
-        opp_lineup = assign(opponent_lineup, lambda nm: exp[nm])
+        opp_lineup, opp_unfilled = assign(opponent_lineup, lambda nm: exp[nm],
+                                          team_name=opponent)
     else:
-        opp_lineup = assign(engine.rosters[opponent], lambda nm: exp[nm])
-    opp_total = total(opp_lineup)
-    other_totals = [total(assign(engine.rosters[t], lambda nm: exp[nm])) for t in others]
+        opp_lineup, opp_unfilled = assign(engine.rosters[opponent], lambda nm: exp[nm],
+                                          team_name=opponent)
+    opp_total = total(opp_lineup, opp_unfilled)
+    # C2: the median is taken across ALL eight totals, so a hole on a BYSTANDER biases it
+    # low and flatters everyone's beat-the-median number. Every roster is filled.
+    other_totals = []
+    for t in others:
+        lu, uf = assign(engine.rosters[t], lambda nm: exp[nm], team_name=t)
+        other_totals.append(total(lu, uf))
 
-    def evaluate(lineup):
-        my = total(lineup)
+    def evaluate(lineup, unfilled=()):
+        my = total(lineup, unfilled)
         med = np.median(np.column_stack([my, opp_total] + other_totals), axis=1)
         p = float(np.mean(my > opp_total))
         return {"lineup": [{"slot": s, "name": nm, "expected": exp[nm], "sd": sd[nm],
@@ -1107,9 +1177,11 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
                 "margin_mean": float((my - opp_total).mean()), "margin_sd": float((my - opp_total).std())}
 
     roster = engine.rosters[team]
-    max_mean = assign(roster, lambda nm: exp[nm])
-    safe = assign(roster, lambda nm: exp[nm] - k * sd[nm])
-    boom = assign(roster, lambda nm: exp[nm] + k * sd[nm])
+    # My own holes stream too (C2, symmetry): a construction that leaves a slot unfilled
+    # is not a construction that scores zero there.
+    max_mean, my_unfilled = assign(roster, lambda nm: exp[nm])
+    safe, safe_unfilled = assign(roster, lambda nm: exp[nm] - k * sd[nm])
+    boom, boom_unfilled = assign(roster, lambda nm: exp[nm] + k * sd[nm])
     qb_team = next((_entry(engine, nm).get('team') for nm, s in boom if s == 'QB'), None)
 
     def stack_score(nm):
@@ -1117,10 +1189,12 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
         bonus = stack_bonus if (qb_team and e.get('team') == qb_team
                                 and normalize_position(e.get('pos', 'FLEX')) in ('WR', 'TE')) else 0.0
         return exp[nm] + k * sd[nm] + bonus
-    stack = assign(roster, stack_score)
+    stack, stack_unfilled = assign(roster, stack_score)
 
-    # p_max: local search over single swaps, same joint sample, accept only improvements
-    cur, cur_p = list(max_mean), evaluate(max_mean)["p_beat_opponent"]
+    # p_max: local search over single swaps, same joint sample, accept only improvements.
+    # The swap never changes WHICH slots are unfilled -- it substitutes one eligible man
+    # for another in a filled slot -- so my_unfilled carries through.
+    cur, cur_p = list(max_mean), evaluate(max_mean, my_unfilled)["p_beat_opponent"]
     started = {nm for nm, _ in cur}
     for _ in range(max_iter):
         best, best_p = None, cur_p
@@ -1129,7 +1203,7 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
                 if b in started or not avail[b] or not any(p in _slot_positions(slot) for p in _opts(engine, b)):
                     continue
                 cand = list(cur); cand[i] = (b, slot)
-                p = float(np.mean(total(cand) > opp_total))
+                p = float(np.mean(total(cand, my_unfilled) > opp_total))
                 if p > best_p + 1e-12:
                     best, best_p = cand, p
         if best is None:
@@ -1137,13 +1211,21 @@ def matchup_lineups(engine, team, week, opponent=None, sims=5000, seed=None, cro
         cur, cur_p = best, best_p
         started = {nm for nm, _ in cur}
 
-    constructions = {"max_mean": evaluate(max_mean), "safe": evaluate(safe), "stack": evaluate(stack), "p_max": evaluate(cur)}
+    constructions = {"max_mean": evaluate(max_mean, my_unfilled),
+                     "safe": evaluate(safe, safe_unfilled),
+                     "stack": evaluate(stack, stack_unfilled),
+                     "p_max": evaluate(cur, my_unfilled)}
     favoured = constructions["max_mean"]["p_beat_opponent"] > 0.5
     ranking = sorted(constructions, key=lambda c: -constructions[c]["p_beat_opponent"])
     return {"team": team, "opponent": opponent, "week": week, "n": sims, "cross": cross, "k": k,
             "favoured_by_max_mean": favoured, "ranking_by_p_beat_opponent": ranking,
             "opponent_lineup": [{"slot": s, "name": nm, "expected": exp[nm]} for nm, s in sorted(opp_lineup, key=lambda x: x[1])],
             "opponent_lineup_assumed": opponent_lineup is None,
+            # C2: slots no roster could fill, modelled at the engine's streamer rather
+            # than as a zero. `opponent_streamers` is the one a caller must print;
+            # `streamed_teams` carries the rest because they move the league median.
+            "opponent_streamers": list(streamed.get(opponent) or []),
+            "streamed_teams": {t: list(v) for t, v in streamed.items() if v},
             "constructions": constructions,
             "note": (("joint sample through the engine's copula over ALL rosters (same-NFL-team correlation "
                       "across rosters included -- the engine itself omits it, F16)" if cross else
@@ -1675,21 +1757,35 @@ def league_week_outlook(engine, week, sims=5000, seed=None, cross=True):
     sd = {nm: float(M[:, idx[nm]].std()) for nm in names}
     avail = {nm: not (_entry(engine, nm).get('bye') == week or _unavailable_now(_entry(engine, nm))) for nm in names}
 
-    lineups, totals = {}, {}
+    lineups, totals, compare, streamed = {}, {}, {}, {}
     for t in teams:
         cands = [(nm, _opts(engine, nm), exp[nm]) for nm in engine.rosters[t] if avail[nm]]
-        assigned, _ = engine._solve_optimal_assignment(cands)
+        assigned, unfilled = engine._solve_optimal_assignment(cands)
         lineup = [(nm, slot) for nm, _v, slot in assigned]
         lineups[t] = lineup
         totals[t] = M[:, [idx[nm] for nm, _ in lineup]].sum(axis=1) if lineup else np.zeros(sims)
-    all_totals = np.column_stack([totals[t] for t in teams])
+        # C2: an unfillable slot is streamed, not scored as zero -- discarding `unfilled`
+        # scored an opponent's empty DL slot as nothing on live data.
+        #
+        # TWO DIFFERENT QUANTITIES, and conflating them was the first version's mistake.
+        # `totals` is what this roster's OWN men score, and stays the basis for
+        # expected_total, which the comment below pins to expected_pre_total. `compare` is
+        # what the team will actually PUT UP, streamer included, and is the only honest
+        # basis for a probability -- nobody takes a zero at a slot.
+        if unfilled:
+            extra, described = streamer_fill(engine, unfilled, sims)
+            compare[t] = totals[t] + extra
+            streamed[t] = described
+        else:
+            compare[t] = totals[t]
+    all_totals = np.column_stack([compare[t] for t in teams])
     median = np.median(all_totals, axis=1)
 
     opponent = {}
     matchups = []
     for a, b in pairs:
         opponent[a], opponent[b] = b, a
-        ta, tb = totals[a], totals[b]
+        ta, tb = compare[a], compare[b]
         p_a, p_b = float(np.mean(ta > tb)), float(np.mean(tb > ta))
         matchups.append({"a": a, "b": b, "p_a": p_a, "p_b": p_b, "p_tie": float(np.mean(ta == tb)),
                          "se": float(np.sqrt(max(p_a * (1 - p_a), 1e-12) / sims)),
@@ -1699,11 +1795,18 @@ def league_week_outlook(engine, week, sims=5000, seed=None, cross=True):
     for t in teams:
         team_rows[t] = {
             "opponent": opponent.get(t),
-            "p_beat_median": float(np.mean(totals[t] >= median)),
-            # sampled mean of the lineup total (absences and onsets priced in), the same
-            # quantity the matchup rows' a_expected/b_expected report; the pre-game sum of
-            # expectations (no hazard) is kept separately so the two are never confused.
+            "p_beat_median": float(np.mean(compare[t] >= median)),
+            # sampled mean of the lineup total (absences and onsets priced in) for the
+            # men this roster actually owns; the pre-game sum of expectations (no hazard)
+            # is kept separately so the two are never confused.
+            #
+            # C2: a_expected/b_expected on the matchup rows are NO LONGER the same
+            # quantity when a roster streams -- they carry the streamer because that is
+            # what the team will put up, and this does not because these are the rostered
+            # men. `streamed_teams` names the difference; a team can therefore show a
+            # lower expected_total than a_expected, and that gap is the hole.
             "expected_total": float(totals[t].mean()),
+            "expected_with_streamers": float(compare[t].mean()),
             "expected_pre_total": float(sum(exp[nm] for nm, _ in lineups[t])),
             "sd_total": float(totals[t].std()),
             "lineup": [{"slot": s_, "name": nm, "expected": exp[nm], "sd": sd[nm],
@@ -1711,6 +1814,9 @@ def league_week_outlook(engine, week, sims=5000, seed=None, cross=True):
                         "nfl_team": _entry(engine, nm).get('team', 'FA')} for nm, s_ in sorted(lineups[t], key=lambda x: x[1])],
         }
     return {"week": week, "n": sims, "cross": cross, "matchups": matchups, "teams": team_rows,
+            # C2: {team: [{"slot", "mean"}]} for rosters that could not fill a slot and are
+            # modelled at the engine's streamer rather than at zero.
+            "streamed_teams": streamed,
             "note": ("one joint sample through the engine's copula over all rosters (cross-roster same-NFL-team "
                      "correlation included -- the engine itself omits it, F16" if cross else
                      "per-roster copula only, as the engine does") +

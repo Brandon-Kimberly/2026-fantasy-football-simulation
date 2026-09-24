@@ -66,6 +66,20 @@ def main(argv=None):
         print("  changes vs max_mean: " + "; ".join(f"{a['slot']}: {a['name']} -> {b['name']}" for a, b in diff))
     print(f"  opponent lineup ({'assumed' if r['opponent_lineup_assumed'] else 'supplied'}): "
           + ", ".join(f"{x['name']} ({x['expected']:.1f})" for x in r["opponent_lineup"]))
+    # C2: a slot nobody can fill is STREAMED, not scored as zero. Saying so matters --
+    # without it the opponent simply reads as twelve starters and the reader has no way
+    # to tell a short lineup from a modelled claim.
+    if r.get("opponent_streamers"):
+        for st in r["opponent_streamers"]:
+            print(f"  NOTE: the opponent has no {st['slot']} and is modelled at the "
+                  f"{st['mean']:.1f} streamer for that slot, NOT at zero -- a real "
+                  f"opponent claims someone before kickoff (C2).")
+    elsewhere = {t: v for t, v in (r.get("streamed_teams") or {}).items()
+                 if t not in (r["opponent"], r["team"])}
+    if elsewhere:
+        print("  (also streamed, because they move the league median used by P(>= median): "
+              + "; ".join(f"{t} {', '.join(x['slot'] for x in v)}"
+                          for t, v in sorted(elsewhere.items())) + ")")
     print(f"  {r['note']}")
 
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")

@@ -5326,3 +5326,54 @@ the wrong man an extra eligible slot.
 
 Suite 1143 → 1152. Goldens 15/15, sync golden byte-identical — this is a tools helper;
 no engine path reads it. RESOLVED.
+
+### F69 — The week tools scored an unfillable slot as zero, not as a streamer — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item C2. Found by reading the tool's own output: `matchup_lineup`
+printed this week's opponent with **12 starters** against a 13-slot league — their DL slot
+was empty because they own no DL — and reported **81.9% / +48.9**. Filling the slot by
+hand gave 79.2% / +43.1.
+
+**A real opponent never takes a zero.** They claim somebody before kickoff, which is
+exactly what the season simulation already assumes: `run_simulation` injects
+`STREAMER_<POS>_0` for every unfillable slot and scores it `max(0, N(m_str, 2.2))` with
+`m_str = max(replacement * 0.8, BASE_STREAMER_MEANS[pos])`. **The week tools and the
+season simulation disagreed about the same roster** — the same class of internal
+contradiction B2 recorded between the cheap screen and the paired simulation.
+
+`decisions.streamer_mean` / `decisions.streamer_fill` borrow the engine's own arithmetic
+rather than restating it, so the two agree by construction. Whether that constant is
+*right* is C5's separate question, and this must not become a second place it is set.
+
+**Three things this got wrong before it was right**, all caught by existing tests or by
+checking the fixture, and recorded because each is a trap:
+
+1. **Asymmetry.** The first version streamed the opponent and the bystanders and left MY
+   holes at zero, which would have swung every comparison the other way. Caught by
+   `test_decisions`' six-man-versus-one-man fixture, which inverted to P(win) 0.007. Both
+   sides field thirteen men; with that fixed the same fixture reads 0.835 and the existing
+   assertion passes for the right reason, with no test touched.
+2. **Conflating two quantities.** The second version added the streamer into
+   `league_week_outlook`'s `totals`, which feeds `expected_total` — a field whose own
+   comment pins it to `expected_pre_total` up to injury hazard. `totals` is what a
+   roster's OWN men score; `compare` is what the team will put up. Reporting uses the
+   first, probabilities use the second, and `expected_with_streamers` exposes the
+   difference rather than hiding it.
+3. **Uncached draws.** Four constructions compared against four independent streamer
+   samples would let `safe` beat `stack` on streamer noise alone. The draw is cached on
+   the multiset of unfilled slots.
+
+**Every roster, not just the opponent.** `p_beat_median` is taken across all eight totals,
+so a hole on a bystander biases the median low and flatters everyone. Live data confirms
+this was not hypothetical: **two** teams carry a DL hole this week.
+
+**`league_week_outlook` shared the defect** and drives the weekly report's League table,
+where the affected team's expected total was **9.4 points** low.
+
+**Verified live.** 81.9% / +48.9 → **78.7% / +42.5**, within half a point of the
+hand-computed 79.2 / +43.1. `matchup_lineup` now prints *"the opponent has no DL and is
+modelled at the 7.5 streamer for that slot, NOT at zero"*, and names the bystanders
+streamed for the median.
+
+Suite 1152 → 1160. Goldens 15/15, sync golden byte-identical — these are week tools; no
+engine path reads them. RESOLVED.

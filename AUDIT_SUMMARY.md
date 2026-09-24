@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~106 findings and tracked follow-ups** | **73 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~107 findings and tracked follow-ups** | **74 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,21 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F69** the week tools scored an unfillable slot as zero, not as a streamer — RESOLVED:
+  `matchup_lineup` printed this week's opponent with 12 starters against a 13-slot league
+  and reported 81.9% / +48.9; a real opponent claims someone before kickoff, which is what
+  `run_simulation` already assumes via `STREAMER_<POS>_0`. The week tools and the season
+  simulation disagreed about the same roster. Fixed by borrowing the engine's own streamer
+  arithmetic (`decisions.streamer_mean` / `streamer_fill`) so they agree by construction.
+  Three wrong turns, all recorded: streaming only the OPPONENT (caught by an existing
+  fixture that inverted to P(win) 0.007 — both sides field thirteen men); folding the
+  streamer into `expected_total`, whose comment pins it to `expected_pre_total` (reporting
+  now uses rostered men, probabilities use the augmented total, and
+  `expected_with_streamers` exposes the gap); and uncached draws, which would let one
+  construction beat another on streamer noise. `league_week_outlook` shared the defect and
+  had a team 9.4 expected points low in the weekly report's League table. Live: 81.9% →
+  78.7%, within half a point of the hand-computed figure, and TWO teams carry a DL hole, so
+  the median was biased too.
 - **F68** a dual-eligible starter was reported at his primary position, not the slot he
   filled — RESOLVED: `trade_leverage` called a rival's LB slot 3.33 below replacement and
   named him the league's best buyer for this roster's LB surplus; two trades were sent on

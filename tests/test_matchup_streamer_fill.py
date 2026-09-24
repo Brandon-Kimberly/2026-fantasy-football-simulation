@@ -127,23 +127,38 @@ class TestTheHoleIsFilledWithTheEnginesStreamer(unittest.TestCase):
     def test_the_opponents_total_actually_includes_the_streamer(self):
         """The defect, measured on the number that carries it.
 
-        A first version of this test compared P(win) with and without the hole and
-        asserted the gap was small -- it passed BEFORE the fix, because this fixture's DL
-        is only 9.0 against ~170-point totals, so a missing starter moves P(win) by less
-        than the threshold. It proved nothing. This asserts the opponent's implied mean
-        total directly, which is where the streamer must show up or not at all.
+        Two earlier versions of this test were wrong, and both are recorded because each
+        was wrong in a way worth not repeating:
+
+        1. It compared P(win) with and without the hole and asserted the gap was small.
+           It PASSED before the fix -- this fixture's DL is 9.0 against ~170-point totals,
+           so a missing starter moves P(win) less than the threshold. It proved nothing.
+        2. It compared the opponent's SAMPLED mean total against the PRE-GAME sum of
+           their starters' expectations. Those are different bases: the sampled mean
+           prices absence and onset zeros and therefore sits BELOW the pre-game sum, so
+           the comparison failed even with the streamer working correctly.
+
+        This compares like with like: the same fixture with and without the missing DL.
+        A 9.0 starter replaced by a 7.5 streamer should cost about 1.5 points, not 9.
         """
         from fantasy_sim.decisions import matchup_lineups
-        e = _engine(strip_opponent_dl=True)
-        r = matchup_lineups(e, ME, 3, sims=3000, seed=11)
-        c = r["constructions"]["max_mean"]
-        opp_mean = c["mean"] - c["margin_mean"]          # my mean minus (mine - theirs)
-        twelve = sum(x["expected"] for x in r["opponent_lineup"])
-        m_str = max(e.replacement_levels.get("DL", 4.0) * 0.8,
+        e_hole = _engine(strip_opponent_dl=True)
+        r_hole = matchup_lineups(e_hole, ME, 3, sims=4000, seed=11)
+        r_full = matchup_lineups(_engine(strip_opponent_dl=False), ME, 3,
+                                 sims=4000, seed=11)
+
+        def opp_mean(r):
+            c = r["constructions"]["max_mean"]
+            return c["mean"] - c["margin_mean"]          # my mean minus (mine - theirs)
+
+        lost = opp_mean(r_full) - opp_mean(r_hole)
+        m_str = max(e_hole.replacement_levels.get("DL", 4.0) * 0.8,
                     BASE_STREAMER_MEANS.get("DL", 8.0))
-        self.assertGreater(opp_mean, twelve + 0.5 * m_str,
-                           f"their 12 starters project {twelve:.1f}; the total came to "
-                           f"{opp_mean:.1f}, so the {m_str:.1f} streamer is missing")
+        real_dl = 9.0                                    # the starter the fixture removes
+        self.assertLess(lost, (real_dl - m_str) + 3.0,
+                        f"losing a {real_dl} starter cost the opponent {lost:.1f} points; "
+                        f"with a {m_str} streamer it should cost about "
+                        f"{real_dl - m_str:.1f}, so the streamer is missing")
 
     def test_a_full_opponent_reports_no_streamers(self):
         from fantasy_sim.decisions import matchup_lineups
