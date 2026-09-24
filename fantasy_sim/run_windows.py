@@ -26,7 +26,7 @@ CPU, an unattended runner is a small additive consumer of this function's output
 when (an OPEN window is uncovered) and (freshness is OK) and (a single-instance lock is
 held, answering the concurrent-load hazard). Nothing here changes.
 """
-from datetime import datetime, time, timedelta
+from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 PT = ZoneInfo("America/Los_Angeles")
@@ -251,6 +251,14 @@ def stamps_from_predictions_rows(rows, week):
     return out
 
 
+def _utc_stamp(dt):
+    """Render an aware datetime as UTC. The `Z` in a strftime format is a LITERAL
+    character -- it asserts UTC without converting to it, so formatting a PT-aware
+    deadline directly produced Pacific wall-clock under a UTC label (F85). Deadlines are
+    built in PT here; every caller of this module's output reads UTC."""
+    return dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def watch_verdict(result, now_utc, horizon_hours=24.0):
     """Pure: which windows need a human NOW. actionable = OPEN, uncovered, deadline
     inside the horizon; missed = past deadline, uncovered. Quiet otherwise -- a
@@ -263,9 +271,9 @@ def watch_verdict(result, now_utc, horizon_hours=24.0):
             hours = (w["deadline"] - now_utc).total_seconds() / 3600.0
             if hours <= horizon_hours:
                 actionable.append({"name": w["name"], "hours_left": round(hours, 1),
-                                   "deadline": w["deadline"].strftime("%Y-%m-%dT%H:%M:%SZ")})
+                                   "deadline": _utc_stamp(w["deadline"])})
         elif w.get("status") == "MISSED":
             missed.append({"name": w["name"],
-                           "deadline": w["deadline"].strftime("%Y-%m-%dT%H:%M:%SZ")})
+                           "deadline": _utc_stamp(w["deadline"])})
     return {"target_week": result.get("target_week"),
             "actionable": actionable, "missed": missed}

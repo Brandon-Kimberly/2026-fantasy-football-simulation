@@ -6230,3 +6230,50 @@ tiebreak. A test for exactly that case now exists and the guard is genuinely loa
 
 Suite 1364 → 1377 (characterisation, 12 red) → 1378. Goldens 15/15, sync golden
 byte-identical. RESOLVED.
+
+### F85 — The canonical-window reminder labelled a Pacific time as UTC — RESOLVED (2026-09-24)
+
+`watch_verdict` in `fantasy_sim/run_windows.py` rendered every deadline with
+`strftime("%Y-%m-%dT%H:%M:%SZ")`. The `Z` in a format string is a **literal character**:
+it asserts UTC without converting to it, and it cannot fail. Every deadline in this module
+is built in `PT` (`ZoneInfo("America/Los_Angeles")`, lines 125/157/159), so the emitted
+string was Pacific wall-clock under a UTC label — wrong by seven hours in PDT, eight in PST.
+
+**Found in the live artefact, not by reading code.** The GitHub issue opened for week 3 read:
+
+> Window `run1_pre_kickoff` for week 3 is open, uncovered, and closes at
+> **2026-09-24T17:15:00Z UTC** (~12.4 h left).
+
+Those two numbers contradict each other: the issue was created at 04:53Z, so "12.4 h left"
+puts the deadline near 17:18 **UTC**, while the string beside it claims 17:15. `hours_left`
+was always right — it comes from an aware subtraction on the line above — and the string
+was always wrong. The real deadline is 17:15 **PDT**, the Thursday-night kickoff, which is
+00:15 UTC the following day.
+
+**Why this is not cosmetic.** That string is the entire content of a reminder read on a
+phone, usually away from the machine. A deadline overstated by seven hours reads as "45
+minutes left" when there are eight — which either provokes a rushed run or, worse, makes
+the reader conclude the window has already closed and skip it. A missed canonical window
+leaves no `predictions` row for that week: the series R1 renders and the record F18/F19
+partition the season on both lose a point, permanently, because the inputs that produced it
+are gone by the following week. The reminder exists precisely to prevent that, and it was
+misreporting the one number it carries.
+
+**Scope, measured rather than assumed.** Every `%SZ` formatter in `fantasy_sim/` and
+`scripts/` was audited — 33 call sites. All but this one take a UTC subject
+(`datetime.now(timezone.utc)` or `utcfromtimestamp`), so the defect is confined to this
+module, which is the only one that works in local time at all. The fix is a `_utc_stamp`
+helper that converts before formatting, so a future caller cannot reintroduce it by
+copying the line.
+
+`hours_left`, the covered-window suppression and the horizon filter are untouched and are
+pinned green in the same file. The regression test is a consistency check rather than a
+literal-string assertion: a `Z`-suffixed deadline parsed as UTC must equal
+`now + hours_left`. That is the property the live artefact violated, and no assertion on
+either field alone would have caught it. A DST case is included — a fixed −7 offset would
+be right through the regular season and wrong for every playoff window.
+
+Verified live: the watcher now emits `2026-09-25T00:15:00Z` with `hours_left: 7.6` at
+`16:37Z`, which agree.
+
+Suite 1378 → 1386 (characterisation, 4 red of 8). Goldens 15/15. RESOLVED.

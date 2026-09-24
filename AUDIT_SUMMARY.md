@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~122 findings and tracked follow-ups** | **88 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~123 findings and tracked follow-ups** | **89 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,22 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F85** the canonical-window reminder labelled a Pacific time as UTC — RESOLVED:
+  `watch_verdict` rendered deadlines with `strftime("...Z")`, and the `Z` in a format string
+  is a LITERAL character — it asserts UTC without converting to it. Every deadline in that
+  module is built in `America/Los_Angeles`, so the reminder was wrong by seven hours in PDT
+  and eight in PST. Found in the live artefact: the week 3 issue said the window "closes at
+  2026-09-24T17:15:00Z UTC (~12.4 h left)", two numbers that contradict each other.
+  `hours_left` was always right (aware subtraction); the string never was. Not cosmetic — a
+  deadline overstated by seven hours reads as "45 minutes left" when there are eight, and a
+  skipped canonical window loses that week's `predictions` row permanently, which is the
+  series R1 renders and the record F18/F19 partition on. All 33 `%SZ` formatters in
+  `fantasy_sim/` and `scripts/` were audited; every other one takes a UTC subject, so the
+  defect is confined to the only module that works in local time. The regression test is a
+  consistency check — a `Z`-suffixed deadline parsed as UTC must equal `now + hours_left` —
+  because no assertion on either field alone would have caught it; a DST case is included,
+  since a fixed −7 offset would be right all regular season and wrong every playoff window.
+  Goldens 15/15.
 - **F84** the engine banked a record the league does not recognise — RESOLVED: F70's
   follow-up, made live by F83. `actual_wins_banked` and `actual_points` were summed from
   `/matchups`, which DERIVES a completed week's points against CURRENT scoring settings, so
