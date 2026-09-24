@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~108 findings and tracked follow-ups** | **75 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~109 findings and tracked follow-ups** | **76 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,24 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F71** the raw NFL position still reached slot matching, and nothing stopped it —
+  RESOLVED: the sweep found the library clean on `pos == 'DL'` (every such comparison sits on
+  normalize_position output), and found instead that `season_retrospective._positions` and
+  the identical block in `run_points_backtest` fell back to the RAW `position` when a cached
+  player had no `fantasy_positions`; the solver matches slot names literally, so a defensive
+  end was not eligible at DL and his points vanished from the realized-optimal target that is
+  the points-backtest's own calibration reference. LATENT, not live — the characterisation
+  commit's message overstated it, and the correction is recorded: all 325 entries missing the
+  field are unclassified or offensive linemen, and 0 of the 228 pids in the 2025 bundle
+  change. Fixed with a shared `config.fantasy_slot_positions`. Three green-by-design tests
+  pin why the obvious fix would be worse: a blanket normalize_position makes an offensive
+  lineman FLEX-eligible (its 'FLEX' return is the UNKNOWN sentinel) and erases team defenses.
+  Recorded not acted on: the cache already carries pid-keyed dual eligibility (114 LBs list
+  ['DL','LB']) that hand-maintained, name-keyed `DUAL_ELIGIBILITY` is approximating (B17).
+  Guard: an AST sweep of `fantasy_sim/` and `scripts/` that reddens on a position compared to
+  an alias-sensitive literal, narrowed so it survives a reader (QB/WR/TE/K exempt as their own
+  normal form; normalize_position-assigned names clean; three functions accepted by name with
+  reasons), proven by planting an offender in a real tool.
 - **F70** completed results are recomputed from re-scored points, so history gets rewritten
   — RESOLVED: `scripts.luck_ledger` reported 2 wins and a 2–0 close-game record for a roster
   that is 2-2 in the standings. The ledger's arithmetic is correct and all three of the

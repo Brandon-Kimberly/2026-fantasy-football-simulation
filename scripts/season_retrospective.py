@@ -19,7 +19,7 @@ import os
 
 import requests
 
-from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, KNOWN_LEAGUE_IDS
+from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, KNOWN_LEAGUE_IDS, fantasy_slot_positions
 from fantasy_sim.league_chain import resolve_chain
 from fantasy_sim.season_retrospective import season_retrospective
 from fantasy_sim.storage import PLAYER_CACHE_FILE, decisions_season_path, load_json, save_json, season_log_file
@@ -46,11 +46,13 @@ def _league_id_for_season(season):
 
 
 def _positions(players_db):
+    """{pid: [slot positions]}. Routed through config.fantasy_slot_positions (T4) because
+    the raw `position` fallback used to hand 'DE' to a matcher looking for a 'DL' slot."""
     out = {}
     for pid, e in players_db.items():
-        pos = e.get("fantasy_positions") or ([e.get("position")] if e.get("position") else None)
+        pos = fantasy_slot_positions(e)
         if pos:
-            out[str(pid)] = [p for p in pos if p]
+            out[str(pid)] = pos
     return out
 
 

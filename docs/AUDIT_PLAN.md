@@ -5446,3 +5446,68 @@ Suite 1160 → 1170 (characterisation) → 1173 (three plumbing tests for `_bank
 written after the wiring and verified by mutation, which is stated in their docstring
 rather than dressed up as regression tests). Goldens 15/15, sync golden byte-identical —
 no engine path reads the ledger. RESOLVED.
+
+### F71 — The raw NFL position still reached slot matching, and nothing stopped it — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item T4, after two ad-hoc queries on 2026-09-23 filtered `pos == 'DL'`
+and silently excluded every DE and DT, missing two DL-eligible free agents. Phase 3 finding
+3 fixed that class inside the engine (`config.normalize_position`); the item asks what stops
+a tool from doing it again.
+
+**The sweep found the library clean on that exact pattern.** Every `pos == '<position>'` in
+`fantasy_sim/` and `scripts/` sits on a value `normalize_position` already produced —
+`simulation._script_multiplier`'s parameter (all five call sites normalise),
+`simulation._build_correlation_matrix`'s `pos1`/`pos2` (normalised inline),
+`backtest_player.analyze_correlations` (the dict is built normalised at line 73),
+`positional_tiers._build_tier_table_html` (a page key, not player data). The sweep found
+something else instead.
+
+**`scripts.season_retrospective._positions` and the identical block in
+`scripts.run_points_backtest` fell back to the RAW `position` when a cached player carried
+no `fantasy_positions`.** That raw string then met
+`FantasySimulationEngine._solve_optimal_assignment`, which matches `slot_pos in pos_opts`
+literally, so a defensive end was not eligible at DL:
+
+```
+_positions({"1": {"position": "DE"}})              -> {'1': ['DE']}
+real_optimal_points(QB+DL, QB 20.0, DE 14.0)       -> 20.0, the DL slot left EMPTY
+```
+
+That target is the points-backtest's own optimal and season_retrospective's
+lineup-efficiency denominator, and understating it makes lineup efficiency look BETTER than
+it was — the flattering direction, invisible from the output.
+
+**It is LATENT, not live, and the characterisation commit's message overstated that.**
+Measured against the real cache afterwards: all 325 entries missing `fantasy_positions` are
+either unclassified (240 with `position: null`) or offensive linemen (85 G/C/T). **0 of the
+228 player ids in the 2025 bundle change eligibility**, and 2025 was non-IDP besides. The
+measured impact on both seasons is zero. The path is still worth closing — it exists for
+players Sleeper has not yet classified, a state every newly-signed player passes through —
+but the correction is recorded rather than quietly dropped.
+
+**The obvious fix would have been a regression, and three green-by-design tests pin that.**
+Mapping every raw position through `normalize_position` gives an offensive lineman `'FLEX'`
+— that function's return for anything it does not recognise is its UNKNOWN sentinel, not an
+eligibility claim — and the solver would then start a left tackle at FLEX. It also answers
+`'FLEX'` for `'DEF'`, which would have destroyed every team defense in the 2025 format.
+`config.fantasy_slot_positions` therefore passes through anything already in
+`FANTASY_SLOT_POSITIONS`, maps the rest, and drops an unrecognised result.
+
+**Sleeper's own `fantasy_positions` is richer than `config.DUAL_ELIGIBILITY`.** Recorded,
+not acted on: the cache carries real dual eligibility keyed by player id — 114 linebackers
+list `['DL','LB']`, 23 list `['DB','LB']` — while `DUAL_ELIGIBILITY` is a hand-maintained
+dict keyed by NAME against a cache with 220 name collisions (B17). The pid-keyed data the
+hand-maintained dict is approximating is already in the repo. That is a B17-sized change and
+is not made here.
+
+**The guard.** `tests/test_raw_position_guard.py` ASTs every module under `fantasy_sim/` and
+`scripts/` and fails on a comparison between a position-shaped expression and an
+alias-sensitive literal. Deliberate narrowings, each of which exists so the guard survives
+contact with a reader: only DL/LB/DB/RB and the aliases themselves are flagged (QB/WR/TE/K
+are their own normal form, and flagging them is noise); a name assigned from
+`normalize_position(...)` in the same function is clean; three functions are accepted by
+name with a written reason; tests are excluded, because a fixture authors both sides.
+Proven by planting `entry.get("pos") == "DL"` in a real tool and watching the sweep redden.
+
+Suite 1173 → 1179 (characterisation, 3 red) → 1183. Goldens 15/15, sync golden
+byte-identical. RESOLVED.

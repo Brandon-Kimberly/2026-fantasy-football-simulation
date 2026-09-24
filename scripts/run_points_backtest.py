@@ -31,6 +31,7 @@ import sys
 
 import numpy as np
 
+from fantasy_sim.config import fantasy_slot_positions
 from fantasy_sim.backtest_season import run_backtest_checkpoint, DEFAULT_CHECKPOINT_WEEKS
 from fantasy_sim.storage import ensure_dir_for, _log
 
@@ -164,11 +165,15 @@ def main(argv=None):
         with open(season_log_file("2025"), encoding="utf-8") as _f:
             _bundle = _json.load(_f)
         _pdb = load_json(PLAYER_CACHE_FILE)
+        # T4: the raw `position` fallback used to hand 'DE' to _solve_optimal_assignment,
+        # which matches slot names literally -- so the DL slot went unfilled and the
+        # optimal target came back LOW, flattering lineup efficiency. Shared helper, so
+        # this and season_retrospective cannot drift apart again.
         _positions = {}
         for _pid, _e in _pdb.items():
-            _pos = _e.get("fantasy_positions") or ([_e.get("position")] if _e.get("position") else None)
+            _pos = fantasy_slot_positions(_e)
             if _pos:
-                _positions[str(_pid)] = [x for x in _pos if x]
+                _positions[str(_pid)] = _pos
         _optimal_target = real_optimal_points(_bundle, _positions)
     except Exception as ex:
         print(f"[NOTE] optimal target unavailable ({ex}); scoring started-lineup target only")

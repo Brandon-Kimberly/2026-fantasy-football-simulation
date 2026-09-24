@@ -450,6 +450,49 @@ def normalize_position(raw_pos):
     return 'FLEX'
 
 
+# Every position a Sleeper roster slot can name. Used to tell "already slot-shaped" from
+# "raw NFL position" below -- DEF is the reason this list exists rather than a call to
+# normalize_position, which does not know about team defenses and would answer 'FLEX'.
+FANTASY_SLOT_POSITIONS = ('QB', 'RB', 'WR', 'TE', 'K', 'DEF', 'DL', 'LB', 'DB')
+
+
+def fantasy_slot_positions(entry):
+    """The fantasy SLOT positions one cached Sleeper player is eligible at (T4).
+
+    Sleeper's own `fantasy_positions` is already slot-shaped -- DE/DT/NT -> ['DL'],
+    CB/S/FS/SS -> ['DB'], OLB/ILB -> ['LB'], FB -> ['RB'] -- and it carries real dual
+    eligibility the raw position cannot know (114 cached linebackers list ['DL','LB']), so
+    it wins whenever it is present. 325 of 12,228 cached entries have no such field; those
+    fall back to the raw `position`, and THAT is the path that used to hand 'DE' to a
+    matcher comparing it against a 'DL' slot -- Phase 3 finding 3's defect, still reachable
+    from the tools long after the engine was fixed.
+
+    A position that is not a fantasy position at all (OL, OT, P, LS) yields NO eligibility.
+    It must not be mapped: `normalize_position` returns 'FLEX' for everything it does not
+    recognise, and that is its UNKNOWN sentinel, not an eligibility claim -- treating it as
+    one would let an offensive tackle start at FLEX.
+
+    Shared home rather than a second copy: `scripts.run_points_backtest` and
+    `scripts.season_retrospective` computed this inline, identically, and both fed
+    `_solve_optimal_assignment`.
+    """
+    raw = entry.get("fantasy_positions")
+    if not raw:
+        one = entry.get("position")
+        raw = [one] if one else []
+    out = []
+    for p in raw:
+        if not p:
+            continue
+        p = str(p).upper().strip()
+        slot = p if p in FANTASY_SLOT_POSITIONS else normalize_position(p)
+        if slot == 'FLEX':               # UNKNOWN, not FLEX eligibility
+            continue
+        if slot not in out:
+            out.append(slot)
+    return out
+
+
 # sync.resolve_player_keys stores a name-collision as "Name (pid)" -- e.g. "Byron Murphy
 # (4988)" -- so the raw Sleeper pid never silently overwrites another player's baseline entry.
 # Promoted here (originally private to fantasy_sim.positional_tiers) once fantasy_sim.
