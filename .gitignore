@@ -66,3 +66,9 @@ docs/sample/
 # an unanchored *.log would also swallow anything under data/logs/ if a future record is
 # ever written with that extension. tests/test_docs pins both halves.
 /*.log
+
+# H1: scripts/scan_real_names' local allowlist of adjudicated false positives. It holds
+# word fragments the owner has judged to be coincidences, which means it holds fragments
+# OF REAL NAMES -- committing it would be the leak the scanner exists to prevent.
+# tests/test_real_name_scan pins this line.
+.real_name_scan_allow

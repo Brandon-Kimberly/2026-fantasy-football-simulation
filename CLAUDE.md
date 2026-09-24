@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 1183 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 1197 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -36,7 +36,17 @@ py -3.10 -m scripts.run_windows          # canonical-run windows: open / covered
 py -3.10 -m scripts.evaluate_move        # paired evaluation of add/drop/waiver; --log-tx; --evaluate-unevaluated
 py -3.10 -m scripts.draft_review         # at-draft value review (--season; proxy caveat on the page)
 py -3.10 -m scripts.season_retrospective # a completed season in four measurements, no combined verdict
+py -3.10 -m scripts.scan_real_names      # H1: tokenising real-identity scan of every tracked file. LOCAL ONLY
 ```
+
+**Run `scan_real_names` before any push that touched tests, docs, or fixtures** (H1). It
+needs `SHOW_REAL_TEAM_NAMES` set in that shell and refuses on a runner; it fetches names
+live, writes nothing, and prints only the matched TOKEN so a coincidence (NFL player names
+are domain data, not identities) can be told from a leak. Adjudicated false positives go in
+`.real_name_scan_allow`, which is gitignored on purpose -- a committed list of "ordinary
+words to ignore" assembled from real names would be the leak it exists to prevent. A
+literal-match scan is not a substitute: one passed on 2026-09-22 with four real-identity
+strings sitting in tracked files, and this scan found a fifth on its first run (F73).
 
 The seven decision tools (`scripts/compare_players`, `optimize_lineup`, `matchup_lineup`,
 `waiver_targets`, `evaluate_trade`, `find_trades`, `roster_grades`) and their one-line
