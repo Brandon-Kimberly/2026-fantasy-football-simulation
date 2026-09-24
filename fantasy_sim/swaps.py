@@ -56,7 +56,7 @@ def roster_value(engine, names):
 
 
 def exhaustive_swaps(engine, team, week=None, max_side=2, min_gain=0.0,
-                     require_mutual=False, top_n=25, pair_pool=PAIR_POOL):
+                     require_mutual=False, top_n=25, pair_pool=PAIR_POOL, exclude=None):
     """Every 1-for-1 and bounded 2-for-2 swap, ranked by MY screen gain.
 
     Returns a list of dicts: `with`, `i_give`, `i_get`, `my_screen_gain`,
@@ -69,6 +69,11 @@ def exhaustive_swaps(engine, team, week=None, max_side=2, min_gain=0.0,
     """
     if team not in engine.rosters:
         raise KeyError(f"unknown team {team!r}")
+    # T3: `exclude` drops players committed to a PENDING trade from the candidate pools.
+    # The pools only -- `engine.rosters` is never modified and both sides' baseline roster
+    # values below still count every man they actually own today, because pending is not
+    # complete and a vetoed trade returns them.
+    skip = frozenset(exclude or ())
     mine = list(engine.rosters[team])
     base_me = roster_value(engine, mine)
 
@@ -79,11 +84,14 @@ def exhaustive_swaps(engine, team, week=None, max_side=2, min_gain=0.0,
         theirs = list(engine.rosters[other])
         base_them = roster_value(engine, theirs)
 
-        # Sizes are read off the rosters themselves. No literal cap lives here (B15).
-        my_pool = sorted(mine, key=lambda n: -_mean(engine, n))[:pair_pool]
-        their_pool = sorted(theirs, key=lambda n: -_mean(engine, n))[:pair_pool]
+        offerable_mine = [n for n in mine if n not in skip]
+        offerable_theirs = [n for n in theirs if n not in skip]
 
-        combos = [(1, mine, theirs)]
+        # Sizes are read off the rosters themselves. No literal cap lives here (B15).
+        my_pool = sorted(offerable_mine, key=lambda n: -_mean(engine, n))[:pair_pool]
+        their_pool = sorted(offerable_theirs, key=lambda n: -_mean(engine, n))[:pair_pool]
+
+        combos = [(1, offerable_mine, offerable_theirs)]
         if max_side >= 2:
             combos.append((2, my_pool, their_pool))
 

@@ -5810,3 +5810,52 @@ Suite 1261 → 1276 (characterisation, 13 of 15 red) → 1277. Four mutations (c
 as max rather than max+1, the exact path scored through the won branch, the amendment
 overwriting what was paid, bids stored ascending) each turn the suite red. Goldens 15/15,
 sync golden byte-identical. RESOLVED.
+
+### F78 — The trade screens proposed players already committed to a pending trade — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item T3. With a trade pending on 2026-09-23, `find_trades
+--require-mutual` ranked a player **already promised to somebody else** first. Sleeper's
+transactions endpoint returns those with `status: "pending"`, and `ingest_transactions`
+deliberately keeps only `complete` — B14's premise is that the decision log records what
+HAPPENED — so nothing downstream had ever seen a pending trade.
+
+**PENDING IS NOT CERTAIN, and that shaped every design choice.** A trade can be vetoed or
+withdrawn and the players come straight back:
+
+1. The exclusion is **advisory**. Every screen that applies it prints how many players it
+   dropped, names them, and says a vetoed trade returns them.
+2. `--include-pending` turns it off on both tools. A withdrawn offer must not leave the
+   finder permanently blind to a player.
+3. **The engine never sees it.** Applying a pending trade to `engine.rosters` as if it were
+   complete would put unowned players into lineups, into the paired simulation and into the
+   weekly projections — a far worse error than the one being fixed. The exclusion lives in
+   three screens' candidate pools (`find_trade_targets`, `exhaustive_swaps`, `leverage`) and
+   nowhere else, and a test pins that `engine.rosters` is unchanged. Both sides' baseline
+   roster values still count every man they own **today**, for the same reason.
+
+**Whole proposals are dropped, not legs.** Removing one player from a two-for-one leaves a
+different trade that nobody has considered and that the screen never scored. A mutation
+that filters on the target alone turns the suite red.
+
+**The file is current state, not a log.** `data/current/pending_trades.json` is rewritten
+every sync: a pending trade that completes or is vetoed stops being pending, and an
+append-only record would keep excluding its players forever. A fetch failure writes
+**nothing** and leaves any existing file alone — an empty document reads as "no pending
+trades", which is a claim, and absence must read as unknown (the bid ledger's rule).
+Matching is by `player_id` throughout: 220 colliding names in the raw cache, seven
+involving a player rostered in this league (B17).
+
+**THE FIXTURE HAD TO BE REBUILT, AND THAT IS THE POINT OF THE CONTROL TEST.** The first
+version gave each roster 14 men. `_construct_trade_offers` returns nothing unless the rich
+side has at least two bench players, so `buy` came back empty and **every exclusion
+assertion would have passed vacuously**. 18 men plus a real asymmetry — me thin at skill and
+strong on defence, the rivals the reverse with two buried receivers — makes the finder
+actually propose both sides of the pending deal, which the control test now asserts
+directly. This is the third item in a row where a fixture written by the same person as the
+code agreed with it (F74's units, F75's name truncation); the control test is the general
+defence.
+
+Suite 1277 → 1286 (characterisation, all 9 red) → 1293. Four mutations (the writer keeping
+complete trades, the writer overwriting on a fetch failure, the reader raising on junk, the
+exclusion dropping a leg instead of the proposal) each turn the suite red. Goldens 15/15,
+sync golden byte-identical. RESOLVED.

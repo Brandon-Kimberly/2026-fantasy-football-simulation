@@ -216,6 +216,92 @@ class TestTheScreensExcludeThem(unittest.TestCase):
         self.assertEqual(find_trade_targets(self.e, ME, week=WEEK)["excluded_pending"], [])
 
 
+class TestTheSyncWriter(unittest.TestCase):
+    """`sync.write_pending_trades`. Written after the reader, and the ordering is stated
+    rather than glossed: these passed on the first run and are coverage of new plumbing,
+    verified by mutation (see the commit message)."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp()
+        self.path = os.path.join(self.dir, "pending_trades.json")
+        self.roster_map = {1: ME, 2: OTHER}
+        self.players_db = {"p1": {"first_name": "Alpha", "last_name": "One"},
+                           "p2": {"first_name": "Beta", "last_name": "Two"}}
+
+    @staticmethod
+    def _tx(status="pending", type_="trade"):
+        return {"transaction_id": "tx1", "type": type_, "status": status, "leg": WEEK,
+                "roster_ids": [1, 2],
+                "adds": {"p1": 2, "p2": 1}, "drops": {"p1": 1, "p2": 2}}
+
+    def _run(self, payloads):
+        from fantasy_sim import sync
+
+        class R:
+            status_code = 200
+
+            def __init__(self, p):
+                self._p = p
+
+            def json(self):
+                return self._p
+
+        it = iter(payloads)
+        with patch.object(sync.requests, "get", side_effect=lambda *a, **k: R(next(it, []))):
+            return sync.write_pending_trades(self.roster_map, WEEK, self.players_db,
+                                             path=self.path)
+
+    def _doc(self):
+        with open(self.path, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_a_pending_trade_is_written_with_both_sides_by_pid(self):
+        self.assertEqual(self._run([[self._tx()], []]), 1)
+        players = self._doc()["trades"][0]["players"]
+        self.assertEqual({p["player_id"] for p in players}, {"p1", "p2"})
+        by_pid = {p["player_id"]: p for p in players}
+        self.assertEqual((by_pid["p1"]["from_team"], by_pid["p1"]["to_team"]), (ME, OTHER))
+        self.assertEqual(by_pid["p2"]["name"], "Beta Two", "a name for a human reader")
+
+    def test_a_COMPLETE_trade_is_not_pending(self):
+        self.assertEqual(self._run([[self._tx(status="complete")], []]), 0)
+        self.assertEqual(self._doc()["trades"], [])
+
+    def test_a_pending_WAIVER_is_not_a_trade(self):
+        self.assertEqual(self._run([[self._tx(type_="waiver")], []]), 0)
+
+    def test_the_file_is_REWRITTEN_not_appended(self):
+        """A pending trade that completes or is vetoed stops being pending. An append-only
+        record would keep excluding its players forever."""
+        self._run([[self._tx()], []])
+        self.assertEqual(self._run([[], []]), 0)
+        self.assertEqual(self._doc()["trades"], [])
+
+    def test_a_fetch_failure_leaves_the_existing_file_alone(self):
+        """An empty document reads as "no pending trades", which is a CLAIM. Absence must
+        read as unknown -- the rule the bid ledger already follows."""
+        from fantasy_sim import sync
+        self._run([[self._tx()], []])
+        with patch.object(sync.requests, "get", side_effect=RuntimeError("down")):
+            self.assertEqual(sync.write_pending_trades(self.roster_map, WEEK,
+                                                       self.players_db, path=self.path), 0)
+        self.assertEqual(len(self._doc()["trades"]), 1, "the known pending trade survives")
+
+
+class TestTheAdvisoryNote(unittest.TestCase):
+    def test_it_says_advisory_and_names_the_escape_hatch(self):
+        from fantasy_sim.pending import note
+        txt = note({"Alpha One", "Beta Two"})
+        self.assertIn("2 player(s) excluded", txt)
+        self.assertIn("ADVISORY", txt)
+        self.assertIn("--include-pending", txt)
+        self.assertIn("vetoed", txt)
+
+    def test_an_empty_exclusion_says_nothing(self):
+        from fantasy_sim.pending import note
+        self.assertEqual(note(set()), "")
+
+
 class TestTheEngineIsNeverTouched(unittest.TestCase):
     def test_excluding_players_does_not_change_any_roster(self):
         """Pending is not complete. Applying it to the engine would put unowned players in

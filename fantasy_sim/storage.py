@@ -250,6 +250,12 @@ def predictions_log_file(season):
 # F3: Sleeper's winners bracket, resolved to team names at sync time (see sync.generate_playoff_bracket).
 PLAYOFF_BRACKET_FILE = _current("playoff_bracket.json")
 
+# T3: trades Sleeper reports as `status: "pending"`. CURRENT state, not a log -- it is
+# rewritten every sync, because a pending trade that completes or is vetoed stops being
+# pending and an append-only record of it would keep excluding players forever. The
+# decision log (data/logs/) remains the record of what HAPPENED; this is what is proposed.
+PENDING_TRADES_FILE = _current("pending_trades.json")
+
 # Written LAST by sync.sync_all (weekly orchestrator, 2026-09-01): started_at / finished_at,
 # season, current_week, every WARNING/ERROR logged during the run (`degraded`), and the mtimes
 # of the sync outputs at finish. A manifest whose started_at matches a run exists iff that run

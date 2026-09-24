@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~115 findings and tracked follow-ups** | **82 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~116 findings and tracked follow-ups** | **83 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,22 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F78** the trade screens proposed players already committed to a pending trade —
+  RESOLVED: `find_trades --require-mutual` ranked a player already promised to somebody else
+  FIRST, because Sleeper marks those `status: pending` and `ingest_transactions` keeps only
+  `complete` (B14: the log records what HAPPENED). Sync now writes
+  `data/current/pending_trades.json` and three screens skip those players. **Pending is not
+  certain**, so: the exclusion is advisory and every tool names who it dropped and says a veto
+  returns them; `--include-pending` turns it off; and the ENGINE never sees it — applying a
+  pending trade to rosters would put unowned players into lineups, the paired simulation and
+  the weekly projections, so the exclusion lives in candidate pools only and a test pins that
+  rosters are unchanged. Whole proposals are dropped rather than legs, because a two-for-one
+  with one leg removed is a different trade nobody scored. The file is current state,
+  rewritten each sync; a fetch failure writes nothing rather than an empty document that
+  would read as "none pending". **The fixture had to be rebuilt**: 14-man rosters leave the
+  rich side one bench player, `_construct_trade_offers` needs two, and every exclusion
+  assertion would have passed against an empty `buy` list — the third item running where a
+  fixture agreed with the code that wrote it, and the control test is the general defence.
 - **F77** the ledger could not record the losing bids, so every won claim stayed censored —
   RESOLVED: this league can read every bid after a run, and the ledger kept only the winning
   one, which on a claim I WON is an upper bound and never the price (B13's censoring rule

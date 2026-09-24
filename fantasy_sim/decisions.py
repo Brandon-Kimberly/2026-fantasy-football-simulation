@@ -1327,11 +1327,15 @@ def screen_sim_disagreement(my_screen_gain, sim_champ_delta):
 
 
 def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=35.0, top_n=10,
-                       evaluate_top=0, batches=3, sims=1000):
+                       evaluate_top=0, batches=3, sims=1000, exclude=None):
+    """`exclude` (T3): names to leave out of every proposal -- players already committed to
+    a PENDING trade. Advisory and reported in `excluded_pending`; rosters are NOT modified,
+    because pending is not complete and a vetoed trade returns the players."""
     from fantasy_sim.config import MANAGER_PROFILES
     week = week or engine.current_week
     if team not in engine.rosters:
         raise KeyError(f"unknown team {team!r}")
+    exclude = frozenset(exclude or ())
     gos = engine.get_optimal_score
     my_starters = roster_gaps(engine, team, (week,))[week]["starters"]
     contention_note = (f"seller = their Playoff_Pct below {seller_threshold:.0f}% in the season export supplied"
@@ -1389,6 +1393,13 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
                          "simulated": False, "sim_champ_delta": None,
                          "their_playoff_pct": float(pp["Playoff_Pct"]) if pp else None,
                          "willingness": MANAGER_PROFILES.get(other, {}).get('trade_will')})
+    if exclude:
+        # Drop the whole PROPOSAL, not the player from it: an offer with one leg removed is
+        # a different trade that nobody has considered.
+        buy = [b for b in buy
+               if not (exclude & (set(b["i_give"]) | set(b["i_get"]) | {b["target"]}))]
+        sell = [x for x in sell
+                if not (exclude & (set(x["they_want"]) | set(x["they_give"])))]
     buy.sort(key=lambda b: (0 if b["acceptable"] else 1, -b["my_gain"]))
     sell.sort(key=lambda s_: (0 if s_["acceptable"] else 1, -s_["my_gain"]))
     buy, sell = buy[:top_n], sell[:top_n]
@@ -1402,7 +1413,8 @@ def find_trade_targets(engine, team, outcomes=None, week=None, seller_threshold=
         b["simulated"] = True
         b["sim_champ_delta"] = float(delta) if delta is not None else None
         b["disagreement"] = screen_sim_disagreement(b["my_screen_gain"], b["sim_champ_delta"])
-    return {"team": team, "week": week, "buy": buy, "sell": sell, "contention_note": contention_note,
+    return {"team": team, "week": week, "buy": buy, "sell": sell,
+            "excluded_pending": sorted(exclude), "contention_note": contention_note,
             "note": ("buy = F2's offer constructor with my roster as the desperate side (their buried bench "
                      "player who starts at my weakest fillable slot, for my cheapest player that upgrades one "
                      "of their starters, 2-for-2 with the throw-in); sell = the mirror. Gains = the engine's "

@@ -32,7 +32,7 @@ from fantasy_sim.storage import (
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
-    draft_log_file, season_log_file,
+    PENDING_TRADES_FILE, draft_log_file, season_log_file,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1451,6 +1451,11 @@ def _sync_body(sharp_polling=False):
     n_draft = ingest_drafts(roster_map)
     if n_draft:
         print(f"[DRAFT LOG] {n_draft} draft(s) ingested.")
+    # T3: current state, rewritten each sync. Advisory -- the trade screens skip these
+    # players and say so; no roster and no simulation is changed by it.
+    n_pending = write_pending_trades(roster_map, current_nfl_week, players_db)
+    if n_pending:
+        print(f"[PENDING TRADES] {n_pending} pending trade(s) recorded (advisory).")
     warn_depth_mean_disagreements(baselines, players_db)
     return current_nfl_week, str(state.get("season", "2026"))
 
@@ -1550,6 +1555,68 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                         "re-ingested by the next successful sync.", len(records), path, ex)
         return 0
     return appended
+
+
+def write_pending_trades(roster_map, current_week, players_db, path=None):
+    """Trades Sleeper reports as `status: "pending"` (T3). Returns the number written.
+
+    CURRENT STATE, NOT A LOG. The file is rewritten every sync, because a pending trade
+    that completes or is vetoed stops being pending, and an append-only record would keep
+    excluding its players forever. `ingest_transactions` keeps only `complete` rows and
+    remains the record of what HAPPENED; this is the record of what is PROPOSED, and the
+    two are deliberately separate files.
+
+    Players are stored by `player_id` -- the raw cache has 220 colliding names, seven of
+    them involving a player rostered in this league (B17) -- with the name alongside for a
+    human reading the file.
+
+    A fetch failure writes NOTHING and leaves any existing file alone rather than writing
+    an empty one: an empty document reads as "no pending trades", which is a claim, and
+    absence must read as unknown (the same rule the bid ledger follows).
+    """
+    if path is None:
+        path = PENDING_TRADES_FILE
+    trades, failed = [], False
+    for wk in range(max(1, int(current_week)), max(1, int(current_week)) + 2):
+        try:
+            resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/transactions/{wk}", timeout=10)
+            txs = resp.json() if resp.status_code == 200 else []
+        except Exception as ex:
+            logging.warning("PENDING TRADES: week %d could not be fetched (%s); the "
+                            "existing file is left alone.", wk, ex)
+            failed = True
+            continue
+        for tx in txs or []:
+            if tx.get("type") != "trade" or tx.get("status") != "pending":
+                continue
+            players = []
+            for pid, rid in (tx.get("adds") or {}).items():
+                pdb = players_db.get(str(pid), {})
+                name = f"{pdb.get('first_name', '')} {pdb.get('last_name', '')}".strip() or str(pid)
+                from_rid = (tx.get("drops") or {}).get(str(pid))
+                players.append({"player_id": str(pid), "name": name,
+                                "to_team": roster_map.get(rid, f"roster_{rid}"),
+                                "from_team": roster_map.get(from_rid, None)})
+            trades.append({
+                "transaction_id": tx.get("transaction_id"), "week": tx.get("leg", wk),
+                "status": "pending",
+                "teams": [roster_map.get(r, f"roster_{r}") for r in (tx.get("roster_ids") or [])],
+                "players": players,
+            })
+    if failed and not trades:
+        return 0
+    doc = {"_meta": {"week": int(current_week), "n": len(trades),
+                     "fetched_at": datetime.utcfromtimestamp(_now_ms() / 1000.0)
+                     .strftime("%Y-%m-%dT%H:%M:%SZ"),
+                     "note": "ADVISORY. Pending is not complete: a vetoed trade returns "
+                             "these players. No roster or simulation uses this file."},
+            "trades": trades}
+    try:
+        save_json(path, doc)
+    except Exception as ex:
+        logging.warning("PENDING TRADES: could not write %s (%s).", path, ex)
+        return 0
+    return len(trades)
 
 
 def warn_depth_mean_disagreements(baselines, players_db):

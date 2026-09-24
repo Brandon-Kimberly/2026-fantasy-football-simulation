@@ -20,6 +20,7 @@ import os
 
 from fantasy_sim.decisions import find_trade_targets, screen_sim_disagreement, evaluate_trade
 from fantasy_sim.swaps import describe, exhaustive_swaps
+from fantasy_sim.pending import committed_players, note as pending_note
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import decisions_week_path, save_json, load_json, syndicate_comprehensive_matrix_path
 
@@ -47,6 +48,11 @@ def main(argv=None):
     ap.add_argument("--exhaustive", action="store_true",
                     help="B15: scan EVERY 1-for-1 and (bounded) 2-for-2 across the league, "
                          "not just their bench player who fills my weakest slot")
+    ap.add_argument("--include-pending", action="store_true",
+                    help="consider players already committed to a PENDING trade. Off by "
+                         "default: the finder ranked one first on 2026-09-23 (T3). Pending "
+                         "is not certain, so this flag exists -- a vetoed or withdrawn "
+                         "trade must not leave the finder blind to a player")
     ap.add_argument("--require-mutual", action="store_true",
                     help="with --exhaustive: keep only swaps the SCREEN thinks they also "
                          "gain from. Off by default -- B2: that number is the least "
@@ -56,11 +62,15 @@ def main(argv=None):
     engine = FantasySimulationEngine()
     week = args.week or engine.current_week
     outcomes = _outcomes(week)
+    # T3: advisory only. Nothing about the engine, the rosters or any simulation changes.
+    skip = set() if args.include_pending else committed_players(engine)
+    if skip:
+        print("  " + pending_note(skip))
     if args.exhaustive:
         # B15: the need-driven finder cannot see "their starter I could displace with a
         # piece they need more", which is where three of week 3's real deals lived.
         swaps = exhaustive_swaps(engine, args.team, week=week, top_n=args.top,
-                                 require_mutual=args.require_mutual)
+                                 require_mutual=args.require_mutual, exclude=skip)
         print(f"\n{args.team} -- week {week} EXHAUSTIVE swap scan")
         print(f"  {'#':>2s} {'with':18s} {'I give':34s} {'I get':34s} {'my scrn':>8s} {'thr scrn':>9s}")
         for i, sw in enumerate(swaps, 1):
@@ -93,7 +103,8 @@ def main(argv=None):
         return {"exhaustive": swaps}
 
     r = find_trade_targets(engine, args.team, outcomes=outcomes, week=week, seller_threshold=args.seller_threshold,
-                           top_n=args.top, evaluate_top=args.evaluate, batches=args.batches, sims=args.sims)
+                           top_n=args.top, evaluate_top=args.evaluate, batches=args.batches,
+                           sims=args.sims, exclude=skip)
 
     print(f"\n{args.team} -- week {week} trade targets   ({r['contention_note']})")
     if outcomes and all(v["Playoff_Pct"] >= args.seller_threshold for v in outcomes.values()):

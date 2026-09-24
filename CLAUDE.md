@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 1286 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 1293 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
@@ -49,6 +49,11 @@ are domain data, not identities) can be told from a leak. Adjudicated false posi
 words to ignore" assembled from real names would be the leak it exists to prevent. A
 literal-match scan is not a substitute: one passed on 2026-09-22 with four real-identity
 strings sitting in tracked files, and this scan found a fifth on its first run (F73).
+
+**Pending trades are advisory (T3/F78).** Sync writes `data/current/pending_trades.json`;
+`find_trades` and `trade_leverage` skip the players in it and say so. It is CURRENT STATE,
+rewritten each sync, and no roster, lineup or simulation ever reads it -- pending is not
+complete, and a vetoed trade returns the players. `--include-pending` overrides.
 
 The seven decision tools (`scripts/compare_players`, `optimize_lineup`, `matchup_lineup`,
 `waiver_targets`, `evaluate_trade`, `find_trades`, `roster_grades`) and their one-line

@@ -86,7 +86,7 @@ def sell_high(engine, team, draft_picks, preseason):
     return rows
 
 
-def leverage(engine, team, week):
+def leverage(engine, team, week, exclude=None):
     """Per rival: the starting slots they fill BELOW replacement, and what I could send.
 
     A "hole" is a player the rival's own optimal assignment STARTS whose mean is under
@@ -98,12 +98,16 @@ def leverage(engine, team, week):
     if team not in engine.rosters:
         raise KeyError(f"unknown team {team!r}")
     rep = engine.replacement_levels
+    # T3: a man already committed to a pending trade is not surplus I can send. Candidate
+    # pool only; the starters computation below still sees the real roster, because pending
+    # is not complete.
+    skip = frozenset(exclude or ())
 
     my_starters = starters_by_position(engine, team, week)
     my_surplus = defaultdict(list)
     for n in engine.rosters[team]:
         p = _pos(engine, n)
-        if n not in my_starters.get(p, []):
+        if n not in my_starters.get(p, []) and n not in skip:
             my_surplus[p].append(n)
     for p in my_surplus:
         my_surplus[p].sort(key=lambda n: -_mean(engine, n))

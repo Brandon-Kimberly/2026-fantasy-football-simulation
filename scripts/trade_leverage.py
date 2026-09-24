@@ -29,6 +29,7 @@ import requests
 
 from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM as DEFAULT_TEAM
 from fantasy_sim.leverage import leverage, sell_high
+from fantasy_sim.pending import committed_players, note as pending_note
 from fantasy_sim.simulation import FantasySimulationEngine
 from fantasy_sim.storage import PROJECTION_LOG_FILE
 from fantasy_sim.weekly_report import real_name_overlay
@@ -82,6 +83,10 @@ def main(argv=None):
     ap.add_argument("--team", default=DEFAULT_TEAM)
     ap.add_argument("--week", type=int, default=None)
     ap.add_argument("--season", default="2026")
+    ap.add_argument("--include-pending", action="store_true",
+                    help="count players already committed to a PENDING trade as surplus "
+                         "I could send (T3). Off by default; pending is not certain, so "
+                         "the flag exists")
     ap.add_argument("--no-draft", action="store_true",
                     help="skip the draft fetch (offline); picks show as '-'")
     args = ap.parse_args(argv)
@@ -112,7 +117,10 @@ def main(argv=None):
         print(f"  (no preseason row for {len(missing)}: {', '.join(m[:18] for m in missing)})")
 
     print(f"\n  2. LEVERAGE -- rivals starting someone below replacement")
-    for g in leverage(engine, args.team, week):
+    skip = set() if args.include_pending else committed_players(engine)
+    if skip:
+        print("  " + pending_note(skip))
+    for g in leverage(engine, args.team, week, exclude=skip):
         if not g["holes"]:
             print(f"  {show(g['team'])[:26]:26s} -- no starting slot below replacement --")
             continue
