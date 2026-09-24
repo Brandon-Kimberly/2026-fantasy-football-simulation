@@ -5707,3 +5707,52 @@ passes first time.
    because it keeps happening.
 
 Suite 1225 → 1252. Goldens 15/15, sync golden byte-identical. BUILT.
+
+### F76 — A FAAB transfer nobody could afford was evaluated and logged — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item T1, which asked for FAAB support in `evaluate_trade` after two
+FAAB-for-player offers on 2026-09-23 were evaluated *by proxy*, with a throwaway bench
+player standing in for "give nothing".
+
+**Most of T1 was already built and the item is stale on that point.** `--a-faab` /
+`--b-faab`, the `faab_a_to_b` kwarg, the recorded field and the unpriced caveat all existed
+and were tested. Checking before building is what surfaced the two things that were not.
+
+**The defect.** No code checked that the payer could fund the transfer. `faab_a_to_b=48`
+from a team holding 12 was accepted, and the returned record, the printed caveat and the
+logged JSON all asserted a transfer that cannot happen. **This is the F64 class**: a
+decision document stating a price that was never available. `check_faab_affordable` now
+refuses it, keyed on the SIGN (`faab_a_to_b` positive is A paying, negative is B paying, so
+which budget must cover it depends on the sign — getting that backwards would refuse every
+legal trade one way and wave through every illegal one the other). Spending the whole budget
+is legal, so the comparison is strictly greater-than, and a boundary test pins it. The CLI
+checks first and exits with a sentence, because three minutes of paired simulation followed
+by a traceback is the wrong order.
+
+**The one-sided trade — FAAB for a player, which is what was actually offered — worked and
+had no test.** `apply_trade` already permits an empty `a_gives`, and the roster limit
+already bites only on the receiving side (only that side gains a man). Those tests are
+labelled COVERAGE and passed on the first run; that is said plainly rather than counted as
+red. The absence of coverage is why the real offers were evaluated by proxy in the first
+place.
+
+**One part of T1's scope is DELIBERATELY REFUSED, with a guard test so it is not reversed by
+accident.** The item asks that a transfer move `league_standings.remaining_faab` in the
+`with` engine. The premise is correct — `simulation.py` builds `current_faab` from that
+field and `_compute_faab_bid` spends it — but:
+
+* F31 measured the simulation spending **~31% of this league's real FAAB**, so a budget
+  delta pushed through the paired arms returns ~zero. Reporting that as a price is false
+  precision claiming FAAB is worthless.
+* Worse, it would *contaminate the number the tool exists for*. The Champ%/Playoff% deltas
+  are currently a clean read on the PLAYER side of the trade; folding an untrustworthy FAAB
+  effect into those same deltas destroys the one quantity that is reliable.
+
+The transfer is therefore recorded, stated, and left to the owner. **Follow-up, recorded not
+dropped:** this unblocks when F31's behavioural fix makes simulated budgets comparable to
+real ones; at that point the FAAB arm should be reported as its own delta, never merged into
+the player-side one.
+
+Suite 1252 → 1260 (characterisation, 2 red) → 1261. Three mutations (payer sign flipped,
+`>` to `>=`, check removed) each turn the suite red. Goldens 15/15, sync golden
+byte-identical. RESOLVED.

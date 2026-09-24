@@ -718,6 +718,28 @@ def _paired_evaluation(engine, with_engine, batches, sims):
     return teams
 
 
+def check_faab_affordable(engine, team_a, team_b, faab_a_to_b):
+    """Refuse a FAAB transfer the payer cannot fund (T1).
+
+    `faab_a_to_b` is SIGNED: positive is A paying B, negative is B paying A, so which
+    budget has to cover it depends on the sign. Getting that backwards would refuse every
+    legal trade in one direction and wave through every illegal one in the other.
+
+    This is the F64 class of defect: without it the record, the printed caveat and the
+    logged JSON all assert terms the league would reject -- a decision document stating a
+    price that was never available. Spending the entire budget is legal, so the comparison
+    is strictly greater-than.
+    """
+    amount = abs(int(faab_a_to_b))
+    payer = team_a if faab_a_to_b > 0 else team_b
+    budget = float((getattr(engine, "current_faab", None) or {}).get(payer, 0.0))
+    if amount > budget:
+        raise ValueError(
+            f"{payer} cannot send {amount} FAAB: {budget:.0f} remaining. "
+            f"(remaining_faab is as of the last sync, not as of the offer.)")
+    return amount, payer
+
+
 def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches=10, sims=300,
                    faab_a_to_b=None):
     """Paired evaluation of one proposed trade. Returns per-team deltas (with minus without)
@@ -730,6 +752,8 @@ def evaluate_trade(engine, team_a, a_gives, team_b, b_gives, drops=None, batches
     systematically come back ~zero -- false precision claiming FAAB is worthless. The
     honest output is the transfer stated as an explicitly unpriced component, until the
     F31 behavioral fix makes budget deltas measurable."""
+    if faab_a_to_b:
+        check_faab_affordable(engine, team_a, team_b, faab_a_to_b)
     with_engine = apply_trade(engine, team_a, a_gives, team_b, b_gives, drops=drops)
     teams = _paired_evaluation(engine, with_engine, batches, sims)
     n = batches * sims

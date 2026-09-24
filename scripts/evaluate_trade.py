@@ -88,6 +88,17 @@ def main(argv=None):
     print(f"\nTRADE: {args.team_a} gives {a_gives or 'nothing'}  <->  {args.team_b} gives {b_gives or 'nothing'}"
           + (f"   drops {drops}" if drops else "") + f"\n  {args.batches} x {args.sims} = {args.batches * args.sims} paired seasons per arm ...")
     faab_net = int(args.a_faab) - int(args.b_faab)
+    if faab_net:
+        # T1: fail here, before three minutes of paired simulation, and as a message rather
+        # than a traceback. A transfer the payer cannot fund makes the whole record assert
+        # terms the league would reject (the F64 class).
+        from fantasy_sim.decisions import check_faab_affordable
+        try:
+            check_faab_affordable(engine, args.team_a, args.team_b, faab_net)
+        except ValueError as ex:
+            raise SystemExit(str(ex))
+        for t in (args.team_a, args.team_b):
+            print(f"  {t} FAAB remaining: {engine.current_faab.get(t, 0.0):.0f}")
     r = evaluate_trade(engine, args.team_a, a_gives, args.team_b, b_gives, drops=drops or None,
                        batches=args.batches, sims=args.sims, faab_a_to_b=faab_net or None)
 

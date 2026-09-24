@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~113 findings and tracked follow-ups** | **80 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~114 findings and tracked follow-ups** | **81 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,20 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F76** a FAAB transfer nobody could afford was evaluated and logged — RESOLVED: no code
+  checked that the payer could fund it, so `faab_a_to_b=48` from a team holding 12 was
+  accepted and the record, the caveat and the logged JSON all asserted a transfer that cannot
+  happen — the F64 class, a decision document stating a price that was never available.
+  `check_faab_affordable` refuses it, keyed on the SIGN (positive is A paying, negative is B,
+  so which budget must cover it depends on it), strictly greater-than because spending the
+  whole budget is legal, and checked by the CLI *before* three minutes of paired simulation.
+  Most of T1 turned out to be already built and the item is stale on that point; the one-sided
+  FAAB-for-player trade already worked and simply had no test, which is why the real offers
+  were evaluated by proxy. **One part of T1's scope is deliberately refused with a guard
+  test:** moving `remaining_faab` in the `with` engine would return ~zero (F31 measured the sim
+  spending ~31% of real FAAB) and would fold an untrustworthy FAAB effect into the
+  Champ%/Playoff% deltas, which are currently a clean read on the player side. Unblocks with
+  F31's behavioural fix, and then as its own delta, never merged.
 - **F75** bye exposure and the roster crunch, and the hand answer was incomplete — BUILT:
   `fantasy_sim/roster_calendar` + `scripts/roster_calendar`, a report section, and a chain
   step placed after the matchup and before waivers because the holes it finds are what the

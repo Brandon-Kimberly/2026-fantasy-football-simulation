@@ -195,5 +195,20 @@ class TestWhatMustNotChange(unittest.TestCase):
             apply_trade(e, A, [], B, [])
 
 
+class TestTheCLIRefusesBeforeSimulating(unittest.TestCase):
+    def test_an_unaffordable_transfer_exits_with_a_message_not_a_traceback(self):
+        """Three minutes of paired simulation then a traceback is the wrong order. The
+        check runs first and the failure reads as a sentence."""
+        import scripts.evaluate_trade as st
+        e = _engine()
+        with patch.object(st, "FantasySimulationEngine", return_value=e), \
+             patch.object(st, "evaluate_trade") as never:
+            with self.assertRaises(SystemExit) as cm:
+                st.main(["--team-a", A, "--a-gives", "", "--team-b", B,
+                         "--b-gives", _b_player(e), "--a-faab", "48"])
+        self.assertIn("cannot send 48", str(cm.exception))
+        never.assert_not_called()
+
+
 if __name__ == "__main__":
     unittest.main()
