@@ -6047,3 +6047,32 @@ a known, stated cost of the fix, not an oversight.
 
 Suite 1317 → 1321 (characterisation, 3 red) → 1321 green. Goldens 15/15, sync golden
 byte-identical — a committed baseline and a docs change move neither. RESOLVED.
+
+### F82 — The docs guard pinned the release NUMBER and ignored the DATE — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item H4. `CITATION.cff` read `date-released: 2026-09-05` at v7.0.0 —
+**two tags stale** — while its `version` line was correct, because the guard pins the
+version and says nothing about the date. A citation that names the right release on the
+wrong date is wrong in the one field a citation exists to carry, and it is the same drift
+disease the version guard was built for (pyproject sat at 1.0.0 through three MAJORs).
+
+`tests/test_docs` now asserts `date-released` is **not earlier** than the latest reachable
+tag's commit date. BEHIND is the disease; AHEAD is allowed, for the same reason the version
+guard allows it — GitHub tags server-side, so a release cut today can point at yesterday's
+commit, and the bump commit necessarily precedes its own tag. The date comes from the
+**tagged commit** (`git log -1 --format=%cs`), not the tag object, because a lightweight tag
+has no date of its own and this reads both kinds. Same skip semantics as the neighbouring
+guards: the enforcement point is the local pre-commit hook, where tags exist.
+
+**COVERAGE, NOT A CHARACTERISATION, and it is labelled as such.** The date is current today
+— the v7.0.0 sitting corrected it — so the test passes on first run and no defect is being
+repaired here. Verified load-bearing by mutation: setting the date back to the stale
+`2026-09-05` turns it red with the expected message, naming the tag and both dates.
+
+The release policy in `CLAUDE.md` now says what the guard enforces: `CHANGELOG.md`, the
+`pyproject.toml` bump, and **both** of `CITATION.cff`'s `version` and `date-released`, in
+the tag's own sitting. A rule the guard checks but the policy does not state is a rule
+nobody reads before they break it.
+
+Suite 1326 → 1327. Goldens 15/15, sync golden byte-identical — a test and a docs line move
+neither. RESOLVED.

@@ -173,6 +173,52 @@ class TestVersionMatchesTag(unittest.TestCase):
         self.assertEqual(m_cff.group(1), m.group(1),
                          "CITATION.cff and pyproject.toml disagree on the version")
 
+    def test_citation_date_released_is_not_older_than_the_latest_tag(self):
+        """H4. The version guard above pins the NUMBER and ignores the DATE, and the date
+        drifted exactly the way the number used to: `CITATION.cff` read
+        `date-released: 2026-09-05` at v7.0.0, two tags stale, while its `version` line was
+        correct. A citation that names the right release on the wrong date is wrong in the
+        one field a citation exists to carry.
+
+        COVERAGE, NOT A CHARACTERISATION: the date is current today (the v7.0.0 sitting
+        fixed it), so this passes on first run and no defect is being repaired. Said
+        plainly rather than presented as a fix. Verified load-bearing by mutation --
+        setting the date back to 2026-09-05 turns it red.
+
+        BEHIND is the disease; AHEAD is allowed, for the same reason the version guard
+        allows it. GitHub tags server-side, so a release cut today can point at a commit
+        from yesterday, and the bump commit necessarily precedes its own tag.
+
+        Same skip semantics as the version guard: the enforcement point is the local
+        pre-commit hook, where tags exist.
+        """
+        import datetime as _dt
+        import re
+        import subprocess
+        m = re.search(r'^date-released:\s*"?(\d{4}-\d{2}-\d{2})"?', _doc("CITATION.cff"), re.M)
+        self.assertIsNotNone(m, "CITATION.cff has no date-released line")
+        try:
+            tag = subprocess.run(["git", "describe", "--tags", "--abbrev=0"],
+                                 capture_output=True, text=True, timeout=10, cwd=ROOT)
+        except Exception as ex:
+            self.skipTest(f"git unavailable ({ex}); citation-date guard runs locally")
+        if tag.returncode != 0 or not tag.stdout.strip():
+            self.skipTest("no tags visible (shallow checkout?); citation-date guard runs locally")
+        name = tag.stdout.strip()
+        # The TAGGED COMMIT's date, not the tag object's: a lightweight tag has no date of
+        # its own, and this works for both kinds.
+        when = subprocess.run(["git", "log", "-1", "--format=%cs", name],
+                              capture_output=True, text=True, timeout=10, cwd=ROOT)
+        if when.returncode != 0 or not when.stdout.strip():
+            self.skipTest(f"could not read the date of {name}; guard runs locally")
+        tag_date = _dt.date.fromisoformat(when.stdout.strip())
+        cff_date = _dt.date.fromisoformat(m.group(1))
+        self.assertGreaterEqual(
+            cff_date, tag_date,
+            f"CITATION.cff date-released {cff_date} is BEHIND the latest tag {name} "
+            f"({tag_date}) -- update it in the tag's sitting, alongside the version and "
+            f"the CHANGELOG entry (release policy)")
+
     def test_changelog_lists_the_latest_git_tag(self):
         """Every release gets a CHANGELOG entry (owner's rule, 2026-09-04, made
         mechanical): the latest reachable tag must appear as a linked heading. Same skip

@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~119 findings and tracked follow-ups** | **86 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~120 findings and tracked follow-ups** | **87 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,16 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F82** the docs guard pinned the release NUMBER and ignored the DATE — RESOLVED:
+  `CITATION.cff` read `date-released: 2026-09-05` at v7.0.0, two tags stale, while its
+  `version` line was correct — the same drift disease the version guard exists for, in the
+  one field a citation is actually for. `tests/test_docs` now pins the date to be not earlier
+  than the latest tag's commit date (BEHIND is the disease; AHEAD is allowed, since GitHub
+  tags server-side and the bump commit precedes its tag), read from the tagged commit so it
+  works for lightweight and annotated tags alike. COVERAGE, not a characterisation — the date
+  is current today, the test passes on first run, and that is stated rather than dressed up;
+  verified by mutation. The release policy now states what the guard enforces, because a rule
+  the guard checks but the policy omits is one nobody reads before breaking it.
 - **F81** the behaviour drift check ran only `week01`, which has no blend to move — RESOLVED:
   the third time this was written down. B8 moved the week06 and week15 goldens and the check
   reported no drift (F54, F62). Its scenario has **zero** completed weeks (measured: week01 0,
