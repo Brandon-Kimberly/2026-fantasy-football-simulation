@@ -531,6 +531,54 @@ def _table(headers, rows):
     return "\n".join(out)
 
 
+# ASCII column names on purpose: this digest gets opened on a Windows console where the
+# default codepage is cp1252, and a Greek delta raises UnicodeEncodeError there. "+-" is
+# already the house style elsewhere in this file for the same reason.
+_ODDS_COLS = ["Run", "Week", "Champ %", "chg", "Playoff %", "chg", "Expected wins", "chg",
+              "What landed since the previous run"]
+
+
+def _odds_rows(hist):
+    def d(v, p=1):
+        return f"{v:+.{p}f}" if v is not None else "-"
+
+    from fantasy_sim.odds_history import describe_moves
+    return [[str(r["at"])[:16], str(r["week"]),
+             f"{r['champ_pct']:.1f}", d(r["d_champ"]),
+             f"{r['playoff_pct']:.1f}", d(r["d_playoff"]),
+             f"{r['expected_wins']:.2f}", d(r["d_wins"], 2),
+             describe_moves(r["moves"]) or "-"] for r in hist.get("rows") or []]
+
+
+def _odds_md(hist):
+    """R1: the trajectory of the odds across canonical runs."""
+    rows = _odds_rows(hist)
+    if not rows:
+        return []
+    first, last = hist["rows"][0], hist["rows"][-1]
+    return ["## How the odds have moved", "", _table(_ODDS_COLS, rows), "",
+            f"**Net since {str(first['at'])[:10]}:** champ "
+            f"{last['champ_pct'] - first['champ_pct']:+.1f}, playoff "
+            f"{last['playoff_pct'] - first['playoff_pct']:+.1f}, expected wins "
+            f"{last['expected_wins'] - first['expected_wins']:+.2f}", "",
+            f"_{hist['canonical_note']}_", "", f"_{hist['causation_note']}_", ""]
+
+
+def _odds_html(hist, T):
+    rows = _odds_rows(hist)
+    if not rows:
+        return []
+    first, last = hist["rows"][0], hist["rows"][-1]
+    return ['<h2 id="odds">How the odds have moved</h2>',
+            html_table(_ODDS_COLS, rows),
+            f"<p><b>Net since {T(str(first['at'])[:10])}:</b> champ "
+            f"{last['champ_pct'] - first['champ_pct']:+.1f}, playoff "
+            f"{last['playoff_pct'] - first['playoff_pct']:+.1f}, expected wins "
+            f"{last['expected_wins'] - first['expected_wins']:+.2f}</p>",
+            '<p class="note">' + T(hist["canonical_note"]) + "</p>",
+            '<p class="note">' + T(hist["causation_note"]) + "</p>"]
+
+
 def _watch_rows(w):
     """The games table shared by both renderers, so Markdown and HTML cannot drift."""
     rows = []
@@ -779,6 +827,10 @@ def render_digest(report, team, week):
         md += [f"Opponent lineup ({'assumed' if mu.get('opponent_lineup_assumed') else 'supplied'}): "
                + ", ".join(f"{x['name']} ({x['expected']:.1f})" for x in mu.get("opponent_lineup", [])), ""]
         md += _watch_md(mu.get("watch"))
+
+    oh = res.get("odds_history")
+    if oh:
+        md += _odds_md(oh)
 
     rc = res.get("roster_calendar")
     if rc:
@@ -1168,6 +1220,10 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed, anchor)
                    + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed, anchor) + "</div>")
 
+    oh = res.get("odds_history")
+    if oh:
+        out += _odds_html(oh, T)
+
     rc = res.get("roster_calendar")
     if rc:
         out += _calendar_html(rc, T)
@@ -1259,7 +1315,8 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     # conditional, so this is derived from the built page, not a hardcoded list), inserted
     # under the h1. Presentation only -- the FAILED path returns above and gets no TOC.
     _TOC_LABELS = (("league", "League"), ("outlook", "Season outlook"), ("grades", "Roster grade"),
-                   ("lineup", "Lineup"), ("matchup", "Matchup"), ("calendar", "Roster calendar"),
+                   ("lineup", "Lineup"), ("matchup", "Matchup"), ("odds", "Odds history"),
+                   ("calendar", "Roster calendar"),
                    ("waivers", "Waivers"),
                    ("trades", "Trades"), ("decision-log", "Decision log"), ("housekeeping", "Housekeeping"))
     page = "".join(out)
@@ -1353,6 +1410,12 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
         from scripts.matchup_lineup import main as m
         return m(["--team", team, "--week", str(state["week"]), "--sims", str(sims)] + state["tool_extra_argv"])
 
+    def step_odds_history():
+        # R1: read-only, reads data/logs only. Runs AFTER predictions_log so this week's
+        # canonical row is already in the series it is about to render.
+        from scripts.odds_history import main as m
+        return m(["--team", team])
+
     def step_roster_calendar():
         from scripts.roster_calendar import main as m
         return m(["--team", team] + state["tool_extra_argv"])
@@ -1379,7 +1442,8 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
               ("strength_of_schedule", step_strength_of_schedule), ("win_trajectory", step_win_trajectory),
               ("league", step_league), ("predictions_log", step_predictions_log),
               ("roster_grades", step_roster_grades), ("lineup", step_lineup),
-              ("matchup", step_matchup), ("roster_calendar", step_roster_calendar),
+              ("matchup", step_matchup), ("odds_history", step_odds_history),
+              ("roster_calendar", step_roster_calendar),
               ("streamer_study", step_streamer_study), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))

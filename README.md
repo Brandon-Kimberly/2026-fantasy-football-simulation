@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1327%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1364%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -114,6 +114,7 @@ py -3.10 -m scripts.canonical_gate              # F36: may an unattended run quo
 py -3.10 -m scripts.draft_review                # at-draft value review of an ingested draft (--season; PROXY caveat on the page)
 py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/drop or waiver (--log-tx, --evaluate-unevaluated)
 py -3.10 -m scripts.season_retrospective        # a completed season in four measurements, no combined verdict
+py -3.10 -m scripts.odds_history                # R1: how champ%/playoff% have moved across CANONICAL runs, with what landed in each window
 py -3.10 -m scripts.check_test_isolation        # does the suite modify data/current/? run when adding a boundary test (H2: one did, once)
 py -3.10 -m scripts.scan_real_names             # H1: tokenising real-identity scan of every tracked file before a push (LOCAL ONLY; refuses on a runner, writes nothing)
 py -3.10 -m scripts.matchup_watch               # T5: what to watch this week -- both lineups by NFL game with the line and forecast, stacks, designations on BOTH rosters, shared games, their losing script
@@ -207,7 +208,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1327 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1364 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
