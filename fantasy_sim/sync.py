@@ -246,12 +246,66 @@ def _stamp_vegas(totals, week, source):
     return stamped
 
 
+def _is_fallback(source):
+    return str(source or "").startswith("fallback")
+
+
+def _keepable_real_lines(week):
+    """The file already on disk IF it is real market data for THIS week, else None (C3).
+
+    Never raises: unreadable or absent means "nothing to keep", and the caller writes as
+    it always did. A record is not a dependency.
+    """
+    try:
+        if not os.path.exists(VEGAS_FILE):
+            return None
+        existing = load_json(VEGAS_FILE) or {}
+        meta = existing.get(VEGAS_META_KEY) or {}
+        if _is_fallback(meta.get("source")) or meta.get("source") is None:
+            return None
+        if int(meta.get("week", -1)) != int(week):
+            return None
+        return existing
+    except Exception:
+        return None
+
+
 def _write_vegas(totals, week, source):
     """Every path out of fetch_vegas_implied_totals goes through here, so the file on disk is
     ALWAYS the data the engine will be handed for this week -- never a leftover from an earlier
     sync. Two of the three in-season fallback paths used to return without writing, which left
     the week-1 table on disk for the rest of the season; the engine then applied week-1 lines,
-    week-1 opponents included, to every current week. See AUDIT_PHASE_3_FINDINGS.md finding 1."""
+    week-1 opponents included, to every current week. See AUDIT_PHASE_3_FINDINGS.md finding 1.
+
+    C3 (2026-09-23) narrows that to "always write SOMETHING correct for this week", because
+    always writing the FALLBACK was destroying good data. A sync with a dead ODDS_API_KEY
+    401'd and flattened real week-3 lines to the 21.5 table; `data/current/` is untracked, so
+    there was nothing to restore and every week-level projection degraded until the next good
+    sync.
+
+    A real file is kept only when it is real AND for the SAME week -- last week's real lines
+    are not this week's, which is exactly what Phase 3 finding 1 was about. The keep is
+    stamped `stale_since` so "kept from an earlier sync" is distinguishable from "fetched
+    now"; silently preserving it would be its own quiet failure.
+    """
+    if _is_fallback(source):
+        kept = _keepable_real_lines(week)
+        if kept is not None:
+            kept = dict(kept)
+            meta = dict(kept.get(VEGAS_META_KEY) or {})
+            meta.setdefault("stale_since", datetime.now().isoformat(timespec="seconds"))
+            meta["stale_reason"] = source
+            kept[VEGAS_META_KEY] = meta
+            logging.warning(
+                "VEGAS (week %s): the odds fetch failed (%s), so the REAL lines already on "
+                "disk for this week are being kept rather than overwritten with the flat "
+                "21.5 fallback (C3). They are stamped stale_since=%s; re-run the sync with a "
+                "working ODDS_API_KEY for current lines.",
+                week, source, meta["stale_since"])
+            save_json(VEGAS_FILE, kept)
+            generate_nfl_power_ratings(kept)
+            return kept
+
     stamped = _stamp_vegas(totals, week, source)
     save_json(VEGAS_FILE, stamped)
     generate_nfl_power_ratings(stamped)

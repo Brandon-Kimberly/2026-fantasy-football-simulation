@@ -5221,3 +5221,54 @@ they are gaps, and B26 asked for the list, not just the fixes.
 the lowest thing there is — and let the real function build the URL and parse the reply.
 
 Suite 1073 → 1085. Goldens 15/15. No production code changed. RESOLVED for the top three.
+
+### F67 — A failed odds fetch destroyed real same-week Vegas lines — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item C3. Observed in production on 2026-09-23, not found by reading
+code: a sync ran with a pre-rotation `ODDS_API_KEY`, took a 401, and wrote
+`vegas_totals.json` with `source: fallback_api_error` — every team flat at 21.5 with
+`opponent: FA` — on top of a file carrying real week-3 lines fetched three hours earlier.
+
+**The cost.** Every week-level projection degraded until the next good sync: matchup
+effects, defensive-tier adjustments and the environment normaliser all fall back to a flat
+schedule when the lines are flat. `data/current/` is not tracked by git, so **there was
+nothing to restore**; the only remedy was another sync with a live key. The decision work
+done in that window — a DL comparison and a market sweep — ran on degraded numbers.
+
+**The sync warned, loudly and correctly** (F57's aggregated notice, plus the engine's own
+staleness refusal). It destroyed the data anyway. A loud warning is not a substitute for
+not doing the destructive thing.
+
+**Why it wrote unconditionally, which was NOT a bug.** `_write_vegas` exists because of
+Phase 3 finding 1: two of the three in-season fallback paths used to `return` without
+writing, which left the **week-1 table** on disk for the rest of the season, and the engine
+then applied week-1 lines — week-1 opponents included — to every current week. "Always
+write" is the fix for that, and a naive "never overwrite a real file" reintroduces it
+exactly.
+
+**So the rule is narrower than "do not overwrite":**
+
+| existing `_meta` | incoming | outcome |
+|---|---|---|
+| `odds_api`, **same** week | any fallback | **KEEP**, stamp `stale_since` |
+| `odds_api`, other week | any fallback | REPLACE — Phase 3 finding 1 |
+| any fallback, any week | any fallback | REPLACE — a fresh stamp is honest |
+| anything | `odds_api` | REPLACE — real data always wins |
+
+Last week's real lines are not this week's. The week check is what keeps Phase 3 finding 1
+fixed, and six tests pin that half specifically.
+
+**All three fallback sources are covered**, not only the `api_error` that was observed:
+`fallback_no_api_key` and `fallback_empty_payload` destroyed the file just as thoroughly.
+
+**The keep is visible, not silent.** `_meta.stale_since` and `_meta.stale_reason` are
+stamped, `_write_vegas` warns naming both, and `freshness.assess` reports it as **DEGRADED
+— not STALE**: the data is real market data for the correct week, so nothing is wrong
+enough to stop a run; it is simply older than it looks. Silently preserving the file would
+have been its own quiet failure, the same class this finding is about.
+
+**An unreadable or absent existing file reads as "nothing to keep"** and the writer behaves
+exactly as before. A record is not a dependency.
+
+Suite 1111 → 1128. Goldens 15/15, sync golden byte-identical — no prediction changed;
+this is a write-path guard, not a model change. RESOLVED.

@@ -178,3 +178,58 @@ class TestAnUnreadableExistingFileDoesNotBreakTheSync(_Harness):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestFreshnessReportsTheKeep(unittest.TestCase):
+    """C3's other half: keeping the file silently would be its own quiet failure. The
+    owner must be able to see, from `check_freshness`, that this week's lines are real but
+    were carried over from an earlier sync rather than fetched now.
+
+    DEGRADED, not STALE. The data is real market data for the correct week, so nothing is
+    wrong enough to stop a run -- it is just older than it looks.
+    """
+
+    MANIFEST = {"ok": True, "current_week": 3, "degraded": [], "sources": {}}
+
+    def _assess(self, **kw):
+        from fantasy_sim.freshness import assess
+        return assess(self.MANIFEST, 1000.0, {}, 3, 2000.0, 3, **kw)
+
+    def test_a_kept_file_is_reported_as_degraded_not_stale(self):
+        from fantasy_sim.freshness import DEGRADED
+        status, reasons = self._assess(vegas_stale_since="2026-09-23T17:17:34")
+        self.assertEqual(status, DEGRADED)
+        self.assertTrue(any("stale_since" in r or "carried over" in r for r in reasons),
+                        f"the keep must be visible; got {reasons}")
+
+    def test_the_note_carries_the_timestamp(self):
+        _status, reasons = self._assess(vegas_stale_since="2026-09-23T17:17:34")
+        self.assertTrue(any("2026-09-23T17:17:34" in r for r in reasons))
+
+    def test_no_stamp_means_no_note(self):
+        from fantasy_sim.freshness import OK
+        status, reasons = self._assess()
+        self.assertEqual(status, OK)
+        self.assertEqual(reasons, [])
+
+    def test_the_reader_returns_the_stamp_when_present(self):
+        from fantasy_sim import freshness
+        from fantasy_sim.sync import _stamp_vegas
+        payload = _stamp_vegas(REAL_WEEK3, 3, "odds_api")
+        payload["_meta"]["stale_since"] = "2026-09-23T17:17:34"
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "vegas_totals.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(payload, fh)
+            with patch.object(freshness, "VEGAS_FILE", path):
+                self.assertEqual(freshness.read_vegas_stale_since(), "2026-09-23T17:17:34")
+
+    def test_the_reader_is_none_for_a_normal_file(self):
+        from fantasy_sim import freshness
+        from fantasy_sim.sync import _stamp_vegas
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, "vegas_totals.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump(_stamp_vegas(REAL_WEEK3, 3, "odds_api"), fh)
+            with patch.object(freshness, "VEGAS_FILE", path):
+                self.assertIsNone(freshness.read_vegas_stale_since())

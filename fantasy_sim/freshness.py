@@ -35,7 +35,8 @@ def parse_stamp(text):
         return None
 
 
-def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week, check_export=True):
+def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week,
+           check_export=True, vegas_stale_since=None):
     """Pure. manifest: dict or None; sync_start: epoch seconds of manifest.started_at or None;
     file_mtimes: {basename: mtime or None} for the sync outputs; vegas_week: the week stamped in
     vegas_totals._meta (or None); export_mtime: mtime of the current week's simulation export
@@ -62,6 +63,15 @@ def assess(manifest, sync_start, file_mtimes, vegas_week, export_mtime, nfl_week
     if nfl_week is not None and nfl_week != week:
         reasons.append(f"week rolled: sync is for week {week}, Sleeper reports week {nfl_week} -- re-run the sync")
     degraded = list(manifest.get("degraded") or [])
+    # C3: the odds fetch failed and _write_vegas KEPT this week's real lines rather than
+    # flattening them to the 21.5 fallback. DEGRADED, not STALE -- the data is real market
+    # data for the correct week, so nothing is wrong enough to stop a run; it is simply
+    # older than it looks, and saying so is the whole point of keeping it.
+    if vegas_stale_since:
+        degraded.append(
+            f"vegas_totals.json was carried over from an earlier sync (stale_since "
+            f"{vegas_stale_since}): the lines are REAL and for this week, but the most "
+            f"recent odds fetch failed -- re-run the sync with a working ODDS_API_KEY")
     # F57 (B6): the positive half. `degraded` lists what warned; this lists what a source
     # actually delivered, so a source that returned an empty payload without raising --
     # F52's exact shape, and it hid for a fortnight -- is DEGRADED with no warning needed.
@@ -102,6 +112,14 @@ def read_vegas_week():
     return (load_json(VEGAS_FILE).get("_meta") or {}).get("week")
 
 
+def read_vegas_stale_since():
+    """C3: the stamp `_write_vegas` leaves when it KEEPS this week's real lines rather than
+    overwriting them with the fallback. None on a normally-fetched file."""
+    if not os.path.exists(VEGAS_FILE):
+        return None
+    return (load_json(VEGAS_FILE).get("_meta") or {}).get("stale_since")
+
+
 def read_export_mtime(week):
     p = syndicate_comprehensive_matrix_path(week)
     return os.path.getmtime(p) if os.path.exists(p) else None
@@ -128,6 +146,7 @@ def check(offline=False, check_export=True):
     nfl_week = None if offline else read_nfl_week()
     status, reasons = assess(manifest, sync_start, read_file_mtimes(), read_vegas_week(),
                              read_export_mtime(week) if week else None, nfl_week,
+                             vegas_stale_since=read_vegas_stale_since(),
                              check_export=check_export)
     if not offline and nfl_week is None:
         reasons = list(reasons) + ["(Sleeper unreachable: week roll not checked)"]

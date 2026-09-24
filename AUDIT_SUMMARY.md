@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~104 findings and tracked follow-ups** | **71 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~105 findings and tracked follow-ups** | **72 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,18 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F67** a failed odds fetch destroyed real same-week Vegas lines — RESOLVED: observed in
+  production, not by reading code. A sync with a pre-rotation `ODDS_API_KEY` took a 401 and
+  wrote the flat 21.5 fallback over real week-3 lines fetched hours earlier; `data/current/`
+  is untracked so there was nothing to restore, and the decision work in that window ran on
+  degraded numbers. The sync WARNED correctly (F57) and destroyed the data anyway — a loud
+  warning is not a substitute for not doing the destructive thing. Writing unconditionally
+  was NOT a bug: Phase 3 finding 1 exists because fallback paths that returned without
+  writing left the WEEK-1 table on disk all season. So the rule is narrower than "do not
+  overwrite" — a real file is kept only when it is real AND for the SAME week, and six tests
+  pin that half. The keep is stamped `stale_since`, warned, and reported by
+  `check_freshness` as DEGRADED rather than STALE, because real lines for the right week are
+  not a reason to stop a run.
 - **F66** five HTTP boundaries had no test of what they ASK for — RESOLVED for the top
   three: B26's sweep, prompted by F50/F52 sharing a shape (passing tests that patched the
   function whose INPUT was wrong, then asserted arithmetic on the input the test supplied).
