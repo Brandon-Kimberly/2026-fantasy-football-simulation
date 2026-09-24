@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~112 findings and tracked follow-ups** | **79 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~113 findings and tracked follow-ups** | **80 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,23 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F75** bye exposure and the roster crunch, and the hand answer was incomplete — BUILT:
+  `fantasy_sim/roster_calendar` + `scripts/roster_calendar`, a report section, and a chain
+  step placed after the matchup and before waivers because the holes it finds are what the
+  waiver plan is built around. **The finding is that the hand answer was wrong**: the first
+  live run returns THREE holes, not the one week-7 DL found by hand — weeks 13 and 14 both
+  fail at FLEX, and week 14 is the season's seeding week. A human checks the positions he is
+  thin at and stops; FLEX depth fails by combination, and only a solve finds that. "Covers" is
+  read off the solved lineups (the man in the bye assignment who is not in the no-bye
+  counterfactual), so dual eligibility is handled the way the engine handles it. "Droppable"
+  means covers no bye and is explicitly NOT a value ranking — the one droppable piece on the
+  live roster is a 10.9-mean linebacker, droppable only because a second LB already covers the
+  only LB bye. F51's trap held: Questionable is in no absence set and never produces a hole.
+  New capability, so no red characterisation exists; all 19 tests passed first run and were
+  mutation-tested, where **five of six mutations were caught and the sixth was not** — `>` vs
+  `>=` on the roster limit is invisible at 19 active, and a boundary test now pins it. Two
+  live-run defects fixed with failing tests first: an IR'd player's bye counted as a fresh
+  absence, and a fixed-width column cutting player names in half.
 - **F74** the what-to-watch brief, and two unit bugs the fixture agreed with — BUILT:
   `fantasy_sim/matchup_watch` + `scripts/matchup_watch`, the brief that had been assembled by
   hand twice in one evening — both lineups grouped by NFL game with that game's implied total

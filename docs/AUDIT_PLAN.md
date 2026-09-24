@@ -5642,3 +5642,68 @@ projection — but the page says so explicitly, alongside F55's standing caveat 
 is fetched and not modelled.
 
 Suite 1201 → 1225. Goldens 15/15, sync golden byte-identical. BUILT.
+
+### F75 — Bye exposure and the roster crunch, and the hand answer was incomplete — BUILT (2026-09-24)
+
+**Origin.** Backlog 2 item T6. Two questions drove real decisions and neither had a tool:
+*"which weeks am I short at a position"* (answered by hand: one hole all season, a week-7 DL)
+and *"when the IR'd QB returns I am at 20 active and must cut someone — who?"*. The first is
+why every RB-for-WR offer was declined — two of the RBs leave bye holes and the RB wire is
+barren — and that reasoning lived in a chat window.
+
+`fantasy_sim/roster_calendar.py` + `scripts/roster_calendar`, and a report section rendered
+through one shared row builder so Markdown and HTML cannot disagree. The step sits **after
+the matchup and before waivers** on purpose: the holes it finds are what the waiver plan is
+built around.
+
+**THE HAND ANSWER WAS WRONG, and this is the finding.** The tool's first live run on the
+real roster returns **three** holes, not one:
+
+```
+week 7   DL     the only DL is on bye
+week 13  FLEX   three of the RB/WR/TE pool out together
+week 14  FLEX   two more out together
+```
+
+Weeks 13 and 14 are the two the roster calendar already flags as the season's most
+important (week 14 is the seeding week). They were missed by hand because a human checks the
+positions he is thin at and stops; FLEX depth fails by *combination*, not by position, and
+only a solve finds it.
+
+**"Covers" is read off the solved lineups, not guessed from positions.** The cover for a
+bye-week starter is the man who appears in the assignment WITH the bye and not in the
+counterfactual assignment where nobody is on bye. A dual-eligible cover is therefore found
+exactly the way the engine would find him, and the same run shows one bench tight end
+covering six different weeks across three different slots.
+
+**"Droppable" means covers no bye — it is NOT a value ranking**, and the live run shows why
+the label matters: the one droppable piece is a **10.9-mean linebacker**, droppable only
+because a second LB already covers the only LB bye. A reader who took the list as a value
+ranking would cut a good player. The renderer says so in the line itself.
+
+**F51's trap, held.** `INITIAL_ABSENCE_STATUSES` decides who is out and **Questionable is
+not in it**. A Questionable starter is not a hole — the Sleeper projection his baseline
+derives from already reflects expected usage — and a test pins that a Questionable starter
+never produces an unfilled slot. Inventing a hole here would send the owner to spend FAAB on
+a gap that does not exist.
+
+**New capability, so no red characterisation exists and none is claimed.** All 19 tests
+passed on the first run, which is stated plainly rather than presented as verification, and
+they were then mutation-tested. **Five of six mutations were caught; the sixth was not**, and
+that gap was real: changing `> limit` to `>= limit` left every test green, because at 19
+active the return reaches 20 and both comparisons are true. A boundary test (18 active, a
+return landing exactly on 19) now pins it. That is the case for mutation-testing a suite that
+passes first time.
+
+**Two defects the live run found, both fixed with a failing test first:**
+
+1. An IR'd player's bye landed in the same list as real absences, so a week read as "three
+   men out" when one had been out all along. `on_bye_ir` is now separate — he is still named,
+   because his bye matters the moment he is activated.
+2. The fixed-width bye column **cut names in half** (`"Chris Olave, Eddy Pineiro, F"`). A
+   planning table that hides who is on bye is worse than no column. Names now wrap. The first
+   version of that test passed against the broken renderer because the fixture's names are
+   three characters long — the same mistake F74's fixture made with its units, recorded again
+   because it keeps happening.
+
+Suite 1225 → 1252. Goldens 15/15, sync golden byte-identical. BUILT.

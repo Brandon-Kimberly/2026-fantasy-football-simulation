@@ -588,6 +588,80 @@ def _watch_md(w):
     return md + [f"_{w['weather_note']}_", ""]
 
 
+_CAL_COLS = ["Week", "Unfillable slots", "On bye", "On bye, already out", "Covered by"]
+
+
+def _calendar_rows(cal):
+    """The calendar table shared by both renderers. Weeks with nothing to say are dropped:
+    a planning table is read for its exceptions, and twelve rows of dashes hide the three
+    that matter."""
+    rows = []
+    for r in cal.get("rows") or []:
+        if not (r["unfilled"] or r["on_bye"] or r.get("on_bye_ir") or r["covers"]):
+            continue
+        rows.append([str(r["week"]),
+                     ", ".join(r["unfilled"]) or "-",
+                     ", ".join(r["on_bye"]) or "-",
+                     ", ".join(r.get("on_bye_ir") or []) or "-",
+                     "; ".join(f"{c['name']} -> {c['slot']}" for c in r["covers"]) or "-"])
+    return rows
+
+
+def _calendar_lines(rc):
+    """The sentences under the table, as (label, text)."""
+    cal, cr = rc.get("calendar") or {}, rc.get("crunch") or {}
+    out = []
+    for w, slots in sorted((cal.get("holes") or {}).items()):
+        out.append((f"Hole, week {w}",
+                    f"no player on the roster is eligible at {', '.join(slots)}. "
+                    f"Plan a claim before that week, not during it."))
+    if not (cal.get("holes") or {}):
+        out.append(("No holes", "every required slot is fillable in every remaining week "
+                                "on the current roster."))
+    for r in cr.get("returns") or []:
+        out.append((f"When {r['name']} returns",
+                    f"you are at {r['active_on_return']} active of {cr.get('limit')}"
+                    + (f" and must drop {r['must_drop']}." if r["over_limit"]
+                       else ", inside the limit.")))
+    if cr.get("load_bearing"):
+        out.append(("Load-bearing bench",
+                    "; ".join(f"{d['name']} (covers wk "
+                              f"{', '.join(str(w) for w in d['covers_weeks'])})"
+                              for d in cr["load_bearing"])))
+    if cr.get("droppable"):
+        out.append(("Droppable bench",
+                    "covers no bye in any remaining week -- this is NOT a value ranking: "
+                    + ", ".join(f"{d['name']} ({d['mean']:.1f})" for d in cr["droppable"])))
+    else:
+        out.append(("Droppable bench",
+                    "none -- every bench piece covers a bye somewhere."))
+    return out
+
+
+def _calendar_md(rc):
+    """T6's bye-exposure and roster-crunch section."""
+    cal = rc.get("calendar") or {}
+    rows = _calendar_rows(cal)
+    md = ["## Roster calendar -- bye exposure and the roster crunch", ""]
+    md += [_table(_CAL_COLS, rows), ""] if rows else \
+          ["No bye, hole or cover in any remaining week.", ""]
+    md += [line for lbl, txt in _calendar_lines(rc) for line in (f"**{lbl}:** {txt}", "")]
+    return md + [f"_{(rc.get('crunch') or {}).get('note', '')}_", ""]
+
+
+def _calendar_html(rc, T):
+    cal = rc.get("calendar") or {}
+    rows = _calendar_rows(cal)
+    out = ['<h2 id="calendar">Roster calendar <span class="note">bye exposure and the '
+           'roster crunch</span></h2>']
+    out.append(html_table(_CAL_COLS, rows) if rows
+               else "<p>No bye, hole or cover in any remaining week.</p>")
+    for lbl, txt in _calendar_lines(rc):
+        out.append(f"<p><b>{T(lbl)}:</b> {T(txt)}</p>")
+    out.append('<p class="note">' + T((rc.get("crunch") or {}).get("note", "")) + "</p>")
+    return out
+
+
 def render_digest(report, team, week):
     res = report.get("results", {})
     md = [f"# Weekly report -- {team}, week {week}"] + [
@@ -705,6 +779,10 @@ def render_digest(report, team, week):
         md += [f"Opponent lineup ({'assumed' if mu.get('opponent_lineup_assumed') else 'supplied'}): "
                + ", ".join(f"{x['name']} ({x['expected']:.1f})" for x in mu.get("opponent_lineup", [])), ""]
         md += _watch_md(mu.get("watch"))
+
+    rc = res.get("roster_calendar")
+    if rc:
+        md += _calendar_md(rc)
 
     wv = res.get("waivers")
     if wv:
@@ -1090,6 +1168,10 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed, anchor)
                    + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed, anchor) + "</div>")
 
+    rc = res.get("roster_calendar")
+    if rc:
+        out += _calendar_html(rc, T)
+
     wv = res.get("waivers")
     if wv:
         out.append(f'<h2 id="waivers">Waiver targets <span class="note">FAAB {wv["remaining_faab"]:.0f} (league avg {wv["league_avg_faab"]:.0f}); '
@@ -1177,7 +1259,8 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
     # conditional, so this is derived from the built page, not a hardcoded list), inserted
     # under the h1. Presentation only -- the FAILED path returns above and gets no TOC.
     _TOC_LABELS = (("league", "League"), ("outlook", "Season outlook"), ("grades", "Roster grade"),
-                   ("lineup", "Lineup"), ("matchup", "Matchup"), ("waivers", "Waivers"),
+                   ("lineup", "Lineup"), ("matchup", "Matchup"), ("calendar", "Roster calendar"),
+                   ("waivers", "Waivers"),
                    ("trades", "Trades"), ("decision-log", "Decision log"), ("housekeeping", "Housekeeping"))
     page = "".join(out)
     links = [f'<a href="#{i}">{label}</a>' for i, label in _TOC_LABELS if f'<h2 id="{i}"' in page]
@@ -1270,6 +1353,10 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
         from scripts.matchup_lineup import main as m
         return m(["--team", team, "--week", str(state["week"]), "--sims", str(sims)] + state["tool_extra_argv"])
 
+    def step_roster_calendar():
+        from scripts.roster_calendar import main as m
+        return m(["--team", team] + state["tool_extra_argv"])
+
     def step_waivers():
         from scripts.waiver_targets import main as m
         return m(["--team", team, "--week", str(state["week"])] + state["tool_extra_argv"])
@@ -1286,7 +1373,8 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
               ("strength_of_schedule", step_strength_of_schedule), ("win_trajectory", step_win_trajectory),
               ("league", step_league), ("predictions_log", step_predictions_log),
               ("roster_grades", step_roster_grades), ("lineup", step_lineup),
-              ("matchup", step_matchup), ("waivers", step_waivers)]
+              ("matchup", step_matchup), ("roster_calendar", step_roster_calendar),
+              ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))
     if canonical:
