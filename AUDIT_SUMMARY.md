@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~109 findings and tracked follow-ups** | **76 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~111 findings and tracked follow-ups** | **78 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,29 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F73** the season bundle carried the league's own real name into a tracked file —
+  RESOLVED: found by F72's scanner on its first real run. `sync.ingest_season` wrote
+  Sleeper's league `name` and raw `league_id` into `data/logs/season_<year>.json`, a file
+  deliberately tracked because Sleeper ages seasons out. F37's migration replaced team
+  names, usernames, owner ids and league ids — the league's own NAME was in none of those
+  maps, and the fully-pseudonymised `roster_map` is what made the file look clean. The
+  `league_id` case is the transferable lesson: the committed file held `""` only because the
+  migration blanked it afterwards while the code kept writing the raw id, so 2026's bundle
+  would have leaked it again — **a one-time migration cannot fix a line that keeps
+  re-emitting**. Neither field is read by anything. One existing test pinned the leak
+  (`b["league_id"] == "L0"`) and was updated with the reason written in, not deleted. Git
+  history keeps the pre-fix record by the policy `migrate_identity` already states.
+- **F72** the real-name scanner existed only in a session transcript — BUILT:
+  `scripts/scan_real_names`, the tokenising scan that found four real-identity strings a
+  literal scan had passed over on 2026-09-22. Local by construction — refuses on a runner,
+  refuses without `SHOW_REAL_TEAM_NAMES`, fetches names live across the renewal chain, writes
+  nothing, prints only the matched token. Two departures from the scoped design, both forced
+  by measuring: no committed stop-word list (one assembled from real names would itself be a
+  partial leak; adjudicated false positives live in a gitignored allowlist, and a test pins
+  the `.gitignore` line), and word-boundary matching, added after the first real run returned
+  **13,313 hits** — `fall` inside `fallback` on every page of the audit — which took the same
+  run to 125. New tool, so no red characterisation exists to separate; the tests were
+  verified by mutation instead. The repo now scans CLEAN at exit 0.
 - **F71** the raw NFL position still reached slot matching, and nothing stopped it —
   RESOLVED: the sweep found the library clean on `pos == 'DL'` (every such comparison sits on
   normalize_position output), and found instead that `season_retrospective._positions` and

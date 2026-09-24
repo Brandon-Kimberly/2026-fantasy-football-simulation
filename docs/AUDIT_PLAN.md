@@ -5511,3 +5511,86 @@ Proven by planting `entry.get("pos") == "DL"` in a real tool and watching the sw
 
 Suite 1173 → 1179 (characterisation, 3 red) → 1183. Goldens 15/15, sync golden
 byte-identical. RESOLVED.
+
+### F72 — The real-name scanner existed only in a session transcript — BUILT (2026-09-24)
+
+**Origin.** Backlog 2 item H1. A literal-match scan on 2026-09-22 reported the repo clean
+while four real-identity strings sat in tracked files: a username built from a team name, a
+variable named after a team, one word of a team name merged into a fictional one, and a
+manager `style` string equal to a team's first word. A tokenising scan the next day found
+all four, and it was an ad-hoc block in a chat window.
+
+`scripts/scan_real_names` is that scan, committed. Local by construction: refuses on
+`GITHUB_ACTIONS`, refuses without `SHOW_REAL_TEAM_NAMES`, fetches display names and team
+names live across the renewal chain (a manager's *old* team name is still an identity),
+holds them in memory, writes nothing, and prints only the matched **token** — never a whole
+name — because the reader's job is to tell a leak from a coincidence.
+
+**Two decisions that differ from the backlog's scope, both forced by measuring:**
+
+1. **No committed stop-word list.** The backlog proposed one seeded with ordinary words.
+   Assembled from real team names, that list would itself be a partial leak of exactly what
+   the tool removes. Adjudicated false positives go in `.real_name_scan_allow`, gitignored,
+   with a test pinning the `.gitignore` line.
+2. **Word-boundary matching**, added after the first real run returned **13,313 hits** —
+   `fall` inside `fallback`, on every page of the audit. A report nobody reads protects
+   nothing. A boundary is the line edge, any non-letter, or a case change, so
+   `walrus_fan_99`, `"style": "quantum"` and `NeonWalrusCats` all still hit while
+   `fallback` does not. Mid-word matches are counted and available behind `--loose` rather
+   than discarded, because an all-lowercase merge is a real shape. 13,313 → 125.
+
+Also fixed while writing the tokeniser: it stripped both a one- and a two-character ending
+from anything ending in `s`, turning a six-letter name into a four-letter fragment that
+matched half the repo. Each ending is now stripped only when it is present.
+
+**No red characterisation**, because this is a new tool and not a defect fix — said plainly
+rather than dressed up. The tests were verified by mutation instead: removing the
+separatorless token, removing plural stemming, and replacing substring matching with
+exact-line matching turn the suite red (1, 4 and 3 failures).
+
+**Adjudicated state as of 2026-09-24**: 125 hits, of which 122 were `fall`/`falls`
+(ordinary English) and 3 a real NFL player's first name in committed projection data. Both
+are in the local allowlist with the risk each acceptance carries written next to it. The
+124th class was a real leak — F73. Repo scans **CLEAN**, exit 0.
+
+Suite 1183 → 1197. Goldens 15/15, sync golden byte-identical. BUILT.
+
+### F73 — The season bundle carried the league's own real name into a tracked file — RESOLVED (2026-09-24)
+
+**Origin.** Found by F72's scanner on its first real run, which is the whole argument for
+having built it.
+
+`sync.ingest_season` wrote `"name": info.get("name")` and the raw `league_id` straight from
+Sleeper's league object into `data/logs/season_<year>.json` — a file deliberately **tracked**
+(`.gitignore` un-excludes it) because Sleeper ages seasons out and the on-disk copy becomes
+the source. The committed 2025 bundle therefore carried the league's real, owner-chosen name
+in plain text.
+
+**Why F37's migration missed it.** `scripts.migrate_identity` replaced real TEAM names,
+usernames, owner ids and league ids. The league's own NAME was in none of those maps, so it
+survived a migration that was otherwise thorough — and then survived a literal scan, because
+nobody searches for a string they are not looking for. The bundle's `roster_map` is fully
+pseudonymised, which is precisely what makes the file look clean.
+
+**`league_id` was the same class and worse.** The committed file held `""` only because the
+migration blanked it afterwards, while the code still wrote the raw id — so 2026's bundle
+would have leaked it again at season end. **A one-time migration cannot fix a line that
+keeps re-emitting**, and that is the transferable lesson here: F37 fixed artifacts, not
+emitters.
+
+**The fields were dead weight.** Nothing reads `bundle["name"]` — not
+`fantasy_sim.season_retrospective`, not `scripts.run_points_backtest`, not
+`scripts.free_add_study`. `league_id` stays as an empty string rather than disappearing, so
+the bundle's shape is unchanged for anything reading it.
+
+**One existing test pinned the leak.** `test_sync` asserted `b["league_id"] == "L0"`. It was
+updated to assert the new contract with the reason written in, rather than deleted — the
+rule itself lives in `tests/test_season_bundle_identity`, and that line now only stops the
+old contract being restored by accident.
+
+**Git history keeps the pre-fix record**, by the policy `migrate_identity`'s own docstring
+states: this project does not rewrite history; HEAD is the presentation, history is the
+record (F37). Unchanged here, and the owner's call if it ever should change.
+
+Suite 1197 → 1201 (characterisation, 3 red) → 1201 green. Goldens 15/15, sync golden
+byte-identical. RESOLVED.

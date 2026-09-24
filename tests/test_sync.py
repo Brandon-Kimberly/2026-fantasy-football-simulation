@@ -709,7 +709,12 @@ class TestSeasonIngestion(unittest.TestCase):
             self.assertEqual(self._run(d), 1)
             with open(_os.path.join(d, "season_2025.json"), encoding="utf-8") as f:
                 b = _json.load(f)
-        self.assertEqual(b["season"], "2025"); self.assertEqual(b["league_id"], "L0")
+        self.assertEqual(b["season"], "2025")
+        # F73: this assertion used to read `== "L0"`, pinning the leak. The bundle is a
+        # TRACKED file and carries no league identity; the key stays, emptied, so nothing
+        # reading the bundle's shape breaks. tests/test_season_bundle_identity owns the
+        # rule itself -- this line only stops the old contract being restored by accident.
+        self.assertEqual(b["league_id"], "")
         self.assertEqual(b["roster_positions"], ["QB", "FLEX", "BN"],
                          "the slot list is IN the bundle -- the retrospective reads it, never hardcodes")
         self.assertEqual(b["settings"]["playoff_week_start"], 3)

@@ -1706,7 +1706,15 @@ def ingest_season(league_id, path_fn=None):
                                   "points": e.get("points"), "players": e.get("players"),
                                   "starters": e.get("starters"),
                                   "players_points": e.get("players_points")} for e in wk_data]
-        bundle = {"league_id": league_id, "season": season, "name": info.get("name"),
+        # F73: no league identity in this file, EVER. It is deliberately tracked (Sleeper
+        # ages seasons out, so the on-disk copy becomes the source), and Sleeper's league
+        # object carries the league's real owner-chosen `name` and its raw id. F37's
+        # migration blanked the id in the already-committed 2025 bundle and never knew
+        # about the name at all -- a one-time migration cannot fix a line that re-emits.
+        # Nothing reads either field: not season_retrospective, not run_points_backtest,
+        # not free_add_study. The id stays as an empty string rather than disappearing so
+        # the bundle's shape is unchanged for anything reading it positionally.
+        bundle = {"league_id": "", "season": season,
                   "status": info.get("status"),
                   "roster_positions": info.get("roster_positions"),
                   "settings": {"playoff_week_start": (info.get("settings") or {}).get("playoff_week_start"),
