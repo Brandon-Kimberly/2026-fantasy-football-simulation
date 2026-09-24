@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~105 findings and tracked follow-ups** | **72 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~106 findings and tracked follow-ups** | **73 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,19 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F68** a dual-eligible starter was reported at his primary position, not the slot he
+  filled — RESOLVED: `trade_leverage` called a rival's LB slot 3.33 below replacement and
+  named him the league's best buyer for this roster's LB surplus; two trades were sent on
+  it before the paired simulation said each one COST that rival 0.4–0.7 expected wins. The
+  backlog's hypothesis (week-vs-season basis) was wrong and is recorded as such. The cause:
+  a DL-eligible linebacker (`config.DUAL_ELIGIBILITY`) legally covered a rival's empty DL
+  slot, and `starters_by_position` resolved him to LB — so a 7.52 DL starter was measured
+  against the LB bar of 10.86 instead of the DL bar of 6.83, where he is +0.69 ABOVE
+  replacement. Fixed in one line: FLEX resolves to the player (a third WR at FLEX IS a WR
+  starter, and a test pins that), every other slot resolves to itself. `market_sweep` shared
+  the helper and was fixed with it. Verified live: the phantom hole is gone and the screen
+  now agrees with the simulation about which rival is the real LB buyer. Recorded not acted
+  on: `DUAL_ELIGIBILITY` is keyed by NAME against a cache with 220 collisions (B17).
 - **F67** a failed odds fetch destroyed real same-week Vegas lines — RESOLVED: observed in
   production, not by reading code. A sync with a pre-rotation `ODDS_API_KEY` took a 401 and
   wrote the flat 21.5 fallback over real week-3 lines fetched hours earlier; `data/current/`

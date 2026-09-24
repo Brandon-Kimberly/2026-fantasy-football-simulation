@@ -5272,3 +5272,57 @@ exactly as before. A record is not a dependency.
 
 Suite 1111 → 1128. Goldens 15/15, sync golden byte-identical — no prediction changed;
 this is a write-path guard, not a model change. RESOLVED.
+
+### F68 — A dual-eligible starter was reported at his primary position, not the slot he filled — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item C1. Found by acting on the tool's output: `scripts.trade_leverage`
+named a rival's LB slot as **3.33 below replacement** and called him the best buyer in the
+league for this roster's linebacker surplus. Two trades were constructed and sent on that
+basis. The paired simulation then measured each of them as **costing that rival 0.4–0.7
+expected wins** — the opposite of what a below-replacement slot implies.
+
+**The backlog's hypothesis was wrong, and that is recorded rather than quietly corrected.**
+C1 guessed a week-vs-season basis mismatch: `starters_by_position` solves on week
+expectation while `replacement_levels` is a season mean. That is a real inconsistency and
+it is **not** the cause — it moves the numbers by about a point, not by three and a half.
+
+**The actual mechanism**, reproduced from the live rosters:
+
+```
+the rival's optimal assignment      DL slot  <-  T.J. Watt    (LB, 7.52)
+                                    LB slot  <-  Nakobe Dean  (LB, 14.49)
+```
+
+Watt is DL-eligible through `config.DUAL_ELIGIBILITY`, the rival owns no actual DL, and
+the solver legally covered the slot with him. `starters_by_position` then resolved him to
+his OWN position — LB — so `leverage` compared 7.52 against the **LB** replacement of
+10.86 and reported a 3.33-point hole. Measured against the slot he actually fills he is
+**+0.69 ABOVE** the DL replacement of 6.83. The rival had no LB hole and no DL hole.
+
+**Why the old behaviour was right for FLEX and wrong everywhere else.** The docstring's
+reasoning — *"a third WR starting at FLEX is a WR starter"* — is correct and had to
+survive: a depth question about receivers must count the receiver playing FLEX. A
+dedicated positional slot is the opposite case; what matters is the slot being filled, not
+the filler's primary listing. The fix is one line: **FLEX resolves to the player, every
+other slot resolves to itself.** A test pins the FLEX half so it cannot be broken later.
+
+**Phase 3 finding 3's family, running the other way.** That finding was about looking a
+player up by his RAW Sleeper position where the normalised one was needed. This is about
+normalising where the SLOT was the right answer.
+
+**Both callers were affected**, which C1 named as its trap: `market_sweep` uses the same
+helper to choose each position's "slot-losing starter", so a dual-eligible man covering a
+hole elsewhere was compared against the wrong pool of free agents there too. Fixed in the
+helper, so both are fixed together.
+
+**Verified on live data, not only on the fixture.** After the change the rival reads
+`DL: [T.J. Watt], LB: [Nakobe Dean]` and reports no LB hole; the tool's best LB buyer is
+now the team whose paired-simulation trade measured **+0.50 expected wins for them**, so
+the screen and the simulation agree where they previously contradicted each other.
+
+**Recorded, not acted on:** `DUAL_ELIGIBILITY` is keyed by NAME, and this cache carries
+220 colliding names (B17). Seven involve a rostered player. A collision there would give
+the wrong man an extra eligible slot.
+
+Suite 1143 → 1152. Goldens 15/15, sync golden byte-identical — this is a tools helper;
+no engine path reads it. RESOLVED.

@@ -65,14 +65,28 @@ def _on_ir(engine, name):
 
 
 def starters_by_position(engine, team, week):
-    """{position: [names]} for the players the engine's optimal assignment actually
-    starts. FLEX is resolved to the player's own position, which is the whole point: a
-    third WR starting at FLEX is a WR starter."""
+    """{position: [names]} for the players the engine's optimal assignment actually starts.
+
+    FLEX resolves to the player's OWN position, which is the whole point: a third WR
+    starting at FLEX is a WR starter, and a depth question about receivers has to count
+    him. Every other slot resolves to ITSELF.
+
+    C1 (2026-09-24): that second half used to resolve to the player's own position too,
+    and it produced a phantom hole on live data. A rival owning no DL covered the slot
+    with a DL-eligible linebacker (`config.DUAL_ELIGIBILITY`); this helper reported him
+    under LB, so `leverage` measured him against the LB replacement of 10.86 rather than
+    the DL replacement of 6.83 and called a 7.52 starter "3.33 below replacement". He was
+    +0.69 ABOVE the bar for the slot he was actually filling. Two trades were offered on
+    that hole before the paired simulation contradicted it.
+
+    A dedicated slot is the opposite case from FLEX: what matters is the slot being
+    filled, not the filler's primary listing. Both halves are pinned by tests.
+    """
     gaps = roster_gaps(engine, team, weeks=(week,))[week]
     out = defaultdict(list)
-    for _slot, entries in gaps["starters"].items():
+    for slot, entries in gaps["starters"].items():
         for name, _value in entries:
-            out[_pos(engine, name)].append(name)
+            out[_pos(engine, name) if slot == "FLEX" else slot].append(name)
     return dict(out)
 
 
