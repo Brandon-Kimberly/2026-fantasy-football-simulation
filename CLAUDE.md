@@ -21,7 +21,8 @@ access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 py -3.10 -m unittest discover tests      # full suite — 1321 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
-py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline; run before a MAJOR and at milestone tags
+py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline
+py -3.10 -m scripts.run_behavior_check --scenario week06   # M2: BOTH scenarios before a MAJOR and at milestone tags
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
 py -3.10 -m scripts.run_sync             # pull live data into data/current/ (writes the sync manifest last)
@@ -41,6 +42,15 @@ py -3.10 -m scripts.matchup_watch        # T5: what to watch -- lineups by NFL g
 py -3.10 -m scripts.roster_calendar      # T6: bye exposure per week + the roster crunch when an IR man returns
 py -3.10 -m scripts.streamer_study       # C5: BASE_STREAMER_MEANS vs the live free-agent pool (measurement only; changing it is MAJOR)
 ```
+
+**Run the behaviour check on BOTH scenarios** (M2/F81) before a MAJOR and at milestone
+tags. `week01` has ZERO completed weeks, so `_apply_bayesian_updates` is a no-op there and
+anything scoped to the blend is invisible to it -- B8 moved the week06 and week15 goldens
+and the check reported no drift (F54, F62). `week06` carries five completed weeks and sees
+it. Both baselines live in `tests/fixtures/behavior/`; regenerate deliberately, in its own
+commit, with the deltas explained. Note the known limit, unchanged: drift tolerance is 2%
+while one SE on `faab_spent` is +-2.1%, so a drift of a few percent on that metric is not
+evidence of a behaviour change, and a second scenario doubles the false-alarm chances.
 
 **Run `scan_real_names` before any push that touched tests, docs, or fixtures** (H1). It
 needs `SHOW_REAL_TEAM_NAMES` set in that shell and refuses on a runner; it fetches names
@@ -191,6 +201,9 @@ the F27 commit, 2026-09-03):
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
   coverage).
 - **PATCH** -- fixes and docs that move neither.
+- **The behaviour check runs on BOTH scenarios before a MAJOR** (M2): `week01` and
+  `--scenario week06`. week01 has no completed weeks and therefore no blend, so a
+  posterior-scoped change drifts nothing there (F54, F62).
 - **Milestone tags also carry the week's embed digest as a release asset** (F36's
   retention decision, 2026-09-04): workflow artifacts expire at 90 days, the orphan-
   branch alternative bloats every clone, and release assets are permanent -- attach

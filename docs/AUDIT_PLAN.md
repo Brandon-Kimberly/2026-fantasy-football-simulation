@@ -5969,3 +5969,50 @@ was never executed. Re-run clean: all five mutations caught.
 
 Suite 1308 → 1317 (characterisation, all 9 red) → 1317 green. Goldens 15/15, sync golden
 byte-identical. RESOLVED.
+
+### F81 — The behaviour drift check ran only `week01`, which has no blend to move — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item M2, and the third time this has been written down: B8 moved the
+`week06` and `week15` goldens and `run_behavior_check` reported **no drift**, which F54 and
+F62 both recorded and neither fixed.
+
+**Why the check was blind.** Its scenario is `week01`, and the fixture carries **zero**
+completed weeks (measured: `week01` 0, `week06` 5). With no completed weeks there is no
+posterior to update, `_apply_bayesian_updates` is a no-op, and anything scoped to the blend
+cannot move a single rate. The one check whose entire job is noticing that engine behaviour
+moved was structurally unable to see the class of change most likely to move it.
+
+`--scenario week06` already worked; **nothing had ever written its baseline**, so the drift
+check silently degraded to "no baseline exists" and reported nothing. A scenario with no
+committed baseline is not a check.
+
+**THE ACCEPTANCE CRITERION WAS VERIFIED BY ACTUALLY DOING IT**, not asserted. Mutating the
+blend — `n_0` 4.0 → 8.0 in `_apply_bayesian_updates`, a change scoped to exactly the
+posterior the item names — and running both scenarios:
+
+```
+week01  ->  "No drift vs the committed baseline"        <- blind, as F54/F62 said
+week06  ->  "DRIFT vs committed baseline"               <- caught
+```
+
+That is the item's criterion met on the nose, and it is also a second, independent
+demonstration of the defect.
+
+`baseline_week06.json` is committed, generated through `--regenerate`'s double-run
+determinism gate (two runs, identical rates, or it refuses to write). Both scenarios report
+no drift at HEAD.
+
+**The mechanism is a human at a milestone, not CI**, so the documented invocation *is* the
+fix: `CLAUDE.md`'s command list and the release policy both now name both scenarios, and a
+test asserts `CLAUDE.md` mentions `--scenario week06`. A baseline nobody is told to compare
+against protects nothing.
+
+**THE TRAP THE ITEM NAMED IS REAL AND IS ACCEPTED RATHER THAN PAPERED OVER.** Drift
+tolerance is 2% while one SE on `faab_spent` is ±2.1% (F62) — the tolerance already sits
+*below* the noise floor on that metric, and a second scenario doubles the chances of
+tripping a false alarm. Widening the tolerance past one SE would make the check unable to
+see a real change either, so it stays, and the report keeps naming the alternative. This is
+a known, stated cost of the fix, not an oversight.
+
+Suite 1317 → 1321 (characterisation, 3 red) → 1321 green. Goldens 15/15, sync golden
+byte-identical — a committed baseline and a docs change move neither. RESOLVED.

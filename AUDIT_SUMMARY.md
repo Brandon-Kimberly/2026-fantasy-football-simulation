@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~118 findings and tracked follow-ups** | **85 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~119 findings and tracked follow-ups** | **86 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,21 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F81** the behaviour drift check ran only `week01`, which has no blend to move — RESOLVED:
+  the third time this was written down. B8 moved the week06 and week15 goldens and the check
+  reported no drift (F54, F62). Its scenario has **zero** completed weeks (measured: week01 0,
+  week06 5), so `_apply_bayesian_updates` is a no-op there and a posterior-scoped change
+  cannot move a rate — the one check whose job is noticing that engine behaviour moved was
+  structurally blind to the change class most likely to move it. `--scenario week06` already
+  worked but had no committed baseline, so it degraded silently to "no baseline exists".
+  **The acceptance criterion was verified by doing it**: mutating `n_0` 4.0 → 8.0 in the blend
+  gives "No drift" on week01 and "DRIFT" on week06. `baseline_week06.json` committed through
+  the double-run determinism gate; both scenarios clean at HEAD; CLAUDE.md and the release
+  policy now name both, with a test pinning it, because the mechanism is a human at a
+  milestone and a baseline nobody is told to compare against protects nothing. The item's trap
+  is accepted, not papered over: tolerance is 2% while one SE on `faab_spent` is ±2.1%, so a
+  second scenario doubles the false-alarm chances — widening past one SE would blind the check
+  to real changes too.
 - **F80** the FAAB budget was hardcoded, and commissioner adjustments leave no record —
   RESOLVED: raised by the owner after a commissioner granted one team FAAB and took some from
   another. Measuring first beat the worry: `waiver_budget_used` is authoritative and already
