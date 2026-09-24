@@ -16,7 +16,7 @@ commit as `AUDIT_PLAN.md`. Anything marked **MAJOR** needs the release-policy da
 standing rules from the owner override everything here:
 
 - **No real team name or username in any file, ever.** Chat output only. The overlay is
-  fetched live and never written. `C1`'s scanner exists to enforce this.
+  fetched live and never written. `H1`'s scanner exists to enforce this.
 - **`ODDS_API_KEY` in the shell may be stale.** Read it from the User scope before any sync
   (`[Environment]::GetEnvironmentVariable('ODDS_API_KEY','User')` in PowerShell) and verify
   it returns 200 first. A sync with a dead key writes the 21.5 fallback over good data, and
@@ -118,7 +118,7 @@ streamer named, and P(beat) is lower than with the slot empty.
 
 **Traps.** Do not use the best free agent — that is a roster decision the opponent has not
 made. The streamer constant is the engine's own assumption; use it so the matchup tool and
-the season simulation agree. (But see `M2` on whether that constant is right.)
+the season simulation agree. (But see `C5` on whether that constant is right.)
 
 ### C3. Sync overwrites a good Vegas file with the fallback
 
