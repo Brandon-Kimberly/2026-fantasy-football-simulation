@@ -393,10 +393,16 @@ Python block and is not in the repo.
 
 **Scope.** `scripts/scan_real_names.py`, **local-only and env-gated** (`SHOW_REAL_TEAM_NAMES`
 must be set; it refuses on `GITHUB_ACTIONS`): fetch display names and team names live,
-tokenise on non-alphanumerics, keep tokens ≥5 chars plus singular stems, drop a small
-generic-word list (`falls`, `wine`, `cats`, `smith`, …), scan every tracked text file, and
-print hits with the token. Exit 1 on any hit. Never writes. A note in `CLAUDE.md` says to
-run it before any push that touched tests or docs.
+tokenise on non-alphanumerics, keep tokens ≥5 chars plus singular stems, suppress the
+ordinary-English collisions, scan every tracked text file, and print hits with the token.
+Exit 1 on any hit. Never writes. A note in `CLAUDE.md` says to run it before any push that
+touched tests or docs.
+
+**Superseded on the suppression mechanism (F72, 2026-09-24).** This entry originally
+enumerated four example stop words. Those words were chosen *because* they appear inside
+real team names, so a committed list of them is a partial leak of the thing the tool
+removes — the enumeration is deleted here for that reason. The built tool uses a gitignored
+local allowlist plus word-boundary matching instead; see F72.
 
 **Acceptance.** Planting `walrus_fan_99`-style derivatives of a real name in a scratch file
 under the repo is caught; the repo as committed is clean.
