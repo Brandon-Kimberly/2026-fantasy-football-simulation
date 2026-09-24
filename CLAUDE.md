@@ -25,6 +25,9 @@ py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + dri
 py -3.10 -m scripts.weekly_report        # PRIMARY ENTRY POINT: sync -> simulate -> charts -> tools -> HTML+MD digest; fails loud
 py -3.10 -m scripts.check_freshness      # has sync run this week, and did it succeed? (OK / DEGRADED / STALE)
 py -3.10 -m scripts.run_sync             # pull live data into data/current/ (writes the sync manifest last)
+                                         # H5: checks ODDS_API_KEY first; a REJECTED key (401/403) stops before
+                                         # writing (exit 2). On Windows the shell can hold a stale pre-rotation
+                                         # value -- inject the User scope, or pass --allow-fallback on purpose.
 py -3.10 -m scripts.run_simulation       # run the engine
 py -3.10 -m scripts.run_season_backtest  # backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest  # points-level backtest gate (bias / mean z / coverage), logged per commit

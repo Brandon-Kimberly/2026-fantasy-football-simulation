@@ -246,6 +246,67 @@ def _stamp_vegas(totals, week, source):
     return stamped
 
 
+ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds"
+
+# H5. What to do when the key is rejected, on THIS machine. The 2026-09-23 session lost
+# most of an evening to a 401 that reads exactly like the API being down: the Bash tool's
+# process environment held a pre-rotation key across two `setx` rotations AND a terminal
+# reset, while the Windows User scope held the working one.
+_STALE_SHELL_HINT = (
+    "ODDS_API_KEY was REJECTED by the-odds-api (HTTP {status}), which is not the same as "
+    "the API being down. On Windows a shell can hold a stale pre-rotation value long after "
+    "`setx` updated it -- this process's copy and the User scope can differ. Check and "
+    "inject the User-scope value in PowerShell:\n"
+    "    $env:ODDS_API_KEY = [Environment]::GetEnvironmentVariable('ODDS_API_KEY','User')\n"
+    "Then re-run. To sync anyway on the flat 21.5 fallback, pass --allow-fallback "
+    "(F67 keeps this week's real lines if any are already on disk)."
+)
+
+
+def verify_odds_key(key, fetch=None):
+    """Is this key usable? Returns (verdict, detail) and NEVER the key itself.
+
+    H5. Verdicts: `ok`, `rejected` (401/403 -- it will not start working), `unreachable`
+    (5xx, timeout, DNS -- a transient), `absent` (no key configured, which is a supported
+    state, not an error). Only `rejected` is worth stopping a sync for; see
+    `should_stop_for_odds_key`.
+
+    The detail string is printed and gets pasted into chats and issues, so it must never
+    carry the credential.
+    """
+    if not (key or "").strip():
+        return "absent", ("no ODDS_API_KEY configured; the sync will use the flat 21.5 "
+                          "fallback and say so (this is a supported state)")
+    getter = fetch
+    if getter is None:
+        import requests
+        getter = requests.get
+    try:
+        resp = getter(ODDS_PROBE_URL,
+                      params={"apiKey": key, "regions": "us", "markets": "totals"},
+                      timeout=15)
+        status = getattr(resp, "status_code", None)
+    except Exception as ex:
+        return "unreachable", (f"could not reach the-odds-api ({type(ex).__name__}); "
+                               f"proceeding, and F67 keeps this week's real lines if any "
+                               f"are already on disk")
+    if status in (401, 403):
+        return "rejected", _STALE_SHELL_HINT.format(status=status)
+    if status == 200:
+        return "ok", "ODDS_API_KEY accepted"
+    return "unreachable", (f"the-odds-api answered HTTP {status}; treating it as a "
+                           f"transient and proceeding")
+
+
+def should_stop_for_odds_key(verdict, allow_fallback=False):
+    """Only a rejected key stops a sync, and only when the operator has not opted in.
+
+    A transient must never block the scheduled runner, and an absent key is the documented
+    no-key path -- refusing there would break the preseason gate and every hermetic run.
+    """
+    return verdict == "rejected" and not allow_fallback
+
+
 def _is_fallback(source):
     return str(source or "").startswith("fallback")
 
