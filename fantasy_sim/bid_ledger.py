@@ -72,6 +72,62 @@ def record_bid(row, path=BID_LEDGER_FILE):
         return 0
 
 
+def clearing_price(row):
+    """What it would actually have taken to win this claim, or None (T2).
+
+    Sleeper shows every bid after a run, so the losing bids are knowable -- and one more
+    than the best rival is the EXACT price, not a bound. That is the whole value of
+    recording them: `winning_bid_if_visible` on a claim I won is an upper bound and has to
+    be scored through the censoring rule (B13), while this is a measurement and does not.
+
+    None when no rivals were recorded. Absence is unknown, the same rule an unresolved
+    outcome already follows -- a clearing price of 0 would score every suggestion as a win.
+    """
+    vals = []
+    for b in (row.get("rival_bids") or []):
+        try:
+            vals.append(float(b))
+        except (TypeError, ValueError):
+            continue
+    return max(vals) + 1 if vals else None
+
+
+def record_rival_bids(player_id, week, bids, path=BID_LEDGER_FILE):
+    """Append an amended copy of a claim carrying the rival bids. Returns 1, or 0 on failure.
+
+    APPEND-ONLY, THROUGH F64. Nothing is mutated: the amendment supersedes the original for
+    `live_rows` by being later, so it must carry the original's terms forward or the bid
+    placed and both suggestions vanish from the live view. It is tagged `amends:
+    "rival_bids"` so the superseded listing can tell an amendment from a raised bid.
+
+    `winning_bid_if_visible` is copied, never replaced. Sleeper's first-price auction means
+    the winner pays their own bid, so "what did it cost me" and "what would have won" are
+    different numbers and both are wanted.
+    """
+    rows = load(path)
+    live = [r for r in live_rows(rows) if _claim_key(r) == (str(player_id), week)]
+    if not live:
+        raise ValueError(f"no claim for player_id {player_id!r} in week {week}. Record the "
+                         f"bid first -- a row invented here would enter the calibration as "
+                         f"a claim that was never placed.")
+    clean = []
+    for b in bids or []:
+        try:
+            clean.append(int(round(float(b))))
+        except (TypeError, ValueError):
+            continue
+    if not clean:
+        raise ValueError("no usable rival bids given")
+    amended = dict(live[0])
+    amended["rival_bids"] = sorted(clean, reverse=True)
+    amended["amends"] = "rival_bids"
+    amended.pop("placed_at", None)          # record_bid stamps the amendment as now
+    # Reconciliation output is derived at read time and must not be baked into the file.
+    for derived in ("bid_mismatch", "matched_transaction_id"):
+        amended.pop(derived, None)
+    return record_bid(amended, path=path)
+
+
 def _claim_key(row):
     return (str(row.get("player_id")), row.get("week"))
 
@@ -103,6 +159,28 @@ def superseded_rows(rows):
     """The earlier bids on claims that were revised. Kept, never scored."""
     live = {id(r) for r in live_rows(rows)}
     return [r for r in (rows or []) if id(r) not in live]
+
+
+def supersession_reasons(rows):
+    """{id(superseded row): reason}. WHY each earlier row stopped being the claim.
+
+    Two different things supersede a row and the listing must not blur them: a bid RAISED
+    before the waiver run (F64), and a rival-bid amendment (T2). The successor is the next
+    row for the same claim by `placed_at` -- keyed per row, not per claim, because a claim
+    can have both (a $25 raised to $29, then amended with the rivals) and labelling all of
+    its earlier rows by the LAST event would misreport the raise as an amendment.
+    """
+    by_claim = {}
+    for row in rows or []:
+        by_claim.setdefault(_claim_key(row), []).append(row)
+    out = {}
+    for ordered in by_claim.values():
+        ordered = sorted(ordered, key=_placed_sort_key)
+        for earlier, successor in zip(ordered, ordered[1:]):
+            out[id(earlier)] = ("rival-bid amendment"
+                                if successor.get("amends") == "rival_bids"
+                                else "bid raised before the waiver run")
+    return out
 
 
 def _parse_stamp(value):
@@ -211,13 +289,31 @@ def calibration(rows):
     # F64: score the CLAIM, not the row. A bid raised before the waiver run is one claim,
     # and counting it twice would score a price that was never live.
     claims = live_rows(rows)
+    # T2: a row carrying rival bids is resolved even on the exact price alone -- knowing
+    # what the rivals bid means the run happened.
     resolved = [r for r in claims
-                if r.get("won") is not None and r.get("winning_bid_if_visible") is not None]
-    out = {"n": len(resolved), "unresolved": len(claims) - len(resolved),
+                if r.get("won") is not None
+                and (clearing_price(r) is not None
+                     or r.get("winning_bid_if_visible") is not None)]
+    exact = [r for r in resolved if clearing_price(r) is not None]
+    out = {"n": len(resolved), "n_exact": len(exact),
+           "unresolved": len(claims) - len(resolved),
            "superseded": len(rows or []) - len(claims)}
+
+    def _score(row, suggested):
+        """Exact price where the rivals are known, censored bound otherwise.
+
+        With a clearing price the outcome is irrelevant: "would this bid have won?" is
+        decided by the price, not by who happened to win, so it is scored through the
+        LOST branch -- suggestion at or above the price is not an error, below it is a
+        shortfall. That is the point of recording the losers."""
+        price = clearing_price(row)
+        if price is not None:
+            return score_bid_suggestion(suggested, price, False)
+        return score_bid_suggestion(suggested, row["winning_bid_if_visible"], bool(row["won"]))
+
     for key, field in (("v1", "suggested_v1"), ("v2", "suggested_v2_point")):
-        scored = [score_bid_suggestion(r.get(field) or 0, r["winning_bid_if_visible"],
-                                       bool(r["won"])) for r in resolved]
+        scored = [_score(r, r.get(field) or 0) for r in resolved]
         out[key] = {
             "errors": sum(1 for s in scored if s["error"]),
             "total_miss": float(sum(s["miss"] for s in scored)),
@@ -238,8 +334,11 @@ def calibration(rows):
         out["verdict"] = "v1 is closer"
     else:
         out["verdict"] = "tied"
-    out["note"] = (f"{out['unresolved']} unresolved row(s) excluded. A winning bid is an "
-                   f"UPPER BOUND on the price (F61), so a suggestion below a bid I won is "
+    out["note"] = (f"{out['unresolved']} unresolved row(s) excluded. "
+                   f"{out['n_exact']} of {out['n']} claim(s) carry an exact clearing price "
+                   f"from recorded rival bids (best rival + 1) and are scored against it; "
+                   f"the rest fall back to the censored rule, where a winning bid is an "
+                   f"UPPER BOUND on the price (F61) and a suggestion below a bid I won is "
                    f"not scored as an error. Remember F61's headline: on 26 logged claims "
                    f"the correlation between VORP and winning bid was -0.136, so a "
                    f"VORP-shaped heuristic may simply be the wrong shape.")

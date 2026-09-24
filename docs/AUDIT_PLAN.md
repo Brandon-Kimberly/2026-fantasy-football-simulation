@@ -5756,3 +5756,57 @@ the player-side one.
 Suite 1252 → 1260 (characterisation, 2 red) → 1261. Three mutations (payer sign flipped,
 `>` to `>=`, check removed) each turn the suite red. Goldens 15/15, sync golden
 byte-identical. RESOLVED.
+
+### F77 — The ledger could not record the losing bids, so every won claim stayed censored — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item T2; F65's entry named it as not built. After a waiver run this
+league can read **every** bid on a claim — 29 / 21 / 20 on one QB in week 3 — and the ledger
+kept only `winning_bid_if_visible`. On a claim I **won** that is an upper bound on the
+price, never the price, and is scored through a censoring rule for exactly that reason
+(B13, `decisions.score_bid_suggestion`).
+
+**The losing bids destroy the censoring.** With rivals at 21 and 20 the exact clearing
+price is **22** — one more than the best rival — and *"would this suggestion have won?"* is
+answerable for every suggestion regardless of who won. A bound becomes a measurement, and
+F61 is the finding that says measurement is the only route to settling whether any bid
+heuristic here works at all (correlation(VORP, winning bid) = **−0.136** on 26 claims).
+
+**Verified on the real ledger, and the censoring was hiding a lot.** Recording the actual
+week-3 rival bids moved the calibration immediately:
+
+```
+              before (censored)        after (exact price 22)
+  v1          1 error,  total $2       2 errors, total $12
+  v2          1 error,  total $3       2 errors, total $21
+```
+
+Both heuristics badly underbid that claim — v1 said 12, v2 said 3–5, and 22 was needed —
+and the censoring rule had been excusing both because the bid I placed happened to win.
+That is precisely the failure mode T2 exists to remove.
+
+**Both numbers are kept, and a test pins it.** Sleeper runs a **first-price** auction: the
+winner pays their own bid. `winning_bid_if_visible` answers *what did it cost me*, the
+clearing price answers *what would have won*, and overwriting the first with the second
+would destroy the only record of the actual cost. The review prints them as separate
+`paid` and `clears` columns.
+
+**Append-only, through F64's supersession.** Nothing is mutated: recording rivals appends
+an amended copy of the live row tagged `amends: "rival_bids"`, which `live_rows` then takes
+as the latest. The amendment must carry the original's terms forward or the bid placed and
+both suggestions vanish from the live view, and it drops reconciliation-derived fields so
+read-time output is never baked into the file.
+
+**A display defect the live ledger exposed.** The real claim was $25 raised to $29 and *then*
+amended, so it has **two** superseded rows for two different reasons. A per-claim label
+reported the raise as an amendment. `supersession_reasons` now reads each row's reason from
+its own successor, per row rather than per claim.
+
+`calibration` reports `n_exact` alongside `n`, uses the exact price where rivals are
+recorded and the censored rule otherwise, and says which is which in its note. A row
+carrying rival bids counts as resolved on the exact price alone — knowing what the rivals
+bid means the run happened.
+
+Suite 1261 → 1276 (characterisation, 13 of 15 red) → 1277. Four mutations (clearing price
+as max rather than max+1, the exact path scored through the won branch, the amendment
+overwriting what was paid, bids stored ascending) each turn the suite red. Goldens 15/15,
+sync golden byte-identical. RESOLVED.

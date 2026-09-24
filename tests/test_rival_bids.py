@@ -175,6 +175,21 @@ class TestGuardsThatMustNotRegress(unittest.TestCase):
         from fantasy_sim.bid_ledger import calibration
         self.assertEqual(calibration([_row(won=True, winning_bid_if_visible=12)])["n_exact"], 0)
 
+    def test_a_raise_and_an_amendment_on_ONE_claim_are_labelled_separately(self):
+        """Caught on the live ledger. The real Mahomes claim was $25 raised to $29 and then
+        amended with the rivals, so it has TWO superseded rows for two different reasons. A
+        per-claim label reported the raise as an amendment; the reason is read per ROW from
+        its own successor."""
+        from fantasy_sim.bid_ledger import supersession_reasons
+        raised = _row(bid_placed=25, placed_at="2026-09-23T10:00:00Z")
+        live_bid = _row(bid_placed=29, placed_at="2026-09-23T11:00:00Z")
+        amendment = _row(bid_placed=29, placed_at="2026-09-24T09:00:00Z",
+                         rival_bids=[21, 20], amends="rival_bids")
+        why = supersession_reasons([raised, live_bid, amendment])
+        self.assertEqual(why[id(raised)], "bid raised before the waiver run")
+        self.assertEqual(why[id(live_bid)], "rival-bid amendment")
+        self.assertNotIn(id(amendment), why, "the live row is not superseded")
+
     def test_F64_supersession_still_collapses_a_raised_bid_to_one_claim(self):
         from fantasy_sim.bid_ledger import live_rows
         rows = [_row(bid_placed=25, placed_at="2026-09-23T10:00:00Z"),

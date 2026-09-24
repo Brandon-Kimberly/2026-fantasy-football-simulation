@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~114 findings and tracked follow-ups** | **81 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~115 findings and tracked follow-ups** | **82 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,21 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F77** the ledger could not record the losing bids, so every won claim stayed censored —
+  RESOLVED: this league can read every bid after a run, and the ledger kept only the winning
+  one, which on a claim I WON is an upper bound and never the price (B13's censoring rule
+  exists for that). Best rival + 1 is the EXACT clearing price, which makes "would this
+  suggestion have won?" answerable regardless of who won — a bound becomes a measurement,
+  which F61 says is the only route to settling any bid heuristic here. **Verified on the real
+  ledger and the censoring was hiding a lot**: recording the actual week-3 rivals moved v1
+  from 1 error/$2 to 2 errors/$12 and v2 from 1/$3 to 2/$21, because both badly underbid a
+  claim the rule had been excusing. Both numbers are kept and a test pins it — Sleeper is a
+  first-price auction, so "what did it cost me" and "what would have won" are different
+  questions, printed as separate `paid` and `clears` columns. Append-only through F64: the
+  amendment is a tagged copy that carries the original's terms forward. A display defect the
+  live data exposed: the real claim was raised AND then amended, two superseded rows for two
+  reasons, so the reason is now read per row from its own successor. `calibration` reports
+  `n_exact` and says which claims are exact and which are still censored.
 - **F76** a FAAB transfer nobody could afford was evaluated and logged — RESOLVED: no code
   checked that the payer could fund it, so `faab_a_to_b=48` from a team holding 12 was
   accepted and the record, the caveat and the logged JSON all asserted a transfer that cannot

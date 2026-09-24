@@ -4,6 +4,14 @@ Running bid calibration: what I suggested, what I bid, what it cost (fantasy_sim
 
   py -3.10 -m scripts.bid_review                     # the ledger, reconciled and scored
   py -3.10 -m scripts.bid_review --add "Player" --bid 25 [--week N]   # record a claim
+  py -3.10 -m scripts.bid_review --record-rivals "Player" --rivals 21,20   # the losing bids
+
+RECORD THE LOSING BIDS AFTER EVERY RUN (T2). Sleeper shows them, and best-rival + 1 is the
+EXACT clearing price. Without it a claim I WON gives only an upper bound on the price, and
+the scoring has to excuse any suggestion below my own bid (B13's censoring). With it,
+"would this suggestion have won?" is answerable whether I won or lost. The `paid` and
+`clears` columns are different questions -- Sleeper is a first-price auction, so the winner
+pays their own bid -- and both are kept.
 
 Record a claim when you PLACE it, not after. The decision log only ever contains
 COMPLETED transactions -- a claim you lost never becomes one -- so waiting until the
@@ -21,8 +29,8 @@ import argparse
 import json
 
 from fantasy_sim.bid_ledger import (
-    MIN_CLAIMS_FOR_A_VERDICT, calibration, live_rows, load, reconcile, record_bid,
-    superseded_rows,
+    MIN_CLAIMS_FOR_A_VERDICT, calibration, clearing_price, live_rows, load, reconcile,
+    record_bid, record_rival_bids, superseded_rows, supersession_reasons,
 )
 from fantasy_sim.config import MY_TEAM as DEFAULT_TEAM, normalize_position
 from fantasy_sim.decisions import _entry, _rivals_needing, suggest_bid, suggest_bid_v2
@@ -52,6 +60,12 @@ def main(argv=None):
     ap.add_argument("--add", default=None, help="record a claim you are placing now")
     ap.add_argument("--bid", type=int, default=None, help="the FAAB you are bidding")
     ap.add_argument("--week", type=int, default=None)
+    ap.add_argument("--record-rivals", default=None, dest="record_rivals",
+                    help="a claim already recorded; supply the LOSING bids with --rivals. "
+                         "Sleeper shows every bid after a run, and best-rival + 1 is the "
+                         "EXACT clearing price rather than the censored upper bound (T2)")
+    ap.add_argument("--rivals", default=None,
+                    help="comma-separated rival bids, e.g. 21,20")
     ap.add_argument("--json", action="store_true")
     args = ap.parse_args(argv)
 
@@ -84,6 +98,27 @@ def main(argv=None):
               f"v2 {v2['low']}-{v2['high']})")
         return n
 
+    if args.record_rivals:
+        if not args.rivals:
+            raise SystemExit("--record-rivals needs --rivals, e.g. --rivals 21,20")
+        engine = FantasySimulationEngine()
+        week = args.week or engine.current_week
+        e = _entry(engine, args.record_rivals) or {}
+        if not e:
+            raise SystemExit(f"{args.record_rivals!r} is not in the baseline pool.")
+        bids = [x.strip() for x in args.rivals.split(",") if x.strip()]
+        try:
+            # Matching is by player_id, never by name: the raw cache carries 220 colliding
+            # names, seven of them involving a player rostered in this league (B17).
+            n = record_rival_bids(str(e.get("player_id")), week, bids)
+        except ValueError as ex:
+            raise SystemExit(str(ex))
+        price = clearing_price({"rival_bids": bids})
+        print(f"recorded {n} amendment: {args.record_rivals} week {week}, rivals "
+              f"{', '.join(bids)} -> exact clearing price {price:.0f}. "
+              f"What it cost me is unchanged (Sleeper is a first-price auction).")
+        return n
+
     all_rows = reconcile(load(), _decisions())
     cal = calibration(all_rows)
     # F64: a bid raised before the waiver run is ONE claim. The earlier row stays in the
@@ -103,26 +138,36 @@ def main(argv=None):
         print('    py -3.10 -m scripts.bid_review --add "Patrick Mahomes" --bid 25')
         return cal
     print(f"  {'wk':>2s} {'player':24s} {'pos':4s} {'v1':>4s} {'v2':>7s} {'bid':>4s} "
-          f"{'won':>4s} {'price':>6s}  note")
+          f"{'won':>4s} {'paid':>6s} {'clears':>6s}  note")
     for r in rows:
         won = "-" if r["won"] is None else ("yes" if r["won"] else "no")
         price = "-" if r["winning_bid_if_visible"] is None else str(r["winning_bid_if_visible"])
         v2 = f"{r.get('suggested_v2_low')}-{r.get('suggested_v2_high')}"
+        # T2: two different questions. `paid` is what it cost (first-price), `clears` is
+        # what would have won -- best recorded rival + 1, exact rather than a bound.
+        cp = clearing_price(r)
+        clears = "-" if cp is None else f"{cp:.0f}"
         # F65: the ledger records what I meant to bid, Sleeper records what it charged.
         note = ("" if r.get("bid_mismatch") is None
                 else f"recorded ${r.get('bid_placed')}, CHARGED ${r['bid_mismatch']}")
         print(f"  {r.get('week', 0):2d} {str(r.get('player'))[:24]:24s} {str(r.get('pos')):4s} "
               f"{r.get('suggested_v1', 0):4d} {v2:>7s} {r.get('bid_placed', 0):4d} "
-              f"{won:>4s} {price:>6s}  {note}")
+              f"{won:>4s} {price:>6s} {clears:>6s}  {note}")
 
     if superseded:
+        # T2: an amendment recording rival bids also supersedes its original, so calling
+        # every superseded row a raised bid is false the moment rivals are recorded. The
+        # reason is read per ROW from its own successor, because one claim can have both.
+        why = supersession_reasons(all_rows)
         print(f"\n  {len(superseded)} superseded row(s) -- a bid RAISED before the waiver "
-              f"run is one claim, scored once at the price that was live (F64):")
+              f"run is one claim, scored once at the price that was live (F64); an "
+              f"amendment recording rival bids supersedes its original the same way:")
         for r in superseded:
             print(f"    wk {r.get('week', 0):2d} {str(r.get('player'))[:24]:24s} "
-                  f"${r.get('bid_placed', 0)} -> superseded")
+                  f"${r.get('bid_placed', 0)} -> {why.get(id(r), 'superseded')}")
 
-    print(f"\n  resolved {cal['n']}, unresolved {cal['unresolved']}")
+    print(f"\n  resolved {cal['n']} ({cal['n_exact']} with an EXACT clearing price from "
+          f"recorded rival bids), unresolved {cal['unresolved']}")
     for k in ("v1", "v2"):
         c = cal[k]
         print(f"    {k}: {c['errors']} error(s), total miss ${c['total_miss']:.0f}, "
