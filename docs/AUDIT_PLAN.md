@@ -5145,7 +5145,7 @@ yet built.
 Suite 1033 → 1045. Goldens 15/15, sync golden byte-identical. No prediction changed.
 RESOLVED.
 
-### F66 — Five HTTP boundaries had no test of what they ASK for — RESOLVED for the top three (2026-09-23)
+### F66 — Five HTTP boundaries had no test of what they ASK for — RESOLVED, all five closed (2026-09-23; last two 2026-09-24)
 
 **Origin.** Backlog item B26, whose scope is a sweep rather than a defect: *"for every
 patch of a function in `sync.py`, `clients/`, or `live_matchup.py` that fetches or
@@ -5211,16 +5211,47 @@ its own, so each was verified load-bearing **by mutation**:
 
 All three mutations were reverted and the suite re-run clean.
 
-**NOT done, and recorded rather than dropped:** `generate_league_schedule` (missing a
-request-pin) and `ingest_drafts` (missing both). Draft data is historical and static, and
-the league schedule has empty-return coverage, so both rank below the three above — but
-they are gaps, and B26 asked for the list, not just the fixes.
+**The last two, closed 2026-09-24 (backlog 2 item H2).** `generate_league_schedule` was
+missing a request-pin; `ingest_drafts` was missing both.
+
+- **`generate_league_schedule`** is pinned positionally, which is the property that
+  matters: the engine indexes it as `league_schedule[week - 1]`, so it must ask for each
+  week once, in order, and a failed week must still occupy its index. A `continue` there
+  used to shift every later week one index earlier and silently mis-assign opponents for
+  the rest of the season (AUDIT_PHASE_3_FINDINGS 2b).
+- **`ingest_drafts`** must ask `/draft/{draft_id}/picks` — a league id there returns
+  nothing and the season is never recorded — and an empty picks payload must write
+  **nothing**, because a draft file is immutable once written (F15), so a zero-pick file
+  created from a transient empty reply would be permanent and would poison `draft_review`
+  for that season forever.
+
+Mutations, each reverted and the suite re-run clean:
+
+| mutation | test |
+|---|---|
+| schedule URL pinned to week `1` regardless of the loop | red |
+| failed week `continue`d instead of appending `[]` | red |
+| picks asked for by league id instead of draft id | red |
+| the `if not picks` guard removed | red |
+
+**A real incident while writing them, recorded because it is the F11 class.** The first
+version of the schedule test patched `requests.get` but not `save_json` — and
+`generate_league_schedule` **writes** `data/current/league_schedule.json` as a side effect
+while **returning the list of failed weeks**, not the schedule. Running the suite replaced
+the real fourteen-week schedule with a two-team, five-week fixture. It was caught within
+minutes and restored by re-syncing, but F11 is precisely a defect that silently truncated
+real data on every suite run and was found only by accident. The test now captures the
+schedule from the patched write and touches no file, and
+`scripts/check_test_isolation` makes the check repeatable: snapshot `data/current`, run the
+suite, diff. Measured afterwards across all 1,326 tests: **nothing else in the suite
+modifies real synced data.**
 
 **The goal was never to remove mocks.** Hermetic tests are a design requirement
 (`CLAUDE.md` environment section; F48). All three patch `requests.get` — the transport,
 the lowest thing there is — and let the real function build the URL and parse the reply.
 
-Suite 1073 → 1085. Goldens 15/15. No production code changed. RESOLVED for the top three.
+Suite 1073 → 1085 (the first three); 1321 → 1326 (the last two, 2026-09-24). Goldens
+15/15. No production code changed, at either sitting. RESOLVED — all five closed.
 
 ### F67 — A failed odds fetch destroyed real same-week Vegas lines — RESOLVED (2026-09-24)
 

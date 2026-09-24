@@ -207,5 +207,133 @@ class TestLiveMatchupTransportIsLoudOnFailure(unittest.TestCase):
         self.assertEqual(locked_nfl_teams({"KC": (0.5, "Q3 05:22")}), frozenset({"KC"}))
 
 
+class TestLeagueScheduleAsksForEveryWeekInOrder(unittest.TestCase):
+    """H2, closing F66's fourth gap. `generate_league_schedule` had an empty-return test
+    but nothing pinning the REQUEST.
+
+    The property that matters is positional. The engine indexes this list as
+    `league_schedule[week - 1]`, so it must hold exactly one entry per week, built from a
+    request for THAT week. A failed week used to be `continue`d, which shifted every later
+    week one index earlier and silently mis-assigned opponents for the rest of the season
+    (AUDIT_PHASE_3_FINDINGS.md finding 2b).
+
+    COVERAGE, not a regression test: the boundary is believed correct and this passes on
+    first run. Verified load-bearing by mutation -- pinning the URL to week 1 regardless of
+    the loop variable turns it red.
+
+    **`save_json` IS PATCHED, AND THAT IS NOT OPTIONAL.** This function WRITES
+    `data/current/league_schedule.json` as a side effect and returns the list of FAILED
+    weeks, not the schedule. The first version of this test patched only the transport, so
+    running the suite replaced the real league schedule with a two-team fixture -- exactly
+    the F11 class of defect (a test silently truncating real data, found only by accident).
+    The schedule is captured from the write instead.
+    """
+
+    @staticmethod
+    def _run(fake_get, weeks=5):
+        """Returns (schedule_written, urls_asked, failed_weeks). Writes nothing."""
+        from fantasy_sim import sync
+        asked, written = [], []
+
+        def spy(url, timeout=None):
+            asked.append(url)
+            return fake_get(url)
+
+        with patch.object(sync.requests, "get", side_effect=spy),              patch.object(sync, "save_json", side_effect=lambda p, o: written.append(o)):
+            failed = sync.generate_league_schedule({1: "A", 2: "B"}, regular_season_weeks=weeks)
+        return (written[-1] if written else None), asked, failed
+
+    @staticmethod
+    def _ok(_url):
+        return _Resp([{"roster_id": 1, "matchup_id": 1}, {"roster_id": 2, "matchup_id": 1}])
+
+    def test_it_asks_for_each_week_once_and_in_order(self):
+        schedule, asked, failed = self._run(self._ok)
+        self.assertEqual(len(asked), 5, "one request per week, no more and no fewer")
+        self.assertEqual([u.rsplit("/", 1)[-1] for u in asked], ["1", "2", "3", "4", "5"],
+                         "the week in the URL must follow the loop, or every later week "
+                         "is built from the wrong week's matchups")
+        for u in asked:
+            self.assertIn("/matchups/", u)
+        self.assertEqual(failed, [])
+        self.assertEqual(len(schedule), 5, "exactly one entry per week: the engine indexes "
+                                           "this list positionally")
+
+    def test_a_failed_week_still_occupies_its_index(self):
+        """The finding itself (AUDIT_PHASE_3_FINDINGS 2b), pinned at the transport level
+        rather than assumed."""
+        def flaky(url):
+            return _Resp(None, status=500) if url.endswith("/3") else self._ok(url)
+
+        schedule, _asked, failed = self._run(flaky)
+        self.assertEqual(failed, [3], "the failure is reported, not swallowed")
+        self.assertEqual(len(schedule), 5)
+        self.assertEqual(schedule[2], [], "week 3 failed; it must be EMPTY, not absent")
+        self.assertTrue(schedule[3], "week 4 must still be at index 3, not shifted up")
+
+
+class TestDraftIngestionAsksForThePicksAndRefusesAnEmptyDraft(unittest.TestCase):
+    """H2, closing F66's fifth gap. `ingest_drafts` had neither a request-pin nor an
+    empty-return test -- the only boundary in the sweep with no test of any kind besides
+    `live_matchup._fetch_json`, which F66 fixed.
+
+    Two properties. It must ask `/draft/{draft_id}/picks` for the draft it found, and an
+    empty picks payload must write NOTHING -- a draft file is immutable once written
+    (F15), so a zero-pick file written on a transient empty reply would be permanent and
+    would poison `draft_review` for that season forever.
+
+    COVERAGE, not a regression test; passes on first run. Verified by mutation: asking for
+    `/draft/{league_id}/picks` instead of the draft id, and removing the `if not picks`
+    guard, each turn it red.
+    """
+
+    LEAGUE = {"season": "2026", "previous_league_id": None}
+    DRAFT = {"draft_id": "DRAFT_9", "season": "2026", "status": "complete",
+             "start_time": 1, "settings": {"rounds": 1}}
+    PICKS = [{"pick_no": 1, "round": 1, "draft_slot": 1, "roster_id": 1, "picked_by": "u1",
+              "player_id": "111", "is_keeper": False,
+              "metadata": {"first_name": "Alpha", "last_name": "One", "position": "RB",
+                           "team": "DET"}}]
+
+    def _run(self, picks):
+        from fantasy_sim import sync
+        asked = []
+
+        def fake_get(url, timeout=None):
+            asked.append(url)
+            if url.endswith("/drafts"):
+                return _Resp([self.DRAFT])
+            if "/picks" in url:
+                return _Resp(picks)
+            return _Resp(self.LEAGUE)
+
+        d = tempfile.mkdtemp()
+        with patch.object(sync.requests, "get", side_effect=fake_get):
+            n = sync.ingest_drafts({1: "A"}, league_id="L1",
+                                   path_fn=lambda s: os.path.join(d, f"draft_{s}.json"))
+        return n, asked, d
+
+    def test_it_asks_for_the_picks_of_the_draft_it_found(self):
+        n, asked, d = self._run(self.PICKS)
+        self.assertEqual(n, 1)
+        self.assertIn(f"/draft/{self.DRAFT['draft_id']}/picks", " ".join(asked),
+                      "the picks must be fetched by DRAFT id; a league id here would "
+                      "silently return nothing and the season would never be recorded")
+        with open(os.path.join(d, "draft_2026.json"), encoding="utf-8") as f:
+            self.assertEqual(json.load(f)["picks"][0]["name"], "Alpha One")
+
+    def test_an_empty_picks_payload_writes_nothing(self):
+        """A draft file is immutable once written (F15). A zero-pick file created from a
+        transient empty reply would be permanent and would poison draft_review forever."""
+        n, _asked, d = self._run([])
+        self.assertEqual(n, 0)
+        self.assertFalse(os.path.exists(os.path.join(d, "draft_2026.json")))
+
+    def test_a_null_picks_payload_is_treated_the_same(self):
+        n, _asked, d = self._run(None)
+        self.assertEqual(n, 0)
+        self.assertFalse(os.path.exists(os.path.join(d, "draft_2026.json")))
+
+
 if __name__ == "__main__":
     unittest.main()

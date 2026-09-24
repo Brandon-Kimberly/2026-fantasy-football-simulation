@@ -550,8 +550,8 @@ than "fixed": the measurement said the code was right.
   pin that half. The keep is stamped `stale_since`, warned, and reported by
   `check_freshness` as DEGRADED rather than STALE, because real lines for the right week are
   not a reason to stop a run.
-- **F66** five HTTP boundaries had no test of what they ASK for — RESOLVED for the top
-  three: B26's sweep, prompted by F50/F52 sharing a shape (passing tests that patched the
+- **F66** five HTTP boundaries had no test of what they ASK for — RESOLVED, all five
+  closed (last two 2026-09-24, backlog H2): B26's sweep, prompted by F50/F52 sharing a shape (passing tests that patched the
   function whose INPUT was wrong, then asserted arithmetic on the input the test supplied).
   Of 12 functions that make an HTTP call, five lacked a request-pin, and three of those
   lacked an empty-return test too. Fixed: `fetch_league_wide_player_scores` (F54's feed —
@@ -561,8 +561,18 @@ than "fixed": the measurement said the code was right.
   cause, now written down), and `live_matchup._fetch_json`, which had NO test of any kind
   and whose raise-on-failure is what makes `locked_nfl_teams` safe to treat a missing clock
   as unlocked. COVERAGE, not regression tests — stated plainly, and each verified
-  load-bearing by mutation (all three went red, all reverted). Still open and recorded
-  rather than dropped: `generate_league_schedule` and `ingest_drafts`.
+  load-bearing by mutation (all three went red, all reverted). **The last two closed
+  2026-09-24**: `generate_league_schedule` is now pinned POSITIONALLY (each week asked once
+  in order; a failed week still occupies its index, or every later week shifts up — Phase 3
+  finding 2b), and `ingest_drafts` must ask by DRAFT id and must write nothing on an empty
+  picks payload, because a draft file is immutable once written (F15) and a zero-pick file
+  would be permanent. Four more mutations, all red, all reverted. **A real incident while
+  writing them, recorded as the F11 class**: the first schedule test patched the transport
+  but not `save_json` — that function WRITES the schedule as a side effect and RETURNS the
+  failed weeks — so the suite overwrote the real fourteen-week schedule with a five-week
+  fixture. Caught in minutes, restored by re-syncing, and now guarded by
+  `scripts/check_test_isolation`; measured afterwards, nothing else in 1,326 tests modifies
+  real synced data.
 - **F65** the bid ledger could never resolve a claim: Sleeper counts the week
   differently — RESOLVED: two waivers were WON and `bid_review` still printed
   `resolved 0`, silently. The ledger stamps `current_week` at BID time (3); Sleeper

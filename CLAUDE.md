@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 1321 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 1326 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline
@@ -38,6 +38,7 @@ py -3.10 -m scripts.evaluate_move        # paired evaluation of add/drop/waiver;
 py -3.10 -m scripts.draft_review         # at-draft value review (--season; proxy caveat on the page)
 py -3.10 -m scripts.season_retrospective # a completed season in four measurements, no combined verdict
 py -3.10 -m scripts.scan_real_names      # H1: tokenising real-identity scan of every tracked file. LOCAL ONLY
+py -3.10 -m scripts.check_test_isolation # does the suite modify real synced data? run when adding a boundary test
 py -3.10 -m scripts.matchup_watch        # T5: what to watch -- lineups by NFL game, stacks, designations, shared games
 py -3.10 -m scripts.roster_calendar      # T6: bye exposure per week + the roster crunch when an IR man returns
 py -3.10 -m scripts.streamer_study       # C5: BASE_STREAMER_MEANS vs the live free-agent pool (measurement only; changing it is MAJOR)
