@@ -1359,16 +1359,12 @@ def _sync_body(sharp_polling=False):
     # is stable, opaque, and meaningless without the (env-only) league id.
     roster_map = {r["roster_id"]: TEAM_NAME_MAP.get(str(r["roster_id"]), "Unknown") for r in rosters}
 
-    live_rosters_payload, standings_payload = {}, {}
+    live_rosters_payload = {}
+    # The starting budget is league.settings.waiver_budget, not a hardcoded 100.
+    standings_payload = build_standings(league_info.get("settings"), rosters, roster_map)
     reserve_pids = set()
     for r in rosters:
         sim_name = roster_map[r["roster_id"]]
-        settings = r.get("settings", {})
-        standings_payload[sim_name] = {
-            "h2h_wins": int(settings.get("wins", 0)),
-            "points_scored": float(f"{settings.get('fpts', 0)}.{settings.get('fpts_decimal', 0)}"),
-            "remaining_faab": max(0.0, 100.0 - float(settings.get("waiver_budget_used", 0))),
-        }
         reserve = {str(p) for p in (r.get("reserve") or [])}
         reserve_pids |= reserve
         live_rosters_payload[sim_name] = [
@@ -1457,6 +1453,13 @@ def _sync_body(sharp_polling=False):
     if n_pending:
         print(f"[PENDING TRADES] {n_pending} pending trade(s) recorded (advisory).")
     warn_depth_mean_disagreements(baselines, players_db)
+    # A commissioner adjustment leaves no transaction, so a budget that the history cannot
+    # explain is the only trace it happened. Warns into the manifest like every other
+    # watchdog; changes nothing.
+    n_adj = warn_faab_adjustments(league_info.get("settings"), rosters, roster_map,
+                                  current_nfl_week)
+    if n_adj:
+        print(f"[FAAB] {n_adj} budget(s) no transaction explains -- see the warnings above.")
     return current_nfl_week, str(state.get("season", "2026"))
 
 
@@ -1555,6 +1558,122 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                         "re-ingested by the next successful sync.", len(records), path, ex)
         return 0
     return appended
+
+
+DEFAULT_WAIVER_BUDGET = 100.0   # Sleeper's default, and what every pre-2026-09-24 record
+#                                 in this repo was written under. Used only when the league
+#                                 payload states no `waiver_budget` at all.
+FAAB_ADJUSTMENT_TOLERANCE = 0.5  # below this, it is rounding, not a commissioner acting
+
+
+def build_standings(league_settings, rosters, roster_map):
+    """{team: {h2h_wins, points_scored, remaining_faab}} from Sleeper's roster payload.
+
+    THE BUDGET IS A LEAGUE SETTING, not 100. It happens to be 100 in this league, but
+    `waiver_budget` is configurable per season, and hardcoding it fails silently: every
+    budget in the league would be wrong by the same constant with nothing to notice.
+
+    `waiver_budget_used` is AUTHORITATIVE and already folds in FAAB moved by trade and
+    adjusted by the commissioner -- measured 2026-09-24 against the live league, where an
+    independent model (`bids + sent - received`) matched it exactly on 6 of 8 rosters
+    including one carrying a 48-point FAAB trade. So it is used as-is; adding the
+    `waiver_budget` transaction flow on top would double-count every FAAB trade.
+
+    `used` goes NEGATIVE for a team that received more than it spent, which is why the
+    result is floored at zero but never capped at the budget -- capping would erase a real
+    advantage one live roster is currently carrying.
+    """
+    budget = float((league_settings or {}).get("waiver_budget") or DEFAULT_WAIVER_BUDGET)
+    out = {}
+    for r in rosters or []:
+        name = roster_map.get(r.get("roster_id"))
+        if name is None:
+            continue
+        st = r.get("settings") or {}
+        out[name] = {
+            "h2h_wins": int(st.get("wins", 0)),
+            "points_scored": float(f"{st.get('fpts', 0)}.{st.get('fpts_decimal', 0)}"),
+            "remaining_faab": max(0.0, budget - float(st.get("waiver_budget_used", 0))),
+        }
+    return out
+
+
+def faab_adjustments(roster_map, by_roster, tolerance=FAAB_ADJUSTMENT_TOLERANCE):
+    """Budgets that Sleeper's own transaction history cannot explain.
+
+    A COMMISSIONER ADJUSTMENT LEAVES NO TRANSACTION. Measured on the live league: one
+    roster had 1 FAAB removed and another had 4 granted, and neither appears anywhere in
+    `/transactions` -- they exist only as a shift inside `waiver_budget_used`. That is the
+    same shape as B14's premise (a lost waiver claim never becomes a transaction), and it
+    means the bid ledger and the manager FAAB profiles can never account for the money.
+
+    The disagreement IS computable: `used` should equal `bids + sent - received`. Where it
+    does not, something adjusted the budget by hand. This reports it and lets a human judge
+    rather than picking a side, exactly as F24's depth watchdog does.
+
+    `delta` is signed from the TEAM's point of view: negative means FAAB was taken away
+    (its `used` is higher than its history explains), positive means it was granted.
+    """
+    out = []
+    for rid, parts in sorted((by_roster or {}).items(), key=lambda kv: str(kv[0])):
+        model = float(parts.get("bids", 0)) + float(parts.get("sent", 0)) - float(parts.get("recv", 0))
+        delta = model - float(parts.get("used", 0))
+        if abs(delta) < tolerance:
+            continue
+        out.append({"team": roster_map.get(rid, f"roster_{rid}"), "roster_id": rid,
+                    "delta": round(delta, 2), "used": float(parts.get("used", 0)),
+                    "explained_by_history": round(model, 2)})
+    return out
+
+
+def faab_history_by_roster(current_week):
+    """{roster_id: {bids, sent, recv}} from the completed transactions. Network; warns and
+    returns {} on failure, because a watchdog must never cost a sync."""
+    out = {}
+
+    def bucket(rid):
+        return out.setdefault(rid, {"bids": 0.0, "sent": 0.0, "recv": 0.0, "used": 0.0})
+
+    for wk in range(1, max(1, int(current_week)) + 1):
+        try:
+            resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/transactions/{wk}", timeout=10)
+            txs = resp.json() if resp.status_code == 200 else []
+        except Exception as ex:
+            logging.warning("FAAB WATCHDOG: week %d transactions unavailable (%s); the "
+                            "budget reconciliation is skipped this sync.", wk, ex)
+            return {}
+        for tx in txs or []:
+            if tx.get("status") != "complete":
+                continue
+            bid = (tx.get("settings") or {}).get("waiver_bid")
+            if tx.get("type") == "waiver" and bid:
+                # By the ADD's roster, not roster_ids[0]: the two disagree on some rows and
+                # the add is the one that actually names who paid.
+                for _pid, rid in (tx.get("adds") or {}).items():
+                    bucket(rid)["bids"] += float(bid)
+            for wb in (tx.get("waiver_budget") or []):
+                bucket(wb.get("sender"))["sent"] += float(wb.get("amount") or 0)
+                bucket(wb.get("receiver"))["recv"] += float(wb.get("amount") or 0)
+    return out
+
+
+def warn_faab_adjustments(league_settings, rosters, roster_map, current_week):
+    """Reconcile every budget against the transaction history; warn on each mismatch."""
+    history = faab_history_by_roster(current_week)
+    if not history:
+        return 0
+    for r in rosters or []:
+        rid = r.get("roster_id")
+        if rid in history:
+            history[rid]["used"] = float((r.get("settings") or {}).get("waiver_budget_used", 0))
+    rows = faab_adjustments(roster_map, history)
+    for row in rows:
+        logging.warning("FAAB ADJUSTMENT: %s carries %+.0f FAAB that no transaction "
+                        "explains (Sleeper says %.0f used; bids and trades account for "
+                        "%.0f). A commissioner adjustment leaves no transaction record, so "
+                        "this is the only place it shows up.",
+                        row["team"], row["delta"], row["used"], row["explained_by_history"])
+    return len(rows)
 
 
 def write_pending_trades(roster_map, current_week, players_db, path=None):

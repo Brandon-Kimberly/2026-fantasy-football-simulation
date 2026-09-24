@@ -5915,3 +5915,57 @@ test asserts that at least one position takes the floor. That is the fourth item
 where a fixture agreed with the code it was written beside.
 
 Suite 1293 → 1308. Goldens 15/15, sync golden byte-identical (no constant moved). MEASURED.
+
+### F80 — The FAAB budget was hardcoded, and commissioner adjustments leave no record — RESOLVED (2026-09-24)
+
+**Origin.** Raised by the owner, 2026-09-24: the commissioner had granted one team 3 FAAB
+and taken 1 from another as a joke, and the worry was that `remaining_faab` would be wrong.
+**Measuring the live league before changing anything gave a better answer than the worry.**
+
+**`waiver_budget_used` is authoritative and already folds everything in.** Modelling it
+independently as `bids + faab_sent − faab_received` matches Sleeper exactly on **6 of 8
+rosters**, and the two that differ are precisely the two adjustments:
+
+```
+ rid  used  bids  sent  recv   model   used − model
+   2    44    43     0     0      43       +1      <- 1 taken away
+   4     2    54     0    48       6       −4      <- 4 granted
+   5    56     8    48     0      56        0      <- a 48-FAAB TRADE, already counted
+```
+
+So the live numbers were right, and the feared defect was not there. **Recorded as NOT a
+bug, with a test**: FAAB moved by trade is already inside `waiver_budget_used`, so adding
+the `waiver_budget` transaction flow on top would double-count it on both sides of every
+FAAB trade. Two real defects were there instead, both latent rather than live.
+
+**1. The starting budget was hardcoded at 100.** The real value is
+`league.settings.waiver_budget`. It is 100 in this league today, which is why nothing had
+gone wrong, but it is a league **setting** — a different season (the 2025 league the
+backtests ingest) or a rule change moves it, every budget is then wrong by the same
+constant, and nothing says so. `build_standings` reads it, falling back to 100 only when
+the payload states none, because 100 is what every existing record was written under.
+
+The result is floored at zero but deliberately **not capped at the budget**: `used` goes
+negative for a team that received more than it spent, and one live roster is carrying 48
+traded FAAB. Capping would erase a real advantage.
+
+**2. A commissioner adjustment leaves no transaction at all.** The −1 and the +4 appear
+nowhere in `/transactions`; they exist only as a shift inside `waiver_budget_used`. This is
+the same shape as B14's premise — a lost waiver claim never becomes a transaction — and it
+means the bid ledger and the `MANAGER_PROFILES` FAAB priors (F31) can never account for
+where a budget went. But **the disagreement is computable**, so `warn_faab_adjustments`
+reconciles every budget against the history and warns per roster into the manifest, letting
+a human judge rather than picking a side — exactly what F24's depth watchdog does. Verified
+live: it reports both adjustments, by size and direction, and nothing else.
+
+Bids are attributed by the **add's** roster rather than `roster_ids[0]`; the two disagree on
+some rows and the add is the one that names who actually paid.
+
+**A process note worth keeping.** The first mutation run on this fix reported a false
+result: `cp` restored a file with an mtime older than its `__pycache__` entry, so Python ran
+**stale bytecode** and the "restored" check failed while the source was correct. Mutation
+testing must purge `__pycache__` between runs, or a mutation can appear to survive when it
+was never executed. Re-run clean: all five mutations caught.
+
+Suite 1308 → 1317 (characterisation, all 9 red) → 1317 green. Goldens 15/15, sync golden
+byte-identical. RESOLVED.

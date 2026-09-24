@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~117 findings and tracked follow-ups** | **84 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~118 findings and tracked follow-ups** | **85 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,22 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F80** the FAAB budget was hardcoded, and commissioner adjustments leave no record —
+  RESOLVED: raised by the owner after a commissioner granted one team FAAB and took some from
+  another. Measuring first beat the worry: `waiver_budget_used` is authoritative and already
+  folds in trades AND adjustments, matching an independent `bids + sent − received` model on
+  6 of 8 rosters — so the live numbers were right, and a test pins that FAAB moved by trade
+  must NOT be added again (it would double-count both sides of every FAAB trade). Two latent
+  defects were real: the starting budget was hardcoded at 100 when it is
+  `league.settings.waiver_budget` (a setting; a different season breaks it silently, and the
+  result is floored at zero but never capped, because one live roster carries 48 traded FAAB
+  and `used` goes negative); and a commissioner adjustment leaves NO transaction, existing
+  only as a shift inside `waiver_budget_used`, so the bid ledger and F31's FAAB priors can
+  never account for it. The disagreement is computable, so sync now reconciles every budget
+  against the history and warns per roster — F24's watchdog pattern — verified live on both
+  real adjustments. Process note: the first mutation run gave a FALSE result because `cp`
+  restored an mtime older than the `__pycache__` entry and Python ran stale bytecode; mutation
+  testing must purge it between runs.
 - **F79** streamer levels measured against the real free-agent pool — MEASURED, NOT CHANGED:
   C5 was flagged MAJOR-if-changed, so the study ran and the constant did not move
   (`docs/audit/STREAMER_LEVELS.md`; `scripts.streamer_study` reproduces it). **Four things the
