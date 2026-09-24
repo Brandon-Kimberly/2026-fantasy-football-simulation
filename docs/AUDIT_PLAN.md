@@ -6076,3 +6076,99 @@ nobody reads before they break it.
 
 Suite 1326 → 1327. Goldens 15/15, sync golden byte-identical — a test and a docs line move
 neither. RESOLVED.
+
+### F83 — A mid-week scoring change re-priced one completed week and not the other — RESOLVED at source; the banked/recomputed split is permanent (2026-09-24)
+
+**Origin.** The owner asked for the week 1 and 2 scores *as they were played*, before F49's
+IDP change. A rival manager then disputed his own reconstructed total, which is what
+prompted looking at the banked column properly.
+
+**What the reconstruction found.** `data/logs/first_recorded_scores.jsonl` — captured
+2026-09-23T10:31:29Z, provably **before** the change (T.J. Watt's week 1 reads 34.50 there
+and 29.50 today) — reproduces each team's original weekly score. Player by player on the
+disputed roster, only two of thirteen starters moved in either week and **both are IDP**;
+every other starter matches to the cent. There are no stat corrections in those weeks at
+all. That roster lost **15.01 points across two weeks**, the most in the league, because it
+starts two high-volume linebackers.
+
+**The actual finding.** Sleeper's per-roster `settings.fpts` equals
+**week 1 at the ORIGINAL scoring plus week 2 at the RE-SCORED scoring**. Six of eight teams
+match that construction *to the cent*, a seventh to a penny:
+
+```
+                    wk1 original + wk2 re-scored     banked fpts
+Turbo Llamas                  373.22                    373.21
+Rocket Pandas                 361.76                    361.76
+Quantum Ferrets               335.88                    335.88
+Polar Yetis                   324.44                    324.44
+Crimson Marmots               323.97                    323.97
+Cosmic Badgers                310.74                    310.74
+Neon Walruses                 304.71                    304.71
+Iron Wombats                  280.05                    280.50   (-0.45, a real stat correction)
+```
+
+So the **matchups** endpoint re-scored both weeks while `fpts` absorbed only week 2. A
+single displayed column carries two scoring bases, and no team's standings points equal
+either what they scored or what they would score today.
+
+**AN EARLIER EXPLANATION OF MINE WAS WRONG AND IS CORRECTED HERE.** The gap between the
+reconstruction and the banked totals was first attributed to stat corrections between
+kickoff and the capture. It is not: it is week 1's IDP deduction, which `fpts` never
+absorbed. The per-player audit shows zero corrections on the roster examined.
+
+**SCOPE, CHECKED RATHER THAN ASSUMED — the engine is NOT affected.** `actual_points`, which
+feeds the playoff-seeding tiebreak `(banked wins, banked points)`, accumulates from
+`weekly_actuals.json` (`simulation.py:637`), which sync writes from the matchups endpoint —
+**both weeks re-scored, one consistent basis**. The mixed number lands in
+`league_standings.json`'s `points_scored`, and a grep for consumers of that field returns
+nothing: the engine reads that file only for `remaining_faab`. The field is written and
+never read.
+
+**RESOLVED 2026-09-24, and the cause was simpler and stranger than the finding guessed.**
+The scoring change was applied slightly *before week 2 closed*. Sleeper scores a completed
+week by recomputing stat lines against CURRENT settings, so flipping the switch mid-week
+re-priced week 2 retroactively — **but not week 1**, which was already banked. That is the
+exact split this entry measured as "a column mixing two bases": it was not a mixing bug,
+it was one week caught on the wrong side of a switch. The commissioner then manually
+restored week 2 to the settings its games were played under.
+
+Verified afterwards: banked totals now reproduce the original weekly scores for every team
+(one to the cent — 187.36 + 149.02 = 336.38), and the disputed 2-2 record stands.
+
+**THE SPLIT THAT REMAINS IS PERMANENT AND IS THE REAL FINDING.** `/matchups` does not store
+a completed week's points; it derives them live. So for the rest of the season the API
+reports weeks 1–2 on the NEW scale while the standings hold them on the OLD one, and no
+commissioner action can change that. The two are each correct for a different consumer —
+forecasting wants the new scale (it is the scale future weeks use, so the Bayesian blend is
+already right), standings and seeding want the banked record. The engine currently uses the
+recomputed basis for both, which makes `actual_wins_banked` describe a record the league
+does not recognise. That is F70's recorded follow-up, now live rather than hypothetical;
+it does not bite until the week-15 seeding block. Flagged to the owner rather than changed,
+because it moves predictions. Full end-state table in `docs/EVALUATION_BOUNDARIES.md`.
+
+**Both sides are preserved and neither was recoverable from Sleeper:**
+`first_recorded_scores.jsonl` (old scale, per player, frozen on first write — B19) and
+`data/logs/weekly_actuals_new_idp_scale_2026_09_24.json` (new scale, per team, captured from
+the single sync that ran between the change and the repair, hours from being overwritten).
+
+**OWNER CONFIRMATION, 2026-09-24, and it sharpens the finding.** Sleeper's own UI still
+displays the week 1 scores this reconstruction produces — the owner checked. So the split
+is not a column quietly mixing bases: **week 1 was never re-banked anywhere except the live
+`/matchups` computation.** The UI and `fpts` both hold week 1 at the original scoring; only
+the API recomputes it. Whether the UI also re-scored week 2 is the one open question, and
+it is a single glance to settle; this entry will be tightened when it is.
+
+That also means the reconstruction has now been validated two independent ways: against
+`fpts` arithmetically (six teams to the cent) and against what a human sees on the site.
+
+**Why it is recorded rather than fixed.** Nothing downstream is wrong today, and "fixing"
+it would mean choosing a basis for a field nobody consumes. The value is the *knowledge*:
+this is a second, independent instance of F70's root cause — Sleeper serving re-scored
+history — and it is worse than F70 in one respect, because F70's disagreement was
+detectable (`wins` vs recomputed) while this one is invisible without a pre-change snapshot
+that only exists by luck. **The transferable rule: no Sleeper-derived cumulative total may
+be compared against a recomputed one across a scoring-settings change.** If
+`points_scored` ever acquires a consumer, it must be rebuilt from `weekly_actuals`, not
+from `fpts`.
+
+Suite unchanged (no code changed). RECORDED, not fixed.

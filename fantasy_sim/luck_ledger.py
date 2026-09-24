@@ -23,6 +23,16 @@ Nothing here touches the network or the engine; callers pass plain dicts.
 """
 import math
 
+# PRE-REGISTERED with the definitions (F53, docs/LUCK_LEDGER.md): the minimum completed
+# weeks before any INFERENCE is reported. Below it the point estimate and its standard
+# error still print -- they are the honest content at any n -- but z, p and the
+# significance word are withheld. R2: the renderer used to suppress the WORD and print the
+# NUMBER, and `p 0.000` beside `too early` is read as significance, because "too early" is
+# a word and 0.000 is four significant figures. It lives here, beside the definitions,
+# rather than as a literal in a print helper, so it cannot be edited by someone who does
+# not know it was pre-registered.
+MIN_WEEKS_FOR_INFERENCE = 6
+
 CLOSE_MARGIN = 10.0          # a H2H decided by less than this is a "close game"
 DNP_EPSILON = 1e-9           # a starter scoring exactly 0.00 is the DNP proxy
 

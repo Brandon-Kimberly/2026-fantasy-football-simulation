@@ -81,10 +81,16 @@ class TestAtOrAboveTheThresholdInferenceReturns(unittest.TestCase):
 
     def test_the_boundary_is_inclusive_at_the_threshold(self):
         """`weeks < MIN` withholds; `weeks == MIN` reports. Pinned because `<` and `<=`
-        are one keystroke apart and only one of them matches the pre-registration."""
+        are one keystroke apart and only one of them matches the pre-registration.
+
+        The match is on a NUMERIC p specifically: the withheld line still contains the
+        literal "p" (as `p --`), so a bare substring test for "p " passes on both sides
+        and proves nothing. That is how the first version of this assertion was wrong."""
+        import re
         from fantasy_sim.luck_ledger import MIN_WEEKS_FOR_INFERENCE
-        self.assertNotIn("p ", self._line(MIN_WEEKS_FOR_INFERENCE - 1))
-        self.assertIn("p ", self._line(MIN_WEEKS_FOR_INFERENCE))
+        numeric_p = re.compile(r"\bp\s+\d")
+        self.assertIsNone(numeric_p.search(self._line(MIN_WEEKS_FOR_INFERENCE - 1)))
+        self.assertIsNotNone(numeric_p.search(self._line(MIN_WEEKS_FOR_INFERENCE)))
 
 
 class TestTheThresholdIsNamedAndPreRegistered(unittest.TestCase):

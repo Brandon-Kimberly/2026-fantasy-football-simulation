@@ -61,6 +61,11 @@ venv/
 # free agent never appears in it and no past pool can be rebuilt. Positions and numbers
 # only; no identities.
 !data/logs/streamer_levels.jsonl
+# Boundary 1's resolution: weeks 1-2 per team at the NEW IDP scale, captured from the
+# one sync that ran between the scoring change and the commissioner's repair. Sleeper
+# keeps no scoring history and /matchups recomputes live, so this side of the boundary
+# is otherwise unrecoverable -- the same reason every other log here is tracked.
+!data/logs/weekly_actuals_new_idp_scale_*.json
 
 # The sanitized sample is a BUILD PRODUCT since 2026-09-05: generated and deployed to
 # Pages by .github/workflows/pages-sample.yml, never committed (9MB per copy was

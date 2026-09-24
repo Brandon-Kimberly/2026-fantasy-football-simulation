@@ -31,7 +31,8 @@ import requests
 
 from fantasy_sim.config import BASE_URL, LEAGUE_ID, MY_TEAM, TEAM_NAME_MAP, KNOWN_LEAGUE_IDS
 from fantasy_sim.league_chain import resolve_chain
-from fantasy_sim.luck_ledger import direction, ledger, two_sided_p
+from fantasy_sim.luck_ledger import (MIN_WEEKS_FOR_INFERENCE, direction, ledger,
+                                     two_sided_p)
 from fantasy_sim.weekly_report import real_name_overlay
 
 
@@ -166,13 +167,18 @@ def _fmt(metric, keys, label, name, weeks,
     way = direction(name, delta)
     if z is None:
         return f"  {label:16s} {delta:+8.2f}  {way:8s} (no spread to test)  {detail}"
+    # R2: below the pre-registered threshold the INFERENCE is unavailable, not merely
+    # unnamed. This line used to suppress the verdict WORD and still print
+    # `z -4.03  p 0.000` beside "too early" -- and the reader takes the number, because
+    # "too early" is a word and 0.000 is four significant figures. The point estimate and
+    # its standard error still print: they are honest at any n, and the SE is the thing
+    # that actually says "too noisy to read".
+    if weeks < MIN_WEEKS_FOR_INFERENCE:
+        early = f"too early (n<{MIN_WEEKS_FOR_INFERENCE})"
+        return (f"  {label:16s} {delta:+8.2f}  {way:8s} +-{se:6.2f}  "
+                f"z {'--':>5s}  p {'--':>5s}  {early:11s} {detail}")
     p = two_sided_p(z)
-    # Below six weeks nothing gets a significance word. The arithmetic is honest but the
-    # sample is not, and "SIGNIFICANT" next to n=2 is how a tool like this starts lying.
-    if weeks < 6:
-        verdict = "too early"
-    else:
-        verdict = "SIGNIFICANT" if p < 0.05 else ("suggestive" if p < 0.20 else "noise")
+    verdict = "SIGNIFICANT" if p < 0.05 else ("suggestive" if p < 0.20 else "noise")
     return (f"  {label:16s} {delta:+8.2f}  {way:8s} +-{se:6.2f}  z {z:+5.2f}  p {p:5.3f}  "
             f"{verdict:11s} {detail}")
 
@@ -198,9 +204,11 @@ def render(res, season, team_label, n_weeks):
               f"({d['h2h_wins']} head-to-head + {d['median_wins']} median), but the league "
               f"banked {d['banked']}.")
         print("     " + "\n     ".join(_textwrap.wrap(d["note"], 86)))
-    if n_weeks < 6:
-        print(f"\n  n = {n_weeks} weeks. Nothing here can be significant yet; the standard "
-              "errors are the point.")
+    if n_weeks < MIN_WEEKS_FOR_INFERENCE:
+        print(f"\n  n = {n_weeks} weeks, below the pre-registered "
+              f"{MIN_WEEKS_FOR_INFERENCE} (F53). z and p are WITHHELD rather than printed "
+              f"beside 'too early': nothing here can be significant yet, and the standard "
+              f"errors are the point.")
 
 
 def main(argv=None):

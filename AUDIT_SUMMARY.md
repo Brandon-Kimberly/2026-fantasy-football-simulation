@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~120 findings and tracked follow-ups** | **87 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~121 findings and tracked follow-ups** | **87 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,31 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F83** a mid-week scoring change re-priced one completed week and not the other —
+  RESOLVED at source; the banked/recomputed split is permanent. Originally recorded as `settings.fpts` equals week 1 at the ORIGINAL scoring plus week 2 at the RE-SCORED
+  scoring — six of eight teams match that construction to the cent, a seventh to a penny —
+  while the matchups endpoint re-scored both weeks. One displayed column, two bases, and no
+  team's standings points equal either what they scored or what they would score today. Found
+  reconstructing the pre-F49 weekly scores from `first_recorded_scores.jsonl` (provably
+  pre-change: T.J. Watt's week 1 reads 34.50 there, 29.50 now); the per-player audit shows the
+  movement is entirely IDP, with zero stat corrections, and **corrects an earlier explanation
+  of mine that blamed stat corrections**. Scope checked rather than assumed: the ENGINE IS NOT
+  AFFECTED — `actual_points` accumulates from `weekly_actuals` (both weeks re-scored, one
+  basis), and `league_standings.points_scored` has no consumer at all. Recorded because it is
+  a second, independent instance of F70's root cause and a worse one: F70's disagreement was
+  detectable, this one is invisible without a pre-change snapshot that exists only by luck.
+  Transferable rule: never compare a Sleeper cumulative total against a recomputed one across
+  a scoring-settings change. **CAUSE FOUND 2026-09-24**: the change was applied slightly
+  before week 2 closed, and Sleeper recomputes a completed week against CURRENT settings, so
+  week 2 was re-priced retroactively and week 1 — already banked — was not. Not a mixing bug;
+  one week caught on the wrong side of a switch. The commissioner manually restored week 2,
+  and banked totals now reproduce the original scores for every team (one to the cent). **What
+  remains is permanent**: `/matchups` derives points live rather than storing them, so the API
+  will report weeks 1–2 on the NEW scale against the standings' OLD one for the rest of the
+  season. Each basis is right for a different consumer — the blend correctly wants the new
+  scale, seeding wants the banked record — and the engine uses the recomputed one for both,
+  which is F70's follow-up now live. Flagged, not changed: it moves predictions. Both sides of
+  the boundary are preserved in tracked logs; neither was recoverable from Sleeper.
 - **F82** the docs guard pinned the release NUMBER and ignored the DATE — RESOLVED:
   `CITATION.cff` read `date-released: 2026-09-05` at v7.0.0, two tags stale, while its
   `version` line was correct — the same drift disease the version guard exists for, in the

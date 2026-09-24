@@ -66,6 +66,65 @@ Both are recorded so the comparison is auditable rather than remembered.
 
 ---
 
+## Boundary 1 — RESOLUTION, appended 2026-09-24
+
+The boundary above is recorded as observed and is **not rewritten**. What follows is what
+actually happened next, which changes how January must read it.
+
+**The change landed slightly before week 2 closed.** Sleeper scores a completed week by
+recomputing stat lines against the league's CURRENT settings, so flipping the switch while
+week 2 was still open retroactively re-priced week 2 — **but not week 1**, which had
+already been banked. The commissioner then manually restored every week 2 score to the old
+settings, which are the settings every game in weeks 1 and 2 was actually played under.
+
+**End state, verified 2026-09-24 against the frozen pre-change record:**
+
+| | weeks 1–2 | week 3 onward |
+|---|---|---|
+| Scoring actually in force when played | OLD (8.5/sack) | NEW (6.0/sack) |
+| League's BANKED record (`settings.wins`, `fpts`) | OLD — repaired | NEW |
+| Sleeper `/matchups` API | **NEW — recomputed live** | NEW |
+
+Banked totals now reproduce the original weekly scores to within a point for every team
+(one roster matches to the cent: 187.36 + 149.02 = 336.38), and the disputed 2-2 record
+stands with week 2 as the loss it was played as.
+
+**THE SPLIT BETWEEN BANKED AND RECOMPUTED IS PERMANENT AND CANNOT BE REPAIRED.** `/matchups`
+does not store a completed week's points; it derives them. No commissioner action can
+change that, so for the rest of the season the API will report weeks 1–2 on the NEW scale
+while the standings hold them on the OLD one. This is F70's root cause, now a steady state
+rather than an incident, and F70's detector is what surfaces it: `scripts.luck_ledger`
+reports *"these 2 weeks recompute to 3 wins but the league banked 2"* and withholds every
+measurement that depends on who won.
+
+**THE TWO BASES ARE EACH CORRECT FOR A DIFFERENT PURPOSE, and this is the useful half.**
+
+- **Forecasting wants the NEW scale.** The Bayesian blend asks how good a player is under
+  the rules that will apply in future weeks, and the re-scored weeks 1–2 answer exactly
+  that. Feeding it the recomputed actuals is right, and no change is needed. The heterogeneity
+  worry — old-scale weeks inflating an IDP posterior — does **not** arise, because the input
+  is uniformly new-scale.
+- **Standings and playoff seeding want the BANKED record.** `actual_wins_banked` and
+  `actual_points` are summed from the recomputed weekly actuals, so they currently describe
+  a record the league does not recognise. That is F70's recorded follow-up, now live rather
+  than hypothetical; it does not bite until the week-15 seeding block.
+
+**What the January analysis must do — REVISED.** The partition for criterion 1 is by WEEK
+and is clean: weeks 1–2 were played and banked under 8.5/sack, week 3 onward under 6.0.
+Criterion 3's trap is unchanged and now sharper — post-change coverage may improve because
+the fattest tail was cut, so pre-change coverage compares only to pre-change baseline.
+
+**Both sides of the boundary are preserved, and neither was recoverable from Sleeper:**
+
+- `data/logs/first_recorded_scores.jsonl` — weeks 1–2 per player at the OLD scale, frozen on
+  first write and never updated even when a score moves (B19). Verified pre-change: T.J.
+  Watt's week 1 reads 34.50 there against 29.50 recomputed.
+- `data/logs/weekly_actuals_new_idp_scale_2026_09_24.json` — weeks 1–2 per team at the NEW
+  scale, captured from the 07:35Z sync that ran between the change and the repair.
+  `weekly_actuals.json` is rewritten every sync, so this was hours from being lost.
+
+---
+
 ## Boundary 2 — ESPN blend restoration and blend-coverage fix (F52 + F54)
 
 **What changed.** Two faults, fixed together and taking effect at the same re-sync.
