@@ -221,6 +221,13 @@ FIRST_SCORES_FILE = _log("first_recorded_scores.jsonl")
 # was he Questionable", which B10 needs and which is the evidence B4 would require
 # before pricing a designation rather than merely surfacing it.
 DESIGNATIONS_FILE = _log("designations.jsonl")
+
+# C5: one row per run of scripts.streamer_study -- BASE_STREAMER_MEANS against the
+# live free-agent pool, per position. A LOG, not current state: the question "is the
+# gap stable across syncs" is the one that decides whether a constant moves, and
+# projection_log.jsonl cannot answer it (one line per ROSTERED player, so a season-long
+# free agent never appears in it).
+STREAMER_LEVELS_FILE = _log("streamer_levels.jsonl")
 # F15 ingestion row: one immutable document per season -- the league's real completed draft,
 # picks resolved to team names at ingestion (sync.ingest_drafts; a file that exists is never
 # rewritten). Tracked in git like the other logs: Sleeper ages drafts out, so the on-disk

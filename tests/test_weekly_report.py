@@ -270,7 +270,10 @@ class TestChain(unittest.TestCase):
                           "league", "predictions_log", "roster_grades", "lineup", "matchup",
                           # T6: after the matchup and BEFORE waivers on purpose -- the
                           # holes it finds are what the waiver plan is built around.
-                          "roster_calendar", "waivers"])
+                          "roster_calendar",
+                          # C5: read-only, and --record is what makes n grow toward the
+                          # four syncs a MAJOR constant change would need.
+                          "streamer_study", "waivers"])
         steps, _ = build_steps("Quantum Ferrets", full=True, skip_sync=True)
         self.assertEqual(steps[0][0], "freshness"); self.assertEqual(steps[-1][0], "trades")
 

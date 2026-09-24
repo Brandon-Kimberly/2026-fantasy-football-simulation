@@ -1357,6 +1357,12 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
         from scripts.roster_calendar import main as m
         return m(["--team", team] + state["tool_extra_argv"])
 
+    def step_streamer_study():
+        # C5: read-only measurement, and --record is what makes `n` grow. Cheap (no sims),
+        # and its record path never raises, so it cannot fail the chain.
+        from scripts.streamer_study import main as m
+        return m(["--record"])
+
     def step_waivers():
         from scripts.waiver_targets import main as m
         return m(["--team", team, "--week", str(state["week"])] + state["tool_extra_argv"])
@@ -1374,7 +1380,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
               ("league", step_league), ("predictions_log", step_predictions_log),
               ("roster_grades", step_roster_grades), ("lineup", step_lineup),
               ("matchup", step_matchup), ("roster_calendar", step_roster_calendar),
-              ("waivers", step_waivers)]
+              ("streamer_study", step_streamer_study), ("waivers", step_waivers)]
     if full:
         steps.append(("trades", step_trades))
     if canonical:

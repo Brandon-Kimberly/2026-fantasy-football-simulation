@@ -5859,3 +5859,59 @@ Suite 1277 → 1286 (characterisation, all 9 red) → 1293. Four mutations (the 
 complete trades, the writer overwriting on a fetch failure, the reader raising on junk, the
 exclusion dropping a leg instead of the proposal) each turn the suite red. Goldens 15/15,
 sync golden byte-identical. RESOLVED.
+
+### F79 — Streamer levels measured against the real free-agent pool — MEASURED, NOT CHANGED (2026-09-24)
+
+**Origin.** Backlog 2 item C5, flagged MAJOR-if-changed and therefore a stop-and-report.
+`BASE_STREAMER_MEANS` is read at engine init by every hole evaluation, so moving it changes
+the model's predictions materially **while leaving the goldens byte-identical** — the F28
+class. The study is done; the constant is untouched. Full table and derivation:
+`docs/audit/STREAMER_LEVELS.md`. Reproduce with `py -3.10 -m scripts.streamer_study`.
+
+**FOUR THINGS THE ITEM HAD WRONG.**
+
+1. **QB is not the worst case.** C5 says "DL is fine. The other positions were not checked."
+   Checking them puts **K at +2.19 and LB at +2.17** against QB's **+1.92** (capped gaps).
+   A QB-only fix would have left the two larger gaps in place.
+2. **The streamer is not 14.0.** `m_str = max(replacement × 0.8, BASE)`, and for QB the
+   floor binds: `18.32 × 0.8 = 14.66`. Comparing the pool against the bare constant
+   overstates the QB gap by 0.66.
+3. **The pool moved within a day.** C5 cites four free-agent QBs at 16.6–17.9; a day later
+   the top three are 16.78 / 16.54 / 16.47, because one was claimed. A 19-man pool measured
+   once is volatile, which is the case against acting on `n = 1`.
+4. **Not every gap points the same way.** RB is **−1.66** — the streamer is *above* what is
+   claimable, so an RB hole is priced too kindly today. Raising constants across the board
+   would make RB worse.
+
+**THE BACKLOG'S DATA SOURCE CANNOT ANSWER ITS OWN QUESTION.** C5 says
+"`projection_log.jsonl` has the history". It does not: that log is one line per **rostered**
+player per sync, so a player who has been free all season never appears and no past pool is
+reconstructible. `scripts/streamer_study --record` now appends one row per run to
+`data/logs/streamer_levels.jsonl` — tracked, for the same reason the other logs are, because
+it genuinely cannot be rebuilt afterwards — and the study is a weekly-report step, so `n`
+grows without anyone remembering to run it. **Revisit at week 7 with four observations.**
+
+**RECOMMENDATION: do not change the constant yet.** When `n = 4`, option (b) from C5 remains
+the better fix — derive `m_str` from the live pool at init, capped at the replacement level
+(Phase 4's rule, so a hole can never be worth more than a starter). It is self-maintaining
+and subsumes all nine numbers, where hand-raising QB fixes the third-largest gap only.
+Acceptance for that change: goldens regenerated deliberately with week01/06/15 deltas
+explained, a points-backtest line either side, and `run_behavior_check` — the goldens alone
+cannot see a sync/init constant (F28).
+
+**A SEPARATE DIVERGENCE FOUND WHILE READING THE ENGINE, not changed here.** The engine
+decays repeated streamers at one position — `BASE × STREAMER_DECAY_RATE ** streamers_used`,
+rate 0.85 — while `decisions.streamer_mean`, added by C2/F69 precisely so the week tools and
+the season simulation would agree, applies **no decay**. They agree exactly for the first
+hole, which is every case seen live, and diverge for a roster with two holes at one
+position. Same class as F69; it should be its own item.
+
+**Test note.** New capability, so no red characterisation exists and none is claimed. All 14
+tests passed first run and were mutation-tested — and **one mutation survived**: replacing
+`max(replacement × 0.8, BASE)` with the bare constant passed, because every position in the
+first fixture had `replacement × 0.8` *below* the constant, so the max never mattered. The
+fixture now puts QB in the floor branch, where the live roster actually is, and a control
+test asserts that at least one position takes the floor. That is the fourth item running
+where a fixture agreed with the code it was written beside.
+
+Suite 1293 → 1308. Goldens 15/15, sync golden byte-identical (no constant moved). MEASURED.

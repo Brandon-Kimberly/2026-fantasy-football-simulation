@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~116 findings and tracked follow-ups** | **83 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~117 findings and tracked follow-ups** | **84 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,21 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F79** streamer levels measured against the real free-agent pool — MEASURED, NOT CHANGED:
+  C5 was flagged MAJOR-if-changed, so the study ran and the constant did not move
+  (`docs/audit/STREAMER_LEVELS.md`; `scripts.streamer_study` reproduces it). **Four things the
+  item had wrong**: QB is not the worst case (K +2.19 and LB +2.17 beat QB's +1.92); the
+  streamer is not 14.0 but `max(replacement × 0.8, BASE)` = 14.66, so comparing against the
+  bare constant overstates the gap; the pool moved within a day (a cited 17.3 QB was claimed),
+  so `n = 1` on a 19-man pool is volatile; and RB's gap is **−1.66**, pointing the other way,
+  so raising constants across the board would make it worse. **The item's data source cannot
+  answer its own question** — `projection_log.jsonl` is one line per ROSTERED player, so no
+  past free-agent pool is reconstructible; `--record` now logs one row per run (tracked,
+  because it genuinely cannot be rebuilt later) and the study is a weekly step, so revisit at
+  week 7 with n = 4. Recommendation stands at C5's option (b): derive from the live pool at
+  init, capped at replacement (Phase 4's rule). Separately found and not changed: the engine
+  decays repeated streamers (0.85) while `decisions.streamer_mean` does not — they agree on
+  the first hole and diverge on a second at the same position, the F69 class again.
 - **F78** the trade screens proposed players already committed to a pending trade —
   RESOLVED: `find_trades --require-mutual` ranked a player already promised to somebody else
   FIRST, because Sleeper marks those `status: pending` and `ingest_transactions` keeps only
