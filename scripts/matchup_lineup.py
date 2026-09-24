@@ -82,6 +82,21 @@ def main(argv=None):
                           for t, v in sorted(elsewhere.items())) + ")")
     print(f"  {r['note']}")
 
+    # T5: the "what to watch" brief, on THIS tool's solved lineups -- the recommended
+    # construction for me, the assumed one for him -- so the brief and the table above can
+    # never describe different lineups. Grouping only; no number here is new.
+    try:
+        from fantasy_sim.matchup_watch import render_lines, watch
+        from fantasy_sim.weekly_report import real_name_overlay
+        r["watch"] = watch(engine, args.team, r["opponent"], week,
+                           [x["name"] for x in r["constructions"][best]["lineup"]],
+                           [x["name"] for x in r["opponent_lineup"]])
+        print()
+        for line in render_lines(r["watch"], name_of=real_name_overlay()):
+            print(line)
+    except Exception as ex:      # the brief is reporting; it must never fail the tool
+        print(f"  (what-to-watch brief unavailable: {type(ex).__name__}: {ex})")
+
     stamp = _dt.datetime.now(_dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     out = decisions_week_path(week, f"matchup_{stamp}_week{week}.json", canonical=args.canonical)
     save_json(out, {"timestamp_utc": stamp, "tool": "matchup_lineup", **r})

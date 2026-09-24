@@ -5594,3 +5594,51 @@ record (F37). Unchanged here, and the owner's call if it ever should change.
 
 Suite 1197 → 1201 (characterisation, 3 red) → 1201 green. Goldens 15/15, sync golden
 byte-identical. RESOLVED.
+
+### F74 — The what-to-watch brief, and two unit bugs the fixture agreed with — BUILT (2026-09-24)
+
+**Origin.** Backlog 2 item T5. The owner asked what to watch this week; the answer was
+assembled by hand from both lineups grouped by NFL game, the Vegas line per game, the
+correlated stacks, the Questionable starters, and the windiest game — and then assembled a
+SECOND time the same evening, because a pending trade and the opponent's empty DL slot
+changed it. Every input is mechanical.
+
+`fantasy_sim/matchup_watch.py` is the logic, `scripts/matchup_watch` the standalone tool,
+and `scripts.matchup_lineup` now prints the same brief from ITS solved lineups so the brief
+and the construction table can never describe different lineups. It reaches the weekly
+report's matchup section through one shared row builder, so Markdown and HTML cannot drift
+into disagreeing about which games the week turns on.
+
+**Nothing here is a new number.** Every expectation is `decisions.week_expectation`
+verbatim (a test asserts it player by player) and every line comes from the engine's own
+`_compute_week_environment`. The module groups and counts.
+
+**New capability, so no red characterisation exists and none is claimed.** The tests were
+verified by mutation instead: unsorted game keys, a game total taken from one side,
+designations restricted to my own roster, `opposed` never detected, the losing script taken
+as the minimum, and `stack_min` lowered to 2 each turn the suite red (6, 1, 2, 3, 1 and 1
+failures).
+
+**Two bugs the FIXTURE agreed with, both found only by running it on live data.** This is
+the part worth keeping:
+
+1. **`precip_prob` is a percentage, not a fraction.** `sync.game_window_weather` stores
+   Open-Meteo's `precipitation_probability` (window max) unscaled, and the live file ranges
+   0.0 to 35.0. The renderer multiplied by 100, so the first real page read **"2800%"**. The
+   fixture had been written with fractions, which is exactly why every test passed. The
+   fixture now pins the real units and a test asserts the rendered string.
+2. **A game total needs BOTH sides.** The implied total is per NFL *team*, and only teams
+   fielding a starter were looked up — so **seven of twelve games on the first live page had
+   no total at all**. Both sides of each game are now resolved through the `opponent` field.
+
+Both were written as failing tests first and confirmed red before the fix. The lesson is
+the transferable one: a fixture written by the same person as the code can encode the same
+wrong assumption, and only real data disputes it.
+
+**Also noted, not acted on:** the brief prints the market's implied totals next to
+expectations that already embed them (`week_expectation` scales by
+`vegas.total / normaliser`). That is not double-counting — one is context, the other is the
+projection — but the page says so explicitly, alongside F55's standing caveat that weather
+is fetched and not modelled.
+
+Suite 1201 → 1225. Goldens 15/15, sync golden byte-identical. BUILT.

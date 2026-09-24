@@ -531,6 +531,63 @@ def _table(headers, rows):
     return "\n".join(out)
 
 
+def _watch_rows(w):
+    """The games table shared by both renderers, so Markdown and HTML cannot drift."""
+    rows = []
+    for g in w.get("games") or []:
+        who = []
+        if g["mine"]:
+            who.append("me: " + ", ".join(r["name"] for r in g["mine"]))
+        if g["theirs"]:
+            who.append("them: " + ", ".join(r["name"] for r in g["theirs"]))
+        rows.append([g["game"],
+                     f"{g['game_total']:.1f}" if g.get("game_total") is not None else "-",
+                     f"{g['mine_sum']:.1f}", f"{g['theirs_sum']:.1f}",
+                     f"{g['wind_mph']:.0f}" if g.get("wind_mph") is not None else "-",
+                     f"{g['precip_prob']:.0f}%" if g.get("precip_prob") is not None else "-",
+                     g.get("shared") or "-", "; ".join(who)])
+    return rows
+
+
+_WATCH_COLS = ["NFL game", "Implied total", "My starters", "Their starters",
+               "Wind (mph)", "Precip", "Shared", "Who"]
+
+
+def _watch_callouts(w):
+    """The one-line blocks under the games table, as (label, text) so each renderer can
+    emphasise the label its own way instead of one of them stripping the other's markup."""
+    out = []
+    for s in w.get("stacks") or []:
+        out.append(("Stack", f"{s['team']} has {s['n']} starters in {s['game']} "
+                             f"({s['sum']:.1f} expected points) -- that side's week rides "
+                             f"on one football game."))
+    for d in w.get("designations") or []:
+        side = w["team"] if d["side"] == "mine" else w["opponent"]
+        out.append((f"Designation ({side})",
+                    f"{d['name']} {d['flag']} -- {d['expected']:.1f} expected, "
+                    f"undiscounted (F51)."))
+    for g in w.get("shared_games") or []:
+        out.append(("Shared", f"{g['game']} is {g['shared']} -- "
+                    + "; ".join(f"{k}: {', '.join(r['name'] for r in g[k])}"
+                                for k in ("mine", "theirs") if g[k])))
+    ls = w.get("their_losing_script")
+    if ls:
+        out.append(("Their losing script",
+                    f"{ls['game']} carries {100 * ls['share']:.0f}% of the expected total "
+                    f"for {w['opponent']} ({ls['sum']:.1f} from "
+                    f"{', '.join(ls['players'])})."))
+    return out
+
+
+def _watch_md(w):
+    """T5's what-to-watch brief. Grouping only -- no number here is new."""
+    if not w or not w.get("games"):
+        return []
+    md = ["### What to watch", "", _table(_WATCH_COLS, _watch_rows(w)), ""]
+    md += [line for lbl, txt in _watch_callouts(w) for line in (f"**{lbl}:** {txt}", "")]
+    return md + [f"_{w['weather_note']}_", ""]
+
+
 def render_digest(report, team, week):
     res = report.get("results", {})
     md = [f"# Weekly report -- {team}, week {week}"] + [
@@ -647,6 +704,7 @@ def render_digest(report, team, week):
             md += [f"Best by P(beat opponent): **{best}**" + (" -- changes vs max_mean: " + "; ".join(diffs) if diffs else ""), ""]
         md += [f"Opponent lineup ({'assumed' if mu.get('opponent_lineup_assumed') else 'supplied'}): "
                + ", ".join(f"{x['name']} ({x['expected']:.1f})" for x in mu.get("opponent_lineup", [])), ""]
+        md += _watch_md(mu.get("watch"))
 
     wv = res.get("waivers")
     if wv:
@@ -1022,6 +1080,13 @@ def render_html(report, team, week, embed=False, anchor_dir=None):
         out.append(f"<details><summary>Opponent lineup ({assumed})</summary>"
                    + html_table(["Slot", "Player", "Expected"], [[x["slot"], x["name"], f"{x['expected']:.1f}"] for x in mu.get("opponent_lineup", [])])
                    + "</details>")
+        w = mu.get("watch")
+        if w and w.get("games"):
+            out.append("<h3>What to watch</h3>")
+            out.append(html_table(_WATCH_COLS, _watch_rows(w)))
+            for lbl, txt in _watch_callouts(w):
+                out.append(f"<p><b>{T(lbl)}:</b> {T(txt)}</p>")
+            out.append('<p class="note">' + T(w["weather_note"]) + "</p>")
         out.append('<div class="charts">' + _img(sos_roster_chart_path(week), "Strength of schedule by fantasy roster", embed, anchor)
                    + _img(sos_team_summary_chart_path(week), "Strength of schedule -- NFL team ranking", embed, anchor) + "</div>")
 

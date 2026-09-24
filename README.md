@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1201%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1225%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -22,8 +22,8 @@ guided tour with the outputs already rendered, start with
 IDP fantasy league. Each run simulates 10,000 seasons forward from the current week.
 Every projection is a distribution. Every probability carries a standard error.
 
-**What makes it different:** the audit trail. **~111 findings and tracked follow-ups
-across 8 audit phases: 78 fixed or built, six suspected defects measured-and-cleared, 5
+**What makes it different:** the audit trail. **~112 findings and tracked follow-ups
+across 8 audit phases: 79 fixed or built, six suspected defects measured-and-cleared, 5
 fixes reverted on real-data evidence. The full ledger is [AUDIT_SUMMARY.md](AUDIT_SUMMARY.md).**
 Every fix required a test that failed first. Every constant cites a source or says
 "unverified". A byte-exact 15-test golden master and a per-commit real-data backtest
@@ -115,6 +115,7 @@ py -3.10 -m scripts.draft_review                # at-draft value review of an in
 py -3.10 -m scripts.evaluate_move               # paired evaluation of an add/drop or waiver (--log-tx, --evaluate-unevaluated)
 py -3.10 -m scripts.season_retrospective        # a completed season in four measurements, no combined verdict
 py -3.10 -m scripts.scan_real_names             # H1: tokenising real-identity scan of every tracked file before a push (LOCAL ONLY; refuses on a runner, writes nothing)
+py -3.10 -m scripts.matchup_watch               # T5: what to watch this week -- both lineups by NFL game with the line and forecast, stacks, designations on BOTH rosters, shared games, their losing script
 py -3.10 -m scripts.trade_leverage              # B12: sell-high candidates (league draft pick + preseason vs corrected) and rivals' below-replacement slots my surplus could fix
 py -3.10 -m scripts.live_matchup --tail         # B12: how improbable is today? per-player and team z against what should have been scored BY NOW, clock-adjusted
 py -3.10 -m scripts.decision_scorecard          # B24: the week's start/sit calls scored against the PRE-KICKOFF record, one row per alternative (five slots = one decision)
@@ -203,7 +204,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1201 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1225 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

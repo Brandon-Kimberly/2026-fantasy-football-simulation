@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~111 findings and tracked follow-ups** | **78 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~112 findings and tracked follow-ups** | **79 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,20 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F74** the what-to-watch brief, and two unit bugs the fixture agreed with — BUILT:
+  `fantasy_sim/matchup_watch` + `scripts/matchup_watch`, the brief that had been assembled by
+  hand twice in one evening — both lineups grouped by NFL game with that game's implied total
+  and forecast, stacks of three or more starters, designations on BOTH rosters (B4), games
+  where the rosters are correlated or hedged, and the opponent's losing script. Printed under
+  `matchup_lineup` from ITS solved lineups so the two can never describe different lineups,
+  and into the weekly report through one shared row builder. No new numbers: every expectation
+  is `week_expectation` verbatim, pinned player by player. New capability, so no red
+  characterisation exists and none is claimed; six mutations confirm the tests are
+  load-bearing. **Two bugs the fixture agreed with, found only on live data:** `precip_prob`
+  is a 0–100 percentage that the renderer was multiplying by 100 (the first real page read
+  "2800%"), and a game total needs both sides of the game, so seven of twelve games had no
+  total at all. Both written as failing tests first. The lesson: a fixture written by the same
+  person as the code encodes the same wrong assumption, and only real data disputes it.
 - **F73** the season bundle carried the league's own real name into a tracked file —
   RESOLVED: found by F72's scanner on its first real run. `sync.ingest_season` wrote
   Sleeper's league `name` and raw `league_id` into `data/logs/season_<year>.json`, a file
