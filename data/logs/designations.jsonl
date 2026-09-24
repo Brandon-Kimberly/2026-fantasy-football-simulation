@@ -182,3 +182,11 @@
 {"injury_body_part": null, "injury_status": null, "name": "Jevon Holland", "player_id": "7666", "practice_participation": null, "recorded_at": "2026-09-24T14:35:11Z", "team": "Cosmic Badgers", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Josh Downs", "player_id": "9500", "practice_participation": null, "recorded_at": "2026-09-24T14:35:11Z", "team": "Turbo Llamas", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Evan Williams", "player_id": "11739", "practice_participation": null, "recorded_at": "2026-09-24T16:43:43Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": "Shoulder", "injury_status": "Questionable", "name": "Josiah Trotter", "player_id": "13379", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Travis Etienne", "player_id": "7543", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": "Calf", "injury_status": "Questionable", "name": "Devin Lloyd", "player_id": "8329", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Edgerrin Cooper", "player_id": "11687", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": "Undisclosed", "injury_status": "Questionable", "name": "Kyle Monangai", "player_id": "12534", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Ankle", "injury_status": "Questionable", "name": "Jalen Coker", "player_id": "11646", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Quantum Ferrets", "week": 3}
+{"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Tuli Tuipulotu", "player_id": "10898", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Quantum Ferrets", "week": 3}
+{"injury_body_part": "Shoulder", "injury_status": "Questionable", "name": "Nakobe Dean", "player_id": "8267", "practice_participation": null, "recorded_at": "2026-09-24T17:59:56Z", "team": "Rocket Pandas", "week": 3}
