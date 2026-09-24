@@ -5,6 +5,45 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v8.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v8.0.0) — 2026-09-24 (MAJOR)
+
+**The engine was seeding from a record the league does not recognise.** Sleeper's
+`/matchups` endpoint DERIVES a completed week's points rather than storing them — it
+recomputes stat lines against the league's *current* scoring settings on every call. After
+a mid-season IDP change (F49) that means weeks already played come back re-priced, for
+good. The engine summed those recomputed weeks into `actual_wins_banked`, so it believed a
+3-1 record where the league had banked 2-2.
+
+Fixed in F84: banked wins and points now come from the standings, **but only when that
+record accounts for the completed weeks** — league-wide wins must equal `teams × weeks`
+(halved when median scoring is off). That check is load-bearing: the golden fixtures'
+standings are stale, so blind trust would have moved every golden onto wrong fixture data.
+**Goldens stayed 15/15 byte-identical**, which is the criterion working rather than luck.
+
+**Why MAJOR when the goldens did not move.** Measured on live data, playoff probability
+shifts up to **+6.1 points** for a team whose banked record differed. The release policy's
+two operational triggers — a golden regeneration, or a sync-time constant — are neither of
+them fired here, and this tag adds a third: *an engine input the goldens structurally
+cannot see.* The fixtures fall back to the recomputed record, so the change is invisible to
+them by construction. Same lesson as F28, different route.
+
+**Only the standings quantities moved.** The Bayesian posterior still reads the recomputed
+weekly scores, and that is correct — it asks how good a player is under the rules that
+apply in *future* weeks, which is exactly what the re-scored weeks measure. A
+green-by-design test pins the blend as untouched.
+
+**Everything else in this tag is capability**, accumulated since v7.0.0 and none of it
+touching a projection: the what-to-watch matchup brief (T5), the bye-exposure and
+roster-crunch calendar (T6), the odds-history trajectory (R1), the streamer-level study
+(C5, measurement only — no constant moved), the tokenising real-name scanner (H1), pending-
+trade awareness across the three trade screens (T3), exact clearing prices from recorded
+rival bids (T2), FAAB affordability checks (T1), and a test-isolation checker written after
+a boundary test of mine overwrote real synced data.
+
+**Findings this release:** F71–F84. Two of them were mine and are recorded as such — a test
+that wrote over `data/current/league_schedule.json`, and a real-name leak into an audit doc
+that the scanner built this same session caught before it reached history.
+
 ## [v7.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v7.0.0) — 2026-09-23 (MAJOR)
 
 **Every probability this model states is now wider, because the old ones were wrong.**

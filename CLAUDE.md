@@ -194,8 +194,13 @@ the F27 commit, 2026-09-03):
   `BASE_STREAMER_MEANS`, the blend weights) -- **which the goldens cannot detect**: the
   engine consumes `std_aleatoric` baked in at sync time, so a sync-time recalibration
   regenerates nothing while changing every prediction (learned from F28, whose golden
-  deltas were byte-identical). A commit doing either says "MAJOR pending" in its
-  message, and the tag lands with the release notes, not the commit. Every tag also
+  deltas were byte-identical). **A THIRD trigger, added at v8.0.0 (F84): any change to an
+  engine INPUT the goldens structurally cannot see.** F84 switched the banked wins and
+  points from the recomputed weekly actuals to the league's standings; the golden fixtures'
+  standings are stale, so they fall back and the goldens stay byte-identical *by
+  construction* — while live playoff probability moved up to 6.1 points. Enumerating two
+  triggers under-called it; the test is the headline, not the list. A commit doing any of
+  the three says "MAJOR pending" in its message, and the tag lands with the release notes, not the commit. Every tag also
   gets a headline entry in CHANGELOG.md, the pyproject.toml version bump, and
   CITATION.cff's `version` AND `date-released` in the same sitting (docs guards pin
   pyproject and the citation version to the latest tag, and H4 added the date: a
