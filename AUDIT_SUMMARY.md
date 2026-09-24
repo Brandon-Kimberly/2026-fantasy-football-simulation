@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~107 findings and tracked follow-ups** | **74 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~108 findings and tracked follow-ups** | **75 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,24 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F70** completed results are recomputed from re-scored points, so history gets rewritten
+  — RESOLVED: `scripts.luck_ledger` reported 2 wins and a 2–0 close-game record for a roster
+  that is 2-2 in the standings. The ledger's arithmetic is correct and all three of the
+  backlog's diagnosis candidates were wrong; the cause is upstream. Sleeper re-scores
+  completed weeks under the league's CURRENT settings, so F49's IDP cut
+  (`docs/EVALUATION_BOUNDARIES.md`, boundary 1) rewrote finished weeks and flipped week 2
+  from a 0.24-point loss to a 4.33-point win. Confirmed at source: the matchups endpoint
+  says WIN, the rosters endpoint still says 2-2, and `stat_corrections` shows the movement
+  is entirely IDP players. Worse than an ordinary wrong number because the ledger is
+  pre-registered (F53) and the rewritten record is internally consistent, so nothing looks
+  broken. Fixed by cross-checking against Sleeper's own `settings.wins` — written when the
+  week closed, never re-scored — and withholding the measurements that depend on who WON
+  (`schedule_luck`, `close_games`) while still reporting the ones that do not
+  (`opponent_luck`, `dnp_luck`). Naming trap pinned by test: `league_standings.h2h_wins` is
+  TOTAL wins, both legs of a median week, so the comparison is h2h PLUS median wins. Gated
+  on closed weeks so an in-progress week cannot cry wolf. Follow-up recorded, not taken:
+  re-banking results at source touches the engine's `actual_wins_banked`, and until it
+  lands every tool reading a completed week's `points` is reading re-scored history.
 - **F69** the week tools scored an unfillable slot as zero, not as a streamer — RESOLVED:
   `matchup_lineup` printed this week's opponent with 12 starters against a 13-slot league
   and reported 81.9% / +48.9; a real opponent claims someone before kickoff, which is what

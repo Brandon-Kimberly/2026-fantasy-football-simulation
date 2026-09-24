@@ -5377,3 +5377,72 @@ streamed for the median.
 
 Suite 1152 → 1160. Goldens 15/15, sync golden byte-identical — these are week tools; no
 engine path reads them. RESOLVED.
+
+### F70 — Completed results are recomputed from re-scored points, so history gets rewritten — RESOLVED (2026-09-24)
+
+**Origin.** Backlog 2 item C4. Found by reading the tool's own output against the league
+table: `scripts.luck_ledger` reported `actual_wins=2` and close games `2–0` for a roster
+that is **2-2** in Sleeper's standings and remembers losing week 2 by a point and change.
+A pre-registered measurement disagreed with the scoreboard.
+
+**The backlog's three diagnosis candidates were all wrong.** It guessed *reading `points`
+from the wrong side of the matchup pair*, *treating the median leg as an H2H result*, and
+*an off-by-one on completed weeks*. The ledger does none of those; its arithmetic is
+correct. **The cause is upstream, in the data.**
+
+**Sleeper re-scores completed weeks under the league's CURRENT settings.**
+`sync._extract_weekly_h2h_results` — and `scripts.luck_ledger`'s own fetch — decide each
+finished week from `entry["points"]` as the API serves it *today*. When F49's IDP scoring
+change went live on 2026-09-23 (`docs/EVALUATION_BOUNDARIES.md`, boundary 1: `idp_sack`
+4.0 → 2.0, `idp_qb_hit` 1.0 → 0.5), every completed week was silently re-scored and week 2
+flipped:
+
+```
+as banked     ~150.65  vs  150.41   LOSS   (what the league table still records)
+re-scored      148.52  vs  144.19   WIN    (what the tools compute now)
+```
+
+The opponent lost 6.22 points to the re-pricing and this roster lost 2.13, which reversed
+a 0.24-point margin. Confirmed at source three ways: Sleeper's **matchups** endpoint says
+WIN while its **rosters** endpoint still says **2-2**; `scripts.stat_corrections` shows the
+movement is entirely IDP players (Rousseau, T.J. Watt, Nakobe Dean, Van Ginkel, Hutchinson,
+Crosby), so it is the scoring change and not a stat correction.
+
+**Why this is worse than an ordinary wrong number.** The luck ledger's entire value is that
+its definitions were pre-registered before the data (F53, `docs/LUCK_LEDGER.md`). A
+pre-registered measurement that misreads its inputs carries the credibility of
+pre-registration while being wrong. And the failure is *silent*: the recomputed record is
+internally consistent — head-to-head wins still sum to 4.0 across the league every week —
+so nothing looks broken from inside.
+
+**The banked record is available and is the truth.** Sleeper's own `settings.wins` was
+written when each week closed and is never re-scored. `luck_ledger.banked_disagreement`
+compares it against the recomputed record; when they differ, the measurements that depend
+on **who won** (`schedule_luck`, `close_games`) are withheld and the disagreement is
+reported instead. Measurements that do *not* depend on the result — `opponent_luck` is
+points-against, `dnp_luck` is starter zeros — still report, because withholding them would
+throw away good evidence.
+
+**A naming trap, recorded because it is load-bearing.** That field is carried in
+`league_standings.json` as `h2h_wins` and it is **not** head-to-head wins — it is Sleeper's
+TOTAL wins, both legs of a median-scoring week included. Comparing h2h-only against it
+would report a false disagreement in every week a team wins its median leg. A test pins the
+arithmetic (h2h wins **plus** median wins) so the name cannot mislead the next reader.
+Renaming the field is a sync-output change and is left to a separate item.
+
+**The cross-check is gated on closed weeks.** A week still in progress, or a `--week`
+cutoff, differs from the banked total for an innocent reason; the script compares only when
+every counted week is behind the league's current `leg` and no cutoff was given. An alarm
+that cries wolf teaches the reader to ignore it.
+
+**Scope deliberately not taken.** Re-banking every completed result *at source* — so that
+the sync manifest records what was banked rather than what the API currently returns —
+touches the engine's `actual_wins_banked` and the season backtest's notion of a finished
+week. That is the real repair and it is a larger change than C4 asked for; it is recorded
+here as the follow-up rather than improvised. Until it lands, every tool that reads a
+completed week's `points` is reading re-scored history, not just this one.
+
+Suite 1160 → 1170 (characterisation) → 1173 (three plumbing tests for `_banked_wins`,
+written after the wiring and verified by mutation, which is stated in their docstring
+rather than dressed up as regression tests). Goldens 15/15, sync golden byte-identical —
+no engine path reads the ledger. RESOLVED.

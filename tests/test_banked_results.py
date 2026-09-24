@@ -134,5 +134,46 @@ class TestTheLedgerRefusesRatherThanPrintingAWrongNumber(unittest.TestCase):
         self.assertIsNotNone(got["schedule_luck"])
 
 
+class TestTheScriptReadsTheBankedFieldAndNotARecomputedOne(unittest.TestCase):
+    """Plumbing. Written AFTER the wiring, not before it -- rule 1 is about the defect,
+    and the defect is in the library above. Stated plainly rather than dressed up as a
+    regression test; each assertion below was confirmed by mutating the source (reading
+    `losses` instead of `wins`, and dropping the roster_id lookup) and watching it fail.
+
+    It is here because the failure mode is silent in the worst way: if `_banked_wins`
+    returned {} the cross-check would simply never fire and the tool would go back to
+    printing a wrong number with no warning at all."""
+
+    ROSTERS = [
+        {"roster_id": 1, "settings": {"wins": 2, "losses": 2, "fpts": 900}},
+        {"roster_id": 2, "settings": {"wins": 3, "losses": 1}},
+        {"roster_id": 9, "settings": {"wins": 1, "losses": 3}},   # not in `names`
+        {"roster_id": 3, "settings": {}},                          # no record yet
+    ]
+
+    def _run(self, names):
+        from unittest.mock import patch
+        import scripts.luck_ledger as sl
+        with patch.object(sl, "_get", return_value=self.ROSTERS):
+            return sl._banked_wins("L", names)
+
+    def test_it_maps_team_names_to_sleepers_own_win_total(self):
+        got = self._run({1: ME, 2: "Neon Walruses"})
+        self.assertEqual(got, {ME: 2, "Neon Walruses": 3})
+
+    def test_a_roster_with_no_name_or_no_record_is_omitted_not_zeroed(self):
+        """A zero would read as 'banked 0 wins' and fire a false disagreement."""
+        got = self._run({1: ME, 3: "Rocket Pandas"})
+        self.assertEqual(got, {ME: 2})
+
+    def test_an_unreachable_endpoint_yields_no_record_rather_than_raising(self):
+        """No banked record is 'unknown', which banked_disagreement treats as silence.
+        The ledger must not fall over because the roster endpoint blipped."""
+        from unittest.mock import patch
+        import scripts.luck_ledger as sl
+        with patch.object(sl, "_get", side_effect=RuntimeError("503")):
+            self.assertEqual(sl._banked_wins("L", {1: ME}), {})
+
+
 if __name__ == "__main__":
     unittest.main()

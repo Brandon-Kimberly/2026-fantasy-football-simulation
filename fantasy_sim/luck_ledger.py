@@ -87,7 +87,65 @@ def _mean_sd(vals):
     return m, math.sqrt(var), n
 
 
-def ledger(weekly_scores, pairs, team, starter_points=None, projections=None):
+def banked_disagreement(weekly_scores, pairs, team, banked_wins):
+    """Does the RECOMPUTED record match what the league actually banked? (C4)
+
+    Every score here is what Sleeper serves TODAY, and Sleeper re-scores completed weeks
+    under the league's current settings. A mid-season scoring change therefore rewrites
+    finished results: F49's IDP cut flipped a 0.24-point loss into a 4.33-point win on
+    2026-09-23, and nothing about the recomputed data looks wrong -- head-to-head wins
+    still sum correctly across the league every week.
+
+    `banked_wins` is Sleeper's own `settings.wins`, carried in `league_standings.json` as
+    `h2h_wins`. THAT NAME IS WRONG and the arithmetic below is why it matters: it is TOTAL
+    wins, both legs of a median-scoring week. So the comparison has to be h2h wins PLUS
+    median wins, or every median win would look like a discrepancy.
+
+    Returns None when the two agree, or when there is no banked record to compare -- an
+    absent record is unknown, not proof of a rewrite.
+    """
+    if banked_wins is None:
+        return None
+    h2h = med = 0
+    weeks = 0
+    for week, ps in (pairs or {}).items():
+        row = (weekly_scores or {}).get(week) or {}
+        played = [v for v in row.values() if v is not None]
+        if not played:
+            continue
+        weeks += 1
+        cut = _median(played)
+        for a, b in ps:
+            sa, sb = row.get(a), row.get(b)
+            if sa is None or sb is None or team not in (a, b):
+                continue
+            mine, theirs = (sa, sb) if a == team else (sb, sa)
+            if mine > theirs:
+                h2h += 1
+        if row.get(team) is not None and row[team] >= cut:
+            med += 1
+    total = h2h + med
+    if total == int(banked_wins):
+        return None
+    return {"recomputed": total, "banked": int(banked_wins), "weeks": weeks,
+            "h2h_wins": h2h, "median_wins": med,
+            "note": ("the recomputed record disagrees with the league's banked one. Every "
+                     "score here is re-scored under CURRENT settings, so a mid-season "
+                     "scoring change (see docs/EVALUATION_BOUNDARIES.md) rewrites finished "
+                     "results. Measurements that depend on who WON are withheld rather "
+                     "than printed on rewritten history.")}
+
+
+def _median(vals):
+    s = sorted(vals)
+    n = len(s)
+    if not n:
+        return 0.0
+    return float(s[n // 2]) if n % 2 else (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+
+def ledger(weekly_scores, pairs, team, starter_points=None, projections=None,
+           banked_wins=None):
     """Five measurements for one team.
 
     weekly_scores  {week: {team: points}}
@@ -100,6 +158,13 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None):
     projections, so scoring_luck is honestly unavailable for them.
     """
     out = {"team": team, "weeks": sorted(weekly_scores)}
+    # C4: if the recomputed record disagrees with what the league banked, the scores here
+    # are re-scored history. Metrics that depend on WHO WON are withheld; metrics that do
+    # not (points against, DNP counts) still report, because withholding them would throw
+    # away good evidence.
+    disagreement = banked_disagreement(weekly_scores, pairs, team, banked_wins)
+    if disagreement:
+        out["banked_disagreement"] = disagreement
 
     # --- schedule luck -------------------------------------------------------
     ap = all_play(weekly_scores)
@@ -131,7 +196,7 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None):
     exp_w = rate * played
     # variance of a sum of independent Bernoulli(rate) draws
     se_w = math.sqrt(played * rate * (1 - rate)) if played else 0.0
-    out["schedule_luck"] = {
+    out["schedule_luck"] = None if disagreement else {
         "actual_wins": actual, "expected_wins": round(exp_w, 2),
         "delta": round(actual - exp_w, 2), "se": round(se_w, 2),
         "z": round((actual - exp_w) / se_w, 2) if se_w > 0 else None,
@@ -160,7 +225,7 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None):
     # --- close games ---------------------------------------------------------
     tot = cw + cl
     se_c = math.sqrt(tot * 0.25) if tot else 0.0
-    out["close_games"] = {
+    out["close_games"] = None if disagreement else {
         "wins": cw, "losses": cl, "n": tot,
         "delta": round(cw - tot / 2.0, 2) if tot else 0.0, "se": round(se_c, 2),
         "z": round((cw - tot / 2.0) / se_c, 2) if se_c > 0 else None,

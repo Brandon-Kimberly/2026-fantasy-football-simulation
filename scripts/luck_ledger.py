@@ -24,6 +24,7 @@ significant and the tool will say so.
 """
 import argparse
 import json
+import textwrap as _textwrap
 from collections import defaultdict
 
 import requests
@@ -105,6 +106,31 @@ def _season_data(lid, info, names, through_week=None):
     return scores, pairs, starters
 
 
+def _banked_wins(lid, names):
+    """{team: Sleeper's own settings.wins} -- the record the league BANKED (C4/F70).
+
+    Every `points` value this tool reads is what Sleeper serves TODAY, re-scored under the
+    league's CURRENT settings, so a mid-season scoring change rewrites finished weeks
+    (F49's IDP cut flipped one on 2026-09-23). This number is not re-scored: it was
+    written when the week closed. The two disagreeing is the only available signal that
+    the scores are rewritten history.
+
+    NOTE the field is TOTAL wins -- both legs of a median-scoring week -- which is why
+    luck_ledger.banked_disagreement compares it against h2h wins PLUS median wins.
+    """
+    try:
+        rosters = _get(f"{BASE_URL}/league/{lid}/rosters")
+    except Exception:
+        return {}
+    out = {}
+    for r in rosters or []:
+        t = names.get(r.get("roster_id"))
+        w = (r.get("settings") or {}).get("wins")
+        if t is not None and w is not None:
+            out[t] = int(w)
+    return out
+
+
 def _projections(season):
     """{week: {team: (expected_total, sd)}} from the committed predictions log.
 
@@ -131,9 +157,10 @@ def _projections(season):
     return out or None
 
 
-def _fmt(metric, keys, label, name, weeks):
+def _fmt(metric, keys, label, name, weeks,
+         absent="-- not measurable for this season --"):
     if metric is None:
-        return f"  {label:16s} -- not measurable for this season --"
+        return f"  {label:16s} {absent}"
     delta, se, z = metric.get("delta"), metric.get("se"), metric.get("z")
     detail = "  ".join(f"{k}={metric[k]}" for k in keys if k in metric)
     way = direction(name, delta)
@@ -153,16 +180,24 @@ def _fmt(metric, keys, label, name, weeks):
 def render(res, season, team_label, n_weeks):
     print(f"\n=== LUCK LEDGER -- {team_label}, {season} ({n_weeks} completed weeks) ===")
     print("  pre-registered definitions; every metric differenced against the league")
+    d = res.get("banked_disagreement")
+    absent = ("-- WITHHELD, the record was rewritten (see below) --" if d
+              else "-- not measurable for this season --")
     print(_fmt(res["schedule_luck"], ["actual_wins", "expected_wins", "all_play_pct"],
-               "schedule luck", "schedule_luck", n_weeks))
+               "schedule luck", "schedule_luck", n_weeks, absent))
     print(_fmt(res["opponent_luck"], ["my_pa_per_game", "league_avg_pa_per_game"],
                "opponent luck", "opponent_luck", n_weeks))
     print(_fmt(res["close_games"], ["wins", "losses", "n"], "close games",
-               "close_games", n_weeks))
+               "close_games", n_weeks, absent))
     print(_fmt(res["dnp_luck"], ["my_dnps_per_game", "league_avg"], "DNP luck",
                "dnp_luck", n_weeks))
     print(_fmt(res["scoring_luck"], ["my_mean_z", "league_mean_z", "n_weeks"],
                "scoring luck", "scoring_luck", n_weeks))
+    if d:
+        print(f"\n  !! These {d['weeks']} weeks recompute to {d['recomputed']} wins "
+              f"({d['h2h_wins']} head-to-head + {d['median_wins']} median), but the league "
+              f"banked {d['banked']}.")
+        print("     " + "\n     ".join(_textwrap.wrap(d["note"], 86)))
     if n_weeks < 6:
         print(f"\n  n = {n_weeks} weeks. Nothing here can be significant yet; the standard "
               "errors are the point.")
@@ -213,8 +248,14 @@ def main(argv=None):
         if team is None:
             print(f"\n=== {season}: could not identify your roster ===")
             continue
+        # C4: only cross-check a season whose counted weeks are all CLOSED. A week still
+        # in progress, or a --week cutoff, would differ from the banked total for an
+        # innocent reason, and an alarm that cries wolf teaches the reader to ignore it.
+        leg = (info.get("settings") or {}).get("leg")
+        closed = a.week is None and (leg is None or max(scores) < int(leg))
+        banked = _banked_wins(lid, names).get(team) if closed else None
         res = ledger(scores, pairs, team, starter_points=starters,
-                     projections=_projections(season))
+                     projections=_projections(season), banked_wins=banked)
         res["season"] = season
         payload.append(res)
         if not a.json:
