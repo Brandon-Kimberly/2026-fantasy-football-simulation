@@ -208,3 +208,4 @@
 {"injury_body_part": "Calf", "injury_status": "Out", "name": "Devin Lloyd", "player_id": "8329", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "RJ Harvey", "player_id": "12489", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Juwan Johnson", "player_id": "7002", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Quantum Ferrets", "week": 3}
+{"injury_body_part": "Hip", "injury_status": "Doubtful", "name": "Puka Nacua", "player_id": "9493", "practice_participation": null, "recorded_at": "2026-09-25T18:45:52Z", "team": "Cosmic Badgers", "week": 3}
