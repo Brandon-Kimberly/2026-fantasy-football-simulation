@@ -6528,3 +6528,77 @@ B4's decision stands unchanged: `Questionable` stays out of `INITIAL_ABSENCE_STA
 haircut is applied. This is a surfacing fix, not a modelling one.
 
 Suite 1417 → 1427 (9 new, plus one added to B4's module). Goldens 15/15. RESOLVED.
+
+### B30 — Completed weeks were plotted as zero — RESOLVED (2026-09-25) — MAJOR
+
+`global_trajectories` is allocated `np.zeros((total_sims, 14))` and the simulation loop
+writes only `range(self.current_week - 1, 16)`. Every column BEFORE the current week was
+therefore never written and stayed 0.0. `sim_wins` **is** correctly seeded from
+`self.actual_total_wins`, so the forecast half was right all along — only the history was
+blank.
+
+Two charts read that array and both misled: **"Cumulative win trajectories"** and
+**"Expected wins over the simulated season"** drew every team flat on the x-axis through
+completed weeks and then jumped, implying an 0-0 league up to today. The exported series read
+literally `[0.0, 0.0, 2.8977, 3.6722, ...]`.
+
+Reported by the owner from the week-3 report: two weeks played, he is 2-2, the chart showed
+zero.
+
+**Choosing the record was the real work, and the obvious choice is wrong.** Summing each
+week's `h2h_win` + `median_win` out of `weekly_actuals.json` gives the RECOMPUTED record —
+`/matchups` re-derives a completed week under CURRENT scoring, so after a mid-season change it
+stops matching what the league banked (F83/F84). Measured live:
+
+```
+team              wk1   wk2   recomputed   banked
+Quantum Ferrets   2.0   1.0      3.0        2.0      <- the owner is 2-2
+Cosmic Badgers    1.0   0.0      1.0        2.0
+(six others)                     match      match
+```
+
+Drawing the flags would have put the owner at 3 wins after two weeks and then started the
+forecast from 2 — a visible step at exactly the boundary the chart exists to show, and a
+number the league does not recognise.
+
+So `completed_week_cumulative` takes the SHAPE from the per-week flags and anchors the
+ENDPOINT to `actual_total_wins` — F84's authoritative record, and what `sim_wins` already
+starts from, so history meets forecast with no discontinuity. A backward clamp keeps the
+series monotonic, because cumulative wins cannot fall.
+
+**The attribution is a stated limit, not an oversight.** The disagreement is knowable in
+TOTAL and unknowable PER WEEK: no per-week banked record exists anywhere, since Sleeper keeps
+a total and F83 is precisely that completed weeks are re-derived rather than stored. The last
+completed week absorbs the difference. Verified against the live standings — all eight teams'
+week-2 cumulative now equal their banked record exactly (4, 3, 2, 2, 2, 2, 1, 0).
+
+**Follow-up, same work, at the owner's request:** both charts opened at week 1, so a team that
+went 2-0 began its line already at 2 and the first week's climb — often the largest single
+step — was never drawn. `with_origin` / `origin_weeks` prepend week 0 at 0.0 (true for every
+team by definition, and for every percentile band) at PLOT time only. Shared between the two
+charts rather than reimplemented, so they cannot disagree about where the season starts.
+Confirmed to add **no** golden movement of its own: the golden failure set was byte-identical
+before and after that change.
+
+**Why MAJOR, and what it is not.** `trajectories` is golden-hashed
+(`tests/golden_master.py`), so this required a deliberate regeneration, which the release
+policy makes MAJOR operationally. But the substance was measured, not assumed — every golden
+key was compared individually:
+
+```
+week06:  3 moved, 24 identical        week15:  3 moved, 24 identical
+week01:  unchanged (no completed weeks to fill)
+```
+
+All three moved keys are the trajectory array and the two files that embed it. **`wins`,
+`points`, `b_champs`, `b_playoffs`, `b_toilets` and `h2h` are byte-identical.** No prediction
+changed. This is a fixture refresh forced by a corrected historical series, not a model
+change, and the release notes say so rather than letting "MAJOR" imply otherwise.
+
+Behaviour check clean on BOTH scenarios (M2). Suite 1427 → 1444. RESOLVED, MAJOR.
+
+**Process note, recorded because the rule exists for a reason.** While generating the
+verification report I started the full suite with a report still running — two engine
+processes — and took a segmentation fault, R1's exact signature. That run was discarded as
+void and the suite re-run alone after confirming zero Python processes. R1 is a hardware
+fault, not a code defect, and the rule is one engine process at a time.

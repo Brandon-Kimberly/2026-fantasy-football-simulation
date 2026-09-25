@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~127 findings and tracked follow-ups** | **93 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~128 findings and tracked follow-ups** | **94 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -330,6 +330,26 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **B30** completed weeks were plotted as zero — RESOLVED (MAJOR): `global_trajectories` is
+  zeroed and the simulation writes only from the current week onward, so every completed column
+  stayed 0.0 and both season charts drew the league 0-0 until today (`[0.0, 0.0, 2.8977, ...]`).
+  The forecast half was always right — `sim_wins` seeds from `actual_total_wins`; only the
+  history was blank. **Choosing the record was the real work**: summing the per-week
+  `h2h_win`/`median_win` flags gives the RECOMPUTED record, which after a mid-season scoring
+  change is not what the league banked (F83/F84) — the owner's flags sum to 3 where the league
+  banked 2, and another team's to 1 where it banked 2 — so drawing them would step at exactly
+  the boundary the chart exists to show. Fix: per-week flags give the SHAPE, `actual_total_wins`
+  anchors the ENDPOINT, backward clamp keeps it monotonic. Verified against live standings: all
+  eight teams' week-2 cumulative equal their banked record (4,3,2,2,2,2,1,0). The attribution is
+  a **stated limit** — the disagreement is knowable in total and unknowable per week, because no
+  per-week banked record exists anywhere — so the last completed week absorbs it. Follow-up at
+  the owner's request: both charts now open at week 0 / 0 wins so the first week's climb is
+  drawn, shared between them and plot-time only (confirmed to add no golden movement). **MAJOR
+  by policy** because `trajectories` is golden-hashed and needed deliberate regeneration — but
+  measured, not assumed: **3 keys moved, 24 identical** in each of week06/week15, week01
+  unchanged, and `wins`/`points`/`b_champs`/`b_playoffs`/`b_toilets`/`h2h` byte-identical. No
+  prediction changed; it is a fixture refresh forced by a corrected historical series. Behaviour
+  check clean on both scenarios.
 - **B29** the Questionable count was roster-wide; the optimism it measures is starter-only —
   RESOLVED: `live_matchup` prints both rosters' Questionable counts because F51 applies no
   availability discount to a pre-game STARTER, so the margin reads "if everyone plays" and the

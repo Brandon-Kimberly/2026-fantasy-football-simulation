@@ -197,6 +197,52 @@ def _inflate_aleatoric(baselines, factor):
     return baselines
 
 
+def completed_week_cumulative(weekly_actuals, team_names, current_week, banked_wins):
+    """{team: [cumulative wins after week 1, ... after the last COMPLETED week]}.
+
+    B30. `global_trajectories` is zeroed and the simulation writes only from the current week
+    onward, so the completed columns stayed 0.0 and both season charts drew every team flat on
+    the axis until today. These are real results; nothing here is projected.
+
+    TWO RECORDS DISAGREE AND ONLY ONE IS THE LEAGUE'S. Summing each week's `h2h_win` +
+    `median_win` gives the RECOMPUTED record -- `/matchups` re-derives a completed week under
+    CURRENT scoring, so after a mid-season change it stops matching what was banked (F83/F84).
+    Live on 2026-09-25, two of eight teams differed. `actual_total_wins` is the banked record
+    and is what `sim_wins` starts the forecast from, so the history must END there or the
+    chart steps at exactly the boundary it exists to show.
+
+    Hence: the per-week flags give the SHAPE, the banked total anchors the ENDPOINT, and a
+    backward clamp keeps the series monotonic (cumulative wins cannot fall).
+
+    THE ATTRIBUTION IS A KNOWN LIMIT, not an oversight: the disagreement is knowable in total
+    and unknowable per week, because no per-week banked record exists anywhere -- Sleeper
+    keeps a total, and F83 is precisely that completed weeks are re-derived rather than
+    stored. The last completed week absorbs the difference.
+    """
+    completed = max(0, min(int(current_week) - 1, REGULAR_SEASON_WEEKS))
+    out = {}
+    for team in team_names:
+        series, running = [], 0.0
+        for wk in range(1, completed + 1):
+            row = ((weekly_actuals or {}).get(f"week_{wk}", {}).get("team_results", {})
+                   or {}).get(team, {})
+            try:
+                running += float(row.get("h2h_win", 0.0) or 0.0)
+                running += float(row.get("median_win", 0.0) or 0.0)
+            except (TypeError, ValueError):
+                pass
+            series.append(running)
+        if series:
+            banked = (banked_wins or {}).get(team)
+            if banked is not None:
+                series[-1] = float(banked)
+            # Cumulative wins never decrease; clamp earlier weeks down to the anchored end.
+            for i in range(len(series) - 2, -1, -1):
+                series[i] = max(0.0, min(series[i], series[i + 1]))
+        out[team] = series
+    return out
+
+
 def banked_league_record(standings, team_names, regular_weeks_banked, median_enabled):
     """({team: wins}, {team: points}) from the league's BANKED record, or None.
 
@@ -1242,6 +1288,15 @@ class FantasySimulationEngine:
         global_season_wins = {t: np.zeros(total_sims) for t in self.team_names}
         global_season_points = {t: np.zeros(total_sims) for t in self.team_names}
         global_trajectories = {t: np.zeros((total_sims, 14)) for t in self.team_names}
+        # B30: the simulation writes only from the current week onward, so without this the
+        # completed columns stay 0.0 and both season charts draw the league 0-0 up to today.
+        # These are REAL results and identical in every sim, so the whole column is set at
+        # once. Nothing after the current week is touched -- the forecast is unchanged.
+        _completed = completed_week_cumulative(self.weekly_actuals, self.team_names,
+                                               self.current_week, self.actual_total_wins)
+        for _t, _series in _completed.items():
+            for _i, _cum in enumerate(_series):
+                global_trajectories[_t][:, _i] = _cum
         global_weekly_scores = {t: np.zeros((total_sims, 14)) for t in self.team_names}
         # Per-player weekly-score accumulator for fantasy_sim.player_variance (boom/bust,
         # floor/ceiling). NaN-filled, not zero-filled: a bye week, an injury-clocked week, or
@@ -1935,21 +1990,26 @@ class FantasySimulationEngine:
 
         fig, axes = plt.subplots(2, 4, figsize=(20, 10), sharex=True, sharey=True)
         axes = axes.flatten()
-        weeks_range = np.arange(1, 15)
+        # B30 follow-up: open every panel at week 0 / 0 wins so the climb out of 0-0 is drawn.
+        # PLOTTING ONLY -- `trajectories` stays weeks 1..14, which is what the golden pins.
+        # Shared with win_trajectory's chart rather than reimplemented, so the two season
+        # charts cannot disagree about where the season starts.
+        from fantasy_sim.win_trajectory import with_origin as _origin
+        weeks_range = np.arange(0, 15)
         sorted_teams = summary_df['Team'].tolist()
         palette = sns.color_palette('tab10', len(sorted_teams))
-        my_team_mean = np.mean(trajectories['Quantum Ferrets'], axis=0) if 'Quantum Ferrets' in trajectories else np.zeros(14)
+        my_team_mean = _origin(np.mean(trajectories['Quantum Ferrets'], axis=0)) if 'Quantum Ferrets' in trajectories else np.zeros(15)
 
         for idx, t in enumerate(sorted_teams):
             ax = axes[idx]
             team_matrix = trajectories[t]
-            mean_w = np.mean(team_matrix, axis=0)
-            p_01 = np.percentile(team_matrix, 1, axis=0)
-            p_10 = np.percentile(team_matrix, 10, axis=0)
-            p_25 = np.percentile(team_matrix, 25, axis=0)
-            p_75 = np.percentile(team_matrix, 75, axis=0)
-            p_90 = np.percentile(team_matrix, 90, axis=0)
-            p_99 = np.percentile(team_matrix, 99, axis=0)
+            mean_w = _origin(np.mean(team_matrix, axis=0))
+            p_01 = _origin(np.percentile(team_matrix, 1, axis=0))
+            p_10 = _origin(np.percentile(team_matrix, 10, axis=0))
+            p_25 = _origin(np.percentile(team_matrix, 25, axis=0))
+            p_75 = _origin(np.percentile(team_matrix, 75, axis=0))
+            p_90 = _origin(np.percentile(team_matrix, 90, axis=0))
+            p_99 = _origin(np.percentile(team_matrix, 99, axis=0))
 
             color = 'purple' if t == 'Quantum Ferrets' else palette[idx]
             ax.fill_between(weeks_range, p_10, p_90, color=color, alpha=0.18, label='80% Conf. Interval')
@@ -1965,9 +2025,9 @@ class FantasySimulationEngine:
 
             p_pct = summary_df.loc[summary_df['Team'] == t, 'Playoff_Pct'].values[0]
             ax.set_title(f'{t}\n(Exp: {mean_w[-1]:.1f} W | Playoff Odds: {p_pct:.1f}%)', fontsize=11, fontweight='bold', pad=8)
-            ax.set_xticks(range(2, 15, 2))
+            ax.set_xticks(range(0, 15, 2))
             ax.set_yticks(range(0, 29, 4))
-            ax.set_xlim(1, 14)
+            ax.set_xlim(0, 14)
             ax.set_ylim(0, 28)
 
         fig.text(0.5, 0.02, 'Regular Season Week', ha='center', fontsize=13, fontweight='bold')

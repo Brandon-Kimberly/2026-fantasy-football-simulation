@@ -34,6 +34,25 @@ def extract_trajectories(ai_matrix):
     }
 
 
+def with_origin(series):
+    """[0.0] + series, for PLOTTING only.
+
+    Both season charts open at week 1, so a team that went 2-0 starts its line already at 2
+    and the first week's climb -- often the biggest single step -- is never drawn. Week 0 is
+    0.0 for everyone by definition: no week played, no decision awarded, and every percentile
+    band collapses to the same point.
+
+    A copy, never in place: the caller's list is the exported, golden-pinned `trajectories`
+    data. The hashed array stays weeks 1..14; only the drawing gains a point.
+    """
+    return [0.0] + [float(v) for v in (series if series is not None else [])]
+
+
+def origin_weeks(series):
+    """The x values matching `with_origin(series)`: week 0, then 1..n."""
+    return list(range(0, len(series if series is not None else []) + 1))
+
+
 def render_win_trajectory_chart(trajectories, week):
     """One line per team, sorted by final-week value so the legend order matches the visual
     ranking. Break-even reference line matches export_and_visualize's own convention (half of
@@ -50,8 +69,10 @@ def render_win_trajectory_chart(trajectories, week):
     palette = sns.color_palette("tab10", len(teams))
     for color, team in zip(palette, teams):
         values = trajectories[team]
-        weeks = list(range(1, len(values) + 1))
-        ax.plot(weeks, values, marker='o', markersize=4, linewidth=2, color=color, label=team)
+        # Open at 0-0 so the first week's climb is visible (B30 follow-up).
+        ax.plot(origin_weeks(values), with_origin(values), marker='o', markersize=4,
+                linewidth=2, color=color, label=team)
+    ax.set_xlim(left=0)
 
     ax.axhline(break_even, color='black', linestyle='--', linewidth=1.5, alpha=0.7,
                label=f'.500 Break-Even ({break_even:g} Wins)')
