@@ -30,7 +30,7 @@ from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_STATE_FILE,
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
-    SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE,
+    SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     PENDING_TRADES_FILE, draft_log_file, season_log_file,
 )
@@ -1669,8 +1669,81 @@ def faab_history_by_roster(current_week):
     return out
 
 
+def append_faab_adjustments(rows, week, path=FAAB_ADJUSTMENTS_FILE):
+    """B28. Persist what the watchdog saw. Returns rows appended; never raises.
+
+    Deduped on (week, team, delta) -- the first appearance of each DISTINCT state in a
+    week. Sync runs many times a day and a stable adjustment would otherwise append an
+    identical row every run, burying the one thing the series exists to show. A change
+    lands immediately because a different delta is a different key.
+
+    A team that HAD a non-zero delta and no longer appears gets an explicit zero row marked
+    `cleared`. Without it a reader cannot tell a commissioner undoing the adjustment from a
+    sync that never ran, and those call for opposite responses.
+
+    `used` and `explained_by_history` travel with every row: a bare delta cannot be checked
+    against anything afterwards, and this log exists to be read months later.
+
+    A log is a record, not a dependency -- the same contract as `append_projection_log` and
+    `record_bid`. A failure here must never cost a sync.
+    """
+    try:
+        seen, last_delta = set(), {}
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                for line in handle:
+                    if not line.strip():
+                        continue
+                    try:
+                        old = json.loads(line)
+                    except ValueError:
+                        continue
+                    seen.add((old.get("week"), old.get("team"), old.get("delta")))
+                    last_delta[old.get("team")] = old.get("delta")
+
+        stamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+        out = []
+        for row in rows or []:
+            key = (int(week), row.get("team"), float(row.get("delta", 0.0)))
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"recorded_at": stamp, "week": int(week), "team": row.get("team"),
+                        "roster_id": row.get("roster_id"), "delta": float(row.get("delta", 0.0)),
+                        "used": float(row.get("used", 0.0)),
+                        "explained_by_history": float(row.get("explained_by_history", 0.0))})
+
+        still = {r.get("team") for r in (rows or [])}
+        for team, prev in last_delta.items():
+            if team in still or not prev:
+                continue
+            key = (int(week), team, 0.0)
+            if key in seen:
+                continue
+            seen.add(key)
+            out.append({"recorded_at": stamp, "week": int(week), "team": team,
+                        "roster_id": None, "delta": 0.0, "used": 0.0,
+                        "explained_by_history": 0.0, "cleared": True})
+
+        if not out:
+            return 0
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for row in out:
+                handle.write(json.dumps(row, sort_keys=True) + "\n")
+        return len(out)
+    except Exception as ex:
+        logging.warning("FAAB ADJUSTMENT LOG: could not append to %s (%s). The sync is "
+                        "unaffected; only the adjustment record is lost.", path, ex)
+        return 0
+
+
 def warn_faab_adjustments(league_settings, rosters, roster_map, current_week):
-    """Reconcile every budget against the transaction history; warn on each mismatch."""
+    """Reconcile every budget against the transaction history; warn on each mismatch.
+
+    B28: the rows are also persisted, because the question a watchdog answers is "did this
+    change?" and a warning in a console scrollback cannot answer it.
+    """
     history = faab_history_by_roster(current_week)
     if not history:
         return 0
@@ -1685,6 +1758,7 @@ def warn_faab_adjustments(league_settings, rosters, roster_map, current_week):
                         "%.0f). A commissioner adjustment leaves no transaction record, so "
                         "this is the only place it shows up.",
                         row["team"], row["delta"], row["used"], row["explained_by_history"])
+    append_faab_adjustments(rows, current_week)
     return len(rows)
 
 

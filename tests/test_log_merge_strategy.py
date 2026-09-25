@@ -70,6 +70,31 @@ def _tracked_jsonl():
     return sorted(p.strip() for p in out.splitlines() if p.strip())
 
 
+def _declared_jsonl():
+    """Every jsonl log DECLARED in storage.py, tracked or not.
+
+    `git ls-files` sees only what is already committed, so a brand-new log slips the guard
+    for exactly as long as it takes to write it once -- which is when the omission is
+    cheapest to make and most expensive to notice. Found by mutation when B28's
+    `faab_adjustments.jsonl` was added: deleting its `merge=union` line left this file
+    green. Declaring a log is the moment to check it.
+    """
+    import fantasy_sim.storage as storage
+    out = set()
+    for name in dir(storage):
+        val = getattr(storage, name)
+        if not isinstance(val, str) or not val.endswith(".jsonl"):
+            continue
+        rel = os.path.relpath(val, ROOT).replace(os.sep, "/")
+        if rel.startswith("data/logs/"):
+            out.add(rel)
+    return sorted(out)
+
+
+def _all_jsonl():
+    return sorted(set(_tracked_jsonl()) | set(_declared_jsonl()))
+
+
 def _has_union(path, lines):
     """Does any `.gitattributes` pattern with merge=union cover this path?"""
     import fnmatch
@@ -83,10 +108,14 @@ def _has_union(path, lines):
 
 
 class TestEveryRacingLogIsUnioned(unittest.TestCase):
-    def test_no_tracked_jsonl_log_is_left_to_conflict(self):
-        """The guard. A new append-only log must be declared safe or declared unraced."""
+    def test_no_jsonl_log_is_left_to_conflict(self):
+        """The guard. A new append-only log must be declared safe or declared unraced.
+
+        Covers logs DECLARED in storage.py as well as tracked ones -- a log that has never
+        been written is invisible to `git ls-files`, and that is precisely when its
+        `merge=union` line is easiest to forget."""
         lines = _attr_lines()
-        missing = [p for p in _tracked_jsonl()
+        missing = [p for p in _all_jsonl()
                    if p not in NO_AUTOMATED_WRITER and not _has_union(p, lines)]
         self.assertEqual(missing, [],
                          "these tracked jsonl logs can be written by two processes and have "

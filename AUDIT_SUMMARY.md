@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~125 findings and tracked follow-ups** | **91 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~126 findings and tracked follow-ups** | **92 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,25 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **B28** the FAAB watchdog fired into nothing that was kept — BUILT: `warn_faab_adjustments`
+  reconciles every roster's budget against its transaction history and warns per mismatch —
+  and a commissioner adjustment leaves NO transaction anywhere (F80), so that reconciliation
+  is the only place one is visible — then returned a count and discarded the rows.
+  Demonstrated, not hypothetical: asked whether an agreed 3-FAAB grant had landed, the only
+  surviving copy of the previous reading was a table quoted by hand inside F80's entry the day
+  before. Now `data/logs/faab_adjustments.jsonl`, one row per DISTINCT (week, team, delta) so
+  a stable adjustment does not rewrite itself on every sync of the day while a change lands
+  immediately; `used` and `explained_by_history` travel with each row so an old reading stays
+  auditable; and a vanished adjustment writes an explicit `cleared` zero, because otherwise
+  "the commissioner undid it" and "no sync has run" are indistinguishable. **It exposed a hole
+  in F87's own guard, found by mutation**: deleting the new log's `merge=union` line left the
+  guard green, because `git ls-files` sees only TRACKED files and a brand-new log is invisible
+  until first written — precisely when the omission is easiest to make. The guard now
+  enumerates logs DECLARED in `storage.py` too, and fails correctly under the same mutation.
+  Also caught: my first wiring check patched `sync.FAAB_ADJUSTMENTS_FILE`, which is bound as a
+  DEFAULT ARGUMENT, so the patch did nothing and two rows went to the real log; correct values,
+  but written by a harness and claiming to be sync readings, so the file was deleted rather
+  than kept. Same class as H2. `check_test_isolation` CLEAN.
 - **F87** the union-merge list went stale because nothing guarded it — RESOLVED:
   `.gitattributes` gave `merge=union` to four append-only logs on 2026-09-04, each verified
   against its readers; every log added since was not, because no test checked. `evaluate-moves`

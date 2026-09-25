@@ -222,6 +222,16 @@ FIRST_SCORES_FILE = _log("first_recorded_scores.jsonl")
 # before pricing a designation rather than merely surfacing it.
 DESIGNATIONS_FILE = _log("designations.jsonl")
 
+# B28: the FAAB watchdog's readings. A commissioner adjustment leaves NO transaction
+# (F80), so `sync.warn_faab_adjustments` reconciling budget against history is the only
+# place an adjustment is visible -- and it used to log a warning and discard the rows,
+# which meant "did this adjustment change?" had no answer on disk. One row per DISTINCT
+# (week, team, delta), the same transition shape designations.jsonl uses: a stable
+# adjustment does not rewrite itself on every sync of the day, a change lands the moment
+# it happens, and a vanished adjustment writes an explicit zero so a clear cannot be
+# mistaken for a sync that never ran.
+FAAB_ADJUSTMENTS_FILE = _log("faab_adjustments.jsonl")
+
 # C5: one row per run of scripts.streamer_study -- BASE_STREAMER_MEANS against the
 # live free-agent pool, per position. A LOG, not current state: the question "is the
 # gap stable across syncs" is the one that decides whether a constant moves, and

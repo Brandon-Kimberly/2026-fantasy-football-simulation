@@ -35,3 +35,8 @@ data/logs/points_backtest.jsonl merge=union
 data/logs/designations.jsonl merge=union
 data/logs/sync_provenance.jsonl merge=union
 data/logs/first_recorded_scores.jsonl merge=union
+#   faab_adjustments    -- written by warn_faab_adjustments inside sync, so it races like
+#                          the rest. Deduped on (week, team, delta) at WRITE time, and every
+#                          reader keys by (team, week) taking the series in order, so a
+#                          duplicate row from a union merge is absorbed (B28)
+data/logs/faab_adjustments.jsonl merge=union

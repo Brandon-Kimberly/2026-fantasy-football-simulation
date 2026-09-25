@@ -6422,3 +6422,53 @@ contained the lines the test had written itself. The helper now fails the test i
 call returns non-zero. A green test that never ran git is worse than no test.
 
 Suite 1397 → 1404. Goldens 15/15. RESOLVED.
+
+### B28 — The FAAB watchdog fired into nothing that was kept — BUILT (2026-09-24)
+
+`sync.warn_faab_adjustments` reconciles every roster's budget against its transaction
+history and logs a warning per mismatch. **A commissioner adjustment leaves no transaction
+anywhere** (F80), so that reconciliation is the only place one is visible at all. It then
+returned a COUNT and discarded the rows. `sync_provenance.jsonl` carries only
+`espn_rows, git_commit, schema_version, season, synced_at, total_rows, week`.
+
+**Demonstrated, not hypothetical.** The owner asked whether an agreed 3-FAAB grant had
+landed. The live watchdog read **+4** for that roster and **−1** for another. Answering
+required the PREVIOUS reading, and the only surviving copy was a table quoted by hand inside
+F80's audit entry the day before — an accident of how that finding happened to be written.
+Without it the question had no answer on disk. A watchdog whose readings are not retained
+cannot answer "did this change?", which is the entire question a watchdog exists for.
+(The answer, for the record: unchanged since 2026-09-23 22:08, so the extra 3 had not landed
+— and the original grant measures as 4 against the 3 that was described.)
+
+**Shape.** `data/logs/faab_adjustments.jsonl`, one row per DISTINCT `(week, team, delta)` —
+the same transition shape `designations.jsonl` uses. Sync runs many times a day, so a stable
+adjustment must not rewrite itself on every run, while a change lands the moment it happens
+because a different delta is a different key. `used` and `explained_by_history` travel with
+every row: a bare delta cannot be checked against anything months later, which is when this
+log gets read.
+
+**A cleared adjustment is written explicitly.** When a roster's delta returns to zero it
+simply stops appearing in the watchdog's rows, and a reader then cannot distinguish "the
+commissioner undid it" from "no sync has run since" — two states calling for opposite
+responses. A zero row marked `cleared` closes the series honestly, and is itself written once
+rather than on every later sync.
+
+Standing contract kept: a log is a record, not a dependency. An unwritable path returns 0 and
+warns; it never costs a sync.
+
+**It exposed a hole in F87's guard, found by mutation.** Deleting the new log's
+`merge=union` line left `test_log_merge_strategy` GREEN. The guard enumerated `git ls-files`,
+which sees only tracked files — so a brand-new log is invisible to it for exactly as long as
+it takes to write it once, which is when the omission is cheapest to make and hardest to
+notice. The guard now also enumerates every `.jsonl` log DECLARED in `storage.py`. Re-run
+under mutation it fails correctly.
+
+**And a mistake of mine that the repo already had an instrument for.** My first wiring check
+patched `sync.FAAB_ADJUSTMENTS_FILE`, but the path is bound as a DEFAULT ARGUMENT at function
+definition, so the patch did nothing and the call wrote two rows to the REAL log. The values
+were correct, but they were written by a harness and claimed to be sync readings, so the file
+was deleted rather than kept — the next real sync writes them legitimately. This is the same
+class as H2 (a test that patched one seam and not the one that writes). `check_test_isolation`
+reports CLEAN, and the suite leaves the real log absent.
+
+Suite 1404 → 1416. Goldens 15/15. BUILT.

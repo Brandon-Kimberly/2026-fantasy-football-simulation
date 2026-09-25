@@ -61,6 +61,11 @@ venv/
 # free agent never appears in it and no past pool can be rebuilt. Positions and numbers
 # only; no identities.
 !data/logs/streamer_levels.jsonl
+# B28: the FAAB watchdog's readings over time. A commissioner adjustment leaves no
+# transaction anywhere (F80), so this log is the only record that one happened, and the
+# question it answers -- did this roster's unexplained balance change -- needs the series,
+# not today's value. Team names here are the pseudonyms, as everywhere else in the repo.
+!data/logs/faab_adjustments.jsonl
 # Boundary 1's resolution: weeks 1-2 per team at the NEW IDP scale, captured from the
 # one sync that ran between the scoring change and the commissioner's repair. Sleeper
 # keeps no scoring history and /matchups recomputes live, so this side of the boundary
