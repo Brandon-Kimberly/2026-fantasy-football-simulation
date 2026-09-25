@@ -267,7 +267,8 @@ than "fixed": the measurement said the code was right.
 - **F25** team-week interval calibration — diagnosed MIXED (~44%+ harness artifact);
   gate corrected with an optimal-lineup target; engine held; OPEN on 2026
   quoted-vs-realized calibration.
-- **F26** coverage — BUILT (committed-floor ratchet in CI; floor now 75.5); the real
+- **F26** coverage — BUILT (committed-floor ratchet in CI; floor now 85.6, ratcheted up
+  from 73.9 at adoption); the real
   finding was the silent-failure map: 23 of 33 broad handler bodies never executed. The
   week-16 semifinal fallback was tested immediately; the sync-handler cluster (grown to
   fifteen) was tested pre-kickoff 2026-09-03, each pinned to its documented degradation.

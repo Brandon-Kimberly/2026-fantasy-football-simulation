@@ -60,6 +60,35 @@ class TestDocsMatchReality(unittest.TestCase):
         self.assertEqual(m.group(1), floor,
                          f"coverage badge says {m.group(1)}; the committed floor is {floor}")
 
+    def test_prose_claims_about_the_CURRENT_coverage_floor_match_the_file(self):
+        """The badge is guarded; the sentences are not, and one of them went stale.
+
+        `AUDIT_SUMMARY.md` read "floor now 75.5" while `coverage_floor.txt` — the single
+        source CI ratchets on — said 85.6. Ten points of real progress under-reported in the
+        document whose whole purpose is being the trustworthy overview. That is the F27 class
+        this file exists to prevent, and the badge guard did not cover it because a badge is
+        not a sentence.
+
+        Only PRESENT-TENSE claims are checked. `AUDIT_PLAN.md` records "the 75.5 floor was
+        advanced from 73.9" as history, which was true when written and must stay exactly as
+        it is; a guard that rewrote the past would be worse than the drift.
+        """
+        with open(os.path.join(ROOT, "coverage_floor.txt"), encoding="utf-8") as f:
+            floor = f.read().strip()
+        claim = re.compile(r"floor\s+(?:now|is|currently|stands at)\s+([\d.]+)", re.I)
+        stale = []
+        for name in ("AUDIT_SUMMARY.md", "README.md", os.path.join("docs", "AUDIT_PLAN.md")):
+            path = os.path.join(ROOT, name)
+            if not os.path.exists(path):
+                continue
+            with open(path, encoding="utf-8") as f:
+                for i, line in enumerate(f, 1):
+                    for found in claim.findall(line):
+                        if found != floor:
+                            stale.append(f"{name}:{i} says the floor is {found}")
+        self.assertEqual(stale, [],
+                         f"coverage_floor.txt is {floor}; these sentences disagree")
+
     def test_every_audit_plan_f_number_appears_in_the_summary(self):
         """F27: eighteen F-entries (F9-F26) accumulated in AUDIT_PLAN.md without ever
         reaching AUDIT_SUMMARY.md -- the document whose purpose is being the trustworthy
