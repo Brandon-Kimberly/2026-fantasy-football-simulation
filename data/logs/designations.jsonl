@@ -203,3 +203,8 @@
 {"injury_body_part": null, "injury_status": null, "name": "Emanuel Wilson", "player_id": "11435", "practice_participation": null, "recorded_at": "2026-09-25T17:13:16Z", "team": "Quantum Ferrets", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Xavier Worthy", "player_id": "11624", "practice_participation": null, "recorded_at": "2026-09-25T17:13:16Z", "team": "Quantum Ferrets", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "J.K. Dobbins", "player_id": "6806", "practice_participation": null, "recorded_at": "2026-09-25T17:13:16Z", "team": "Rocket Pandas", "week": 3}
+{"injury_body_part": "Shoulder", "injury_status": "Out", "name": "Josiah Trotter", "player_id": "13379", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Barrett Carter", "player_id": "12646", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": "Calf", "injury_status": "Out", "name": "Devin Lloyd", "player_id": "8329", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "RJ Harvey", "player_id": "12489", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Juwan Johnson", "player_id": "7002", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Quantum Ferrets", "week": 3}
