@@ -226,15 +226,38 @@ def injury_flag(entry):
     return "IR" if entry.get("on_ir") else ""
 
 
-def questionable_count(engine, team):
-    """How many of `team`'s players carry a Questionable designation.
+def questionable_count(engine, team, starters):
+    """How many of `team`'s STARTERS carry a Questionable designation.
 
     B4 scope 3: live_matchup prints this for BOTH rosters, because F51's optimism -- no
     availability discount on a pre-game starter -- only cancels out between two teams when
     their Questionable counts are comparable.
+
+    B29: `starters` is REQUIRED, and counting was roster-wide before it existed. The
+    optimism this measures is created by players projected INTO the lineup; a Questionable
+    man on the bench contributes none of it. Counting him overstates the opponent's
+    unpriced risk and understates the asymmetry -- measured live on 2026-09-25 as a printed
+    3-v-2 where the starters were 2-v-0, both of the opponent's sitting on his bench.
+
+    Required rather than defaulted because a silently roster-wide default is precisely what
+    produced the defect: a caller who forgets the set should get a TypeError, not a number
+    that is quietly wrong in a line the owner reads to decide whether to trust a margin.
+
+    `starters` may hold names or Sleeper player_ids; either matches. live_matchup carries
+    both, and pid matching is what keeps a name-collision suffix ("Name (pid)", see the
+    sync's collision handling) from silently matching nothing.
     """
-    return sum(1 for n in engine.rosters.get(team, [])
-               if injury_flag(_entry(engine, n)) == "Questionable")
+    want = {str(s) for s in (starters or ())}
+    if not want:
+        return 0
+    out = 0
+    for n in engine.rosters.get(team, []):
+        entry = _entry(engine, n)
+        if n not in want and str(entry.get("player_id") or "") not in want:
+            continue
+        if injury_flag(entry) == "Questionable":
+            out += 1
+    return out
 
 
 def locked_nfl_teams(clocks):

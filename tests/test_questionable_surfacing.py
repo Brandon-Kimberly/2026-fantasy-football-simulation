@@ -180,10 +180,24 @@ class TestCountsForLiveMatchup(_Case):
     """B4 scope 3: live_matchup prints the Questionable count for BOTH rosters, because
     F51's optimism only cancels when they are comparable."""
 
+    @staticmethod
+    def _starters(team):
+        """The fixture's 13 starting slots, in the order _fs() builds them."""
+        return [f"{team[:2]}_{slot}_{si}" for si, slot in enumerate(SLOTS)]
+
     def test_a_team_can_be_counted(self):
         from fantasy_sim.decisions import questionable_count
-        self.assertEqual(questionable_count(self.engine, TEAMS[0]), 1)
-        self.assertEqual(questionable_count(self.engine, TEAMS[1]), 0)
+        self.assertEqual(
+            questionable_count(self.engine, TEAMS[0], self._starters(TEAMS[0])), 1)
+        self.assertEqual(
+            questionable_count(self.engine, TEAMS[1], self._starters(TEAMS[1])), 0)
+
+    def test_the_count_is_scoped_to_the_starters_given(self):
+        """B29: the same roster, counted over a starter set that excludes the Questionable
+        man, is zero. Roster-wide counting could not express this and reported the bench."""
+        from fantasy_sim.decisions import questionable_count
+        without = [n for n in self._starters(TEAMS[0]) if n != QUESTIONABLE]
+        self.assertEqual(questionable_count(self.engine, TEAMS[0], without), 0)
 
 
 if __name__ == "__main__":

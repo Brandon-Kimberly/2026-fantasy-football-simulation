@@ -6472,3 +6472,59 @@ class as H2 (a test that patched one seam and not the one that writes). `check_t
 reports CLEAN, and the suite leaves the real log absent.
 
 Suite 1404 → 1416. Goldens 15/15. BUILT.
+
+### B29 — The Questionable count was roster-wide; the optimism it measures is starter-only — RESOLVED (2026-09-25)
+
+`live_matchup` prints both rosters' Questionable counts for one stated reason — F51: **no
+availability discount is applied to a pre-game starter**, so the projected margin reads "if
+everyone plays" for both sides, and that optimism only cancels when the two counts are
+comparable. `questionable_count` summed `engine.rosters[team]`: the whole roster, bench
+included.
+
+**The optimism is created by players projected INTO the lineup.** A Questionable man on the
+bench contributes none of it. Counting him inflates the opponent's apparent unpriced risk and
+misstates the asymmetry.
+
+**Measured live, 2026-09-25, week 3:**
+
+```
+printed:  mine 3, opponent 2    "ASYMMETRIC by 1: the margin flatters mine"
+actual :  mine 2, opponent 0     ASYMMETRIC by 2
+```
+
+Both of the opponent's Questionables (a RB and a WR) were on his **bench**. One of the
+owner's three was a DL already benched after that morning's waiver pickup. So the line
+understated the asymmetry by half **and named the right direction only by accident** — with a
+different bench mix it would have pointed the wrong way entirely, which is the worse failure
+because the line exists to tell the owner which way to discount.
+
+Decision-relevant: the owner reads it to decide whether to trust a live margin. It said his
+73.7% was mildly optimistic when it was substantially so.
+
+**Found by the owner questioning a reversal.** The same line had read `0, 3` twelve hours
+earlier — flattering the *opponent* — because the synced player cache predated the week's
+designations (see the data-staleness note below). Re-running after a fresh sync flipped it,
+and checking why exposed that the count was measuring the wrong set all along.
+
+**Fix: the starter set is REQUIRED.** `questionable_count(engine, team, starters)` — no
+default. A silently roster-wide default is precisely what produced this, and a caller who
+forgets the set should get a `TypeError`, not a number that is quietly wrong. The set may
+hold names or Sleeper `player_id`s and either matches, so a name-collision suffix
+(`"Name (pid)"`) cannot silently match nothing.
+
+`live_matchup` passes `state["starters"]` — the exact set the margin was built from, rather
+than a re-solved optimal lineup, which can legitimately differ from what the owner actually
+started. Verified live after the change: `mine 2, opponent 0, ASYMMETRIC by 2`.
+
+**A data-staleness limitation this exposed, worth recording separately.** Every injury
+designation the tools see comes from `sleeper_players_cache.json`, written at sync time. On
+2026-09-25 that file was two days old and reported `injury_status=None` for three players the
+owner knew were designated — including one who was Doubtful and, separately, already rostered
+by another team. Two free-agent recommendations were made off that stale file and both were
+wrong. **On any injury question the owner's sources lead the model until the next sync**, and
+a recommendation touching availability should say when its data was written.
+
+B4's decision stands unchanged: `Questionable` stays out of `INITIAL_ABSENCE_STATUSES` and no
+haircut is applied. This is a surfacing fix, not a modelling one.
+
+Suite 1417 → 1427 (9 new, plus one added to B4's module). Goldens 15/15. RESOLVED.

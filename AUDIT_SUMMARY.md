@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~126 findings and tracked follow-ups** | **92 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~127 findings and tracked follow-ups** | **93 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -330,6 +330,26 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **B29** the Questionable count was roster-wide; the optimism it measures is starter-only —
+  RESOLVED: `live_matchup` prints both rosters' Questionable counts because F51 applies no
+  availability discount to a pre-game STARTER, so the margin reads "if everyone plays" and the
+  optimism only cancels when the counts are comparable. `questionable_count` summed the whole
+  roster, bench included — but a benched Questionable player is projected into no lineup and
+  creates none of that optimism. Measured live 2026-09-25: printed **3 v 2** where the starters
+  were **2 v 0**, both of the opponent's sitting on his bench and one of the owner's already
+  benched after a waiver pickup. It understated the asymmetry by half **and named the right
+  direction only by accident** — a different bench mix would have pointed it the wrong way,
+  which is worse, since the line exists to say which way to discount a live margin. Fix: the
+  starter set is **required**, no default (a silently roster-wide default is what produced
+  this; a forgetful caller should get a TypeError, not a quietly wrong number), matching on
+  name **or** player_id so a collision suffix cannot silently match nothing; `live_matchup`
+  passes the exact starters the margin was built from rather than a re-solved optimal lineup.
+  Verified live after the change. **Separately recorded**: every injury designation the tools
+  see comes from `sleeper_players_cache.json` at sync time — on 2026-09-25 it was two days old
+  and reported `None` for three genuinely designated players, producing two wrong free-agent
+  recommendations (one Doubtful, one already rostered elsewhere). On availability questions the
+  owner's sources lead the model until the next sync. B4's decision is unchanged: `Questionable`
+  stays out of INITIAL_ABSENCE_STATUSES and no haircut is applied.
 - **B28** the FAAB watchdog fired into nothing that was kept — BUILT: `warn_faab_adjustments`
   reconciles every roster's budget against its transaction history and warns per mismatch —
   and a commissioner adjustment leaves NO transaction anywhere (F80), so that reconciliation

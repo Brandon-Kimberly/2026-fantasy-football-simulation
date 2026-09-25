@@ -496,8 +496,11 @@ def main(argv=None):
         # B4 scope 3 + F51. No availability discount is applied to a pre-game starter, so
         # this number reads "if everyone plays" for BOTH teams. That optimism only cancels
         # when the two rosters carry comparable Questionable counts -- so print them.
-        q_me = questionable_count(engine, args.team)
-        q_opp = questionable_count(engine, opp_name)
+        # B29: count only the STARTERS the margin above was built from. The per-team state
+        # carries them, so this is the actual set the owner has locked in -- not a re-solved
+        # optimal lineup, which can differ from what he really started.
+        q_me = questionable_count(engine, args.team, me["starters"])
+        q_opp = questionable_count(engine, opp_name, opp["starters"])
         print(f"  Questionable: {show(args.team)} {q_me}, {show(opp_name)} {q_opp}"
               + ("   (comparable -- the optimism cancels)" if q_me == q_opp else
                  f"   ASYMMETRIC by {abs(q_me - q_opp)}: the margin flatters "
