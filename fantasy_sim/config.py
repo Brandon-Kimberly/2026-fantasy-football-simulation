@@ -549,11 +549,42 @@ def derive_bye_weeks(nfl_schedule, failed_weeks=()):
 # _solve_optimal_assignment for the true optimal bipartite matching between players and slots.
 REQUIRED_STARTING_SLOTS = ['DB', 'DL', 'LB', 'TE', 'QB', 'K', 'RB', 'RB', 'WR', 'WR', 'FLEX', 'FLEX', 'FLEX']
 
+# SUPERSEDED BY THE SYNCED `slots` KEY (F86, 2026-09-24). Kept only as the fallback for
+# baseline entries written before sync recorded eligibility -- the golden fixtures have no
+# `slots` key and must keep resolving exactly through here. Do NOT add names: this list was
+# measured wrong in both directions on the live league (five dual-eligible defenders missing,
+# and Maxx Crosby granted an LB slot Sleeper does not list for him). Sleeper's
+# `fantasy_positions` is authoritative and arrives on every sync; `eligible_slots` reads it.
 DUAL_ELIGIBILITY = {
     "Travis Hunter": ["WR", "DB"], "T.J. Watt": ["LB", "DL"], "Micah Parsons": ["LB", "DL"],
     "Maxx Crosby": ["DL", "LB"], "Brian Burns": ["DL", "LB"], "Danielle Hunter": ["DL", "LB"],
     "Josh Hines-Allen": ["DL", "LB"], "Khalil Mack": ["DL", "LB"]
 }
+
+
+def eligible_slots(name, entry):
+    """The slots one ROSTERED player may fill, best source first (F86).
+
+    1. `entry['slots']` -- what Sleeper's `fantasy_positions` said at sync time. Authoritative:
+       it is the league's own eligibility, it covers every player rather than eight, and it
+       follows a player when the NFL redesignates him mid-season.
+    2. `DUAL_ELIGIBILITY[name]` -- the hand-maintained list, for entries synced before (1)
+       existed. The golden fixtures land here, which is why they stay byte-identical.
+    3. `[normalize_position(entry['pos'])]` -- one slot from the raw position.
+
+    An EMPTY `slots` list falls through rather than being believed: it means the cached
+    player row had no usable position, not that the player may fill no slot at all, and a
+    player eligible nowhere would silently become unplayable.
+    """
+    entry = entry if isinstance(entry, dict) else {}
+    slots = entry.get("slots")
+    if slots:
+        keep = [s for s in slots if s in FANTASY_SLOT_POSITIONS]
+        if keep:
+            return keep
+    if name in DUAL_ELIGIBILITY:
+        return list(DUAL_ELIGIBILITY[name])
+    return [normalize_position(entry.get("pos", "FLEX"))]
 
 # ==============================================================================
 # MANAGER BEHAVIOR PRIORS -- see the conversation history for why these are deliberately

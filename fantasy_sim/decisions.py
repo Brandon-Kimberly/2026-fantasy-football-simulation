@@ -193,8 +193,11 @@ def _entry(engine, name):
 
 
 def _opts(engine, name):
-    from fantasy_sim.config import DUAL_ELIGIBILITY
-    return DUAL_ELIGIBILITY.get(name, [normalize_position(_entry(engine, name).get('pos', 'FLEX'))])
+    # F86: the synced `slots` key first, the hand-maintained dict only as the fallback for
+    # entries written before sync recorded eligibility. Every decision tool reads through
+    # here, so a tool's lineup and the engine's agree by construction.
+    from fantasy_sim.config import eligible_slots
+    return eligible_slots(name, _entry(engine, name))
 
 
 def _unavailable_now(entry):

@@ -26,7 +26,11 @@ import seaborn as sns
 from scipy.optimize import linear_sum_assignment
 
 from fantasy_sim.config import (
-    SIM_CONFIG, MANAGER_PROFILES, DUAL_ELIGIBILITY, NFL_TEAMS, BASE_STREAMER_MEANS,
+    # DUAL_ELIGIBILITY is no longer read here -- eligible_slots consults it as its fallback --
+    # but it stays re-exported from this module: tests reach for it through the engine to
+    # exercise that fallback, and removing the name silently stopped a whole test module from
+    # loading (1397 -> 1359 collected) rather than failing anything.
+    SIM_CONFIG, MANAGER_PROFILES, eligible_slots, DUAL_ELIGIBILITY, NFL_TEAMS, BASE_STREAMER_MEANS,  # noqa: F401
     REGULAR_SEASON_WEEKS,
     LEAGUE_AVG_PPG, REQUIRED_STARTING_SLOTS,
     FAAB_BID_LOGNORMAL_MU, FAAB_BID_LOGNORMAL_SIGMA, FAAB_LEAGUE_MEAN_BID_2025,
@@ -807,8 +811,7 @@ class FantasySimulationEngine:
         for p in roster_list:
             d = self.baselines.get(p, {})
             if not isinstance(d, dict): d = {}
-            pos = normalize_position(d.get('pos', 'FLEX'))
-            opts = DUAL_ELIGIBILITY.get(p, [pos])
+            opts = eligible_slots(p, d)
             value = d.get('mean', 4.0)
             candidates.append((p, opts, value))
             player_values[p] = value
@@ -855,7 +858,7 @@ class FantasySimulationEngine:
             return _entry(p).get('mean', 4.0)
 
         def opts(p):
-            return DUAL_ELIGIBILITY.get(p, [normalize_position(_entry(p).get('pos', 'FLEX'))])
+            return eligible_slots(p, _entry(p))
 
         def slot_positions(slot):
             return ('RB', 'WR', 'TE') if slot == 'FLEX' else (slot,)
@@ -882,7 +885,7 @@ class FantasySimulationEngine:
             return _entry(p).get('mean', 4.0)
 
         def opts(p):
-            return DUAL_ELIGIBILITY.get(p, [normalize_position(_entry(p).get('pos', 'FLEX'))])
+            return eligible_slots(p, _entry(p))
 
         def slot_positions(slot):
             return ('RB', 'WR', 'TE') if slot == 'FLEX' else (slot,)
@@ -1413,7 +1416,9 @@ class FantasySimulationEngine:
                                 if not isinstance(p_meta, dict): p_meta = {}
                                 
                                 p_pos = normalize_position(p_meta.get('pos', p_info.get('pos', 'FLEX')))
-                                available.append((p_name, DUAL_ELIGIBILITY.get(p_name, [p_pos])))
+                                # F86: sim-time meta wins over the baseline, the same
+                                # precedence p_pos uses one line up.
+                                available.append((p_name, eligible_slots(p_name, {**p_info, **p_meta})))
 
                             reqs = [('DB', 1), ('DL', 1), ('LB', 1), ('TE', 1), ('QB', 1), ('K', 1), ('RB', 2), ('WR', 2)]
                             used_p = set()
@@ -1498,7 +1503,7 @@ class FantasySimulationEngine:
                             season_mean = sim_season_means.get(p_name, p_info.get('mean', 8.0))
                             veg = team_environments.get(nfl_team, {'total': 21.5, 'spread': 0.0, 'wind_mph': 0.0, 'precip_prob': 0.0, 'opponent': 'FA'})
                             value = season_mean * (veg['total'] / env_norm) * self._script_multiplier(p_pos, veg)
-                            intended_cands.append((p_name, DUAL_ELIGIBILITY.get(p_name, [p_pos]), value))
+                            intended_cands.append((p_name, eligible_slots(p_name, {**p_info, **p_meta}), value))
                         intended_assigned, _ = self._solve_optimal_assignment(intended_cands)
                         intended_starters.update(n for n, _, _ in intended_assigned)
 
@@ -1619,7 +1624,7 @@ class FantasySimulationEngine:
                             if locked_zero:
                                 final_score = 0.0
 
-                            pos_opts = DUAL_ELIGIBILITY.get(p_name, [p_pos])
+                            pos_opts = eligible_slots(p_name, {**p_info, **p_meta})
                             candidates.append((p_name, pos_opts, expected_pre))
                             final_score_by_name[p_name] = final_score
                             if week_idx < 14:

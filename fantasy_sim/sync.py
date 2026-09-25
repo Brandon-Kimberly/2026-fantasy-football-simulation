@@ -24,7 +24,7 @@ from fantasy_sim.config import (
     DEFAULT_FALLBACK_TOTALS, VOLATILITY_CONSTANTS, EPISTEMIC_ERROR_RATES, normalize_position,
     PROJECTION_LOG_SCHEMA_VERSION,
     ANON_VOLATILITY_K, ANON_EPISTEMIC_RATE,
-    derive_bye_weeks,
+    derive_bye_weeks, fantasy_slot_positions,
 )
 from fantasy_sim.storage import (
     VEGAS_FILE, BASELINES_FILE, TEAM_RATINGS_FILE, LEAGUE_SCHEDULE_FILE,
@@ -921,6 +921,11 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
                     slot = normalize_position(raw_pos)
                     baselines[name] = {
                         "pos": raw_pos, "mean": carried_mean,
+                        # F86: the carried-projection path writes a baseline too, and these are
+                        # precisely the injured/IR players whose eligibility still decides who
+                        # covers their slot. Omitting it here left them on the hand-list
+                        # fallback while everyone else moved to Sleeper's own list.
+                        "slots": fantasy_slot_positions(player),
                         "std_aleatoric": float(prior_sd[0] if prior_sd[0] else round(VOLATILITY_CONSTANTS.get(slot, ANON_VOLATILITY_K) * math.sqrt(max(0.5, carried_mean)), 2)),
                         "std_epistemic": float(prior_sd[1] if prior_sd[1] else round(EPISTEMIC_ERROR_RATES.get(slot, ANON_EPISTEMIC_RATE) * carried_mean, 2)),
                         "bye": (byes or {}).get(team, 0), "team": team, "player_id": str(pid),
@@ -1037,6 +1042,13 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
 
         baselines[name] = {
             "pos": raw_pos, "mean": final_mean,
+            # F86: the slots this player may actually fill, from Sleeper's own
+            # `fantasy_positions`. `pos` is ONE string and cannot express dual eligibility,
+            # which the league really has (114 cached linebackers list ['DL','LB']); before
+            # this the engine read a hand-maintained eight-name dict that was measured wrong
+            # in both directions. Written here because it is a sync-time fact about the
+            # player, and it follows a mid-season NFL redesignation on the next sync.
+            "slots": fantasy_slot_positions(player),
             "std_aleatoric": std_aleatoric, "std_epistemic": std_epistemic,
             # From the NFL schedule (config.derive_bye_weeks), not from Sleeper: its payload
             # has no bye field, which is why this was 0 for every player until the bye work.

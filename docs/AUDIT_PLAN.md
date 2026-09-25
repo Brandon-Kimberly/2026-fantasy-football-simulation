@@ -6277,3 +6277,84 @@ Verified live: the watcher now emits `2026-09-25T00:15:00Z` with `hours_left: 7.
 `16:37Z`, which agree.
 
 Suite 1378 → 1386 (characterisation, 4 red of 8). Goldens 15/15. RESOLVED.
+
+### F86 — Slot eligibility was hand-maintained while Sleeper shipped the truth — RESOLVED (2026-09-24) — MAJOR
+
+`config.DUAL_ELIGIBILITY` is a dict of eight players, keyed by NAME. Every engine site that
+asks which slots a player can fill read it with a single-position fallback:
+
+```python
+DUAL_ELIGIBILITY.get(p, [normalize_position(entry.get('pos', 'FLEX'))])
+```
+
+Sleeper's player payload carries **`fantasy_positions`, a LIST**, for every player. Sync
+fetches it on every run and discards it, keeping one `pos` string.
+`config.fantasy_slot_positions` — built for T4, and correct — was called by
+`run_points_backtest` and `season_retrospective` and **by nothing in the engine path**.
+
+**Raised by the owner, not by a test.** Presented with a league-wide roster table, he said
+flatly that every team has a DL in its starting spot. The table said five did not. He was
+right, and two separate errors of mine were in between: I first counted the raw `pos` field,
+which files `DE` and `DL` as different positions, and then — after fixing that — still
+reported teams as DL-less without checking that the engine consults `DUAL_ELIGIBILITY` at
+all. **The defect was real; both of my first two explanations of it were wrong.**
+
+**Measured on the live league, six rostered players wrong, in BOTH directions:**
+
+| player | engine believed | Sleeper says | |
+|---|---|---|---|
+| Andrew Van Ginkel | `['LB']` | `['DL','LB']` | missing |
+| Dallas Turner | `['LB']` | `['DL','LB']` | missing |
+| Greg Rousseau | `['DL']` | `['DL','LB']` | missing |
+| Will Anderson | `['DL']` | `['DL','LB']` | missing |
+| Tuli Tuipulotu | `['DL']` | `['DL','LB']` | missing |
+| **Maxx Crosby** | `['DL','LB']` | `['DL']` | **WRONG — grants a slot he lacks** |
+
+The missing half is the visible one: two teams had no DL-eligible player *as far as the
+engine could tell*, so it injected `STREAMER_DL_0` over a real starter. The Crosby row is
+worse in kind — a hand-typed entry that is not true silently **widens** eligibility, and
+nothing warns about a slot that gets filled. A hand-maintained list of a changing fact drifts
+both ways and only one way is observable.
+
+**Live footprint, measured without syncing** (week 3 was in progress; a sync would have pulled
+a partial week into the actuals). Current baselines augmented in memory exactly as the next
+sync writes them, through the engine's own `_solve_optimal_assignment`:
+
+```
+Neon Walruses      DL unfilled -> filled    lineup 155.3 -> 163.9   (+8.6)
+Iron Wombats       DL unfilled -> filled    lineup 156.2 -> 163.6   (+7.4)
+every other team   unchanged
+```
+
+Two of the owner's seven opponents were modelled **7–9 points per week weaker than they
+are** — around half a weekly standard deviation, every week, all season.
+
+**The fix is to stop maintaining it by hand.** Sync records `fantasy_slot_positions` into each
+baseline as `slots`; `config.eligible_slots(name, entry)` reads `slots` first, then
+DUAL_ELIGIBILITY, then the normalised `pos`. All seven engine/decision call sites route
+through it, so a tool's lineup and the engine's agree by construction. An EMPTY `slots` list
+falls through rather than being believed — it means the cached row had no usable position,
+and a player eligible for nothing would silently become unplayable.
+
+**Two things this turned up that the fix had to cover:**
+
+1. **Sync has TWO baseline write sites.** The carried-projection branch (rostered player with
+   a zero Sleeper projection) builds its own dict, and those are exactly the injured/IR
+   players whose eligibility decides who covers their slot. Caught by a capture showing
+   886 of 888 entries carrying the new key.
+2. **Removing `DUAL_ELIGIBILITY` from `simulation`'s imports stopped a whole test module
+   loading** — `tests/test_simulation.py` reaches for it through the engine to exercise the
+   fallback. The suite went 1397 → **1359 collected** and reported only an unrelated-looking
+   loader error. It is re-exported with a comment saying why. Rule 6 exists for this.
+
+**Why MAJOR.** The engine goldens are **15/15 byte-identical** — the fixtures carry no `slots`
+key, so they resolve through the preserved fallback — while live predictions move materially.
+That is the third MAJOR trigger added at v8.0.0 for F84: an engine INPUT the goldens
+structurally cannot see. The sync golden **did** move, and the move is fully accounted for:
+capturing the baselines dict before and after and diffing field by field gives `slots` added
+to 888 of 888 entries and **zero** changes to any shared field; `projection_log_sha256` and
+`n_baselines` are unchanged.
+
+Behaviour check clean on BOTH scenarios (M2): week01 and week06 each report no drift.
+
+Suite 1386 → 1397. Goldens 15/15. Sync golden regenerated deliberately. RESOLVED, MAJOR pending.

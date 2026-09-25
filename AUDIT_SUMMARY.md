@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~123 findings and tracked follow-ups** | **89 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~124 findings and tracked follow-ups** | **90 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,29 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F86** slot eligibility was hand-maintained while Sleeper shipped the truth — RESOLVED
+  (MAJOR): `config.DUAL_ELIGIBILITY` is eight players keyed by NAME, and every engine site read
+  it with a single-`pos` fallback. Sleeper sends `fantasy_positions` — a LIST — for every
+  player; sync fetched it each run and threw it away, and `config.fantasy_slot_positions` (T4,
+  correct) was called by two scripts and by nothing in the engine path. **Raised by the owner,
+  not by a test**: shown a roster table claiming five teams had no DL, he said every team has
+  one, and he was right — I had first counted raw `pos` (filing `DE` apart from `DL`) and then,
+  after fixing that, still reported teams as DL-less without checking that the engine consults
+  the dict at all. Measured: six rostered players wrong in BOTH directions — five missing a real
+  DL eligibility, and **Maxx Crosby granted an LB slot Sleeper does not list for him**, which is
+  the worse half because an over-wide entry fills a slot silently while a missing one at least
+  emits a hole warning. Live footprint, measured without syncing (week 3 in progress): two
+  opponents were modelled **7–9 points per week weaker than they are** (lineups 155.3→163.9 and
+  156.2→163.6). Fix: sync writes `slots` from `fantasy_slot_positions`; `config.eligible_slots`
+  reads slots → DUAL_ELIGIBILITY → normalised `pos`, with an empty list falling through rather
+  than being believed; all seven call sites route through it. **Engine goldens 15/15
+  byte-identical** (fixtures have no `slots`, so they keep the fallback) while live predictions
+  move — the third MAJOR trigger from F84. Sync golden moved and the move is fully accounted
+  for: a before/after field-level diff shows `slots` added to 888/888 entries and zero shared
+  fields changed. Behaviour check clean on both scenarios. Two traps en route: sync has **two**
+  baseline write sites (the carried-projection branch covers injured/IR players), and dropping
+  `DUAL_ELIGIBILITY` from `simulation`'s imports silently stopped a test module loading
+  (1397 → **1359 collected**) — rule 6 caught it.
 - **F85** the canonical-window reminder labelled a Pacific time as UTC — RESOLVED:
   `watch_verdict` rendered deadlines with `strftime("...Z")`, and the `Z` in a format string
   is a LITERAL character — it asserts UTC without converting to it. Every deadline in that
