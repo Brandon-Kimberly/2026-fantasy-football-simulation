@@ -170,14 +170,14 @@
       }
     },
     "trajectories": {
-      "hash": "b703f82ffbbe5a2935d1386dcc5d66837f37d546f68774274b77fa75d3d9a169",
+      "hash": "3217bfb9a15067068234674096e91168ac63baf36c2d0ec43acbe8670d61b4cd",
       "summary": {
-        "max": 0.0,
-        "mean": 0.0,
+        "max": 19.0,
+        "mean": 7.901786,
         "min": 0.0,
         "n": 3360,
-        "std": 0.0,
-        "sum": 0.0
+        "std": 4.771492,
+        "sum": 26550.0
       }
     },
     "wins": {
@@ -227,14 +227,14 @@
       }
     },
     "syndicate_comprehensive_matrix_week_15.json": {
-      "hash": "0fc23adc3a9b1d06fc81eee4d4ca00d084257ad57ae67a8d558916e2cd24d74e",
+      "hash": "918d5c6f9fe43fdb63fcd2a2a23af93b5b0d03364cbc400e286311d561f8ea12",
       "summary": {
         "max": 2148.64,
-        "mean": 56.952783,
+        "mean": 59.44574,
         "min": 0.0,
         "n": 363,
-        "std": 302.18249,
-        "sum": 20218.237806
+        "std": 301.74652,
+        "sum": 21103.237806
       }
     },
     "syndicate_insights_week_15.json": {
@@ -284,14 +284,14 @@
       }
     },
     "syndicate_comprehensive_matrix_week_15.json": {
-      "hash": "0fc23adc3a9b1d06fc81eee4d4ca00d084257ad57ae67a8d558916e2cd24d74e",
+      "hash": "918d5c6f9fe43fdb63fcd2a2a23af93b5b0d03364cbc400e286311d561f8ea12",
       "summary": {
         "max": 2148.64,
-        "mean": 56.952783,
+        "mean": 59.44574,
         "min": 0.0,
         "n": 363,
-        "std": 302.18249,
-        "sum": 20218.237806
+        "std": 301.74652,
+        "sum": 21103.237806
       }
     },
     "syndicate_insights_week_15.json": {
