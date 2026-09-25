@@ -1,6 +1,12 @@
 # Streamer levels vs the free-agent pool — C5 study
 
-**Measured 2026-09-24, week 3. `n = 1` sync. NOTHING WAS CHANGED.**
+**Measured 2026-09-24, week 3. `n = 2` syncs. NOTHING WAS CHANGED.**
+
+> **Second reading appended 2026-09-24 16:53Z** (this document was written at `n = 1` from
+> the 04:53Z sync). The table and the four corrections below are unchanged — the second
+> reading confirms every magnitude. What it adds is a separation the first reading could not
+> make: **the instrument is precise; it is the POOL that moves.** See "The second reading"
+> near the end. The recommendation is unchanged: do not adopt before four syncs.
 
 `BASE_STREAMER_MEANS` is read at engine init by every hole evaluation, so moving it is a
 **MAJOR** release under this repo's policy (the model's predictions change materially while
@@ -70,6 +76,33 @@ it are no help for this question.
 `data/logs/streamer_levels.jsonl`, and the study runs as a weekly-report step, so the
 four-sync comparison the item wanted becomes possible from here forward. **The right time
 to revisit is week 7**, with four independent observations.
+
+## The second reading (2026-09-24 16:53Z), and what it does and does not settle
+
+Twelve hours after the first, same week. `derived_gap` — the quantity that would drive
+adoption, i.e. how far option (b) moves the streamer — is near-identical:
+
+```
+QB   +1.92 -> +1.86        K   +2.19 -> +2.19
+LB   +2.17 -> +2.16        RB  -1.66 -> -1.64
+```
+
+Pool top-3 means moved by ≤0.03 at every position except WR (0.28, which flipped its sign:
++0.05 → −0.23, a position that was never materially wrong in either direction).
+
+**This settles that the measurement is not noise.** Two independent runs of the instrument,
+against two independently generated baseline files, agree to two decimal places on every
+position that matters. A reading of ±2 points at K and LB is a real property of the wire, not
+an artifact of which sync happened to be sampled.
+
+**It does not settle persistence, and must not be read as doing so.** Point 3 above stands
+exactly as written: the QB pool churned across a *day* when Jordan Love was claimed. These two
+readings are twelve hours apart with no churn in between, so they demonstrate **precision
+within a stable pool**, not **stability of the pool**. Those are different claims and only the
+first is now evidenced.
+
+Four syncs spanning at least two weeks is still the bar, for the reason C5 gave: the question
+is whether a +2.19 at K survives the wire being picked over, and nothing here can answer it.
 
 ## Recommendation
 
