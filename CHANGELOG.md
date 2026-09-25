@@ -5,6 +5,30 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v9.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v9.0.0) — 2026-09-24 (MAJOR)
+
+**Slot eligibility was hand-maintained in an eight-name dict while Sleeper shipped the truth
+on every sync.** `config.DUAL_ELIGIBILITY` listed eight players by name; Sleeper sends
+`fantasy_positions` — a LIST — for every player, and sync fetched it each run and threw it
+away. Six rostered players had the wrong eligibility, in **both** directions: five missing a
+real DL eligibility, and one granted an LB slot Sleeper does not list for him. The missing
+half made the engine believe two teams had no DL-eligible player at all, so it injected a
+replacement-level streamer over a real starter.
+
+Fixed in **F86**: sync records `slots` from `fantasy_slot_positions` at both baseline write
+sites, and `config.eligible_slots` resolves slots → the old dict → normalised `pos`, with all
+seven call sites routed through it. Measured live without syncing, two of eight teams were
+modelled **7–9 points per week weaker than they are**.
+
+**Why MAJOR when the engine goldens are byte-identical (15/15).** The fixtures carry no
+`slots` key and resolve through the preserved fallback, so the change is invisible to them by
+construction while live predictions move — F84's third trigger exactly. The sync golden did
+move; a before/after field-level diff shows `slots` added to 888/888 entries and zero shared
+fields changed. Behaviour check clean on both scenarios.
+
+Also **F85** (PATCH): the canonical-window reminder stamped a Pacific time with a literal `Z`
+and called it UTC, overstating every deadline by seven hours in PDT.
+
 ## [v8.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v8.0.0) — 2026-09-24 (MAJOR)
 
 **The engine was seeding from a record the league does not recognise.** Sleeper's
