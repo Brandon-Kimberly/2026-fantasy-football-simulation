@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~124 findings and tracked follow-ups** | **90 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~125 findings and tracked follow-ups** | **91 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -329,6 +329,28 @@ than "fixed": the measurement said the code was right.
   not. An unmetered hole-only free channel already exists (simulation.py:~1476) — the
   finding is that it is unmetered and roster-inert, not that it is absent. F2 keeps
   its real calibration target: 11 trades in 2025 vs the sim's ~0.
+- **F87** the union-merge list went stale because nothing guarded it — RESOLVED:
+  `.gitattributes` gave `merge=union` to four append-only logs on 2026-09-04, each verified
+  against its readers; every log added since was not, because no test checked. `evaluate-moves`
+  failed twice at the push step — `projection_log` (attributed) auto-merged while
+  `designations` and `sync_provenance` (unattributed) conflicted — and the v9.0.0 push was
+  rejected the same way. **My first diagnosis was wrong**: I blamed my own concurrent commits;
+  the second failure landed in a window where I had pushed nothing, which forced out the real
+  cause — `run_sync` is invoked by FOUR workflows and appends to four logs, only one of which
+  was attributed. Verified per log rather than assumed: `designations` safe (readers key into
+  sets, duplicates absorbed), `sync_provenance` safe (set of stamps), `bid_ledger` and
+  `streamer_levels` excluded on purpose (no automated writer, cannot race), and
+  **`first_recorded_scores` NOT safe as it stood** — it freezes the FIRST score per (week,
+  name), the property the F83 reconstruction rested on, yet both readers took the LAST row, so
+  union would have returned the second capture and inverted the guarantee; they are now
+  first-row-wins, as `decision_log` was when it was unioned. The real fix is the guard: a test
+  asserts every tracked `data/logs/*.jsonl` carries the attribute or is named in an exclusion
+  set with a reason, and two more run an ACTUAL divergent merge in a temp repo rather than
+  asserting git's documented behaviour. `git check-attr` confirms the seven jsonl logs union
+  while the whole-document `.json` files stay unspecified — union there would concatenate two
+  documents into unparseable JSON. One trap: the test's first draft used `git init -b`
+  (unsupported on git 2.27 here), so every later git call failed into a non-repo and the
+  no-conflict test passed for the wrong reason; the helper now fails on any non-zero git call.
 - **F86** slot eligibility was hand-maintained while Sleeper shipped the truth — RESOLVED
   (MAJOR): `config.DUAL_ELIGIBILITY` is eight players keyed by NAME, and every engine site read
   it with a single-`pos` fallback. Sleeper sends `fantasy_positions` — a LIST — for every

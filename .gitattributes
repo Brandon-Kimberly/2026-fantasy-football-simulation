@@ -11,7 +11,27 @@ SEASON_2026_EVALUATION.sha256 -text
 #   decision_log        -- ingestion dedupes on transaction_id AND every reader dedupes
 #                          first-row-wins (added for exactly this; pinned by tests)
 #   points_backtest     -- append-only per-run records, compared line-by-line
+#   designations        -- every reader keys into a SET (weeks_by_pid[pid].add(wk), the
+#                          roll call's {week: {pid}}), so a duplicate row is absorbed; only
+#                          the CLI's cosmetic row count moves (added 2026-09-24)
+#   sync_provenance     -- append-only provenance; its one reader builds a set of stamps
+#   first_recorded_scores -- union ALONE was not safe here. The log exists to freeze the
+#                          FIRST score seen per (week, name) -- the basis of the F83
+#                          reconstruction -- and both readers took the LAST row, so union
+#                          would have returned the second capture and inverted exactly the
+#                          guarantee. Readers are first-row-wins as of F87, same treatment
+#                          decision_log got; pinned by tests.
+#
+# NOT unioned, deliberately: bid_ledger.jsonl and streamer_levels.jsonl have no automated
+# writer (owner-run only), so they cannot race. data/logs also holds whole-document .json
+# (draft_*, season_*) -- union there would concatenate two documents into unparseable JSON,
+# which is why the patterns are *.jsonl and never data/logs/*.
+# tests/test_log_merge_strategy.py guards this list: a new tracked jsonl log must carry the
+# attribute or be named in its exclusion set. The list went stale once already.
 data/logs/projection_log.jsonl merge=union
 data/logs/decision_log.jsonl merge=union
 data/logs/predictions_*.jsonl merge=union
 data/logs/points_backtest.jsonl merge=union
+data/logs/designations.jsonl merge=union
+data/logs/sync_provenance.jsonl merge=union
+data/logs/first_recorded_scores.jsonl merge=union

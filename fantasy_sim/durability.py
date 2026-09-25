@@ -75,6 +75,11 @@ def dnp_flags(score_rows, week):
     """{pid: True if the player scored exactly 0.0 in `week`}.
 
     Absent from the feed means absent from the dict -- unknown, not a DNP.
+
+    FIRST row wins per pid (F87). These rows come from `first_recorded_scores.jsonl`, which
+    freezes the first score seen, and that file is `merge=union`: when two syncs race, both
+    captures survive in the file. Taking the last one would silently re-score a frozen
+    observation -- the opposite of what the log is for.
     """
     out = {}
     for r in score_rows or []:
@@ -85,6 +90,8 @@ def dnp_flags(score_rows, week):
             continue
         pid = str(r.get("player_id"))
         if pid in (None, "None", ""):
+            continue
+        if pid in out:
             continue
         try:
             pts = float(r.get("points") or 0.0)

@@ -6358,3 +6358,67 @@ to 888 of 888 entries and **zero** changes to any shared field; `projection_log_
 Behaviour check clean on BOTH scenarios (M2): week01 and week06 each report no drift.
 
 Suite 1386 → 1397. Goldens 15/15. Sync golden regenerated deliberately. RESOLVED, MAJOR pending.
+
+### F87 — The union-merge list went stale because nothing guarded it — RESOLVED (2026-09-24)
+
+`.gitattributes` gave `merge=union` to four append-only logs on 2026-09-04, each verified
+individually against its readers. **Every log added since was not given it, because no test
+checked.** The list is hand-maintained, and it drifted — the same failure shape as F86, one
+layer down.
+
+**The visible cost.** `evaluate-moves` failed twice on 2026-09-24, both times at "Commit and
+push the evaluation records", never at the evaluation itself:
+
+```
+Auto-merging data/logs/designations.jsonl
+CONFLICT (content): Merge conflict in data/logs/designations.jsonl
+Auto-merging data/logs/projection_log.jsonl          <- has merge=union, merged clean
+CONFLICT (content): Merge conflict in data/logs/sync_provenance.jsonl
+error: could not apply ... Logs: automated move evaluations (actions)
+```
+
+The one log with the attribute merged; the two without it conflicted. A third push — the
+v9.0.0 release — was rejected the same way. **My first diagnosis of this was wrong**: I
+blamed my own concurrent local commits, and said so. The second failure happened in a window
+where I had pushed nothing, which is what forced the real cause out: `run_sync` is invoked by
+**four** workflows (canonical-run, data-capture, evaluate-moves, pages-sample) and appends to
+`designations`, `sync_provenance`, `first_recorded_scores` and `projection_log`. Any two
+overlapping produce exactly this.
+
+**Union is not free and is not right for every log.** It keeps BOTH sides of a conflicting
+hunk, so a row-counting reader double-counts and a last-row-wins reader silently changes
+which value survives. Verified per log, to the standard the original four set:
+
+| log | verdict |
+|---|---|
+| `designations` | **safe** — readers key into sets (`weeks_by_pid[pid].add(wk)`, roll call `{week: {pid}}`); a duplicate is absorbed. Only the CLI's cosmetic row count moves. |
+| `sync_provenance` | **safe** — append-only provenance; its one reader builds a set of stamps. |
+| `first_recorded_scores` | **NOT safe as it stood** — see below. |
+| `bid_ledger`, `streamer_levels` | **excluded on purpose** — no automated writer, owner-run only, so they cannot race. |
+
+**`first_recorded_scores` needed more than the attribute.** The log exists to freeze the
+FIRST score seen for a `(week, name)` — that property is what made the F83 reconstruction
+possible, and what proved weeks 1–2 were captured pre-IDP-change (T.J. Watt week 1 at 34.50,
+not 29.50). Both readers took the **last** row. Under union, a race keeps both captures and
+last-row-wins would return the second — silently inverting the single guarantee the file
+exists to provide. `_frozen_scores` and `dnp_flags` are now first-row-wins, the same
+treatment `decision_log` got when it was unioned.
+
+**The real fix is the guard, not the three added lines.** `tests/test_log_merge_strategy.py`
+asserts that every tracked `data/logs/*.jsonl` either carries the attribute or is named in an
+exclusion set with its reason. A new log now cannot drift in silently. Two further tests run
+an **actual divergent merge** in a temp repo — conflict without the attribute, clean union
+with it — rather than asserting git's documented behaviour, and two pin first-row-wins.
+
+Verified with `git check-attr` over every tracked `data/logs` file: seven `.jsonl` logs
+report `union`; the whole-document `.json` files (`draft_*`, `season_*`) report `unspecified`,
+which matters — union there would concatenate two JSON documents into an unparseable file,
+so the patterns are `*.jsonl` and never `data/logs/*`.
+
+**A trap inside the test itself.** The first draft used `git init -b`, which git 2.27 on this
+machine does not support. Every later git call then failed into a non-repo, and the
+"no conflict with union" test passed **for entirely the wrong reason** — the file simply
+contained the lines the test had written itself. The helper now fails the test if any git
+call returns non-zero. A green test that never ran git is worse than no test.
+
+Suite 1397 → 1404. Goldens 15/15. RESOLVED.

@@ -82,7 +82,10 @@ def _frozen_scores(week, path=FIRST_SCORES_FILE):
                 r = json.loads(line)
             except ValueError:
                 continue
-            if r.get("week") == week:
+            # F87: FIRST row wins. The log freezes the first score seen for a (week, name),
+            # and `merge=union` keeps both sides when two syncs race -- last-row-wins would
+            # hand back the later capture and invert the one guarantee this file provides.
+            if r.get("week") == week and r.get("name") not in out:
                 out[r.get("name")] = float(r.get("points") or 0.0)
     return out
 
