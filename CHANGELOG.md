@@ -5,6 +5,29 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v10.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.0.0) — 2026-09-25 (MAJOR)
+
+**Both season charts drew the league 0-0 until today.** `global_trajectories` is zeroed and
+the simulation writes only from the current week onward, so every completed column stayed at
+0.0 — the exported series read `[0.0, 0.0, 2.8977, ...]` with two weeks played. The forecast
+half was always correct; only the history was blank.
+
+Fixed in **B30**. The subtlety is *which* record to draw: summing the per-week
+`h2h_win`/`median_win` flags gives the RECOMPUTED record, which after a mid-season scoring
+change is not what the league banked (F83/F84) — one team's flags sum to 3 where the league
+banked 2. So the flags supply the shape, `actual_total_wins` anchors the endpoint, and a
+backward clamp keeps the series monotonic. All eight teams' week-2 cumulative now equal their
+banked record exactly. Both charts also open at week 0 / 0 wins, so the first week's climb is
+drawn rather than assumed.
+
+**MAJOR because `trajectories` is golden-hashed and needed deliberate regeneration — not
+because predictions moved.** Measured key by key: 3 moved and 24 identical in each of
+week06/week15, week01 unchanged, and `wins`, `points`, `b_champs`, `b_playoffs`, `b_toilets`
+and `h2h` byte-identical. A fixture refresh forced by a corrected historical series.
+
+Also **B29**: `live_matchup`'s Questionable count summed the whole roster when the optimism it
+measures comes only from starters — printed 3-v-2 where the starters were 2-v-0.
+
 ## [v9.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v9.0.0) — 2026-09-24 (MAJOR)
 
 **Slot eligibility was hand-maintained in an eight-name dict while Sleeper shipped the truth
