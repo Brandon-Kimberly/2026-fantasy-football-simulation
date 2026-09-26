@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}{{ rel }} - fantasy-sim{% endblock %}
+{% block body %}
+<h1 class="small" style="font-size:1rem">data/{{ rel }} <span class="muted">&middot; <a href="{{ link }}?raw=1">raw</a></span></h1>
+<pre>{{ body|real }}</pre>
+{% endblock %}
