@@ -20,8 +20,10 @@ import subprocess
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
+from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
 from webui.paths import PathRefused, Root
+from webui.tools import TOOLS, FormError, get as get_tool
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
@@ -208,10 +210,11 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
-def create_app(root, overlay=None, csrf_token=None, port=None):
+def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
+    runner = runner if runner is not None else JobRunner(root)
     from fantasy_sim.config import MY_TEAM
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
@@ -366,5 +369,64 @@ def create_app(root, overlay=None, csrf_token=None, port=None):
         if raw:
             return Response(body, mimetype="text/plain")
         return render_template("file.html", rel=rel, body=body, kind="text", link=root.link(rel))
+
+    # ---------------------------------------------------------------- W2: the launcher
+    app.runner = runner
+
+    @app.errorhandler(JobRefused)
+    def _refused_job(ex):
+        return render_template("error.html", code=409, message=str(ex), current=runner.current()), 409
+
+    @app.route("/tools")
+    def tools():
+        return render_template("tools.html", tools=list(TOOLS.values()), current=runner.current())
+
+    @app.route("/tools/<name>", methods=["GET", "POST"])
+    def tool(name):
+        try:
+            t = get_tool(name)
+        except KeyError:
+            abort(404)
+        values = {f.name: ("" if f.default is None else str(f.default)) for f in t.fields}
+        error = None
+        if request.method == "POST":
+            require_csrf()
+            values.update({f.name: request.form.get(f.name, "") for f in t.fields})
+            try:
+                argv = t.argv(request.form)
+                shown = [a for a in argv[3:] if not a.startswith("--")][:3]
+                label = f"{name}" + (f" {' '.join(shown)}" if shown else "")
+                job_id = runner.launch(argv, tool=name, label=label)
+                return redirect(url_for("job", job_id=job_id))
+            except FormError as ex:
+                error = str(ex)
+        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current())
+
+    @app.route("/jobs")
+    def jobs():
+        return render_template("jobs.html", jobs=runner.list(), current=runner.current())
+
+    @app.route("/jobs/<job_id>")
+    def job(job_id):
+        meta = runner.read(job_id)
+        if not meta:
+            abort(404)
+        tail, size = runner.tail(job_id)
+        return render_template("job.html", job=meta, tail=tail, size=size,
+                               refresh=(meta.get("state") == RUNNING))
+
+    @app.route("/jobs/<job_id>/log")
+    def job_log(job_id):
+        if not runner.read(job_id):
+            abort(404)
+        return Response(runner.log_text(job_id), mimetype="text/plain")
+
+    @app.route("/jobs/<job_id>/cancel", methods=["POST"])
+    def job_cancel(job_id):
+        require_csrf()
+        if not runner.read(job_id):
+            abort(404)
+        runner.cancel(job_id)
+        return redirect(url_for("job", job_id=job_id))
 
     return app

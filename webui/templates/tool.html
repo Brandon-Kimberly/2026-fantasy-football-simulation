@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}{{ tool.name }} - fantasy-sim{% endblock %}
+{% block body %}
+<h1><code>{{ tool.name }}</code></h1>
+<p>{{ tool.question }}</p>
+{% if tool.note %}<p class="note">{{ tool.note }}</p>{% endif %}
+{% if current %}<p class="note">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. This launch will be refused until it finishes.</p>{% endif %}
+{% if error %}<p class="note" style="border-left-color:#8a1c1c"><b>Not launched:</b> {{ error }}</p>{% endif %}
+<form method="post" action="/tools/{{ tool.name }}">
+<input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<table><tbody>
+{% for f in tool.fields %}
+<tr><td><label for="f_{{ f.name }}">{{ f.label }}{% if f.required %} *{% endif %}</label></td>
+<td>
+{% if f.kind == "flag" %}<input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}>
+{% elif f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
+{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" size="{% if f.kind == 'text' %}48{% else %}10{% endif %}" autocomplete="off">
+{% endif %}
+</td><td class="small muted" style="white-space:normal">{{ f.help }}</td></tr>
+{% endfor %}
+</tbody></table>
+<p><button type="submit">Launch {{ tool.name }}</button> <span class="small muted">runs <code>py -3.10 -m scripts.{{ tool.name }}</code> in the checkout; output appears on the job page</span></p>
+</form>
+<p class="small muted">Team selectors post the fictional name; real names never enter a URL, an argument, or a log.</p>
+{% endblock %}

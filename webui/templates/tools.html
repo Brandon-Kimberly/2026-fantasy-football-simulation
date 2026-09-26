@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block title %}Tools - fantasy-sim{% endblock %}
+{% block body %}
+<h1>Tools</h1>
+<p class="muted small">Each launches the same command you would type (<code>py -3.10 -m scripts.&lt;tool&gt; ...</code>) as one subprocess in the checkout, and writes only that tool's own record under data/decisions/. <b>One at a time</b> -- every launch takes the same lock. {{ r1 }}</p>
+{% if current %}<p class="note">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a> since {{ current.started_at }}. A second launch is refused until it finishes.</p>{% endif %}
+<table><thead><tr><th>Question</th><th>Tool</th><th></th></tr></thead><tbody>
+{% for t in tools %}<tr><td style="white-space:normal">{{ t.question }}</td><td><a href="/tools/{{ t.name }}"><code>{{ t.name }}</code></a></td><td class="small muted">{% if t.heavy %}minutes{% else %}seconds{% endif %}</td></tr>{% endfor %}
+</tbody></table>
+<p class="small muted">Not launchable here, on purpose: sync (a terminal act, H5/C3), the simulation and weekly report (phase W3), gameday (opens a browser), the backtests and studies, and anything that appends to a tracked season log.</p>
+{% endblock %}
