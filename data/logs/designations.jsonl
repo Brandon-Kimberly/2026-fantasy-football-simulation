@@ -209,3 +209,9 @@
 {"injury_body_part": null, "injury_status": null, "name": "RJ Harvey", "player_id": "12489", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Crimson Marmots", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Juwan Johnson", "player_id": "7002", "practice_participation": null, "recorded_at": "2026-09-25T18:05:08Z", "team": "Quantum Ferrets", "week": 3}
 {"injury_body_part": "Hip", "injury_status": "Doubtful", "name": "Puka Nacua", "player_id": "9493", "practice_participation": null, "recorded_at": "2026-09-25T18:45:52Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Terrel Bernard", "player_id": "8311", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": "Calf", "injury_status": "Out", "name": "Nick Bosa", "player_id": "5816", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": "Heel", "injury_status": "IR", "name": "Alec Pierce", "player_id": "8142", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Knee", "injury_status": "Doubtful", "name": "Chamarri Conner", "player_id": "10949", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Rocket Pandas", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Jadarian Price", "player_id": "13286", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Turbo Llamas", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Saquon Barkley", "player_id": "4866", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Turbo Llamas", "week": 3}
