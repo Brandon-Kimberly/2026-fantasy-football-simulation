@@ -118,6 +118,24 @@ class TestRunner(unittest.TestCase):
         m = wait_done(self.runner, jid)
         self.assertEqual(m["record"], "/file/decisions/week_03/lineup_x.json")
 
+    def test_a_chain_links_its_digest_not_the_first_subtool_record(self):
+        """The weekly report announces every sub-tool's record and its own digest last."""
+        d = os.path.join(self.td.name, "data", "decisions", "week_03")
+        for name in ("roster_grades_a_week3.json", "lineup_b_week3.json", "weekly_report_week3_c.md",
+                     "weekly_report_week3_c.html"):
+            with open(os.path.join(d, name), "w", encoding="utf-8") as fh:
+                fh.write("x")
+        code = ("print('  logged -> data/decisions/week_03/roster_grades_a_week3.json');"
+                "print('  logged -> data/decisions/week_03/lineup_b_week3.json');"
+                "print('[OK] digest -> data/decisions/week_03/weekly_report_week3_c.md');"
+                "print('[OK] html   -> data/decisions/week_03/weekly_report_week3_c.html')")
+        m = wait_done(self.runner, self.runner.launch(tool(code), tool="weekly_report"))
+        self.assertEqual(m["record"], "/file/decisions/week_03/weekly_report_week3_c.html")
+        code2 = ("print('  logged -> data/decisions/week_03/roster_grades_a_week3.json');"
+                 "print('  logged -> data/decisions/week_03/lineup_b_week3.json')")
+        m2 = wait_done(self.runner, self.runner.launch(tool(code2), tool="chain"))
+        self.assertEqual(m2["record"], "/file/decisions/week_03/lineup_b_week3.json", "no html: the LAST record wins")
+
     def test_a_record_outside_data_is_not_linked(self):
         jid = self.runner.launch(tool("print('logged -> C:/Windows/system32/x.json')"), tool="fake")
         self.assertIsNone(wait_done(self.runner, jid)["record"])

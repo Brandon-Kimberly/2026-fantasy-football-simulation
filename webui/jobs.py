@@ -34,7 +34,7 @@ import threading
 RUNNING, OK, VOID = "RUNNING", "OK", "VOID"
 R1_VOID = "a crashed run is void -- re-run it alone (AUDIT_PLAN.md R1)"
 ENGINE_PATTERNS = ("scripts.", "fantasy_sim", "unittest", "tests.golden_sync", "tests.test_golden_master")
-RECORD_RE = re.compile(r"(?:logged|report|chart|written|recorded)\s*->\s*(\S+)")
+RECORD_RE = re.compile(r"(?:logged|report|chart|written|recorded|digest|html)\s*->\s*(\S+)")
 JOB_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_\-]{3,80}$")
 
 
@@ -268,13 +268,19 @@ class JobRunner:
         return True
 
     def _find_record(self, job_id):
-        """The record the tool announced ('logged -> data/...'), as a served link."""
+        """The record the tool announced ('logged -> data/...'), as a served link. A chain
+        such as the weekly report announces every sub-tool's record and then its own digest
+        last, so the HTML digest wins when present and otherwise the LAST served path does."""
         from webui.paths import PathRefused, normalize
+        served = []
         for m in RECORD_RE.finditer(self.log_text(job_id)):
             rel = normalize(m.group(1))
             try:
                 self.root.resolve_file(rel)
-                return self.root.link(rel)
+                served.append(rel)
             except (PathRefused, FileNotFoundError):
                 continue
-        return None
+        if not served:
+            return None
+        html = [r for r in served if r.lower().endswith(".html")]
+        return self.root.link(html[-1] if html else served[-1])
