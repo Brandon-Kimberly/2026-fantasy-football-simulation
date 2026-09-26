@@ -7,5 +7,9 @@
 <table><thead><tr><th>Question</th><th>Tool</th><th></th></tr></thead><tbody>
 {% for t in tools %}<tr><td style="white-space:normal">{{ t.question }}</td><td><a href="/tools/{{ t.name }}"><code>{{ t.name }}</code></a></td><td class="small muted">{% if t.heavy %}minutes{% else %}seconds{% endif %}</td></tr>{% endfor %}
 </tbody></table>
-<p class="small muted">Not launchable here, on purpose: sync (a terminal act, H5/C3), the simulation and weekly report (phase W3), gameday (opens a browser), the backtests and studies, and anything that appends to a tracked season log.</p>
+<h2>Engine runs <span class="muted small">minutes; the week's exports are rewritten; same lock</span></h2>
+<table><thead><tr><th>Question</th><th>Tool</th></tr></thead><tbody>
+{% for t in engine %}<tr><td style="white-space:normal">{{ t.question }}</td><td><a href="/tools/{{ t.name }}"><code>{{ t.name }}</code></a></td></tr>{% endfor %}
+</tbody></table>
+<p class="small muted">Not launchable here, on purpose: sync (a terminal act, H5/C3 -- the report above always runs <code>--skip-sync</code>), gameday (opens a browser), the backtests and studies, and anything that appends to a tracked season log.</p>
 {% endblock %}

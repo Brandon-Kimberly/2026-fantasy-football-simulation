@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1513%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1521%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -104,6 +104,10 @@ takes the same lock (an in-process lock, a pid lock file, and a scan for any oth
 process on the machine), every POST carries a per-launch CSRF token, and a job that exits
 non-zero or is cancelled is shown **VOID** with the R1 sentence, never "finished with
 errors". Job logs live under `data/local/webui/` and are never committed or served as files.
+The two engine entry points run the same way: `run_simulation`, and `weekly_report` --
+which the UI **always** launches with `--skip-sync`, after showing the freshness verdict and
+the run windows, and refuses outright on a STALE tree. Sync itself is never launched from
+the browser.
 
 ## Decision tools
 
@@ -233,7 +237,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1513 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1521 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -258,7 +262,7 @@ platform lock working, not a broken build.
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Without
 Flask (`requirements-web.txt`) the web UI's route tests skip cleanly too, the same way
-the `espn_api` and `hypothesis` tests do -- `skipped=23`, not a failure. Any engine
+the `espn_api` and `hypothesis` tests do -- `skipped=28`, not a failure. Any engine
 change either leaves the golden hashes byte-identical or regenerates them with the deltas
 explained in the commit.
 

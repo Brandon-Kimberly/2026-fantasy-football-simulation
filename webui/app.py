@@ -23,7 +23,7 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
 from webui.paths import PathRefused, Root
-from webui.tools import TOOLS, FormError, get as get_tool
+from webui.tools import ENGINE, TOOLS, FormError, get as get_tool
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
@@ -379,7 +379,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     @app.route("/tools")
     def tools():
-        return render_template("tools.html", tools=list(TOOLS.values()), current=runner.current())
+        return render_template("tools.html", tools=list(TOOLS.values()), engine=list(ENGINE.values()),
+                               current=runner.current())
 
     @app.route("/tools/<name>", methods=["GET", "POST"])
     def tool(name):
@@ -389,9 +390,16 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
             abort(404)
         values = {f.name: ("" if f.default is None else str(f.default)) for f in t.fields}
         error = None
+        # W3: an engine run shows the freshness verdict and the run windows first, and a
+        # STALE tree is refused here, before the tool would refuse it itself.
+        fr = freshness_report(root) if t.engine else None
+        win = windows_report(root, fr["week"]) if t.engine else None
         if request.method == "POST":
             require_csrf()
             values.update({f.name: request.form.get(f.name, "") for f in t.fields})
+            if fr is not None and fr["status"] == "STALE":
+                raise JobRefused("the data on disk is STALE -- " + "; ".join(fr["reasons"]) +
+                                 " -- run scripts.run_sync from a terminal first (this UI never syncs)")
             try:
                 argv = t.argv(request.form)
                 shown = [a for a in argv[3:] if not a.startswith("--")][:3]
@@ -400,7 +408,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
                 return redirect(url_for("job", job_id=job_id))
             except FormError as ex:
                 error = str(ex)
-        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current())
+        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
+                               fr=fr, windows=win)
 
     @app.route("/jobs")
     def jobs():

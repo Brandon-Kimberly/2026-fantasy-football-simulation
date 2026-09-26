@@ -77,8 +77,8 @@ class TestLauncher(unittest.TestCase):
         body = self.c.get("/tools").get_data(as_text=True)
         for name in ("optimize_lineup", "compare_players", "evaluate_trade", "check_freshness"):
             self.assertIn(f"/tools/{name}", body)
-        for name in ("run_sync", "run_simulation", "weekly_report", "gameday", "migrate_identity"):
-            self.assertNotIn(f"/tools/{name}", body)
+        for name in ("run_sync", "gameday", "migrate_identity", "localize_reports", "scan_real_names"):
+            self.assertNotIn(f"/tools/{name}", body)     # the engine pair is W3's, listed separately
         self.assertEqual(self.c.get("/tools/run_sync").status_code, 404)
 
     def test_form_carries_the_token_and_an_unchecked_canonical_box(self):

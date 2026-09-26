@@ -87,21 +87,27 @@ JSON_FLAG = Field("json", "flag", label="JSON output")
 
 
 class Tool:
-    def __init__(self, name, question, fields, note="", heavy=False):
+    def __init__(self, name, question, fields, note="", heavy=False, forced=(), engine=False):
         self.name, self.question, self.fields, self.note, self.heavy = name, question, fields, note, heavy
+        # `forced`: argv items every launch carries, before the form's -- the W3 report is
+        # ALWAYS --skip-sync (the UI never syncs: docs/WEB_UI.md W4). `engine`: a full
+        # simulation run; the launch page shows freshness and the run windows first, and a
+        # STALE tree refuses the launch before the tool would.
+        self.forced, self.engine = tuple(forced), engine
 
     @property
     def module(self):
         return "scripts." + self.name
 
     def argv(self, form, python=None):
-        """[python, -m, scripts.<name>, ...] from a submitted mapping. Options first, then
-        positionals, so a positional can never be swallowed as an option's value."""
+        """[python, -m, scripts.<name>, ...] from a submitted mapping. Forced items first,
+        then options, then positionals, so a positional can never be swallowed as an
+        option's value."""
         opts, pos = [], []
         for f in self.fields:
             items = f.parse(form.get(f.name))
             (pos if f.positional else opts).append(items)
-        out = [python or sys.executable, "-m", self.module]
+        out = [python or sys.executable, "-m", self.module, *self.forced]
         for items in opts + pos:
             out.extend(items)
         return out
@@ -172,7 +178,26 @@ TOOLS = {t.name: t for t in (
 )}
 
 
+# W3: the two engine entry points, through the same runner and the same lock. The report is
+# ALWAYS --skip-sync -- sync stays a terminal act (W4) -- and it self-gates on STALE data.
+ENGINE = {t.name: t for t in (
+    Tool("run_simulation", "Run the Monte Carlo engine on the data on disk: exports, charts, boom/bust, floor/ceiling.",
+         [], note="the full run (10,000 simulations): minutes, and the week's exports are rewritten", heavy=True, engine=True),
+    Tool("weekly_report", "The weekly digest from the data on disk: simulate -> charts -> grades -> lineup -> matchup -> waivers.",
+         [team(), Field("full", "flag", help="also run the trade-target finder"),
+          Field("sims", "int", default=5000, help="matchup joint-sample size; default 5000"),
+          Field("evaluate", "int", default=0, help="with full: paired evaluations of the top N trade packages"),
+          Field("embed", "flag", help="inline the charts as data URIs (portable, 15-20 MB)"),
+          CANONICAL],
+         note="always --skip-sync: this UI never syncs. STALE data stops the run (the digest carries a FAILED banner and the job is VOID). "
+              "A non-canonical run files under week_NN/archive/ and appends a non-canonical row to the predictions log, exactly as a hand run does.",
+         heavy=True, forced=("--skip-sync",), engine=True),
+)}
+
+
 def get(name):
-    if name not in TOOLS:
-        raise KeyError(name)
-    return TOOLS[name]
+    if name in TOOLS:
+        return TOOLS[name]
+    if name in ENGINE:
+        return ENGINE[name]
+    raise KeyError(name)

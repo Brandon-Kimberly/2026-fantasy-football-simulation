@@ -6,6 +6,14 @@
 {% if tool.note %}<p class="note">{{ tool.note }}</p>{% endif %}
 {% if current %}<p class="note">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. This launch will be refused until it finishes.</p>{% endif %}
 {% if error %}<p class="note" style="border-left-color:#8a1c1c"><b>Not launched:</b> {{ error }}</p>{% endif %}
+{% if tool.engine and fr %}
+<div class="note">
+<p><b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} -- <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first (this UI never syncs){% endif %}</p>
+{% if fr.reasons %}<ul class="small">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+{% if windows and windows.result %}<p class="small"><b>Run windows</b> (target week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} {{ w.status }}{% if w.covered_by %} (covered){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small">{{ windows.note }}</p>{% endif %}
+<p class="small">{{ r1 }}</p>
+</div>
+{% endif %}
 <form method="post" action="/tools/{{ tool.name }}">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
 <table><tbody>
