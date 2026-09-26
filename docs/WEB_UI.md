@@ -1,10 +1,19 @@
 # Web UI — design and phased backlog (scoped 2026-09-26)
 
-**Scoping only. No feature code exists yet.** This document is the design a later session
-implements, written so that a model with less context than the author can pick each phase
-up cold: what it is, what it builds on, exactly what to change, exactly what *not* to
-touch, how to know it is done, and the traps a careful-but-uninformed implementer would
-fall into. It follows the conventions of `SCOPED_BACKLOG.md`.
+**Status (2026-09-27).** W1, W2 and W3 are built on `feature/web-ui` — commits `2b429bf`
+(read-only viewer, suite 1444→1480), `b9e5717` (tool launcher, →1513) and `b37bfec`
+(engine runs, →1521) — each with the goldens 15/15, `check_test_isolation` CLEAN and
+`scan_real_names` CLEAN, and each hand-verified against the real tree. All three are
+**MINOR pending**: no tag, no version bump, no CHANGELOG entry yet — that is the owner's
+release sitting, per `CLAUDE.md`. W4 stands as the decision recorded below; W5 is unscheduled.
+Everything after this paragraph is the design as written before the code, kept so the
+implementation can be judged against it.
+
+This document is the design a session implements, written so that a model with less
+context than the author can pick each phase up cold: what it is, what it builds on,
+exactly what to change, exactly what *not* to touch, how to know it is done, and the
+traps a careful-but-uninformed implementer would fall into. It follows the conventions of
+`SCOPED_BACKLOG.md`.
 
 The goal is a **localhost-only** web interface for reading this project's outputs and,
 later, invoking its existing entry points. Single user, no auth, no deployment, no public
