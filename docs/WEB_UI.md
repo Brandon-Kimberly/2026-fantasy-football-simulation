@@ -367,6 +367,31 @@ root, run a tool or the report there, show the result, discard — is the exact 
 change, and would let the owner ask "what if I add X" without touching production data.
 Scoped separately when W3 has been used for a few weeks.
 
+### W6 — Live scoreboard (built 2026-09-27; read-only, off-disk)
+
+The landing page shows the points banked so far in my matchup, each starter's game
+state, and an updated chance to win, with a refresh button and an auto-refresh toggle
+(every three minutes, remembered per browser). `webui/live.py` reads two public
+endpoints -- Sleeper's matchups for the week and ESPN's scoreboard -- and holds the
+result in the server process's memory (`LiveBoard`, one snapshot, never more often
+than 45 s). It writes nothing: not under `data/`, not to a log, not to a cache file.
+The engine reads `data/current/` (written only by sync) and the season logs (written
+only by the tools), so the model's inputs, its predictions log and its later evaluation
+are untouched by any number of refreshes -- `tests/test_webui_live` asserts the tree
+digest is identical across repeated refreshes. Page renders never fetch; only
+`/api/live` does, and the default board is disabled on a runner or without a league id.
+
+The number it quotes is a quick estimate and says so on the panel: banked points plus
+the unplayed fraction of each starter's pre-game expectation (this week's lineup or
+matchup record where one exists, else the baseline mean), Normal-approximated. F50 pins
+the engine's own live number to `scripts.live_matchup`, which imports the engine; the
+panel links to that tool, and the three small formulas it shares are copied with their
+docstrings rather than imported.
+
+Team avatars (owner's eyes only) ride the same path as real names: `Overlay.avatars`
+is fetched in memory when real names are on, rendered as `<img src>`, never written,
+and off whenever the overlay is off.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
