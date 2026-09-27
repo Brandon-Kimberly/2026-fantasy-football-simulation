@@ -420,6 +420,33 @@ goes into `SIMPLE_PAGES` or `DEV_ONLY_PREFIXES`; a new tool into `SIMPLE_TOOLS` 
 not; a new sentence with a file name, a code or the word "sync" goes inside
 `{% if dev %}`. Macros are imported `with context` so `dev` reaches them.
 
+### W9 — A local name, and the vibrant layer (2026-09-27)
+
+**`http://syndicatefootball.local/` on this machine.** The bind stays 127.0.0.1 (section
+2.8 is unchanged: there is still no `--host`, and argparse abbreviations are off so
+`--host` cannot alias `--hostname`); what changes is the Host check, which accepts a
+name the owner configures on top of the two built-in ones. Two steps, both local:
+
+1. Once, as Administrator, point the name at the loopback in the hosts file:
+   `Add-Content C:\Windows\System32\drivers\etc\hosts "127.0.0.1 syndicatefootball.local"`
+2. Start the server with the name (and port 80 to drop the `:8765`):
+   `py -3.10 -m webui --hostname syndicatefootball.local --port 80`
+
+`.local` rather than the bare word because browsers treat a single label as a search
+term; a hosts-file line is the only resolution, so nobody else's machine can reach it
+and the DNS-rebinding defence holds (an unconfigured name is still refused with 400).
+
+**The vibrant layer.** Gradient tokens (`--g-brand`, per-colour gradients, glows, one
+shadow) drive: a gradient brand mark and h1s, a sticky blurred header with an animated
+gradient underline on the active tab, two soft colour glows behind the page, tiles with
+a coloured corner disc that lift and glow on hover, gradient pills for the live
+states, gradient buttons (pill-shaped, glow on hover, press feedback), gradient bars,
+medal ranks (gold/silver/bronze) in every standings table, chart areas that fade
+through an SVG gradient and lines that draw themselves in with dots that pop, a hero
+with a drifting violet glow, a gradient ring and split bar, and a red live badge. Every
+motion sits under `prefers-reduced-motion: reduce`, and both views carry the same
+layer (tests.test_webui_modes pins it in each).
+
 ### W5 (optional, later) — Sandbox root
 
 `--root` already allows serving a copy. A "sandbox run" button — copy `data/` to a temp

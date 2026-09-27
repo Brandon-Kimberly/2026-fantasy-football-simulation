@@ -170,6 +170,14 @@ class TestViewer(unittest.TestCase):
         self.assertEqual(c.get("/", headers={"Host": "127.0.0.1:8765"}).status_code, 200)
         self.assertEqual(c.get("/", headers={"Host": "localhost:8765"}).status_code, 200)
         self.assertEqual(self.client().get("/", headers={"Host": "localhost"}).status_code, 200)
+        # W9: a configured local name is allowed (with the port rule); anything else is still refused
+        named = create_app(self.root, csrf_token="tok", port=8765, hostnames=["SyndicateFootball.local"])
+        named.testing = True
+        nc = named.test_client()
+        self.assertEqual(nc.get("/", headers={"Host": "syndicatefootball.local:8765"}).status_code, 200)
+        self.assertEqual(nc.get("/", headers={"Host": "syndicatefootball.local:9999"}).status_code, 400)
+        self.assertEqual(nc.get("/", headers={"Host": "evil.example:8765"}).status_code, 400)
+        self.assertEqual(c.get("/", headers={"Host": "syndicatefootball.local:8765"}).status_code, 400, "not configured here")
 
     def test_no_response_ever_carries_an_environment_secret(self):
         with patch.dict(os.environ, CANARY):

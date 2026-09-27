@@ -57,9 +57,9 @@ TERMINAL_COMMANDS = (
 )
 
 
-def _allowed_host(host, port):
+def _allowed_host(host, port, allowed=ALLOWED_HOSTNAMES):
     name, _, hport = (host or "").partition(":")
-    if name.lower() not in ALLOWED_HOSTNAMES:
+    if name.lower() not in allowed:
         return False
     if port and hport and str(hport) != str(port):
         return False
@@ -153,7 +153,7 @@ def current_report(root):
 
 # ------------------------------------------------------------------------- factory
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
-               settings=None, default_mode=None):
+               settings=None, default_mode=None, hostnames=()):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -170,7 +170,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
     app = Flask(__name__, template_folder="templates", static_folder=None)
-    app.config.update(ROOT=root, OVERLAY=overlay, PORT=port, SETTINGS=settings,
+    # A local name for this machine (W9: `--hostname syndicatefootball.local` plus a hosts-file
+    # line pointing it at 127.0.0.1) joins the two built-in ones; the bind stays 127.0.0.1.
+    allowed = tuple(ALLOWED_HOSTNAMES) + tuple(h.strip().lower() for h in hostnames if h and h.strip())
+    app.config.update(ROOT=root, OVERLAY=overlay, PORT=port, SETTINGS=settings, HOSTNAMES=allowed,
                       CSRF_TOKEN=csrf_token or secrets.token_urlsafe(32),
                       MY_TEAM=MY_TEAM, TEMPLATES_AUTO_RELOAD=False)
     app.jinja_env.filters["real"] = overlay.text
@@ -211,8 +214,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
 
     @app.before_request
     def _host_check():
-        if not _allowed_host(request.host, app.config["PORT"]):
-            abort(400, "this server answers only to 127.0.0.1 / localhost")
+        if not _allowed_host(request.host, app.config["PORT"], app.config["HOSTNAMES"]):
+            abort(400, "this server answers only to " + " / ".join(app.config["HOSTNAMES"]))
 
     @app.before_request
     def _mode_gate():
