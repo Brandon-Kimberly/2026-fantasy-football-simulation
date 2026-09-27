@@ -58,13 +58,6 @@
 .stat .big { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .stat .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .stat .s { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
-.spark { width: 100%; height: 88px; display: block; }
-.spark .base { stroke: var(--grid); stroke-width: 1; }
-.spark .played { stroke: var(--ink); stroke-width: 2.2; fill: none; }
-.spark .fut { stroke: var(--gold); stroke-width: 2.2; fill: none; stroke-dasharray: 4 4; }
-.spark .dot { fill: var(--ink); }
-.spark .now { fill: var(--gold); }
-.spark text { font: 10px var(--sans); fill: var(--muted); }
 .mini-standings td { padding: 6px 8px; }
 .games { margin-top: 12px; display: grid; gap: 4px; }
 .game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; }
@@ -129,18 +122,9 @@
   </div>
   <div class="stat b" style="grid-template-columns:1fr;animation-delay:.1s">
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
-    {% if trajectory %}{% set n = trajectory|length %}{% set mx = (trajectory|max)|float %}{% set W = 320 %}{% set H = 70 %}{% set pad = 6 %}
-    {% set pts = [] %}{% for v in trajectory %}{% set _ = pts.append(((pad + loop.index0 * (W - 2 * pad) / (n - 1))|round(1), (H - pad - (v / (mx if mx else 1)) * (H - 2 * pad))|round(1))) %}{% endfor %}
-    {% set done = (week or 1) - 1 %}
-    <svg class="spark" viewBox="0 0 {{ W }} {{ H + 14 }}" preserveAspectRatio="none">
-      <line class="base" x1="{{ pad }}" y1="{{ H - pad }}" x2="{{ W - pad }}" y2="{{ H - pad }}"/>
-      {% if done > 0 %}<polyline class="played" points="{% for i in range(done + 1 if done + 1 <= n else n) %}{{ pts[i][0] }},{{ pts[i][1] }} {% endfor %}"/>{% endif %}
-      <polyline class="fut" points="{% for i in range(done if done < n else n - 1, n) %}{{ pts[i][0] }},{{ pts[i][1] }} {% endfor %}"/>
-      {% if done < n %}<circle class="now" cx="{{ pts[done][0] }}" cy="{{ pts[done][1] }}" r="3.5"/>{% endif %}
-      <circle class="dot" cx="{{ pts[n-1][0] }}" cy="{{ pts[n-1][1] }}" r="2.5"/>
-      <text x="{{ pad }}" y="{{ H + 11 }}">wk 1</text><text x="{{ W - pad }}" y="{{ H + 11 }}" text-anchor="end">wk {{ n }} · {{ trajectory[-1]|num(1) }}</text>
-    </svg>
-    <div class="s">solid = played · dashed = expected from here · {{ c.actual_wins_banked|num(0) }} wins banked{% if weeks %} · <a href="/weeks/{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
+    {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, height=150, marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
+    <div class="s">the model's expected cumulative wins by week, from this week's forecast · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
     {% else %}<div class="s">No simulation export yet — <a href="/tools/run_simulation">run one</a>.</div>{% endif %}
   </div>
 </div>
@@ -149,7 +133,7 @@
   <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/system"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours|ago }}{% endif %}</span></a>
   <a class="chip {{ 'warn' if fresh.n_fell or fresh.n_bad }}" href="/system"><svg class="i"><use href="#i-cloud"/></svg><span class="k">sources</span><span class="v">{{ fresh.n_ok }} ok{% if fresh.n_fell %} · {{ fresh.n_fell }} fell back{% endif %}{% if fresh.n_bad %} · {{ fresh.n_bad }} failed{% endif %}</span></a>
   <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline|clock }}{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
-  <a class="chip" href="{% if last_job %}/jobs/{{ last_job.id }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
+  <a class="chip" href="{% if last_job %}{{ last_job|job_url }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
   <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
 

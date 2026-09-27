@@ -120,7 +120,8 @@ WEEK = Field("week", "int", help="NFL week; default = the synced current week")
 SEED = Field("seed", "int", help="RNG seed; blank = the tool's default")
 CANONICAL = Field("canonical", "flag", label="canonical",
                   help="a deliberate run filed to week_NN/ instead of week_NN/archive/ -- off unless you mean it")
-JSON_FLAG = Field("json", "flag", label="JSON output")
+# JSON-capable tools always run --json (Tool.forced): the job page renders the JSON as
+# tables and the text form is one click away in the log, so the form no longer asks.
 
 
 class Tool:
@@ -253,24 +254,24 @@ TOOLS = {t.name: t for t in (
          [team(), WEEK, team("opponent", default_mine=False)]),
     Tool("roster_calendar", "Which weeks am I short, and who do I cut when the IR man comes back?", [team()]),
     Tool("live_matchup", "Am I winning right now, and what is still to come?",
-         [team(), WEEK, _sims(40000), Field("seed", "int", default=20260913), JSON_FLAG]),
+         [team(), WEEK, _sims(40000), Field("seed", "int", default=20260913)], forced=("--json",)),
     Tool("trade_leverage", "Sell-high candidates, and rivals' below-replacement slots my surplus could fix.",
          [team(), WEEK, Field("season", "text", default="2026")]),
     Tool("market_sweep", "Every starting slot vs the best free agent, on engine values.", [team(), WEEK]),
     Tool("check_freshness", "Has sync run this week, and did it succeed? (online: checks the week roll)",
          [Field("offline", "flag", help="skip the Sleeper week check")]),
-    Tool("run_windows", "This week's canonical-run windows: open, covered, or missed.", [JSON_FLAG]),
+    Tool("run_windows", "This week's canonical-run windows: open, covered, or missed.", [], forced=("--json",)),
     Tool("odds_history", "How have my championship odds moved across canonical runs?",
-         [team(), JSON_FLAG]),
+         [team()], forced=("--json",)),
     Tool("luck_ledger", "Am I actually unlucky? Five pre-registered measures against the league.",
          [Field("season", "text"), Field("all", "flag", label="every season in the chain"),
-          team(default_mine=False, label="team (blank = mine)"), WEEK, JSON_FLAG]),
+          team(default_mine=False, label="team (blank = mine)"), WEEK], forced=("--json",)),
     Tool("decision_scorecard", "Did we make bad calls? The week's start/sit decisions, scored.",
-         [team(), Field("week", "int", required=True, help="the completed week to score"), JSON_FLAG]),
+         [team(), Field("week", "int", required=True, help="the completed week to score")], forced=("--json",)),
     Tool("data_health", "Every source the model consumes, checked against what is on disk.",
-         [Field("season", "text", default="2026"), WEEK, JSON_FLAG]),
+         [Field("season", "text", default="2026"), WEEK], forced=("--json",)),
     Tool("bid_review", "What I suggested vs what I bid vs what it cost (review only; recording a claim stays a terminal act).",
-         [team(), WEEK, JSON_FLAG]),
+         [team(), WEEK], forced=("--json",)),
 )}
 
 # W3: the two engine entry points, through the same runner and the same lock. The report is

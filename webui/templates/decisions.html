@@ -1,27 +1,110 @@
 {% extends "base.html" %}
-{% from "_macros.html" import filelist %}
-{% block title %}Records · {{ brand }}{% endblock %}
+{% from "_macros.html" import tiles, mark, teamlink %}
+{% block title %}Decisions · {{ brand }}{% endblock %}
 {% block body %}
 <style>
-.wknav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
-.wknav a { padding: 4px 11px; border: 1px solid var(--grid); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; text-decoration: none; font-variant-numeric: tabular-nums; }
-.wknav a:hover { border-color: var(--pos); color: var(--pos); }
-.wknav a.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
+.dec { display: grid; grid-template-columns: 7.5rem 1fr 15rem; gap: 6px 16px; align-items: start; padding: 12px 0; border-bottom: 1px solid var(--grid); }
+.dec .when { font-size: 12px; color: var(--muted); line-height: 1.4; font-variant-numeric: tabular-nums; }
+.dec .when b { display: block; font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.dec .what { font-size: 14px; }
+.dec .what .who { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; margin-right: 6px; }
+.dec .what .mv { display: block; margin-top: 3px; color: var(--ink-2); }
+.dec .what .mv b { color: var(--ink); font-weight: 500; }
+.dec .what .mv .pos { color: var(--turf); } .dec .what .mv .neg { color: var(--neg); }
+.dec .fx { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
+.dec .fx .big { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+.dec .fx .big.pos { color: var(--turf); } .dec .fx .big.neg { color: var(--neg); }
+.dec .fx .s { color: var(--muted); font-size: 12px; }
+.dec .fx .other { margin-top: 4px; font-size: 12px; color: var(--ink-2); }
+.dec.mine { background: linear-gradient(90deg, var(--pos-bg), transparent 40%); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: var(--r-ctl); }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
+.filters button { padding: 5px 11px; font-size: 11px; background: var(--surface); color: var(--ink-2); border: 1px solid var(--grid); }
+.filters button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
+.ledger .b i { background: var(--turf); } .ledger .neg .b i { background: var(--neg); }
+@media (max-width: 720px) { .dec { grid-template-columns: 1fr; } .dec .fx { text-align: left; } }
 </style>
 <div class="head">
-  <p class="eyebrow">records · every tool run and every digest</p>
-  <h1>{% if week %}Week {{ week }} records{% elif adhoc is not none %}Ad-hoc records{% else %}Records{% endif %}</h1>
-  <p class="lede">What each tool said, kept as it was said. Scheduled and deliberate runs are <b>canonical</b>; everything exploratory goes to the archive. A record opens as tables, with the raw JSON one click further.</p>
-  <div class="wknav">{% for w in weeks %}<a href="/decisions/{{ w }}"{% if w == week %} class="on"{% endif %}>Week {{ w }}</a>{% endfor %}<a href="/decisions/adhoc"{% if adhoc is not none %} class="on"{% endif %}>Ad-hoc &amp; season</a></div>
+  <p class="eyebrow">decisions · every move in the league, scored</p>
+  <h1>Decisions</h1>
+  <p class="lede">Every add, claim and trade the league has made this season, and what the paired evaluation said it did to that team's playoff and title chances — the same roster simulated with and without the move, on the same seeds. The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them.</p>
 </div>
 
-{% if listing %}
-<section><h2>Canonical <span class="hint">the runs the season is scored on</span></h2>{{ filelist(listing.canonical) }}</section>
-<section><h2>Archive <span class="hint">exploratory, mid-week and development runs</span></h2>{{ filelist(listing.archive) }}</section>
+{{ tiles([
+  {"k": "moves logged", "v": n|string, "s": n_evaluated|string ~ " evaluated · " ~ n_skipped|string ~ " skipped (roster drift) · " ~ n_pending|string ~ " not yet", "tone": ""},
+  {"k": "my moves", "v": mine|length|string, "s": "adds, claims and trades involving my roster", "tone": ""},
+  {"k": "my playoff odds, net of my moves", "v": (my_row.playoff|signed(1) ~ " pts") if my_row else "—", "s": ("± " ~ my_row.playoff_se|num(1) ~ " · " ~ my_row.evaluated|string ~ " evaluated") if my_row else "no evaluated move yet", "tone": ("pos" if my_row.playoff > 0 else ("neg" if my_row.playoff < 0 else "")) if my_row else ""},
+  {"k": "my title odds, net of my moves", "v": (my_row.champ|signed(1) ~ " pts") if my_row else "—", "s": ("± " ~ my_row.champ_se|num(1)) if my_row else "", "tone": ("pos" if my_row.champ > 0 else ("neg" if my_row.champ < 0 else "")) if my_row else ""}
+]) }}
+
+{% if chart %}
+<section>
+<h2><svg class="i"><use href="#i-chart"/></svg> My moves, added up <span class="hint">cumulative change in my playoff probability, in percentage points, move by move</span></h2>
+<div class="vizbox">{{ chart }}</div>
+</section>
 {% endif %}
 
-{% if adhoc is not none %}
-<section><h2>Player &amp; trade questions <span class="hint">compare, evaluate move, evaluate trade</span></h2>{{ filelist(adhoc) }}</section>
-<section><h2>Season <span class="hint">draft review, retrospectives</span></h2>{{ filelist(season) }}</section>
+{% if ledger %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Who has helped themselves <span class="hint">each team's own moves, summed · playoff percentage points</span></h2>
+{% set lmax = [(ledger|map(attribute='playoff')|map('abs')|max), 0.5]|max %}
+<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="{{ 'neg' if L.playoff < 0 }}"><span class="b"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
+<p class="small muted" style="margin-top:8px">A trade counts for both sides. ± is the combined batch-to-batch spread of the evaluations; a team whose bar is inside its ± has not measurably moved.</p>
+</section>
 {% endif %}
+
+<section>
+<h2><svg class="i c-pos"><use href="#i-swap"/></svg> Every move <span class="hint">newest first · effect on the team that made it</span></h2>
+<div class="filters" id="filters">
+  <button type="button" data-f="all" class="on">Everyone</button>
+  <button type="button" data-f="mine">Mine</button>
+  <button type="button" data-f="trade">Trades</button>
+  <button type="button" data-f="waiver">Waiver claims</button>
+  <button type="button" data-f="free_agent">Free-agent adds</button>
+  <button type="button" data-f="moved">Measurably moved the odds</button>
+</div>
+<div id="list">
+{% for d in decisions %}{% set fx = d.actor_effect %}
+<div class="dec{% if d.is_mine or my_team in d.teams %} mine{% endif %}" data-type="{{ d.type }}" data-mine="{{ '1' if (d.is_mine or my_team in d.teams) else '0' }}" data-moved="{{ '1' if (fx and fx.playoff is not none and (fx.playoff|abs) > 2 * (fx.playoff_se or 0)) else '0' }}">
+  <div class="when"><b>{{ d.label }}</b>week {{ d.week }} · {{ d.created|when }}</div>
+  <div class="what">
+    {% if d.type == 'trade' %}
+      <span class="who">{% for t in d.teams %}{{ mark(t) }}{{ teamlink(t) }}{% if not loop.last %} <span class="muted">↔</span> {% endif %}{% endfor %}</span>
+      {% for t in d.teams %}<span class="mv"><b>{{ t|real }}</b> gets {% set got = d.adds|selectattr('to', 'equalto', t)|list %}{% if got %}{% for p in got %}<b>{{ p.name }}</b> <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}nothing{% endif %}</span>{% endfor %}
+    {% else %}
+      <span class="who">{{ mark(d.actor) }}{{ teamlink(d.actor) }}</span>
+      {% for p in d.adds %}<span class="mv"><span class="pos">+</span> <b>{{ p.name }}</b> <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span>{% if d.faab_bid %} <span class="muted">· bid {{ d.faab_bid|num(0) }}</span>{% endif %}</span>{% endfor %}
+      {% for p in d.drops %}<span class="mv"><span class="neg">−</span> {{ p.name }} <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span></span>{% endfor %}
+    {% endif %}
+  </div>
+  <div class="fx">
+    {% if fx and fx.playoff is not none %}
+      <div class="big {{ 'pos' if fx.playoff > 0 else ('neg' if fx.playoff < 0) }}">{{ fx.playoff|signed(1) }} <span class="s">playoff pts</span></div>
+      <div class="s">± {{ fx.playoff_se|num(1) }} · title {{ fx.champ|signed(1) }} ± {{ fx.champ_se|num(1) }}</div>
+      {% if d.type == 'trade' %}{% for t in d.teams if t != d.actor and d.effect.get(t) %}<div class="other">{{ t|real }}: {{ d.effect[t].playoff|signed(1) }} playoff · {{ d.effect[t].champ|signed(1) }} title</div>{% endfor %}{% endif %}
+      {% if d.reversed %}<div class="s">roster had moved on; evaluated as of the log</div>{% endif %}
+    {% elif d.skipped %}
+      <div class="s">not measurable — {{ d.skipped|truncate(90) }}</div>
+    {% else %}
+      <div class="s">not evaluated yet</div>
+    {% endif %}
+  </div>
+</div>
+{% endfor %}
+</div>
+<p class="small muted" style="margin-top:12px">No moves logged yet? The decision log fills as the sync sees transactions; evaluations arrive when <code>py -3.10 -m scripts.evaluate_move --evaluate-unevaluated</code> runs.</p>
+</section>
+<script>
+(function () {
+  var f = document.getElementById('filters'), rows = Array.from(document.querySelectorAll('#list .dec'));
+  f.addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    f.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); }); b.classList.add('on');
+    var k = b.getAttribute('data-f');
+    rows.forEach(function (r) {
+      var show = k === 'all' || (k === 'mine' && r.getAttribute('data-mine') === '1') || (k === 'moved' && r.getAttribute('data-moved') === '1') || r.getAttribute('data-type') === k;
+      r.hidden = !show;
+    });
+  });
+})();
+</script>
 {% endblock %}

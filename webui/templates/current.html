@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, rawlink %}
+{% from "_macros.html" import tiles, mark, rawlink, teamlink %}
 {% block title %}League · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -8,31 +8,44 @@
 .roster-nav a:hover { border-color: var(--pos); color: var(--pos); }
 .card:target { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos-bg); }
 .card h4 .mark { margin-right: 2px; }
-.card .cnt { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; }
-.card .strip { display: flex; gap: 2px; height: 6px; margin: 4px 0 10px; border-radius: 999px; overflow: hidden; }
+.card .cnt { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; white-space: nowrap; }
+.card .strip { display: flex; gap: 2px; height: 6px; margin: 4px 0 8px; border-radius: 999px; overflow: hidden; }
 .card .strip i { display: block; height: 100%; }
+.card .vsum { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12.5px; color: var(--ink-2); margin: 0 0 8px; font-variant-numeric: tabular-nums; }
+.card .vsum b { color: var(--ink); }
+.roster { table-layout: fixed; width: 100%; }
+.roster th, .roster td { padding: 5px 6px; font-size: 13px; }
+.roster td.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.roster td.nm small { color: var(--muted); font-weight: 400; margin-left: 4px; }
+.roster .vb { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; width: 100%; }
+.roster .vb .mini { width: 44px; min-width: 44px; height: 6px; } .roster .vb .mini.neg i { background: var(--neg); }
+.roster .vb .mini { transform: none; }
+.vorp-head { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: baseline; font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
 </style>
 {% set mine = standings|selectattr(0, "equalto", my_team)|list %}
 {% set wk = state.current_week or 1 %}
 {% set pmax = [(standings|map(attribute=1)|map(attribute='points_scored')|max if standings else 1)|float, 1.0]|max %}
+{% set vt = vorp.teams if vorp else {} %}
+{% set vmax = [(vt.values()|map(attribute='lineup_vorp')|max if vt else 1)|float, 1.0]|max %}
 <div class="head">
   <p class="eyebrow">league · week {{ wk }} · refreshed by every sync</p>
   <h1>League</h1>
-  <p class="lede">Every team's record, roster and remaining budget as the league reports them. Click a team to jump to its roster; the playoff odds come from the week-{{ odds_week or "?" }} forecast.</p>
+  <p class="lede">Every team's record, roster and remaining budget as the league reports them. Click a team to jump to its roster; the playoff odds come from the week-{{ odds_week or "?" }} forecast{% if vorp %}, and the roster strength (VORP) from the roster grades run on {{ vorp.stamp|when }}{% endif %}.</p>
 </div>
 {% if mine %}{% set s = mine[0][1] %}{{ tiles([
   {"k": "my record", "v": s.h2h_wins|string ~ "–" ~ ((2 * wk - 2 - (s.h2h_wins or 0))|string), "s": "head-to-head plus the median game", "tone": ""},
   {"k": "points scored", "v": s.points_scored|num(1), "s": "season to date", "tone": ""},
-  {"k": "budget left", "v": s.remaining_faab|num(0), "s": "of 100 FAAB", "tone": ""},
-  {"k": "roster size", "v": (rosters.get(my_team) or [])|length|string, "s": "including IR", "tone": ""}
+  {"k": "my lineup VORP", "v": (vt[my_team].lineup_vorp|signed(1)) if (vt and my_team in vt) else "—", "s": ("rank " ~ vt[my_team].rank ~ " of " ~ vt|length ~ " · depth " ~ vt[my_team].depth_vorp|signed(1)) if (vt and my_team in vt) else "run roster grades to fill this", "tone": ""},
+  {"k": "budget left", "v": s.remaining_faab|num(0), "s": "of 100 FAAB", "tone": ""}
 ]) }}{% endif %}
 
 {% if standings %}
 <section>
 <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">click a column to sort</span></h2>
-<div class="scroller"><table><thead><tr><th></th><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="o" data-type="number" class="num">Playoff odds</th><th data-key="f" data-type="number" class="num">Budget left</th></tr></thead><tbody>
-{% for team, s in standings %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (s.points_scored or 0) / pmax)|round(0)|int }}"></i></span>{{ s.points_scored|num(1) }}</span></td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (odds.get(team) or 0)|round(0)|int }}"></i></span>{{ odds.get(team)|num(1) }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}"><span class="bc"><span class="mini gold"><i data-width="{{ (s.remaining_faab or 0)|round(0)|int }}"></i></span>{{ s.remaining_faab|num(0) }}</span></td></tr>{% endfor %}
+<div class="scroller"><table><thead><tr><th></th><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="o" data-type="number" class="num">Playoff odds</th><th data-key="v" data-type="number" class="num">Lineup VORP</th><th data-key="f" data-type="number" class="num">Budget left</th></tr></thead><tbody>
+{% for team, s in standings %}{% set v = vt.get(team) if vt else None %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (s.points_scored or 0) / pmax)|round(0)|int }}"></i></span>{{ s.points_scored|num(1) }}</span></td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (odds.get(team) or 0)|round(0)|int }}"></i></span>{{ odds.get(team)|num(1) }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ v.lineup_vorp if v else -999 }}">{% if v %}<span class="bc"><span class="mini violet"><i data-width="{{ (100 * ([v.lineup_vorp, 0]|max) / vmax)|round(0)|int }}"></i></span>{{ v.lineup_vorp|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}"><span class="bc"><span class="mini gold"><i data-width="{{ (s.remaining_faab or 0)|round(0)|int }}"></i></span>{{ s.remaining_faab|num(0) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
+{% if not vorp %}<p class="small muted" style="margin-top:8px">Lineup VORP appears once <a href="/tools/roster_grades">roster grades</a> has been run — it needs the engine's replacement levels, which this page will not recompute on its own.</p>{% endif %}
 </section>
 {% endif %}
 
@@ -43,21 +56,27 @@
 {% endif %}
 
 <section>
-<h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · injury status from the last sync</span></h2>
+<h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · status from the last sync{% if vorp %} · VORP from roster grades{% endif %}</span></h2>
 <div class="roster-nav">{% for team in rosters %}<a href="#t-{{ team|slug }}">{{ mark(team) }}{{ team|real }}</a>{% endfor %}</div>
-<div class="cards">
+{% if vorp %}<div class="vorp-head"><span><b>VORP</b> = a player's season projection over the replacement level of his position — what he is worth over the best free agent you could have instead.</span><span class="muted">from <a href="{{ vorp.entry|pretty }}">the week-{{ vorp.week }} roster grades</a></span></div>{% endif %}
+<div class="cards wide">
 {% for team, rows in rosters.items() %}
 {% set tot = [(rows|map(attribute='mean')|select('number')|sum), 0.001]|max %}
+{% set v = vt.get(team) if vt else None %}{% set pv = (vorp.players.get(team) if vorp else None) or {} %}
+{% set vpos = pv.values()|map(attribute='vorp')|select('number')|list %}{% set vabs = [([(vpos|max) if vpos else 1, ((vpos|min) if vpos else -1)|abs]|max)|float, 0.5]|max %}
 <div class="card" id="t-{{ team|slug }}">
-<h4>{{ mark(team) }}{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %}<span class="cnt">{{ rows|length }} players · {{ tot|num(0) }} pts/wk of projection</span></h4>
-<div class="strip" title="each player's share of the roster's weekly projection">{% for r in rows %}{% if r.mean %}<i style="width:{{ (100 * r.mean / tot)|round(2) }}%;background:hsl({{ team|hue }} 55% {{ (36 + loop.index0 * 3)|round(0)|int }}%)" title="{{ r.name }} · {{ r.mean|num(1) }}"></i>{% endif %}{% endfor %}</div>
-<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="p" data-type="text">Pos</th><th data-key="t" data-type="text">NFL</th><th data-key="m" data-type="number" class="num">Proj. / wk</th><th data-key="s" data-type="text">Status</th></tr></thead><tbody>
-{% for r in rows %}<tr><td class="nm" data-sort="{{ r.name }}">{{ r.name }}</td><td data-sort="{{ r.pos }}">{{ r.pos }}</td><td data-sort="{{ r.nfl }}" class="muted">{{ r.nfl }}</td><td class="num" data-sort="{{ r.mean if r.mean is not none else -1 }}">{{ r.mean|num(1) }}</td><td data-sort="{{ r.status }}">{% if r.status %}<span class="flag">{{ r.status }}</span>{% endif %}</td></tr>{% endfor %}
-</tbody></table></div>
+<h4>{{ mark(team) }}{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %}<span class="cnt">{{ rows|length }} players · {{ tot|num(0) }} pts/wk</span></h4>
+<div class="strip" title="each player's share of the roster's weekly projection">{% for r in rows %}{% if r.mean %}<i style="width:{{ (100 * r.mean / tot)|round(2) }}%;background:hsl({{ team|hue }} 62% {{ (34 + loop.index0 * 3)|round(0)|int }}%)" title="{{ r.name }} · {{ r.mean|num(1) }}"></i>{% endif %}{% endfor %}</div>
+{% if v %}<div class="vsum"><span>lineup VORP <b class="{{ 'pos' if v.lineup_vorp > 0 else 'neg' }}">{{ v.lineup_vorp|signed(1) }}</b> <span class="muted">rank {{ v.rank }}</span></span><span>depth <b>{{ v.depth_vorp|signed(1) }}</b></span><span>optimal score <b>{{ v.optimal_score|num(1) }}</b></span>{% if v.holes %}<span class="neg">{{ v.holes }} hole{{ 's' if v.holes != 1 }}</span>{% endif %}{% if v.starters_below_replacement %}<span class="neg">{{ v.starters_below_replacement }} starter{{ 's' if v.starters_below_replacement != 1 }} below replacement</span>{% endif %}</div>{% endif %}
+<table class="roster"><colgroup><col><col style="width:3.2em"><col style="width:3.6em"><col style="width:4.4em">{% if vorp %}<col style="width:7.2em">{% endif %}<col style="width:3.4em"></colgroup>
+<thead><tr><th data-key="n" data-type="text">Player</th><th data-key="p" data-type="text">Pos</th><th data-key="t" data-type="text">NFL</th><th data-key="m" data-type="number" class="num">Proj</th>{% if vorp %}<th data-key="v" data-type="number" class="num">VORP</th>{% endif %}<th data-key="s" data-type="text">St</th></tr></thead><tbody>
+{% for r in rows %}{% set pr = pv.get(r.name) %}<tr><td class="nm" data-sort="{{ r.name }}" title="{{ r.name }}{% if pr and pr.role %} · {{ pr.role }}{% if pr.slot %} at {{ pr.slot }}{% endif %}{% if pr.tier %} · tier {{ pr.tier }}{% endif %}{% endif %}">{{ r.name }}{% if pr and pr.role == 'starter' and pr.slot %}<small>{{ pr.slot }}</small>{% endif %}</td><td data-sort="{{ r.pos }}">{{ r.pos }}</td><td data-sort="{{ r.nfl }}" class="muted">{{ r.nfl }}</td><td class="num" data-sort="{{ r.mean if r.mean is not none else -1 }}">{{ r.mean|num(1) }}</td>{% if vorp %}<td class="num" data-sort="{{ pr.vorp if pr and pr.vorp is not none else -999 }}">{% if pr and pr.vorp is not none %}<span class="vb"><span class="mini violet{{ ' neg' if pr.vorp < 0 }}"><i data-width="{{ (100 * (pr.vorp|abs) / vabs)|round(0)|int }}"></i></span><span class="{{ 'pos' if pr.vorp > 0 else ('neg' if pr.vorp < 0) }}">{{ pr.vorp|signed(1) }}</span></span>{% else %}<span class="muted">—</span>{% endif %}</td>{% endif %}<td data-sort="{{ r.status }}">{% if r.status %}<span class="st {{ (r.status|sabbr)|lower }}" title="{{ r.status }}">{{ r.status|sabbr }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table>
 {% if team == my_team %}<p class="small" style="margin:10px 0 0"><a href="/tools/optimize_lineup">Set my lineup</a> · <a href="/tools/roster_grades">Grade every roster</a> · <a href="/tools/roster_calendar">Bye weeks ahead</a></p>{% else %}<p class="small" style="margin:10px 0 0"><a href="/tools/evaluate_trade?team_b={{ team|urlencode }}">Propose a trade with {{ team|real }}</a></p>{% endif %}
 </div>
 {% endfor %}
 </div>
+<p class="small muted" style="margin-top:10px">Status: <span class="st q">Q</span> questionable · <span class="st">D</span> doubtful · <span class="st">O</span> out · <span class="st ir">IR</span> injured reserve · <span class="st ir">PUP</span> physically unable · <span class="st ir">SUS</span> suspended. Hover a name for its role, slot and tier.</p>
 </section>
 
 {% if manifest.degraded %}

@@ -24,7 +24,7 @@
   <h1>Tools</h1>
   <p class="lede">Each one runs the same command you would type and opens its answer as tables when it finishes. Only one runs at a time; a crashed run counts for nothing and is simply re-run. The time on each card is the average of its last few successful runs here.</p>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. A second launch waits until it finishes.</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. A second launch waits until it finishes.</div>{% endif %}
 
 {% for title, hint, stripe, ic, icon, names in groups %}
 <section>

@@ -204,7 +204,7 @@ class TestRenderedPages(unittest.TestCase):
         self.assertIn("Patrick Mahomes", body)
         self.assertIn("<th", body)
         self.assertIn("engine chatter", body)
-        self.assertIn('href="/file/decisions/week_03/archive/lineup_20260927T030606Z_week3.json"', body)
+        self.assertIn('href="/records/week-3/archive/optimal-lineup/2026-09-27-030606"', body)   # the readable address
         self.assertNotIn("[PRE-FLIGHT SUCCESS]</pre>", body)
         self.assertEqual(self.root.tree_digest(), before)
 
