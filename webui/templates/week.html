@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, teamlink, rawlink %}
+{% from "_macros.html" import tiles, mark, teamlink, rawlink with context %}
 {% block title %}Week {{ week }} forecast · {{ brand }}{% endblock %}
 {% block body %}
 {% set mine = forecast.get(my_team) or {} %}{% set mf = mine.forecast or {} %}{% set mc = mine.current_state or {} %}
 {% set nice = {"live_season_forecast": "Season forecast", "syndicate_comprehensive_matrix": "Full results matrix", "syndicate_insights": "Insights", "simulation_audit_log_sim0": "Audit log (simulation 0)"} %}
 <div class="head">
-  <p class="eyebrow">season forecast · run at week {{ week }} · {{ "{:,}".format(metadata.simulations) if metadata.simulations else "?" }} simulations{% if metadata.batches %} in {{ metadata.batches }} batches{% endif %}</p>
+  <p class="eyebrow">season forecast · made at week {{ week }} · {{ "{:,}".format(metadata.simulations) if metadata.simulations else "?" }} simulated seasons</p>
   <h1>Week {{ week }}</h1>
-  <p class="lede">The rest of the season as the engine saw it from here, using the data on disk at the time.</p>
+  <p class="lede">The rest of the season as the model saw it from here, from the data at the time.</p>
 </div>
 {% if mine %}{{ tiles([
   {"k": "my playoff odds", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": "± " ~ mf.playoff_standard_error|num(2) ~ " simulation noise", "tone": ""},
@@ -110,14 +110,16 @@
 </section>
 {% endif %}
 
+{% if dev %}
 <section>
 <details class="sec"><summary>Files from this run<span class="n">{{ jsons|length }}{% for sub, files in subdirs.items() %}{% if files %} + {{ files|length }} {{ sub|replace("_"," ") }}{% endif %}{% endfor %}</span></summary>
 <div class="rows" style="margin-top:8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
 {% for sub, files in subdirs.items() %}{% for e in files %}<div class="row"><span class="t">{{ sub|replace("_"," ") }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "")|real }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}{% endfor %}</div>
 </details>
 </section>
+{% endif %}
 
-{% if warnings %}
+{% if dev and warnings %}
 <section>
 <details class="sec"><summary>Warnings from this run<span class="n">{{ warnings|length }}</span></summary>
 <div class="rows" style="margin-top:8px">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level|lower }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div>

@@ -12,22 +12,22 @@
 .thead .est b { display: block; font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
 @media (max-width: 720px) { .thead { grid-template-columns: 1fr; } .thead .est { text-align: left; } }
 </style>
-{% set who = tool.fields|selectattr('kind', 'in', ['team', 'player', 'myplayer', 'myplayers', 'free_players', 'team_players', 'players'])|list %}
-{% set when = tool.fields|selectattr('name', 'in', ['week', 'season'])|rejectattr('kind', 'equalto', 'flag')|list %}
-{% set opts = tool.fields|selectattr('kind', 'equalto', 'flag')|list %}
-{% set how = tool.fields|rejectattr('name', 'in', (who + when + opts)|map(attribute='name')|list)|list %}
+{% set who = shown|selectattr('kind', 'in', ['team', 'player', 'myplayer', 'myplayers', 'free_players', 'team_players', 'players'])|list %}
+{% set when = shown|selectattr('name', 'in', ['week', 'season'])|rejectattr('kind', 'equalto', 'flag')|list %}
+{% set opts = shown|selectattr('kind', 'equalto', 'flag')|list %}
+{% set how = shown|rejectattr('name', 'in', (who + when + opts)|map(attribute='name')|list)|list %}
 <div class="head thead">
   <div>
-    <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %} · {{ tool.name|replace("_", " ") }}</p>
+    <p class="eyebrow">{% if dev %}{% if tool.engine %}engine run{% else %}decision tool{% endif %} · {{ tool.name|replace("_", " ") }}{% else %}a question for the model{% endif %}</p>
     <h1>{{ tool.name|tool_title }}</h1>
     <p class="lede">{{ tool.question }}</p>
-    {% if tool.note %}<p class="small muted" style="margin:8px 0 0;max-width:80ch">{{ tool.note }}</p>{% endif %}
+    {% if tool.note and dev %}<p class="small muted" style="margin:8px 0 0;max-width:80ch">{{ tool.note }}</p>{% endif %}
   </div>
   <div class="est">{% if avg and avg[0] %}<b>{{ avg[0]|dshort }}</b>average of the last {{ avg[1] }} run{{ 's' if avg[1] != 1 }}{% else %}<b>{{ 'minutes' if (tool.heavy or tool.engine) else 'seconds' }}</b>typical, no runs yet{% endif %}</div>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. A second launch waits until it finishes.</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. Wait for it to finish.</div>{% endif %}
 {% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
-{% if tool.engine and fr %}
+{% if tool.engine and fr and dev %}
 {% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
 <b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy; the run goes ahead on slightly older inputs{% endif %}
@@ -54,7 +54,7 @@
 {%- endmacro %}
 
 <section>
-<h2>Set it up <span class="hint">blank = the tool's default{% if who|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
+<h2>Set it up <span class="hint">blank = the usual default{% if who|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
 <form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off" id="toolform">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
 {% if who %}<div class="grp g-who"><h3><svg class="i c-turf"><use href="#i-users"/></svg> Who <span class="hint">teams and players</span></h3><div class="fields">{% for f in who %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
@@ -63,11 +63,11 @@
 {% if opts %}<div class="grp g-opt"><h3><svg class="i c-violet"><use href="#i-flag"/></svg> Options</h3>
 {% for f in opts %}<div class="sw"><input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1" data-arg="--{{ f.name }}"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}><span class="tog" onclick="document.getElementById('f_{{ f.name }}').click()"></span><div><label for="f_{{ f.name }}">{{ f.label|capitalize }}</label>{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}</div></div>{% endfor %}
 </div>{% endif %}
-{% if not tool.fields %}<p class="small muted">This one takes no settings.</p>{% endif %}
+{% if not shown %}<p class="small muted">This one takes no settings.</p>{% endif %}
 <div class="launch">
-  <button type="submit"><svg class="i"><use href="#i-arrow"/></svg> Launch</button>
-  <div class="cmd" id="cmd" data-tool="{{ tool.name }}" data-forced="{{ tool.forced|join(' ') }}">py -3.10 -m scripts.{{ tool.name }}</div>
-  <span class="small muted">the answer opens on the job page when it finishes</span>
+  <button type="submit"><svg class="i"><use href="#i-arrow"/></svg> {% if dev %}Launch{% else %}Ask{% endif %}</button>
+  {% if dev %}<div class="cmd" id="cmd" data-tool="{{ tool.name }}" data-forced="{{ tool.forced|join(' ') }}">py -3.10 -m scripts.{{ tool.name }}</div>{% endif %}
+  <span class="small muted">the answer opens when it finishes</span>
 </div>
 </form>
 </section>
@@ -76,6 +76,7 @@
   // the command that will run, kept in step with the form (a preview, not the launcher's argv)
   var form = document.getElementById('toolform'), cmd = document.getElementById('cmd');
   function build() {
+    if (!cmd) return;
     var parts = ['py -3.10 -m scripts.' + cmd.getAttribute('data-tool')], pos = [];
     form.querySelectorAll('[data-arg]').forEach(function (el) {
       var arg = el.getAttribute('data-arg'), v = el.type === 'checkbox' ? (el.checked ? '1' : '') : el.value.trim();

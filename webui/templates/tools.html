@@ -22,9 +22,9 @@
 <div class="head">
   <p class="eyebrow">tools · one launch at a time</p>
   <h1>Tools</h1>
-  <p class="lede">Each one runs the same command you would type and opens its answer as tables when it finishes. Only one runs at a time; a crashed run counts for nothing and is simply re-run. The time on each card is the average of its last few successful runs here.</p>
+  <p class="lede">{% if dev %}Each one runs the same command you would type and opens its answer as tables when it finishes. Only one runs at a time; a crashed run counts for nothing and is simply re-run. The time on each card is the average of its last few successful runs here.{% else %}Ask a question, get the answer as tables. One runs at a time; the time on each card is how long it usually takes.{% endif %}</p>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. A second launch waits until it finishes.</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. Wait for it to finish.</div>{% endif %}
 
 {% for title, hint, stripe, ic, icon, names in groups %}
 <section>
@@ -38,6 +38,7 @@
 {% set rest = tools|rejectattr("name", "in", placed)|list %}
 {% if rest %}<section><h2>Other</h2><div class="cards">{% for t in rest %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p></div>{% endfor %}</div></section>{% endif %}
 
+{% if engine %}
 <section>
 <h2><svg class="i c-warm"><use href="#i-engine"/></svg> Engine runs <span class="hint">the week's forecast is rewritten</span></h2>
 <div class="cards">
@@ -45,4 +46,5 @@
 </div>
 <p class="small muted" style="margin-top:14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
 </section>
+{% endif %}
 {% endblock %}

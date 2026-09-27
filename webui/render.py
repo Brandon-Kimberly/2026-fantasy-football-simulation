@@ -854,6 +854,27 @@ def job_url(meta):
     return f"/jobs/{tool_slug(m.group(3))}/{stamp_slug(m.group(1))}-{m.group(2)}"
 
 
+# W8: the simple view's words for a job's state, and the scrub that keeps a tool's own
+# method notes readable there (the audit codes -- F51, B11, H5, C3 -- mean nothing to a
+# manager; the parenthesised ones go, the rest of the sentence stays).
+STATE_LABELS = {"RUNNING": "Running", "OK": "Done", "VOID": "Didn't finish"}
+_CODE = r"(?:[A-Z]{1,2}\d{1,3})"
+_CODE_PARENS = re.compile(r"\s*\((?:see\s+)?" + _CODE + r"(?:\s*[,/;&]\s*" + _CODE + r")*\)")
+_CODE_TRAIL = re.compile(r"\s*[-–—]+\s*" + _CODE + r"(?:\s*[,/]\s*" + _CODE + r")*\s*$")
+
+
+def state_label(state):
+    return STATE_LABELS.get(str(state or ""), str(state or ""))
+
+
+def simplify(text):
+    """'ranked by P(beat opponent) (F61)' -> 'ranked by P(beat opponent)'."""
+    s = "" if text is None else str(text)
+    s = _CODE_PARENS.sub("", s)
+    s = _CODE_TRAIL.sub("", s)
+    return s
+
+
 STATUS_ABBR = {"questionable": "Q", "doubtful": "D", "out": "O", "ir": "IR", "pup": "PUP", "sus": "SUS", "suspended": "SUS",
                "na": "NA", "dnr": "DNR", "cov": "COV", "bye": "BYE"}
 

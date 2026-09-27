@@ -28,8 +28,10 @@ from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
+from webui.settings import MODES, Settings
 from webui.players import PlayerIndex
-from webui.tools import ENGINE, TOOLS, FormError, get as get_tool, label_for, resolve_form
+from webui.tools import (ENGINE, SIMPLE_TOOLS, TOOLS, FormError, get as get_tool, label_for, resolve_form,
+                         simple_fields)
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
@@ -37,6 +39,16 @@ R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-ru
 WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS last imported "
                      "the engine (F10) -- a tool run, a hand run, or the test suite -- and is not "
                      "any single run's record. Per-run warnings are in the week's audit JSON.")
+# W8: the two views' navigation, and what the simple view does not serve at all (the
+# owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
+# one of these gets a plain 404 that names the switch.
+NAV_DEV = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/decisions", "Decisions"),
+           ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
+           ("/sync", "Sync"))
+NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+              ("/tools", "Tools"))
+DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs")
+DEV_ONLY_EXACT = ("/jobs",)
 TERMINAL_COMMANDS = (
     ("py -3.10 -m scripts.run_sync", "pull live data into data/current/ (H5: the odds key is verified first; "
                                      "on Windows inject the User-scope value if the shell holds a stale one)"),
@@ -140,7 +152,8 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
-def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None):
+def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
+               settings=None, default_mode=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -153,10 +166,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     # ever reaches the-odds-api or reads this machine's registry.
     _probe = key_probe if key_probe is not None else syncmod.probe_key
     _read_user = key_reader
+    settings = settings if settings is not None else Settings(root, default_mode=default_mode)
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
     app = Flask(__name__, template_folder="templates", static_folder=None)
-    app.config.update(ROOT=root, OVERLAY=overlay, PORT=port,
+    app.config.update(ROOT=root, OVERLAY=overlay, PORT=port, SETTINGS=settings,
                       CSRF_TOKEN=csrf_token or secrets.token_urlsafe(32),
                       MY_TEAM=MY_TEAM, TEMPLATES_AUTO_RELOAD=False)
     app.jinja_env.filters["real"] = overlay.text
@@ -182,10 +196,14 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
+    app.jinja_env.filters["state_label"] = render.state_label
+    app.jinja_env.filters["plain"] = render.simplify
 
     @app.context_processor
     def _ctx():
+        mode = settings.mode
         return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
+                "mode": mode, "dev": mode == "dev", "nav": NAV_DEV if mode == "dev" else NAV_SIMPLE,
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
@@ -195,6 +213,35 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def _host_check():
         if not _allowed_host(request.host, app.config["PORT"]):
             abort(400, "this server answers only to 127.0.0.1 / localhost")
+
+    @app.before_request
+    def _mode_gate():
+        """W8: the simple view has no files, jobs list, logs, system, sync or records."""
+        if settings.mode == "dev":
+            return None
+        path = request.path
+        job_page = path.startswith("/jobs/") and path.count("/") >= 2       # a tool's answer is for everyone
+        if job_page or path.startswith("/api/") or path == "/mode":
+            return None
+        if path.startswith("/records/") and path.count("/") >= 3:                    # a record is a tool's answer
+            return None
+        if path in DEV_ONLY_EXACT or any(path == pfx or path.startswith(pfx + "/") for pfx in DEV_ONLY_PREFIXES if pfx != "/jobs"):
+            return render_template("error.html", code=404, message="That page is part of the developer view. Switch to it from the footer to see it."), 404
+        if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0] not in SIMPLE_TOOLS:
+            return render_template("error.html", code=404, message="That tool is part of the developer view."), 404
+        if path.startswith("/file/") and request.args.get("raw") == "1" and not path.endswith(".png"):
+            return render_template("error.html", code=404, message="Raw files are part of the developer view."), 404
+        return None
+
+    @app.route("/mode", methods=["POST"])
+    def set_mode():
+        """The one route that changes the view; when the engine is hosted for others this
+        is the route that goes behind the owner's login (docs/WEB_UI.md W8)."""
+        require_csrf()
+        want = request.form.get("mode")
+        settings.set_mode(want if want in MODES else ("simple" if settings.mode == "dev" else "dev"))
+        back = request.form.get("back") or "/"
+        return redirect(back if back.startswith("/") and not back.startswith("//") else "/")
 
     @app.after_request
     def _headers(resp):
@@ -435,7 +482,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/tools")
     def tools():
         avg = {n: runner.average_seconds(n) for n in list(TOOLS) + list(ENGINE)}
-        return render_template("tools.html", tools=list(TOOLS.values()), engine=list(ENGINE.values()),
+        tools = list(TOOLS.values()) if settings.mode == "dev" else [TOOLS[n] for n in SIMPLE_TOOLS if n in TOOLS]
+        return render_template("tools.html", tools=tools, engine=list(ENGINE.values()) if settings.mode == "dev" else [],
                                current=runner.current(), avg=avg)
 
     @app.route("/tools/<name>", methods=["GET", "POST"])
@@ -469,7 +517,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             except FormError as ex:
                 error = str(ex)
         return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
-                               fr=fr, windows=win, avg=runner.average_seconds(t.name))
+                               fr=fr, windows=win, avg=runner.average_seconds(t.name),
+                               shown=(t.fields if settings.mode == "dev" else simple_fields(t)))
 
     # ------------------------------------------------------------------ W4: sync
     def _sync_context(probe=None):

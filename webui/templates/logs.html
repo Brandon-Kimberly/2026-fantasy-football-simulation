@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import rawlink %}
+{% from "_macros.html" import rawlink with context %}
 {% block title %}Logs · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">season logs · append-only</p><h1>Logs</h1><p class="lede">The season's memory: what was predicted, decided and bid, one line per event. These are tracked in git, so they survive a machine loss. Newest rows open first.</p></div>

@@ -116,7 +116,7 @@ def team(name="team", required=False, default_mine=True, label=None):
                  required=required, choices=names)
 
 
-WEEK = Field("week", "int", help="NFL week; default = the synced current week")
+WEEK = Field("week", "int", help="NFL week; default = the current week")
 SEED = Field("seed", "int", help="RNG seed; blank = the tool's default")
 CANONICAL = Field("canonical", "flag", label="canonical",
                   help="a deliberate run filed to week_NN/ instead of week_NN/archive/ -- off unless you mean it")
@@ -215,7 +215,7 @@ def _sims(default, help=""):
 
 
 TOOLS = {t.name: t for t in (
-    Tool("optimize_lineup", "What lineup does the engine's own rule set, and by how much?",
+    Tool("optimize_lineup", "What lineup does the model's own rule set, and by how much?",
          [team(), WEEK, _sims(1000), SEED, CANONICAL]),
     Tool("matchup_lineup", "Against this week's opponent, play safe or swing for variance?",
          [team(), WEEK, team("opponent", default_mine=False), _sims(5000), SEED,
@@ -289,6 +289,19 @@ ENGINE = {t.name: t for t in (
               "A non-canonical run files under week_NN/archive/ and appends a non-canonical row to the predictions log, exactly as a hand run does.",
          heavy=True, forced=("--skip-sync",), engine=True),
 )}
+
+
+# W8: what the simple view offers -- the questions a manager asks, by their plain names.
+# Everything else (studies, health checks, the engine runs) is the owner's, in dev mode.
+SIMPLE_TOOLS = ("optimize_lineup", "matchup_lineup", "compare_players", "waiver_targets",
+                "evaluate_move", "evaluate_trade", "roster_calendar", "live_matchup")
+SIMPLE_FIELD_KINDS = ("team",) + PLAYER_KINDS
+
+
+def simple_fields(tool):
+    """The fields the simple view shows: who and when. Sizes, seeds, batches, flags and
+    canonical runs keep their terminal defaults and are never asked."""
+    return [f for f in tool.fields if f.kind in SIMPLE_FIELD_KINDS or f.name in ("week", "season")]
 
 
 def get(name):
