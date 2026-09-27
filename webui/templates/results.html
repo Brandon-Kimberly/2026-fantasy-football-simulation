@@ -1,16 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Runner results - fantasy-sim{% endblock %}
+{% block title %}Runner results · fantasy-sim{% endblock %}
 {% block body %}
-<h1>Runner results</h1>
-<p class="muted small">data/results/week_NN/ -- canonical-run artifacts downloaded from Actions and localized in place by <code>scripts.localize_reports --fetch</code>.</p>
+<div class="head"><p class="eyebrow">downloaded from Actions</p><h1>Runner results</h1><p class="lede">Canonical-run artifacts under <code>data/results/week_NN/</code>, localized in place by <code>scripts.localize_reports --fetch</code>.</p></div>
 {% if results %}
 {% for r in results|reverse %}
-<h2>week {{ r.week }}</h2>
-{% for run in r.runs %}
-<h3>{{ run.name }}</h3>
-<ul class="files">{% for e in run.files %}<li><span class="tool">{{ e.tool }}</span> <a href="{{ e.link }}">{{ e.name }}</a></li>{% endfor %}</ul>
+<section><h2>Week {{ r.week }}</h2>
+{% for run in r.runs %}<h3>{{ run.name }}</h3><div class="rows">{% for e in run.files %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{{ e.stamp|stamp if e.stamp else "" }}</span></div>{% endfor %}</div>{% endfor %}
+{% if r.files %}<div class="rows">{% for e in r.files %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r"></span></div>{% endfor %}</div>{% endif %}
+</section>
 {% endfor %}
-{% if r.files %}<ul class="files">{% for e in r.files %}<li><span class="tool">{{ e.tool }}</span> <a href="{{ e.link }}">{{ e.name }}</a></li>{% endfor %}</ul>{% endif %}
-{% endfor %}
-{% else %}<p class="muted">nothing downloaded yet</p>{% endif %}
+{% else %}<div class="note">Nothing downloaded yet.</div>{% endif %}
 {% endblock %}

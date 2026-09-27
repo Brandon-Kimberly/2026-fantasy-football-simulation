@@ -105,7 +105,7 @@ class TestLauncher(unittest.TestCase):
         self.assertEqual(argv[1:], ["-m", "scripts.compare_players", "--week", "5", "--light", "Player O'Neil", "Some Body"])
         page = self.c.get(r.headers["Location"]).get_data(as_text=True)
         self.assertIn("RUNNING", page)
-        self.assertIn("fake output for", page)
+        self.assertIn("fake log", page)
         self.assertIn('http-equiv="refresh"', page)
 
     def test_a_form_error_is_rendered_not_launched(self):

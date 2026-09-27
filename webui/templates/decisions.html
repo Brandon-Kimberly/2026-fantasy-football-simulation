@@ -1,24 +1,21 @@
 {% extends "base.html" %}
-{% block title %}{{ title }} - fantasy-sim{% endblock %}
+{% from "_macros.html" import filelist %}
+{% block title %}{{ title }} · fantasy-sim{% endblock %}
 {% block body %}
-<h1>{{ title }}</h1>
-<p class="small">{% for w in weeks %}<a href="/decisions/{{ w }}">week {{ w }}</a> &middot; {% endfor %}<a href="/decisions/adhoc">ad-hoc &amp; season</a></p>
-
-{% macro filelist(entries) -%}
-{% if entries %}<ul class="files">{% for e in entries %}<li><span class="tool">{{ e.tool }}</span> <a href="{{ e.link }}">{{ e.name }}</a> <span class="muted">{{ e.stamp|stamp if e.stamp else "" }}{% if e.size %} &middot; {{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></li>{% endfor %}</ul>{% else %}<p class="muted">nothing here</p>{% endif %}
-{%- endmacro %}
+<div class="head">
+  <p class="eyebrow">decision records</p>
+  <h1>{{ title }}</h1>
+  <p class="lede">Every tool's record and every digest, filed by week. Canonical is the scheduled runs and deliberate re-runs; the archive is everything exploratory. A record opens as tables; the raw JSON is one click further.</p>
+  <p class="small" style="margin-top:12px">{% for w in weeks %}<a href="/decisions/{{ w }}"{% if w == week %} style="font-weight:600"{% endif %}>week {{ w }}</a>{% if not loop.last %} · {% endif %}{% endfor %}{% if weeks %} · {% endif %}<a href="/decisions/adhoc">ad-hoc &amp; season</a></p>
+</div>
 
 {% if listing %}
-<h2>Canonical <span class="muted small">data/{{ listing.rel }}/ -- the scheduled runs and deliberate --canonical re-runs</span></h2>
-{{ filelist(listing.canonical) }}
-<h2>Archive <span class="muted small">data/{{ listing.rel }}/archive/ -- exploratory, mid-week, development</span></h2>
-{{ filelist(listing.archive) }}
+<section><h2>Canonical <span class="hint">data/{{ listing.rel }}/</span></h2>{{ filelist(listing.canonical) }}</section>
+<section><h2>Archive <span class="hint">data/{{ listing.rel }}/archive/ — exploratory, mid-week, development</span></h2>{{ filelist(listing.archive) }}</section>
 {% endif %}
 
 {% if adhoc is not none %}
-<h2>Ad-hoc <span class="muted small">data/decisions/adhoc/ -- compare_players, evaluate_move, evaluate_trade</span></h2>
-{{ filelist(adhoc) }}
-<h2>Season <span class="muted small">data/decisions/season/</span></h2>
-{{ filelist(season) }}
+<section><h2>Ad-hoc <span class="hint">compare_players, evaluate_move, evaluate_trade</span></h2>{{ filelist(adhoc) }}</section>
+<section><h2>Season <span class="hint">draft review, retrospectives</span></h2>{{ filelist(season) }}</section>
 {% endif %}
 {% endblock %}

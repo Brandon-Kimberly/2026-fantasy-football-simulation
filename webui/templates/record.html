@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_macros.html" import record %}
+{% block title %}{{ view.title }} · fantasy-sim{% endblock %}
+{% block body %}
+<div class="head">
+  <p class="eyebrow">{{ view.tool|replace("_"," ") }} · {{ view.stamp|stamp }} · data/{{ rel.rsplit('/', 1)[0] }}</p>
+  <h1>{{ view.title|real }}</h1>
+  {% if view.subtitle %}<p class="lede">{{ view.subtitle|real }}</p>{% endif %}
+</div>
+{{ record(view) }}
+<section>
+<h2>Raw record <span class="hint"><a href="{{ link }}?raw=1">download JSON</a></span></h2>
+<details><summary>show the JSON</summary><pre>{{ body|real }}</pre></details>
+</section>
+{% endblock %}
