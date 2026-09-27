@@ -186,6 +186,18 @@ class TestSimpleView(unittest.TestCase):
         dev = self.client("dev", runner=runner).get(render.job_url({"id": jid})).get_data(as_text=True)
         self.assertIn("The command, and where it ran", dev)
 
+    def test_the_vibrant_layer_renders_in_both_views_and_respects_reduced_motion(self):
+        for mode in ("dev", "simple"):
+            body = self.client(mode).get("/").get_data(as_text=True)
+            self.assertIn('id="vizg-turf"', body, "the chart gradient defs every page carries")
+            self.assertIn('class="rank r1"', body, "medal ranks in the standings")
+            self.assertIn("--g-brand:", body)
+            self.assertIn("@keyframes draw", body)
+            self.assertIn("prefers-reduced-motion: reduce", body)
+            self.assertIn('id="ringg"', body)
+        league = self.client("simple").get("/league").get_data(as_text=True)
+        self.assertIn('class="rank r3"', league)
+
     def test_dev_mode_is_the_default_and_unchanged(self):
         with tempfile.TemporaryDirectory() as td:
             build_tree(td)
