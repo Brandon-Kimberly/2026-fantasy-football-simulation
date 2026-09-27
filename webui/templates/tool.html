@@ -25,7 +25,7 @@
   </div>
   <div class="est">{% if avg and avg[0] %}<b>{{ avg[0]|dshort }}</b>average of the last {{ avg[1] }} run{{ 's' if avg[1] != 1 }}{% else %}<b>{{ 'minutes' if (tool.heavy or tool.engine) else 'seconds' }}</b>typical, no runs yet{% endif %}</div>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>. A second launch waits until it finishes.</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. A second launch waits until it finishes.</div>{% endif %}
 {% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
 {% if tool.engine and fr %}
 {% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}

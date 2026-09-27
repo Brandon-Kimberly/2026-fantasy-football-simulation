@@ -6,7 +6,7 @@
 {%- endmacro %}
 
 {% macro teamlink(team) -%}
-<a href="/current#t-{{ team|slug }}" class="tl">{{ team|real }}</a>
+<a href="/league#t-{{ team|slug }}" class="tl">{{ team|real }}</a>
 {%- endmacro %}
 
 {% macro tiles(items) -%}
@@ -67,7 +67,7 @@
 
 {% macro filelist(entries) -%}
 {% set rows = entries|pair_digests %}
-{% if rows %}<div class="rows">{% for e in rows %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="raw" href="{{ e.md_link }}" title="the same digest as markdown">markdown</a>{% endif %}{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
+{% if rows %}<div class="rows">{% for e in rows %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><a class="main" href="{{ e|pretty }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="raw" href="{{ e.md_link }}" title="the same digest as markdown">markdown</a>{% endif %}{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
 {%- endmacro %}
 
 {# a single-series line chart: values by week, my line in turf; `done` = weeks played #}

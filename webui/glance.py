@@ -126,8 +126,16 @@ def latest_digests(root):
 
 
 # ------------------------------------------------------------------------------ home
+# The owner's palette (2026-09-27), keyed by pseudonym: colour follows the entity, never its
+# rank. A team not listed here gets a stable hash hue so nothing is ever uncoloured.
+TEAM_HUES = {"Quantum Ferrets": 272, "Cosmic Badgers": 140, "Crimson Marmots": 4, "Neon Walruses": 330,
+             "Turbo Llamas": 48, "Rocket Pandas": 200, "Polar Yetis": 28, "Iron Wombats": 222}
+
+
 def team_hue(name):
-    """A stable hue per team, from the pseudonym: color follows the entity, never its rank."""
+    """A stable hue per team: the owner's table first, a hash of the pseudonym otherwise."""
+    if str(name) in TEAM_HUES:
+        return TEAM_HUES[str(name)]
     return int(hashlib.md5(str(name).encode("utf-8")).hexdigest()[:4], 16) % 360
 
 
@@ -239,3 +247,121 @@ def home_report(root, my_team, runner=None):
             "fresh": fr, "windows": win, "last_job": last_job, "git": git,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
             "weeks": root.weeks()}
+
+
+# ------------------------------------------------------------------- decisions tab
+TX_LABELS = {"free_agent": "free-agent add", "waiver": "waiver claim", "trade": "trade"}
+
+
+def _tx_teams(tx):
+    teams = list(tx.get("teams") or [])
+    for side in ("adds", "drops"):
+        for p in tx.get(side) or []:
+            if p.get("to_team") and p["to_team"] not in teams:
+                teams.append(p["to_team"])
+    return teams
+
+
+def _pl(p):
+    pr = p.get("projection") or {}
+    return {"name": p.get("name"), "pos": pr.get("pos"), "mean": pr.get("mean"), "to": p.get("to_team")}
+
+
+def decisions_report(root, my_team):
+    """Every logged transaction joined to its paired evaluation (the same decision log
+    carries both: a `type` row per move, a `record_type: evaluation` row per finished
+    evaluate_move --evaluate-unevaluated run, keyed by transaction_id). Nothing is
+    computed here that the tools did not already write; the page only joins and sums."""
+    rows = []
+    for e in root.logs():
+        if e["name"] == "decision_log.jsonl":
+            rows, _n = root.tail_jsonl(e["rel"], n=1000000)
+            break
+    evals = {}
+    for r in rows:                              # newest first: the first seen per id wins
+        if r.get("record_type") == "evaluation" and r.get("transaction_id") not in evals:
+            evals[r["transaction_id"]] = r
+    out = []
+    for r in rows:
+        if not r.get("type"):
+            continue
+        ev = evals.get(r.get("transaction_id"))
+        teams = _tx_teams(r)
+        effect = {}
+        if ev and not ev.get("skipped"):
+            for t, v in (ev.get("teams") or {}).items():
+                if not isinstance(v, dict):
+                    continue
+                pp, cc = v.get("playoff_pct") or {}, v.get("champ_pct") or {}
+                effect[t] = {"playoff": pp.get("delta"), "playoff_se": pp.get("se"), "champ": cc.get("delta"), "champ_se": cc.get("se"),
+                             "playoff_with": pp.get("with"), "playoff_without": pp.get("without")}
+        actor = None
+        for p in r.get("adds") or []:
+            actor = p.get("to_team") or actor
+        actor = actor or (teams[0] if teams else None)
+        out.append({"id": r.get("transaction_id"), "created": r.get("created"), "week": r.get("week"),
+                    "type": r.get("type"), "label": TX_LABELS.get(r.get("type"), r.get("type")), "is_mine": bool(r.get("is_mine")),
+                    "teams": teams, "actor": actor,
+                    "adds": [_pl(p) for p in r.get("adds") or []], "drops": [_pl(p) for p in r.get("drops") or []],
+                    "faab_bid": r.get("faab_bid"), "faab": r.get("faab"),
+                    "evaluated": bool(ev), "skipped": (ev or {}).get("skipped"), "evaluated_at": (ev or {}).get("evaluated_at"),
+                    "n_sims": (ev or {}).get("n_sims"), "batches": (ev or {}).get("batches"), "reversed": (ev or {}).get("post_execution_reversed"),
+                    "effect": effect, "mine_effect": effect.get(my_team), "actor_effect": effect.get(actor) if actor else None})
+    # per-team ledger: the sum of each team's OWN moves' effects on its own chances
+    ledger = {}
+    for d in out:
+        for t in d["teams"]:
+            if t != d["actor"] and d["type"] != "trade":
+                continue
+            L = ledger.setdefault(t, {"team": t, "moves": 0, "evaluated": 0, "playoff": 0.0, "champ": 0.0, "var_p": 0.0, "var_c": 0.0})
+            L["moves"] += 1
+            fx = d["effect"].get(t)
+            if fx and fx.get("playoff") is not None:
+                L["evaluated"] += 1
+                L["playoff"] += fx["playoff"]
+                L["champ"] += fx.get("champ") or 0.0
+                L["var_p"] += (fx.get("playoff_se") or 0.0) ** 2
+                L["var_c"] += (fx.get("champ_se") or 0.0) ** 2
+    table = sorted(ledger.values(), key=lambda L: -L["playoff"])
+    for L in table:
+        L["playoff_se"] = L.pop("var_p") ** 0.5
+        L["champ_se"] = L.pop("var_c") ** 0.5
+    mine = [d for d in out if d["is_mine"] or my_team in d["teams"]]
+    series, run = [], 0.0                       # my cumulative playoff delta, oldest first
+    for d in reversed(mine):
+        fx = d["effect"].get(my_team)
+        if fx and fx.get("playoff") is not None:
+            run += fx["playoff"]
+            series.append({"at": d["created"], "week": d["week"], "value": round(run, 2), "label": d["label"]})
+    return {"decisions": out, "mine": mine, "ledger": table, "my_row": next((L for L in table if L["team"] == my_team), None),
+            "series": series, "n": len(out),
+            "n_evaluated": sum(1 for d in out if d["evaluated"] and not d["skipped"]),
+            "n_skipped": sum(1 for d in out if d["skipped"]), "n_pending": sum(1 for d in out if not d["evaluated"])}
+
+
+# ---------------------------------------------------------------- roster VORP (League)
+def roster_vorp(root):
+    """The newest roster_grades record that carries per-player detail (`rosters`, written
+    by scripts.roster_grades since 2026-09-27): team VORP and rank, and each player's
+    VORP over the replacement level of his position. None until one has been run."""
+    best = None
+    for wk in sorted(root.decision_weeks(), reverse=True):
+        dec = root.decisions(wk)
+        for e in sorted(dec["canonical"] + dec["archive"], key=lambda e: (e["stamp"] or "", e["name"]), reverse=True):
+            if e["tool"] != "roster_grades":
+                continue
+            d = root.read_json(e["rel"], {}) or {}
+            if d.get("rosters"):
+                best = (e, d)
+                break
+        if best:
+            break
+    if not best:
+        return None
+    e, d = best
+    teams = {t["team"]: t for t in ((d.get("league") or {}).get("teams") or []) if isinstance(t, dict)}
+    players = {team: {p.get("name"): p for p in (det.get("players") or []) if isinstance(p, dict)}
+               for team, det in (d.get("rosters") or {}).items()}
+    return {"entry": e, "week": (d.get("league") or {}).get("week"), "stamp": d.get("timestamp_utc"),
+            "teams": teams, "players": players,
+            "replacement": {team: (det.get("replacement_levels") or {}) for team, det in (d.get("rosters") or {}).items()}}

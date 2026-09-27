@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% from "_macros.html" import filelist %}
+{% block title %}Records · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.wknav { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.wknav a { padding: 4px 11px; border: 1px solid var(--grid); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; text-decoration: none; font-variant-numeric: tabular-nums; }
+.wknav a:hover { border-color: var(--pos); color: var(--pos); }
+.wknav a.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
+</style>
+<div class="head">
+  <p class="eyebrow">records · every tool run and every digest</p>
+  <h1>{% if week %}Week {{ week }} records{% elif adhoc is not none %}Ad-hoc records{% else %}Records{% endif %}</h1>
+  <p class="lede">What each tool said, kept as it was said. Scheduled and deliberate runs are <b>canonical</b>; everything exploratory goes to the archive. A record opens as tables, with the raw JSON one click further.</p>
+  <div class="wknav">{% for w in weeks %}<a href="/records/week-{{ w }}"{% if w == week %} class="on"{% endif %}>Week {{ w }}</a>{% endfor %}<a href="/records/ad-hoc"{% if adhoc is not none %} class="on"{% endif %}>Ad-hoc &amp; season</a></div>
+</div>
+
+{% if listing %}
+<section><h2>Canonical <span class="hint">the runs the season is scored on</span></h2>{{ filelist(listing.canonical) }}</section>
+<section><h2>Archive <span class="hint">exploratory, mid-week and development runs</span></h2>{{ filelist(listing.archive) }}</section>
+{% endif %}
+
+{% if adhoc is not none %}
+<section><h2>Player &amp; trade questions <span class="hint">compare, evaluate move, evaluate trade</span></h2>{{ filelist(adhoc) }}</section>
+<section><h2>Season <span class="hint">draft review, retrospectives</span></h2>{{ filelist(season) }}</section>
+{% endif %}
+{% endblock %}

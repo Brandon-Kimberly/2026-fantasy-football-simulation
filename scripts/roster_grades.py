@@ -38,6 +38,13 @@ def main(argv=None):
         print(f"  {r['rank']:2d} {r['team']:18s} {r['lineup_vorp']:10.1f} {r['depth_vorp']:9.1f} {r['optimal_score']:8.1f} "
               f"{r['holes']:5d} {r['tier1_starters']:5d} {r['starters_below_replacement']:6d}")
     record = {"timestamp_utc": stamp, "tool": "roster_grades", "league": table}
+    # Per-player detail for every team (2026-09-27): the web UI's League page shows each
+    # roster's VORP by player from this record, so the number is the engine's own, never
+    # a second definition of replacement level computed elsewhere.
+    record["rosters"] = {}
+    for t in sorted(engine.rosters):
+        g = grade_roster(engine, t, week)
+        record["rosters"][t] = {"replacement_levels": g["replacement_levels"], "players": g["players"]}
 
     if args.team:
         g = grade_roster(engine, args.team, week)

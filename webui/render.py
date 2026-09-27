@@ -159,7 +159,13 @@ def _is_chatter(line):
 
 
 def _columns(line):
-    return [c for c in SPLIT_RE.split(line.strip()) if c != ""]
+    """Cells of one printed row: a ' | ' divider is a hard column break, two or more
+    spaces a soft one -- the shapes the tools actually print (market sweep, live matchup,
+    the luck ledger) all reduce to that."""
+    out = []
+    for part in line.strip().split(" | ") if " | " in line else [line.strip()]:
+        out.extend(c for c in SPLIT_RE.split(part.strip()) if c != "")
+    return out
 
 
 def _table_run(lines, i):
@@ -178,7 +184,7 @@ def _table_run(lines, i):
     n = j - i
     if n < 3:
         return 0
-    if max(counts) - min(counts) > 1:
+    if max(counts) - min(counts) > (2 if any(" | " in x for x in lines[i:j]) else 1):
         return 0
     return n
 
@@ -241,6 +247,21 @@ def console_blocks(text):
     flush_para()
     flush_chatter()
     return blocks
+
+
+def stdout_json(text):
+    """The JSON document a --json tool printed, found after any engine chatter: the first
+    line that is exactly '{' or '[' starts it. None when there is none or it is broken."""
+    import json as _json
+    lines = (text or "").splitlines()
+    for i, ln in enumerate(lines):
+        if ln.strip() in ("{", "["):
+            try:
+                doc, _end = _json.JSONDecoder().raw_decode("\n".join(lines[i:]))
+                return doc
+            except ValueError:
+                return None
+    return None
 
 
 # ------------------------------------------------------------------------ record views
@@ -494,9 +515,121 @@ def _watch(d):
                          text("Weather", d.get("weather_note"))]}
 
 
+def _live_matchup(d):
+    jl = d.get("joint_legs") or {}
+    league = [dict(team=t, **v) for t, v in (d.get("league") or {}).items() if isinstance(v, dict)]
+    league.sort(key=lambda r: -(r.get("projected") or 0))
+    return {"title": "Live matchup", "subtitle": f"{d.get('team')} vs {d.get('opponent')} · week {d.get('week')} · as of {human_time(d.get('as_of'))}",
+            "tiles": [tile("banked so far", fnum(d.get("banked"), 1), f"{d.get('starters_left')} starters still to play"),
+                      tile("projected finish", fnum(d.get("projected"), 1), "if everyone plays (no availability discount, F51)"),
+                      tile("P(win head-to-head)", fpct(d.get("p_head_to_head")), f"{fpct(d.get('p_head_to_head_inflated'))} with same-game swings widened",
+                           "pos" if (d.get("p_head_to_head") or 0) >= 0.5 else "neg"),
+                      tile("P(beat the median)", fpct(d.get("p_beat_median")), f"expected wins this week {fnum(jl.get('expected_wins'), 2)} of 2")],
+            "sections": [table("Both legs, drawn jointly", [col("outcome"), col("p", "probability", "pct"), col("independent", "if independent", "pct")],
+                               [{"outcome": "2–0 (win both)", "p": jl.get("p_2_0"), "independent": jl.get("p_2_0_independent")},
+                                {"outcome": "1–1", "p": jl.get("p_1_1"), "independent": None},
+                                {"outcome": "0–2 (lose both)", "p": jl.get("p_0_2"), "independent": jl.get("p_0_2_independent")}],
+                               note=f"{int(jl.get('n') or 0):,} joint draws; both legs turn on my own score (B11)"),
+                         table("Every team right now", [col("team", link="team"), col("banked", kind="num"), col("projected", kind="num"),
+                                                        col("left", "still to play", "num", 0), col("p_beat_median", "P(beat median)", "pct")], league, me_key="team")]}
+
+
+def _luck(d):
+    seasons = d.get("seasons") if isinstance(d.get("seasons"), list) else [d]
+    secs = []
+    for sn in seasons:
+        rows = []
+        for key, label in (("schedule_luck", "schedule luck"), ("opponent_luck", "opponent luck"), ("close_games", "close games"),
+                           ("dnp_luck", "DNP luck"), ("scoring_luck", "scoring luck")):
+            m = sn.get(key)
+            if isinstance(m, dict):
+                rows.append({"measure": label, "delta": m.get("delta"), "se": m.get("se"), "z": m.get("z"), "p": m.get("p"),
+                             "detail": "; ".join(f"{k} {fnum(v, 2) if isinstance(v, float) else v}" for k, v in m.items() if k not in ("delta", "se", "z", "p"))})
+            elif isinstance(m, str):
+                rows.append({"measure": label, "detail": m})
+        wk = sn.get("weeks") or []
+        secs.append(table(f"{sn.get('team')} · {sn.get('season')} · {len(wk)} completed week{'s' if len(wk) != 1 else ''}",
+                          [col("measure"), col("delta", "Δ vs league", "signed", 2), col("se", "± se", "num", 2), col("z", kind="signed", nd=2),
+                           col("p", kind="num", nd=3), col("detail")], rows,
+                          note="negative = unlucky on that measure; z and p are withheld below six weeks (F53)"))
+    first = seasons[0] if seasons else {}
+    sl = first.get("schedule_luck") or {}
+    return {"title": "Luck ledger", "subtitle": "five pre-registered measures, each differenced against the league",
+            "tiles": [tile("schedule luck", fsigned((sl or {}).get("delta"), 2) if isinstance(sl, dict) else "—", "actual minus expected wins", tone((sl or {}).get("delta") if isinstance(sl, dict) else None)),
+                      tile("seasons", str(len(seasons)), "")],
+            "sections": secs}
+
+
+def _odds_history(d):
+    rows = []
+    for r in d.get("rows") or []:
+        rows.append(dict(r, at=human_time(r.get("at")), moves=", ".join(str(m) for m in (r.get("moves") or [])) or "—"))
+    return {"title": "Odds history", "subtitle": f"{d.get('team')} · {d.get('n_canonical')} canonical runs of {d.get('n_total')} logged",
+            "tiles": [tile("canonical runs", str(d.get("n_canonical") or 0), "scheduled runs only (F56/B5)"),
+                      tile("latest playoff %", fpct((rows[-1].get("playoff_pct") or 0) / 100) if rows else "—", f"± {fnum(rows[-1].get('playoff_se'), 2)}" if rows else ""),
+                      tile("latest title %", fnum(rows[-1].get("champ_pct"), 1) + "%" if rows else "—", "")],
+            "sections": [table("Every canonical run", [col("at", "run"), col("week", kind="num", nd=0), col("playoff_pct", "playoff %", "num"), col("playoff_se", "± se", "num", 2),
+                                                       col("d_playoff", "Δ playoff", "signed", 1), col("champ_pct", "title %", "num"), col("d_champ", "Δ title", "signed", 1),
+                                                       col("expected_wins", "exp. wins", "num", 2), col("d_wins", "Δ wins", "signed", 2), col("moves", "moves landed in the window")], rows),
+                         text("What moved the odds", d.get("causation_note")), text("Why canonical only", d.get("canonical_note"))]}
+
+
+def _data_health(d):
+    rows = [{"name": c.get("name"), "verdict": c.get("verdict"), "detail": c.get("detail"), "players": c.get("players")} for c in d.get("checks") or []]
+    bad = sum(1 for r in rows if r["verdict"] not in ("PASS", "OK"))
+    return {"title": "Data health", "subtitle": f"season {d.get('season')} · week {d.get('week')}",
+            "tiles": [tile("verdict", str(d.get("verdict") or "—"), "", "pos" if d.get("verdict") in ("PASS", "OK") else "neg"),
+                      tile("checks", str(len(rows)), f"{bad} not passing" if bad else "all passing", "neg" if bad else "")],
+            "sections": [table("Every source", [col("name", "check"), col("verdict", kind="flag" if bad else "text"), col("players", kind="num", nd=0), col("detail")],
+                               [dict(r, verdict=(r["verdict"] if r["verdict"] not in ("PASS", "OK") else r["verdict"])) for r in rows])]}
+
+
+def _bid_review(d):
+    cal = d.get("calibration") or {}
+    v1, v2 = cal.get("v1") or {}, cal.get("v2") or {}
+    cols = [col("player"), col("pos"), col("placed_at", "placed", "text"), col("bid_placed", "my bid", "num", 0), col("suggested_v2_point", "suggested", "num", 0),
+            col("band", "band"), col("suggested_v1", "old rule", "num", 0), col("bid_mismatch", "miss", "signed", 0), col("vorp_at_bid", "VORP then", "num"),
+            col("rivals_needing", "rivals needing", "num", 0), col("remaining_faab", "budget then", "num", 0)]
+    def rows(xs):
+        return [dict(x, placed_at=human_time(x.get("placed_at")), band=f"{x.get('suggested_v2_low')}–{x.get('suggested_v2_high')}") for x in xs or []]
+    return {"title": "Bid review", "subtitle": f"{cal.get('n')} claims scored · verdict {cal.get('verdict')}",
+            "tiles": [tile("claims scored", str(cal.get("n") or 0), f"{cal.get('n_exact') or 0} with an exact clearing price"),
+                      tile("mean miss, new rule", fnum(v2.get("mean_miss"), 1), f"{v2.get('errors')} errors"),
+                      tile("mean miss, old rule", fnum(v1.get("mean_miss"), 1), f"{v1.get('errors')} errors"),
+                      tile("verdict", str(cal.get("verdict") or "—"), "")],
+            "sections": [table("Claims", cols, rows(d.get("rows"))), table("Superseded claims", cols, rows(d.get("superseded")), collapsed=True),
+                         text("How claims are scored", cal.get("note"))]}
+
+
+def _run_windows(d):
+    fr = d.get("freshness") or {}
+    rows = [dict(w, start=human_time(w.get("start")), deadline=human_time(w.get("deadline"))) for w in d.get("windows") or []]
+    return {"title": "Run windows", "subtitle": f"week {d.get('target_week')} · kickoffs from {d.get('kickoff_source')} · as of {human_time(d.get('now'))}",
+            "tiles": [tile("data", str(fr.get("status") or "—"), f"{len(fr.get('reasons') or [])} notes", "neg" if fr.get("status") == "STALE" else ""),
+                      tile("flags", str(len(d.get("flags") or [])), _join(d.get("flags")) if d.get("flags") else "nothing to act on")],
+            "sections": [table("This week's windows", [col("name", "window"), col("start", "opens"), col("deadline", "closes"), col("status"), col("covered_by", "covered by")], rows),
+                         text("Outside the windows", _join(d.get("outside_windows")), collapsed=False),
+                         text("Freshness notes", "\n".join(fr.get("reasons") or []))]}
+
+
+def _scorecard(d):
+    sm = d.get("summary") or {}
+    rows = [dict(x, slots=_join(x.get("slots")), also=_join(x.get("also_considered_over"))) for x in d.get("decisions") or []]
+    return {"title": "Decision scorecard", "subtitle": f"{d.get('team')} · week {d.get('week')} · scored on {d.get('source')}",
+            "tiles": [tile("decisions", str(sm.get("decisions") or 0), f"{sm.get('right')} right · {sm.get('wrong')} wrong · {sm.get('unresolved')} unresolved"),
+                      tile("hit rate", fpct(sm.get("hit_rate")), ""),
+                      tile("points left behind", fnum(sm.get("points_left_behind"), 1), "sum of the wrong calls' costs", "neg" if (sm.get("points_left_behind") or 0) > 0 else "")],
+            "sections": [table("Every start/sit call", [col("slot"), col("started"), col("started_points", "scored", "num"), col("alternative", "the alternative"), col("alternative_points", "it scored", "num"),
+                                                        col("expected", "expected", "num"), col("margin", "margin at the time", "signed", 1), col("cost", kind="num"), col("outcome", kind="flag"), col("also", "also considered over")],
+                               [dict(r, outcome=(r.get("outcome") if r.get("outcome") == "wrong" else "")) for r in rows]),
+                         text("Note", sm.get("note"))]}
+
+
 SPECS = {"optimize_lineup": _lineup, "matchup_lineup": _matchup, "waiver_targets": _waivers, "roster_grades": _roster_grades,
          "find_trades": _find_trades, "compare_players": _compare, "evaluate_trade": lambda d: _paired(d, "trade"),
-         "evaluate_move": lambda d: _paired(d, "move"), "roster_calendar": _calendar, "matchup_watch": _watch}
+         "evaluate_move": lambda d: _paired(d, "move"), "roster_calendar": _calendar, "matchup_watch": _watch,
+         "live_matchup": _live_matchup, "luck_ledger": _luck, "odds_history": _odds_history,
+         "data_health": _data_health, "bid_review": _bid_review, "run_windows": _run_windows, "decision_scorecard": _scorecard}
 
 
 def _generic(d):
@@ -523,9 +656,15 @@ def _generic(d):
             "sections": [kv("Summary", scalars)] + sections}
 
 
-def record_view(data):
+def record_view(data, tool=None):
+    """`tool` names the producer when the document does not (a --json tool's stdout); a
+    list document (the luck ledger prints one row per season) is wrapped."""
+    if isinstance(data, list) and tool:
+        data = {"tool": tool, "seasons": data}
     if not isinstance(data, dict):
         return None
+    if tool and not data.get("tool"):
+        data = dict(data, tool=tool)
     spec = SPECS.get(str(data.get("tool") or ""))
     try:
         view = spec(data) if spec else _generic(data)
@@ -655,6 +794,126 @@ def when(value):
 
 def slug(name):
     return re.sub(r"[^a-z0-9]+", "-", str(name or "").casefold()).strip("-")
+
+
+def stamp_slug(stamp):
+    """20260924T165331Z -> 2026-09-24-165331 (readable in a URL, still unique)."""
+    m = re.match(r"(\d{4})(\d{2})(\d{2})T(\d{6})Z$", str(stamp or ""))
+    return f"{m.group(1)}-{m.group(2)}-{m.group(3)}-{m.group(4)}" if m else None
+
+
+def tool_slug(tool):
+    return slug(tool_title(tool))
+
+
+def pretty_url(entry):
+    """A readable address for a record or log entry, or its /file/ link when it has none:
+    /records/week-3/optimal-lineup/2026-09-24-165331, /records/week-3/archive/...,
+    /records/ad-hoc/compare-players/..., /records/season/draft-review-2026, /logs/decision-log."""
+    rel, name = entry.get("rel") or "", entry.get("name") or ""
+    stem, ext = name.rsplit(".", 1) if "." in name else (name, "")
+    if rel.startswith("logs/") and ext == "jsonl":
+        return "/logs/" + slug(stem)
+    if not rel.startswith("decisions/"):
+        return entry.get("link")
+    parts = rel.split("/")
+    scope = parts[1]
+    if scope.startswith("week_"):
+        scope = "week-" + str(int(scope[5:]))
+    elif scope == "adhoc":
+        scope = "ad-hoc"
+    archive = "archive/" if "/archive/" in rel else ""
+    st = stamp_slug(entry.get("stamp"))
+    if scope == "season" or not st:
+        return f"/records/{scope}/{archive}{slug(stem)}" + ("/markdown" if ext == "md" else "")
+    tail = "/markdown" if ext == "md" else ""
+    extra = ""
+    if entry.get("tool") == "compare":                      # keep the A-vs-B in the address
+        m = re.match(r"compare_\d{8}T\d{6}Z_(.+)$", stem)
+        extra = "/" + slug(m.group(1)) if m else ""
+    if entry.get("tool") == "weekly_report":
+        m = re.search(r"_(run\d_[a-z_]+?)_\d{8}T", stem)
+        extra = "/" + slug(m.group(1)) if m else ""
+    return f"/records/{scope}/{archive}{tool_slug(entry.get('tool'))}/{st}{extra}{tail}"
+
+
+def job_url(meta):
+    """/jobs/optimal-lineup/2026-09-26-000000-000001 for id 20260926T000000Z_000001_optimize_lineup."""
+    jid = str((meta or {}).get("id") or "")
+    m = re.match(r"(\d{8}T\d{6}Z)_([0-9a-f]+)_(.+)$", jid)
+    if not m:
+        return "/jobs/" + jid
+    return f"/jobs/{tool_slug(m.group(3))}/{stamp_slug(m.group(1))}-{m.group(2)}"
+
+
+STATUS_ABBR = {"questionable": "Q", "doubtful": "D", "out": "O", "ir": "IR", "pup": "PUP", "sus": "SUS", "suspended": "SUS",
+               "na": "NA", "dnr": "DNR", "cov": "COV", "bye": "BYE"}
+
+
+def status_abbr(status):
+    """The way the app abbreviates it: Questionable -> Q, Doubtful -> D, Out -> O; IR stays IR."""
+    s = str(status or "").strip()
+    return STATUS_ABBR.get(s.casefold(), s[:3].upper() if s else "")
+
+
+# ------------------------------------------------------------------------------ charts
+def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, y_max=None, marker=None, value_labels=True):
+    """One SVG line chart, drawn to one scale: `series` is a list of {name, values, cls}
+    (cls 'me' | 'pos' | 'gold' | '' for the quiet grey), `labels` the x labels (one per
+    point). The y range gets 12% headroom so the last value label never clips; four
+    gridlines carry tick labels; every point has a <title> tooltip; `marker` is an x
+    index to draw a dashed 'now' line at. Returns markup (escape nothing but names)."""
+    from markupsafe import Markup, escape
+    pts_all = [v for sr in series for v in (sr.get("values") or []) if v is not None]
+    if not pts_all or not labels:
+        return Markup("")
+    top = max(pts_all)
+    lo = min(pts_all) if y_min is None else min(y_min, min(pts_all))
+    hi = y_max if y_max is not None else top + (top - lo) * 0.12 + (0.5 if top == lo else 0)
+    if hi <= lo:
+        hi = lo + 1
+    n = max(len(labels), max(len(sr.get("values") or []) for sr in series))
+    padl, padr, padt, padb = 40, 16, 14, 26
+    W, H = width, height
+    def x(i):
+        return padl + (i * (W - padl - padr) / (n - 1) if n > 1 else (W - padl - padr) / 2)
+    def y(v):
+        return padt + (H - padt - padb) * (1 - (v - lo) / (hi - lo))
+    out = [f'<svg class="viz" viewBox="0 0 {W} {H}" role="img" aria-label="chart">']
+    for g in range(5):
+        v = lo + (hi - lo) * g / 4
+        yy = y(v)
+        out.append(f'<line class="ax" x1="{padl}" y1="{yy:.1f}" x2="{W - padr}" y2="{yy:.1f}"/>'
+                   f'<text x="{padl - 6}" y="{yy + 4:.1f}" text-anchor="end">{fnum(v, 0 if hi - lo >= 8 else 1)}{unit}</text>')
+    if marker is not None and 0 <= marker < n:
+        out.append(f'<line class="ax2" x1="{x(marker):.1f}" y1="{padt}" x2="{x(marker):.1f}" y2="{H - padb}" stroke-dasharray="3 3"/>'
+                   f'<text x="{x(marker) + 4:.1f}" y="{padt + 9}">now</text>')
+    step = 1 if n <= 10 else (2 if n <= 20 else max(1, n // 8))
+    for i, lab in enumerate(labels):
+        if i % step == 0 or i == n - 1:
+            anchor = "start" if i == 0 else ("end" if i == n - 1 else "middle")
+            out.append(f'<text x="{x(i):.1f}" y="{H - 8}" text-anchor="{anchor}">{escape(lab)}</text>')
+    quiet = [sr for sr in series if not sr.get("cls")]
+    loud = [sr for sr in series if sr.get("cls")]
+    for sr in quiet + loud:
+        vals = sr.get("values") or []
+        pts = [(x(i), y(v)) for i, v in enumerate(vals) if v is not None]
+        if not pts:
+            continue
+        cls = sr.get("cls") or ""
+        if cls == "me" or cls == "pos":
+            out.append(f'<polygon class="area {cls}" points="{pts[0][0]:.1f},{y(lo):.1f} ' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts) + f' {pts[-1][0]:.1f},{y(lo):.1f}"/>')
+        out.append(f'<polyline class="ln {cls}" points="' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts) + f'"><title>{escape(sr.get("name") or "")}</title></polyline>')
+        if cls:
+            for i, v in enumerate(vals):
+                if v is None:
+                    continue
+                out.append(f'<circle class="dot {cls}" cx="{x(i):.1f}" cy="{y(v):.1f}" r="{3.6 if i == len(vals) - 1 else 2.6}"><title>{escape(sr.get("name") or "")} · {escape(labels[i] if i < len(labels) else "")}: {fnum(v, nd)}{unit}</title></circle>')
+                if value_labels and (n <= 16 or i == len(vals) - 1):
+                    anchor = "end" if i == len(vals) - 1 else "middle"
+                    out.append(f'<text x="{x(i) + (2 if i == len(vals) - 1 else 0):.1f}" y="{y(v) - 7:.1f}" text-anchor="{anchor}" style="fill:var(--ink);font-weight:600">{fnum(v, nd)}{unit}</text>')
+    out.append("</svg>")
+    return Markup("".join(out))
 
 
 # What each season log under data/logs/ is, for the Logs page: (title, one line). Keyed by

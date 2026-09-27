@@ -1,8 +1,17 @@
 {% extends "base.html" %}
-{% block title %}{{ name }} · {{ brand }}{% endblock %}
+{% block title %}{{ (name|log_title)[0] }} · {{ brand }}{% endblock %}
 {% block body %}
+<style>
+.logt td { font-size: 13px; vertical-align: top; }
+.logt td.rest { color: var(--ink-2); font-size: 12.5px; max-width: 46ch; }
+.logt details { margin: 0; } .logt summary { padding: 0; font-size: 10px; }
+.logt pre { margin: 6px 0 0; font-size: 11.5px; }
+</style>
 {% set lt = name|log_title %}
-<div class="head"><p class="eyebrow">season log · newest first</p><h1>{{ lt[0] }}</h1><p class="lede">{% if lt[1] %}{{ lt[1]|capitalize }}. {% endif %}Showing the last {{ rows|length }} of {{ total }} rows — show <a href="/logs/{{ name }}?n=50">50</a> · <a href="/logs/{{ name }}?n=200">200</a> · <a href="/logs/{{ name }}?n=1000">1000</a> · <a href="{{ link }}?raw=1" title="{{ name }}">the whole file</a></p></div>
-<div class="con"><pre>{% for r in rows %}{{ r|real }}
-{% endfor %}</pre></div>
+<div class="head"><p class="eyebrow">season log · newest first</p><h1>{{ lt[0] }}</h1><p class="lede">{% if lt[1] %}{{ lt[1]|capitalize }}. {% endif %}Showing the newest {{ rows|length }} of {{ total }} rows — show <a href="/logs/{{ slug }}?n=50">50</a> · <a href="/logs/{{ slug }}?n=200">200</a> · <a href="/logs/{{ slug }}?n=1000">1000</a> · <a href="{{ link }}?raw=1" title="{{ name }}">view the whole file as text</a> · <a href="{{ link }}?raw=1&amp;dl=1" title="{{ name }}">download it</a></p></div>
+{% if rows %}
+<div class="scroller"><table class="logt"><thead><tr><th class="num">#</th>{% for c in cols %}<th>{{ c|replace("_", " ") }}</th>{% endfor %}<th>everything else</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td class="num muted">{{ total - loop.index0 }}</td>{% for c in r.cells %}<td{% if loop.first %} class="nm"{% endif %}>{{ c|real }}</td>{% endfor %}{% if r.cells|length < cols|length %}{% for _ in range(cols|length - r.cells|length) %}<td></td>{% endfor %}{% endif %}<td class="rest">{{ r.rest|real|truncate(220) }}</td><td><details><summary>json</summary><pre>{{ r.raw|real }}</pre></details></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="muted small">This log is empty.</p>{% endif %}
 {% endblock %}

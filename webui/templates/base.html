@@ -117,16 +117,19 @@ p { margin: .4em 0; }
 img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
 
 /* ---- tables ---- */
-.scroller { overflow-x: auto; margin-top: 4px; }
+.scroller { margin-top: 4px; }
+@media (max-width: 720px) { .scroller { overflow-x: auto; } }
+.st { display: inline-block; min-width: 1.6em; text-align: center; font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px; background: var(--neg-bg); color: var(--neg); vertical-align: middle; }
+.st.ir, .st.pup, .st.sus { background: var(--mid); color: var(--ink-2); } .st.q { background: var(--warm-bg); color: var(--warm); } .st.bye { background: var(--violet-bg); color: var(--violet); }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-th { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 6px 10px 8px; border-bottom: 2px solid var(--turf-line); white-space: nowrap; vertical-align: bottom; background: var(--plane); position: sticky; top: 0; }
+th { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 6px 8px 8px; border-bottom: 2px solid var(--turf-line); white-space: normal; line-height: 1.25; vertical-align: bottom; background: var(--plane); position: sticky; top: 0; }
 th.num, td.num { text-align: right; }
 th[data-key] { cursor: pointer; user-select: none; }
 th[data-key]:hover { color: var(--ink); }
 th.sort-asc::after { content: " \25B2"; font-size: 9px; } th.sort-desc::after { content: " \25BC"; font-size: 9px; }
-td { padding: 7px 10px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; overflow-wrap: anywhere; }
 td.tl, th.tl { text-align: left; }
-td.nm { font-weight: 500; white-space: nowrap; }
+td.nm { font-weight: 500; }
 tbody tr:hover td { background: var(--surface); }
 tr.me td { background: var(--pos-bg); }
 tr.me td.nm::after, .you { content: "you"; font-family: var(--display); font-size: 9px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--pos); margin-left: 8px; border: 1px solid var(--pos); padding: 1px 5px; border-radius: 2px; }
@@ -145,6 +148,8 @@ td.wrap { white-space: normal; max-width: 34ch; }
 
 /* ---- cards / lists ---- */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 4px; }
+.cards.wide { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+@media (max-width: 500px) { .cards.wide { grid-template-columns: 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px 14px; transition: border-color .15s; }
 .card:hover { border-color: var(--rule); }
 .card.s-turf { border-left: 3px solid var(--turf); } .card.s-pos { border-left: 3px solid var(--pos); } .card.s-gold { border-left: 3px solid var(--gold); } .card.s-warm { border-left: 3px solid var(--warm); } .card.s-violet { border-left: 3px solid var(--violet); }
@@ -262,9 +267,10 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
   <a class="brand" href="/"><svg class="i"><use href="#i-ball"/></svg>{{ brand }}</a>
   <nav class="tabs">
     <a href="/" class="{{ 'on' if path == '/' }}">Home</a>
-    <a href="/current" class="{{ 'on' if path.startswith('/current') }}">League</a>
-    <a href="/weeks" class="{{ 'on' if path.startswith('/weeks') }}">Forecasts</a>
-    <a href="/decisions" class="{{ 'on' if path.startswith('/decisions') or path.startswith('/file/decisions') }}">Records</a>
+    <a href="/league" class="{{ 'on' if path.startswith('/current') or path.startswith('/league') }}">League</a>
+    <a href="/forecasts" class="{{ 'on' if path.startswith('/weeks') or path.startswith('/forecasts') }}">Forecasts</a>
+    <a href="/decisions" class="{{ 'on' if path == '/decisions' }}">Decisions</a>
+    <a href="/records" class="{{ 'on' if path.startswith('/records') or path.startswith('/decisions/') or path.startswith('/file/decisions') }}">Records</a>
     <a href="/tools" class="{{ 'on' if path.startswith('/tools') }}">Tools</a>
     <a href="/jobs" class="{{ 'on' if path.startswith('/jobs') }}">Jobs</a>
     <a href="/logs" class="{{ 'on' if path.startswith('/logs') }}">Logs</a>

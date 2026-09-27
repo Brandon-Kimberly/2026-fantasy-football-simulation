@@ -20,8 +20,8 @@ import secrets
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import brand, render
-from webui.glance import (freshness_report, home_report, latest_digests, logs_git_report, team_hue,
-                          windows_report)
+from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
+                          roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard
 from webui.names import Overlay
@@ -172,6 +172,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["clock"] = render.human_time
     app.jinja_env.filters["dshort"] = render.duration_short
     app.jinja_env.filters["avatar"] = overlay.avatar
+    app.jinja_env.filters["pretty"] = render.pretty_url
+    app.jinja_env.filters["job_url"] = render.job_url
+    app.jinja_env.filters["sabbr"] = render.status_abbr
+    app.jinja_env.globals["line_chart"] = render.line_chart
 
     @app.context_processor
     def _ctx():
@@ -259,6 +263,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return {"ok": True, "week": fr["week"], "freshness": fr["status"], "weeks": root.weeks(),
                 "real_names": overlay.enabled}
 
+    @app.route("/forecasts")
     @app.route("/weeks")
     def weeks():
         """One row per export, carrying MY forecast from that export -- so the page reads as
@@ -276,40 +281,73 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
         return render_template("weeks.html", rows=rows)
 
+    @app.route("/forecasts/week-<int:week>")
     @app.route("/weeks/<int:week>")
     def week(week):
         if week not in root.weeks():
             abort(404)
         return render_template("week.html", **week_report(root, week))
 
-    @app.route("/decisions")
-    def decisions_index():
+    @app.route("/records")
+    def records_index():
         wks = root.decision_weeks()
         if wks:
             return redirect(url_for("decisions", week=wks[-1]))
-        return render_template("decisions.html", week=None, listing=None, weeks=[],
-                               adhoc=root.adhoc(), season=root.season(), title="Decisions")
+        return render_template("records.html", week=None, listing=None, weeks=[],
+                               adhoc=root.adhoc(), season=root.season(), title="Records")
 
+    @app.route("/records/week-<int:week>")
     @app.route("/decisions/<int:week>")
     def decisions(week):
         if week not in root.decision_weeks():
             abort(404)
-        return render_template("decisions.html", week=week, listing=root.decisions(week),
+        return render_template("records.html", week=week, listing=root.decisions(week),
                                weeks=root.decision_weeks(), adhoc=None, season=None,
-                               title=f"Week {week} decisions")
+                               title=f"Week {week} records")
 
+    @app.route("/records/ad-hoc")
     @app.route("/decisions/adhoc")
     def adhoc():
-        return render_template("decisions.html", week=None, listing=None, weeks=root.decision_weeks(),
+        return render_template("records.html", week=None, listing=None, weeks=root.decision_weeks(),
                                adhoc=root.adhoc(), season=root.season(), title="Ad-hoc and season records")
+
+    def _all_record_entries():
+        out = []
+        for wk in root.decision_weeks():
+            d = root.decisions(wk)
+            out.extend(d["canonical"] + d["archive"])
+        return out + root.adhoc() + root.season()
+
+    @app.route("/records/<scope>/<path:rest>")
+    def record_pretty(scope, rest):
+        """/records/week-3/optimal-lineup/2026-09-24-165331 and friends: the readable
+        address every list links to. Resolved by matching the entry whose pretty URL is
+        this path, so the mapping lives in one place (render.pretty_url)."""
+        want = f"/records/{scope}/{rest}"
+        for e in _all_record_entries():
+            if render.pretty_url(e) == want:
+                return file_view(e["rel"])
+        abort(404)
+
+    @app.route("/decisions")
+    def decisions_tab():
+        """Every logged move and what the paired evaluation said it did to the team's
+        chances -- the decision log, joined, summed, and charted."""
+        rep_ = decisions_report(root, MY_TEAM)
+        series = rep_["series"]
+        chart = render.line_chart([{"name": "my playoff odds, cumulative effect of my moves", "values": [x["value"] for x in series], "cls": "me"}],
+                                  [f"wk {x['week']}" if x.get("week") else render.human_time(x["at"]) for x in series],
+                                  unit=" pts", nd=1, y_min=None, height=200) if len(series) > 1 else ""
+        return render_template("decisions.html", chart=chart, **rep_)
 
     @app.route("/results")
     def results():
         return render_template("results.html", results=root.results())
 
+    @app.route("/league")
     @app.route("/current")
     def current():
-        return render_template("current.html", **current_report(root))
+        return render_template("current.html", vorp=roster_vorp(root), **current_report(root))
 
     @app.route("/logs")
     def logs():
@@ -317,6 +355,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
 
     @app.route("/logs/<name>")
     def log(name):
+        """/logs/decision-log (the readable address) or /logs/decision_log.jsonl (the file)."""
+        if "." not in name:
+            match = next((e for e in root.logs() if e["ext"] == "jsonl" and render.slug(e["name"].rsplit(".", 1)[0]) == name), None)
+            if not match:
+                abort(404)
+            name = match["name"]
         rel = "logs/" + name
         n = request.args.get("n", "200")
         try:
@@ -326,8 +370,25 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if not name.endswith(".jsonl"):
             return redirect(url_for("file_view", rel=rel))
         rows, total = root.tail_jsonl(rel, n)
-        pretty = [json.dumps(r, ensure_ascii=False, sort_keys=True) for r in rows]
-        return render_template("log.html", name=name, rows=pretty, total=total, n=n, link=root.link(rel))
+        # a table, not a wall of JSON: one column per top-level scalar key (first eight,
+        # in order of appearance), nested values folded into readable text
+        cols = []
+        for r in rows:
+            for k, v in (r.items() if isinstance(r, dict) else []):
+                if k not in cols and not isinstance(v, (dict, list)):
+                    cols.append(k)
+        cols = cols[:8]
+        table = []
+        for r in rows:
+            if not isinstance(r, dict):
+                table.append({"cells": [str(r)], "rest": "", "raw": json.dumps(r, ensure_ascii=False)})
+                continue
+            rest = {k: v for k, v in r.items() if k not in cols}
+            table.append({"cells": [render._join(r.get(k)) if r.get(k) is not None else "" for k in cols],
+                          "rest": render._join(rest) if rest else "",
+                          "raw": json.dumps(r, ensure_ascii=False, sort_keys=True)})
+        return render_template("log.html", name=name, cols=cols, rows=table, total=total, n=n, link=root.link(rel),
+                               slug=render.slug(name.rsplit(".", 1)[0]))
 
     @app.route("/file/<path:rel>")
     def file_view(rel):
@@ -345,9 +406,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 return Response(body, mimetype="application/json")
             if isinstance(data, dict) and data.get("tool"):      # a decision tool's record: tables, not a dump
                 return render_template("record.html", rel=normalize(rel), body=body, link=root.link(rel),
-                                       view=render.record_view(data))
+                                       view=render.record_view(data), pretty=render.pretty_url(root.entry(rel)))
             return render_template("file.html", rel=rel, body=body, kind="json", link=root.link(rel))
         if ext == ".jsonl":
+            if raw:                                            # the whole file, as written
+                return Response(root.read_text(rel), mimetype="text/plain",
+                                headers={"Content-Disposition": f'attachment; filename="{rel.rsplit("/", 1)[-1]}"'} if request.args.get("dl") == "1" else {})
             return redirect(url_for("log", name=rel.rsplit("/", 1)[-1])) if rel.startswith("logs/") \
                 else render_template("file.html", rel=rel, body=root.read_text(rel), kind="text", link=root.link(rel))
         body = root.read_text(rel)
@@ -406,6 +470,15 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         jobs = [dict(m, seconds=_elapsed(m)) for m in runner.list()]
         return render_template("jobs.html", jobs=jobs, current=runner.current())
 
+    @app.route("/jobs/<slug>/<stamp>")
+    def job_pretty(slug, stamp):
+        """/jobs/optimal-lineup/2026-09-26-000000-000001 -- the readable address."""
+        want = f"/jobs/{slug}/{stamp}"
+        for m in runner.list():
+            if render.job_url(m) == want:
+                return job(m["id"])
+        abort(404)
+
     @app.route("/jobs/<job_id>")
     def job(job_id):
         meta = runner.read(job_id)
@@ -416,11 +489,14 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         for b in blocks:                       # a 'logged -> path' line becomes a link only if served
             if b["kind"] == "record":
                 rel = normalize(b["path"])
-                b["link"] = root.link(rel) if root.exists(rel) else None
+                b["link"] = render.pretty_url(root.entry(rel)) if root.exists(rel) else None
         view = None
         rec = meta.get("record") or ""
         if rec.startswith("/file/") and rec.endswith(".json"):
             view = render.record_view(root.read_json(rec[len("/file/"):]))
+            meta = dict(meta, record=render.pretty_url(root.entry(rec[len("/file/"):])))
+        elif meta.get("state") != RUNNING and "--json" in (meta.get("args") or []):
+            view = render.record_view(render.stdout_json(log_text), tool=meta.get("tool"))   # a --json tool: its document, as tables
         return render_template("job.html", job=meta, blocks=blocks, view=view, size=len(log_text.encode("utf-8")),
                                running=(meta.get("state") == RUNNING), progress=render.progress(log_text, meta.get("tool")),
                                typical=runner.typical_seconds(meta.get("tool")), elapsed=_elapsed(meta))

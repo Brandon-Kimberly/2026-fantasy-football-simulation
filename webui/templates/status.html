@@ -43,7 +43,7 @@
   <a class="chip" href="/results"><svg class="i"><use href="#i-clip"/></svg><span class="k">runner results</span><span class="v">downloaded artifacts</span></a>
 </div>
 {% if git is none %}<p class="small muted" style="margin-top:10px">Not a git checkout, or git is unavailable.</p>{% elif git.uncommitted %}<p class="small muted" style="margin-top:10px">Uncommitted: {{ git.uncommitted|join(", ") }}</p>{% endif %}
-{% if digests %}<p class="small muted" style="margin-top:10px">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e.link }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+{% if digests %}<p class="small muted" style="margin-top:10px">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e|pretty }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 </section>
 
 <section>

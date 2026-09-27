@@ -14,6 +14,7 @@ import unittest
 from fantasy_sim.config import MY_TEAM
 from webui.jobs import OK, RUNNING, JobRefused
 from webui.names import Overlay
+from webui import render
 from webui.paths import Root
 
 try:
@@ -128,7 +129,7 @@ class TestLauncher(unittest.TestCase):
         self.assertEqual(r.status_code, 409)
         body = r.get_data(as_text=True)
         self.assertIn("busy", body)
-        self.assertIn("/jobs/20260926T000000Z_aaaaaa_slow", body)
+        self.assertIn(render.job_url({"id": "20260926T000000Z_aaaaaa_slow"}), body)    # the readable address
 
     def test_real_names_never_enter_an_argv_even_with_the_overlay_on(self):
         app = create_app(self.root, runner=self.runner, csrf_token="tok-123",
@@ -149,7 +150,8 @@ class TestLauncher(unittest.TestCase):
     def test_jobs_pages_and_cancel(self):
         self.c.post("/tools/roster_calendar", data={"_csrf": "tok-123", "team": MY_TEAM})
         jid = list(self.runner.metas)[-1]
-        self.assertIn(jid, self.c.get("/jobs").get_data(as_text=True))
+        self.assertIn(render.job_url({"id": jid}), self.c.get("/jobs").get_data(as_text=True))
+        self.assertEqual(self.c.get(render.job_url({"id": jid})).status_code, 200, "the readable address serves the job")
         self.assertEqual(self.c.get(f"/jobs/{jid}/log").get_data(as_text=True), "fake log " + jid)
         self.assertEqual(self.c.post(f"/jobs/{jid}/cancel", data={}).status_code, 403)
         self.assertEqual(self.c.post(f"/jobs/{jid}/cancel", data={"_csrf": "tok-123"}).status_code, 302)
