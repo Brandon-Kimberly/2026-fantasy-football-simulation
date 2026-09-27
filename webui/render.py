@@ -693,11 +693,19 @@ TOOL_STAGES = (("validating projections", ("[PRE-FLIGHT SUCCESS]",)),
                ("record written", (" -> ",)))
 
 
+# What a sync prints as it goes (fantasy_sim.sync.sync_all's own markers).
+SYNC_STAGES = (("checking the odds key", ("[ODDS KEY",)),
+               ("fetching schedule and results", ("[INIT]",)),
+               ("scores and designations", ("[FIRST SCORES]", "[DESIGNATIONS]")),
+               ("transactions", ("[DECISION LOG]", "[DRAFT LOG]", "[PENDING TRADES]")),
+               ("done", ("[FAAB]", "manifest")))
+
+
 def progress(text, tool):
     """{stages, reached, stage, last}: the ordered stage names, how many have been reached,
     the current one ('starting' before any), and the last line the tool itself printed."""
     text = text or ""
-    stages = REPORT_STAGES if tool == "weekly_report" else (ENGINE_STAGES if tool == "run_simulation" else TOOL_STAGES)
+    stages = {"weekly_report": REPORT_STAGES, "run_simulation": ENGINE_STAGES, "run_sync": SYNC_STAGES}.get(tool, TOOL_STAGES)
     reached = 0
     for i, (_name, markers) in enumerate(stages):
         if any(m in text for m in markers):
@@ -764,7 +772,7 @@ def parse_time(value):
         except Exception:
             return None
     s = str(value or "").strip()
-    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y%m%dT%H%M%SZ", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%d %H:%MZ", "%Y-%m-%dT%H:%MZ"):
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y%m%dT%H%M%SZ", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y%m%dT%H%M%S.%fZ", "%Y-%m-%d %H:%MZ", "%Y-%m-%dT%H:%MZ"):
         try:
             return _dt.datetime.strptime(s, fmt).replace(tzinfo=_dt.timezone.utc)
         except ValueError:

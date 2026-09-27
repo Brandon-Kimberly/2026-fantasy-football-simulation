@@ -16,10 +16,12 @@ import datetime as _dt
 import json
 import os
 import secrets
+import sys
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import brand, render
+from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
                           roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
@@ -138,7 +140,7 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
-def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None):
+def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -147,6 +149,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     # W6: the live scoreboard's in-memory cache. Tests inject one with a fake fetch; the
     # default only reads the network when the league is configured and this is no runner.
     live = live if live is not None else LiveBoard.default(root, MY_TEAM)
+    # W4: the sync page's key probe and User-scope reader; tests inject both so no test
+    # ever reaches the-odds-api or reads this machine's registry.
+    _probe = key_probe if key_probe is not None else syncmod.probe_key
+    _read_user = key_reader
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
     app = Flask(__name__, template_folder="templates", static_folder=None)
@@ -452,7 +458,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             values.update({f.name: request.form.get(f.name, "") for f in t.fields})
             if fr is not None and fr["status"] == "STALE":
                 raise JobRefused("the data on disk is STALE -- " + "; ".join(fr["reasons"]) +
-                                 " -- run scripts.run_sync from a terminal first (this UI never syncs)")
+                                 " -- sync first, from the Sync page")
             try:
                 form, notes = resolve_form(t, request.form, PlayerIndex.for_root(root), MY_TEAM)
                 values.update({f.name: form.get(f.name, "") for f in t.fields})
@@ -464,6 +470,54 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 error = str(ex)
         return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
                                fr=fr, windows=win, avg=runner.average_seconds(t.name))
+
+    # ------------------------------------------------------------------ W4: sync
+    def _sync_context(probe=None):
+        fr = freshness_report(root)
+        key, source = syncmod.user_scope_key(read_user=_read_user)
+        return {"fr": fr, "key_present": bool(key), "key_source": source, "probe": probe,
+                "backups": syncmod.list_backups(root), "modes": syncmod.MODES, "current": runner.current(),
+                "last_job": next((m for m in runner.list() if m.get("tool") in ("run_sync", "weekly_report") and m.get("sync")), None)}
+
+    @app.route("/sync")
+    def sync_page():
+        """The sync page renders without any network: the probe runs only on launch."""
+        return render_template("sync.html", **_sync_context())
+
+    @app.route("/sync/launch", methods=["POST"])
+    def sync_launch():
+        require_csrf()
+        mode = request.form.get("mode", "sync")
+        if mode not in syncmod.MODES:
+            abort(400)
+        key, source = syncmod.user_scope_key(read_user=_read_user)
+        probe = dict(_probe(key), source=source)
+        if probe["verdict"] != "ok":                       # preflight: nothing written, nothing launched
+            return render_template("sync.html", error=probe["detail"], **_sync_context(probe=probe)), 409
+        if runner.current():
+            raise JobRefused(f"busy: job {runner.current()['id']} is still running")
+        name = syncmod.backup(root, reason=f"before {mode}")   # the restore C3 never had
+        argv = syncmod.argv_for(mode, python=sys.executable)
+        try:
+            job_id = runner.launch(argv, tool=syncmod.MODES[mode]["module"].rsplit(".", 1)[-1],
+                                   label=syncmod.MODES[mode]["label"],
+                                   extra={"sync": True, "backup": name, "key_source": source,
+                                          "key_remaining": probe.get("remaining")},
+                                   env={"ODDS_API_KEY": key})
+        except JobRefused:
+            raise
+        return redirect(url_for("job", job_id=job_id))
+
+    @app.route("/sync/restore", methods=["POST"])
+    def sync_restore():
+        require_csrf()
+        if runner.current():
+            raise JobRefused("a job is running; restore when it has finished")
+        try:
+            n = syncmod.restore(root, request.form.get("name", ""))
+        except (ValueError, FileNotFoundError):
+            abort(404)
+        return render_template("sync.html", restored=n, restored_name=request.form.get("name"), **_sync_context())
 
     @app.route("/jobs")
     def jobs():

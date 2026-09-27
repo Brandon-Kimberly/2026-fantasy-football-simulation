@@ -14,7 +14,7 @@
 </div>
 
 <section>
-<h2><svg class="i"><use href="#i-cloud"/></svg> Last sync <span class="hint">{% if fr.manifest %}{{ fr.manifest.finished_at|when }}{% if fr.age_hours is not none %} · {{ fr.age_hours|ago }}{% endif %}{% else %}none on record{% endif %}</span></h2>
+<h2><svg class="i"><use href="#i-cloud"/></svg> Last sync <span class="hint">{% if fr.manifest %}{{ fr.manifest.finished_at|when }}{% if fr.age_hours is not none %} · {{ fr.age_hours|ago }}{% endif %}{% else %}none on record{% endif %} · <a href="/sync">sync now</a></span></h2>
 {% if fr.vegas_stale_since %}<div class="note warn"><b>Betting lines kept from {{ fr.vegas_stale_since|when }}.</b> The odds fetch failed and the last real lines were preserved rather than overwritten.</div>{% endif %}
 {% if fr.sources %}
 <div class="scroller"><table><thead><tr><th>Source</th><th>State</th><th class="num">Rows</th><th>Fell back to</th></tr></thead><tbody>

@@ -28,12 +28,13 @@ except ImportError:
 class FakeRunner:
     def __init__(self, busy=None):
         self.launches, self.metas, self.busy = [], {}, busy
-        self.cancelled = []
+        self.cancelled, self.envs = [], []
 
-    def launch(self, argv, tool, label=None, extra=None):
+    def launch(self, argv, tool, label=None, extra=None, env=None):
         if self.busy:
             raise JobRefused(f"busy: job {self.busy['id']} is still running")
         self.launches.append((argv, tool, label))
+        self.envs.append(dict(env or {}))
         jid = f"20260926T000000Z_{len(self.launches):06x}_{tool}"
         self.metas[jid] = {"id": jid, "tool": tool, "label": label or tool, "state": RUNNING,
                            "started_at": "2026-09-26T00:00:00Z", "finished_at": None, "rc": None,
