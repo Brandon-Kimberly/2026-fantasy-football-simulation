@@ -3,9 +3,10 @@
 {% block title %}{{ brand }}{% endblock %}
 {% block body %}
 <style>
-.hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: var(--surface); border: 1px solid var(--grid); border-top: 3px solid var(--turf); border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; }
+.hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 55%, var(--turf-bg) 100%); border: 1px solid var(--grid); border-top: 3px solid transparent; border-image: var(--g-brand) 1; border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; box-shadow: var(--shadow); }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
-.hero::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 9%; background: linear-gradient(90deg, transparent, var(--turf-bg)); pointer-events: none; }
+.hero::after { content: ""; position: absolute; top: -40%; right: -10%; width: 45%; height: 180%; background: radial-gradient(closest-side, var(--violet-bg), transparent); pointer-events: none; animation: drift 12s ease-in-out infinite alternate; }
+@keyframes drift { from { transform: translate(0, 0); } to { transform: translate(-6%, 8%); } }
 .hero > * { position: relative; z-index: 1; }
 .hero .top-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
 .hero .who { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin: 14px 0 8px; }
@@ -17,17 +18,19 @@
 .hero .side .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
 .hero .vs { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .hero .pwin { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; margin-top: 12px; }
-.hero .pwin .big { font-family: var(--display); font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.hero .pwin .big { font-family: var(--display); font-size: 48px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.hero .pwin .big:first-child > span { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hero .pwin .big small { font-size: 16px; font-weight: 600; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
 .split { height: 12px; background: var(--neg-bg); border-radius: 999px; overflow: hidden; position: relative; }
-.split i { display: block; height: 100%; background: var(--pos); width: 0; transition: width 1s cubic-bezier(.2,.8,.2,1); }
+.split i { display: block; height: 100%; background: var(--g-brand); width: 0; transition: width 1s cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 12px rgba(42,120,214,.35); }
 .split::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--rule); }
 .hero .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .hero .facts b { color: var(--ink); font-weight: 600; }
 /* the live scoreboard */
 .live { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--rule); }
 .live .lh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-.live .lh .k { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--turf); display: inline-flex; align-items: center; gap: 6px; }
+.live .lh .k { font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #fff; background: linear-gradient(135deg, var(--neg), #ff7a59); padding: 4px 10px 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(227,73,72,.3); }
+.live .lh .k svg.i { color: #fff !important; }
 .live .lh .k svg.i { color: var(--neg); }
 .live .lh .k.on svg.i { animation: blink 1.4s ease-in-out infinite; }
 .live .lh .meta { font-size: 12px; color: var(--muted); }
@@ -43,8 +46,8 @@
 .live .bars { margin-top: 10px; display: grid; gap: 6px; }
 .live .bars .bar { display: grid; grid-template-columns: 6.5rem 1fr 6rem; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
 .live .bars .bar .b { height: 10px; background: var(--mid); border-radius: 999px; overflow: hidden; display: flex; }
-.live .bars .bar .b i { display: block; height: 100%; } .live .bars .bar .b i.done { background: var(--turf); } .live .bars .bar .b i.left { background: var(--turf-bg); border-left: 1px solid var(--turf); }
-.live .bars .bar.them .b i.done { background: var(--warm); } .live .bars .bar.them .b i.left { background: var(--warm-bg); border-left-color: var(--warm); }
+.live .bars .bar .b i { display: block; height: 100%; transition: width .8s cubic-bezier(.2,.8,.2,1); } .live .bars .bar .b i.done { background: var(--g-turf); } .live .bars .bar .b i.left { background: var(--turf-bg); border-left: 1px solid var(--turf); }
+.live .bars .bar.them .b i.done { background: var(--g-warm); } .live .bars .bar.them .b i.left { background: var(--warm-bg); border-left-color: var(--warm); }
 .live .bars .bar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
 .live .note-l { font-size: 12px; color: var(--muted); margin-top: 10px; }
 .live details { margin-top: 8px; } .live details table { font-size: 12.5px; }
@@ -52,7 +55,7 @@
 .ring { width: 96px; height: 96px; }
 .ring circle { fill: none; stroke-width: 9; }
 .ring .bg { stroke: var(--mid); }
-.ring .fg { stroke: var(--pos); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; }
+.ring .fg { stroke: url(#ringg); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; filter: drop-shadow(0 0 4px rgba(42,120,214,.35)); }
 .stat { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px; animation: rise .5s ease both; }
 .stat.a { border-left: 3px solid var(--pos); } .stat.b { border-left: 3px solid var(--gold); }
 .stat .big { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
@@ -62,7 +65,8 @@
 .games { margin-top: 12px; display: grid; gap: 4px; }
 .game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; }
 .game .a { text-align: right; } .game .p { font-variant-numeric: tabular-nums; font-weight: 600; } .game .p.a { text-align: right; } .game .vs { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-.game.me { border-color: var(--pos); background: var(--pos-bg); }
+.game { transition: transform .15s, box-shadow .2s; } .game:hover { transform: translateX(2px); box-shadow: var(--shadow); }
+.game.me { border-color: var(--pos); background: linear-gradient(90deg, var(--pos-bg), var(--surface)); }
 .game .fav { color: var(--pos); }
 .watch td .small { display: block; }
 .qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
@@ -115,7 +119,7 @@
 <div class="grid2">
   <div class="stat a" style="animation-delay:.05s">
     {% set po = f.playoff_probability_pct or 0 %}{% set circ = 2 * 3.14159 * 40 %}
-    <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
+    <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
     <div><div class="k"><svg class="i c-pos"><use href="#i-trophy"/></svg> playoff probability</div>
       <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
       <div class="s">± {{ f.playoff_standard_error|num(2) }} · title {{ champ|num(1) }}% · {{ f.expected_final_wins|num(1) }} expected wins{% if f.approximate_magic_number %} · {{ f.approximate_magic_number|num(0) }} more to clinch{% endif %}</div></div>
@@ -145,7 +149,7 @@
   <section style="margin-top:28px">
     <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ week }} forecast</span></h2>
     <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
-    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num muted">{{ r.rank }}</td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|num(1) }}%</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
+    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|num(1) }}%</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
     </tbody></table></div>
     {% if all_matchups %}<h3 style="margin-top:16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
     <div class="games">{% for mm in all_matchups %}{% set pa = (mm.p_a or 0) * 100 %}{% set pb = (mm.p_b or 0) * 100 %}<div class="game{% if my_team in (mm.a, mm.b) %} me{% endif %}"><span class="a{% if pa >= pb %} fav{% endif %}">{{ teamlink(mm.a) }}</span><span class="p a{% if pa >= pb %} fav{% endif %}">{{ pa|round(0)|int }}%</span><span class="vs">vs</span><span class="p{% if pb > pa %} fav{% endif %}">{{ pb|round(0)|int }}%</span><span{% if pb > pa %} class="fav"{% endif %}>{{ teamlink(mm.b) }}</span></div>{% endfor %}</div>{% endif %}

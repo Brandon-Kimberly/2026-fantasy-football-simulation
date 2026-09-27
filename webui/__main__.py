@@ -4,6 +4,9 @@
   py -3.10 -m webui --port 8800
   py -3.10 -m webui --root C:/copy       # serve a sandbox copy instead
   py -3.10 -m webui --no-real-names      # pseudonyms even locally
+  py -3.10 -m webui --hostname syndicatefootball.local --port 80
+                                         # http://syndicatefootball.local/ on this machine only, after (as Administrator)
+                                         #   Add-Content C:\Windows\System32\drivers\etc\hosts "127.0.0.1 syndicatefootball.local"
 
 Binds 127.0.0.1 and nothing else: there is no --host option, by design (section 2.8).
 Real names follow scripts.weekly_report's rule -- ON for a command a human typed, never on
@@ -33,11 +36,14 @@ def main(argv=None):
               "Plain `python` on the original machine is the retired Store 3.8 -- see CLAUDE.md.",
               file=sys.stderr)
         return 3
-    ap = argparse.ArgumentParser(prog="py -3.10 -m webui", description=__doc__,
+    ap = argparse.ArgumentParser(prog="py -3.10 -m webui", description=__doc__, allow_abbrev=False,   # --host must not abbreviate --hostname
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--root", default=DEFAULT_ROOT, help="the checkout (or a copy) whose data/ to serve")
     ap.add_argument("--no-real-names", action="store_true")
+    ap.add_argument("--hostname", action="append", default=[], metavar="NAME",
+                    help="also answer to this name (W9), e.g. syndicatefootball.local -- after adding "
+                         "'127.0.0.1 syndicatefootball.local' to the hosts file; the bind stays 127.0.0.1")
     ap.add_argument("--mode", choices=("dev", "simple"), default=None,
                     help="the view to start in (W8); the stored setting wins once it exists, the header toggles it")
     args = ap.parse_args(argv)          # an unknown option such as --host exits 2 here, before any bind
@@ -52,8 +58,9 @@ def main(argv=None):
         print(f"webui: {root.data} does not exist -- is --root a checkout with a data/ tree?", file=sys.stderr)
         return 2
     overlay = Overlay.from_environment()
-    app = create_app(root, overlay=overlay, port=args.port, default_mode=args.mode)
-    print(f"webui: http://127.0.0.1:{args.port}/   root={root.root}   "
+    app = create_app(root, overlay=overlay, port=args.port, default_mode=args.mode, hostnames=args.hostname)
+    shown = (args.hostname[0] if args.hostname else "127.0.0.1") + ("" if args.port == 80 else f":{args.port}")
+    print(f"webui: http://{shown}/   root={root.root}   "
           f"real names={'on' if overlay.enabled else 'off (pseudonyms)'}   mode={app.config['SETTINGS'].mode}", flush=True)
     app.run(host="127.0.0.1", port=args.port, debug=False, use_reloader=False, threaded=True)
     return 0
