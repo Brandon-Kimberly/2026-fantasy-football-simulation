@@ -20,9 +20,10 @@ import subprocess
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
+from webui import render
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
-from webui.paths import PathRefused, Root
+from webui.paths import PathRefused, Root, normalize
 from webui.tools import ENGINE, TOOLS, FormError, get as get_tool
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
@@ -64,7 +65,7 @@ def _fmt_epoch(t):
     """epoch seconds -> 2026-09-24 16:53Z; None -> em dash."""
     try:
         return _dt.datetime.fromtimestamp(float(t), _dt.timezone.utc).strftime("%Y-%m-%d %H:%MZ")
-    except (TypeError, ValueError, OSError):
+    except Exception:            # None, a string, or a Jinja Undefined (whose __float__ raises)
         return "—"
 
 
@@ -76,8 +77,8 @@ def _fmt_num(v, nd=1):
         if f != f:  # NaN
             return "—"
         return f"{f:.{nd}f}"
-    except (TypeError, ValueError):
-        return str(v)
+    except Exception:            # a Jinja Undefined raises UndefinedError from __float__
+        return "—" if not isinstance(v, str) else v
 
 
 # ------------------------------------------------------------------------- readers
@@ -226,6 +227,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
     app.jinja_env.filters["stamp"] = _fmt_stamp
     app.jinja_env.filters["num"] = _fmt_num
     app.jinja_env.filters["ts"] = _fmt_epoch
+    app.jinja_env.filters["pct"] = render.fpct
+    app.jinja_env.filters["signed"] = render.fsigned
 
     @app.context_processor
     def _ctx():
@@ -361,6 +364,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
             body = json.dumps(data, indent=1, ensure_ascii=False, sort_keys=False)
             if raw:
                 return Response(body, mimetype="application/json")
+            if isinstance(data, dict) and data.get("tool"):      # a decision tool's record: tables, not a dump
+                return render_template("record.html", rel=normalize(rel), body=body, link=root.link(rel),
+                                       view=render.record_view(data))
             return render_template("file.html", rel=rel, body=body, kind="json", link=root.link(rel))
         if ext == ".jsonl":
             return redirect(url_for("log", name=rel.rsplit("/", 1)[-1])) if rel.startswith("logs/") \
@@ -420,8 +426,17 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
         meta = runner.read(job_id)
         if not meta:
             abort(404)
-        tail, size = runner.tail(job_id)
-        return render_template("job.html", job=meta, tail=tail, size=size,
+        log_text = runner.log_text(job_id)
+        blocks = render.console_blocks(log_text)
+        for b in blocks:                       # a 'logged -> path' line becomes a link only if served
+            if b["kind"] == "record":
+                rel = normalize(b["path"])
+                b["link"] = root.link(rel) if root.exists(rel) else None
+        view = None
+        rec = meta.get("record") or ""
+        if rec.startswith("/file/") and rec.endswith(".json"):
+            view = render.record_view(root.read_json(rec[len("/file/"):]))
+        return render_template("job.html", job=meta, blocks=blocks, view=view, size=len(log_text.encode("utf-8")),
                                refresh=(meta.get("state") == RUNNING))
 
     @app.route("/jobs/<job_id>/log")

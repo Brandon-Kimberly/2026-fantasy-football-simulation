@@ -1,0 +1,52 @@
+{# Shared pieces. Every string cell passes through |real so the overlay applies everywhere. #}
+
+{% macro tiles(items) -%}
+{% if items %}<div class="tiles">{% for t in items %}<div class="tile"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ t.s|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+{%- endmacro %}
+
+{% macro datatable(columns, rows, me_key=None) -%}
+<div class="scroller"><table>
+<thead><tr>{% for c in columns %}<th data-key="{{ c.key }}" data-type="{{ 'number' if c.kind in ('num','pct','signed') else 'text' }}"{% if c.kind in ('num','pct','signed') %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
+<tbody>
+{% for r in rows %}<tr{% if r.me and r.me == my_team %} class="me"{% endif %}>{% for cell in r.cells %}{% set c = columns[loop.index0] %}<td class="{{ 'num' if cell.num }}{{ ' nm' if loop.first }}{{ ' wrap' if (not cell.num and cell.text|length > 34) }}" data-sort="{{ cell.text|real }}">{% if cell.tone == 'neg' and not cell.num %}<span class="flag">{{ cell.text|real }}</span>{% else %}<span class="{{ cell.tone }}">{{ cell.text|real }}</span>{% endif %}</td>{% endfor %}</tr>
+{% endfor %}
+</tbody></table></div>
+{%- endmacro %}
+
+{% macro record(view) -%}
+{% if view %}
+{{ tiles(view.tiles) }}
+{% for s in view.sections %}
+<section>
+{% if s.kind == 'table' %}
+<h2>{{ s.title|real }}{% if s.note %}<span class="hint">{{ s.note|real }}</span>{% endif %}</h2>
+{{ datatable(s.columns, s.rows, s.me_key) }}
+{% elif s.kind == 'kv' %}
+<h2>{{ s.title|real }}</h2>
+{# s['items'], not s.items: on a dict, Jinja's attribute lookup finds the .items() METHOD first #}
+<dl class="kv">{% for k, v in s['items'] %}<dt>{{ k|replace('_',' ') }}</dt><dd>{{ v|real }}</dd>{% endfor %}</dl>
+{% elif s.kind == 'text' %}
+<h2>{{ s.title|real }}</h2>
+<p class="small muted" style="max-width:80ch">{{ s.text|real }}</p>
+{% endif %}
+</section>
+{% endfor %}
+{% endif %}
+{%- endmacro %}
+
+{% macro console(blocks) -%}
+<div class="con">
+{% for b in blocks %}
+{% if b.kind == 'heading' %}<div class="con-h">{{ b.text|real }}</div>
+{% elif b.kind == 'table' %}<div class="scroller"><table><tbody>{% for r in b.rows %}<tr>{% for c in r %}<td{% if loop.first %} class="nm"{% endif %}>{{ c|real }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
+{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record: <a href="{{ b.link }}">{{ b.path }}</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
+{% elif b.kind == 'chatter' %}<details><summary>engine chatter · {{ b.lines|length }} lines</summary><pre>{{ b.lines|join('\n')|real }}</pre></details>
+{% else %}<pre>{{ b.text|real }}</pre>
+{% endif %}
+{% endfor %}
+</div>
+{%- endmacro %}
+
+{% macro filelist(entries) -%}
+{% if entries %}<div class="rows">{% for e in entries %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{{ e.stamp|stamp if e.stamp else "" }}{% if e.size %} · {{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
+{%- endmacro %}

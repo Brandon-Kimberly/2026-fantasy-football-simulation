@@ -1,33 +1,41 @@
 {% extends "base.html" %}
-{% block title %}{{ tool.name }} - fantasy-sim{% endblock %}
+{% block title %}{{ tool.name }} · fantasy-sim{% endblock %}
 {% block body %}
-<h1><code>{{ tool.name }}</code></h1>
-<p>{{ tool.question }}</p>
-{% if tool.note %}<p class="note">{{ tool.note }}</p>{% endif %}
-{% if current %}<p class="note">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. This launch will be refused until it finishes.</p>{% endif %}
-{% if error %}<p class="note" style="border-left-color:#8a1c1c"><b>Not launched:</b> {{ error }}</p>{% endif %}
+<div class="head">
+  <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %} · <code>py -3.10 -m scripts.{{ tool.name }}</code></p>
+  <h1>{{ tool.name|replace("_"," ") }}</h1>
+  <p class="lede">{{ tool.question }}</p>
+</div>
+{% if tool.note %}<div class="note">{{ tool.note }}</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. This launch will be refused until it finishes.</div>{% endif %}
+{% if error %}<div class="note bad"><b>Not launched.</b> {{ error }}</div>{% endif %}
 {% if tool.engine and fr %}
-<div class="note">
-<p><b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} -- <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first (this UI never syncs){% endif %}</p>
-{% if fr.reasons %}<ul class="small">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
-{% if windows and windows.result %}<p class="small"><b>Run windows</b> (target week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} {{ w.status }}{% if w.covered_by %} (covered){% endif %}{% if not loop.last %}; {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small">{{ windows.note }}</p>{% endif %}
-<p class="small">{{ r1 }}</p>
+<div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
+<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first (this UI never syncs){% endif %}
+{% if fr.reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (target week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
+<p class="small" style="margin:8px 0 0">{{ r1 }}</p>
 </div>
 {% endif %}
-<form method="post" action="/tools/{{ tool.name }}">
+
+<section>
+<h2>Arguments <span class="hint">blank = the tool's default</span></h2>
+<form method="post" action="/tools/{{ tool.name }}" class="tool">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-<table><tbody>
 {% for f in tool.fields %}
-<tr><td><label for="f_{{ f.name }}">{{ f.label }}{% if f.required %} *{% endif %}</label></td>
-<td>
+<div class="f">
+<label for="f_{{ f.name }}">{{ f.label }}{% if f.required %} *{% endif %}</label>
+<div>
 {% if f.kind == "flag" %}<input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}>
 {% elif f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
-{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" size="{% if f.kind == 'text' %}48{% else %}10{% endif %}" autocomplete="off">
+{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" autocomplete="off"{% if f.kind != 'text' %} style="max-width:160px"{% endif %}>
 {% endif %}
-</td><td class="small muted" style="white-space:normal">{{ f.help }}</td></tr>
+{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+</div>
+</div>
 {% endfor %}
-</tbody></table>
-<p><button type="submit">Launch {{ tool.name }}</button> <span class="small muted">runs <code>py -3.10 -m scripts.{{ tool.name }}</code> in the checkout; output appears on the job page</span></p>
+<div class="actions"><button type="submit">Launch {{ tool.name|replace("_"," ") }}</button><span class="small muted">output and the record appear on the job page</span></div>
 </form>
-<p class="small muted">Team selectors post the fictional name; real names never enter a URL, an argument, or a log.</p>
+<p class="tiny muted" style="margin-top:14px">Team selectors post the fictional name; real names never enter a URL, an argument, or a log.</p>
+</section>
 {% endblock %}

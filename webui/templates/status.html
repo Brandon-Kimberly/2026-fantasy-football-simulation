@@ -1,48 +1,47 @@
 {% extends "base.html" %}
-{% block title %}Status - fantasy-sim{% endblock %}
+{% from "_macros.html" import tiles %}
+{% block title %}Status · fantasy-sim{% endblock %}
 {% block body %}
-<h1>Status <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
-<p class="muted small">Sync week {{ fr.week or "?" }} &middot; offline verdict (the week roll is not checked from the server) &middot; root <code>{{ root_path }}</code></p>
+{% set next_win = None %}{% if windows.result %}{% for w in windows.result.windows %}{% if w.status in ('OPEN','UPCOMING') and not next_win %}{% set next_win = w %}{% endif %}{% endfor %}{% endif %}
+<div class="head">
+  <p class="eyebrow">2026 season · sync week {{ fr.week or "?" }}</p>
+  <h1>Status <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
+  <p class="lede">{% if fr.reasons %}{{ fr.reasons|join('; ') }}{% else %}Every sync output is at least as new as the sync's start, Vegas is stamped for week {{ fr.vegas_week }}, and the week's simulation export is newer than the sync.{% endif %} Verdict is offline: the week roll is not checked from the server.</p>
+</div>
+{{ tiles([
+  {"k": "last sync", "v": (fr.manifest.finished_at[5:16]|replace("T"," ") if fr.manifest and fr.manifest.finished_at else "—"), "s": ("ok" if fr.manifest and fr.manifest.ok else "not ok") ~ (" · " ~ (fr.manifest.degraded|length) ~ " tolerated failure(s)" if fr.manifest and fr.manifest.degraded else ""), "tone": ""},
+  {"k": "simulation exports", "v": (weeks|length)|string, "s": ("weeks " ~ weeks|join(", ")) if weeks else "none yet", "tone": ""},
+  {"k": "next run window", "v": (next_win.name if next_win else "—"), "s": (next_win.deadline.strftime("%a %H:%MZ") ~ " deadline" if next_win else (windows.note or "")), "tone": ""},
+  {"k": "logs", "v": ("clean" if git and not git.uncommitted and not git.unpushed else ((git.uncommitted|length)|string ~ " uncommitted" if git and git.uncommitted else ((git.unpushed|string ~ " unpushed") if git and git.unpushed else "—"))), "s": ("nothing to push" if git and not git.uncommitted and not git.unpushed else "data/logs is the record that survives a machine loss"), "tone": ("" if git and not git.uncommitted and not git.unpushed else "neg")}
+]) }}
 
-{% if fr.reasons %}
-<ul>{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
-{% else %}
-<p>Every sync output is at least as new as the sync's start, Vegas is stamped for week {{ fr.vegas_week }}, and the week's simulation export is newer than the sync.</p>
+{% if fr.vegas_stale_since %}<div class="note warn"><b>Vegas kept from {{ fr.vegas_stale_since }}.</b> The odds fetch failed and the real lines were preserved rather than overwritten (C3).</div>{% endif %}
+{% if fr.manifest and fr.manifest.degraded %}
+<details><summary>{{ fr.manifest.degraded|length }} tolerated failure(s) in the last sync</summary><pre>{{ fr.manifest.degraded|join('\n')|real }}</pre></details>
 {% endif %}
 
-{% if fr.manifest %}
-<h2>Last sync</h2>
-<p class="small">started {{ fr.manifest.started_at }} &middot; finished {{ fr.manifest.finished_at }} &middot; ok={{ fr.manifest.ok }}{% if fr.vegas_stale_since %} &middot; <b>Vegas kept from {{ fr.vegas_stale_since }} (C3: the fetch failed and the real lines were preserved)</b>{% endif %}</p>
-{% if fr.manifest.degraded %}
-<details><summary>{{ fr.manifest.degraded|length }} tolerated failure(s) in the sync</summary>
-<ul class="small">{% for d in fr.manifest.degraded %}<li>{{ d|real }}</li>{% endfor %}</ul></details>
-{% endif %}
-{% endif %}
-
-<h2>Run windows</h2>
-{% if windows.note %}<p class="note">{{ windows.note }}</p>{% endif %}
+<section>
+<h2>Run windows <span class="hint">{% if windows.result %}target week {{ windows.result.target_week }} · kickoffs from the {{ windows.source }}{% else %}America/Los_Angeles windows, shown in UTC{% endif %}</span></h2>
+{% if windows.note %}<div class="note">{{ windows.note }}</div>{% endif %}
 {% if windows.result %}
-<p class="small muted">target week {{ windows.result.target_week }} &middot; kickoffs from the {{ windows.source }}</p>
-<table><thead><tr><th>Window</th><th>Opens (UTC)</th><th>Deadline (UTC)</th><th>Status</th><th>Covered by</th></tr></thead><tbody>
-{% for w in windows.result.windows %}
-<tr><td>{{ w.name }}</td><td>{{ w.start.strftime("%Y-%m-%d %H:%MZ") if w.start else "" }}</td><td>{{ w.deadline.strftime("%Y-%m-%d %H:%MZ") if w.deadline else "" }}</td><td>{{ w.status }}</td><td>{{ w.covered_by or "" }}</td></tr>
-{% endfor %}
-</tbody></table>
-{% for f in windows.result.flags or [] %}<p class="note">{{ f }}</p>{% endfor %}
-{% if windows.verdict and windows.verdict.actionable %}<p class="note"><b>Action:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h ({{ a.deadline }}){% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+<div class="scroller"><table><thead><tr><th>Window</th><th>Opens</th><th>Deadline</th><th>Status</th><th>Covered by</th></tr></thead><tbody>
+{% for w in windows.result.windows %}<tr><td class="nm">{{ w.name }}</td><td class="tnum">{{ w.start.strftime("%a %Y-%m-%d %H:%MZ") if w.start else "" }}</td><td class="tnum">{{ w.deadline.strftime("%a %Y-%m-%d %H:%MZ") if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status }}</span></td><td class="small muted">{{ w.covered_by or "" }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% for f in windows.result.flags or [] %}<div class="note">{{ f }}</div>{% endfor %}
+{% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>Action:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h ({{ a.deadline }}){% if not loop.last %}; {% endif %}{% endfor %}</div>{% endif %}
 {% endif %}
+</section>
 
-<h2>Reports on disk</h2>
-{% if weeks %}<p>Simulation exports: {% for w in weeks %}<a href="/weeks/{{ w }}">week {{ w }}</a>{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>{% else %}<p class="muted">No simulation export yet.</p>{% endif %}
-{% if digests %}<ul class="files">{% for wk, e in digests.items()|sort(reverse=true) %}<li><span class="tool">week {{ wk }} canonical</span> <a href="{{ e.link }}">{{ e.name }}</a> <span class="muted">{{ e.stamp|stamp }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No canonical digest on disk (a scheduled run's digest lives on the runner; <code>scripts.localize_reports --fetch</code> files it under data/results/).</p>{% endif %}
+<section>
+<h2>Reports on disk <span class="hint">canonical digests; the archive is under Decisions</span></h2>
+{% if digests %}<div class="rows">{% for wk, e in digests.items()|sort(reverse=true) %}<div class="row"><span class="t">week {{ wk }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{{ e.stamp|stamp }}</span></div>{% endfor %}</div>
+{% else %}<p class="muted small">No canonical digest on disk — a scheduled run's digest lives on the runner; <code>scripts.localize_reports --fetch</code> files it under Runner.</p>{% endif %}
+</section>
 
-<h2>Logs push state</h2>
-{% if git is none %}<p class="muted">Not a git checkout, or git unavailable.</p>
-{% else %}<p class="small">{% if git.uncommitted %}<b>uncommitted:</b> {{ git.uncommitted|join(", ") }}{% else %}nothing uncommitted under data/logs{% endif %} &middot; {% if git.unpushed is none %}no upstream{% elif git.unpushed %}<b>{{ git.unpushed }} unpushed commit(s)</b>{% else %}nothing unpushed{% endif %}</p>{% endif %}
-
-<h2>From a terminal</h2>
-<p class="small">This page reads; it does not sync. Sync is a deliberate terminal act (docs/WEB_UI.md, W4).</p>
-<table><tbody>{% for cmd, why in commands %}<tr><td><code>{{ cmd }}</code></td><td class="small">{{ why }}</td></tr>{% endfor %}</tbody></table>
-<p class="note">{{ r1 }}</p>
-<p class="note small">{{ warnings_note }}</p>
+<section>
+<h2>From a terminal <span class="hint">what this page will not do for you</span></h2>
+<div class="rows">{% for cmd, why in commands %}<div class="row"><span class="t">run</span><span><code>{{ cmd }}</code></span><span class="r" style="white-space:normal;text-align:right;max-width:34ch">{{ why }}</span></div>{% endfor %}</div>
+<div class="note">{{ r1 }}</div>
+<div class="note small">{{ warnings_note }}</div>
+</section>
 {% endblock %}

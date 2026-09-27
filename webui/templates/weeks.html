@@ -1,13 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Weeks - fantasy-sim{% endblock %}
+{% block title %}Weeks · fantasy-sim{% endblock %}
 {% block body %}
-<h1>Simulation exports</h1>
-<p class="muted small">One directory per simulated week under data/weeks/. A later week's run never overwrites an earlier one.</p>
+<div class="head"><p class="eyebrow">simulation exports</p><h1>Weeks</h1><p class="lede">One directory per simulated week under <code>data/weeks/</code>. A later week's run never overwrites an earlier week's export; a re-run of the same week does.</p></div>
 {% if rows %}
-<table><thead><tr><th>Week</th><th data-type="number">Teams forecast</th><th data-type="number">Files</th><th>Export written (UTC)</th></tr></thead><tbody>
-{% for r in rows|reverse %}
-<tr><td><a href="/weeks/{{ r.week }}">week {{ r.week }}</a></td><td class="num">{{ r.teams }}</td><td class="num">{{ r.files }}</td><td>{{ r.mtime|ts }}</td></tr>
-{% endfor %}
-</tbody></table>
-{% else %}<p class="muted">No exports on disk yet -- run <code>py -3.10 -m scripts.run_simulation</code>.</p>{% endif %}
+<div class="scroller"><table><thead><tr><th>Week</th><th class="num">Teams forecast</th><th class="num">Files</th><th>Export written</th></tr></thead><tbody>
+{% for r in rows|reverse %}<tr><td class="nm"><a href="/weeks/{{ r.week }}">week {{ r.week }}</a></td><td class="num">{{ r.teams }}</td><td class="num">{{ r.files }}</td><td class="tnum muted">{{ r.mtime|ts }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="note">No exports on disk yet — run <code>py -3.10 -m scripts.run_simulation</code>, or launch it from Tools.</div>{% endif %}
 {% endblock %}
