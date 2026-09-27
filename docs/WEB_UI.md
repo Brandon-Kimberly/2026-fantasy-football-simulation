@@ -355,9 +355,36 @@ C3's data-destroying path. Reading the User-scope registry value from the server
 a fresh key is possible (`winreg`, HKCU\Environment) and would make the UI the *only* place
 that logic lives — a second copy of an H5 decision, which this repo's rules reject.
 
-Decision: the status page shows freshness and prints `py -3.10 -m scripts.run_sync` with
-the H5 note. Revisit only if the owner asks, and then as its own scoped item with the
-registry read specified.
+Decision (2026-09-24): the status page shows freshness and prints `py -3.10 -m
+scripts.run_sync` with the H5 note. Revisit only if the owner asks, and then as its own
+scoped item with the registry read specified.
+
+**Reopened 2026-09-27 at the owner's request** ("three trades were just processed; the
+rosters and everything downstream are stale"), with the registry read specified and two
+more safeguards, as `webui/sync.py` and the Sync page:
+
+1. *Preflight.* The key is read from the Windows User scope (`winreg`,
+   HKCU\Environment) first and this process's environment only as a fallback; the page
+   says which. It is probed against the-odds-api (the same verdicts as
+   `fantasy_sim.sync.verify_odds_key`, copied because that module is one the web
+   process must never import) and the launch goes ahead only on `ok`. Rejected, absent
+   and unreachable all stop with nothing written and nothing launched; the fallback
+   sync stays a deliberate terminal act (`--allow-fallback`). The page renders without
+   probing -- the probe spends an API request, so it runs only on launch.
+2. *Backup.* Every file in `data/current/` is copied to
+   `data/local/webui/backups/<stamp>/` (local, never served, never tracked) with a
+   manifest before the launch; a Restore button copies one back, refused while a job
+   runs; the ten newest are kept. This is the restore C3 never had.
+3. *Injection.* The verified key reaches the child through its environment only
+   (`JobRunner.launch(env=...)`); it never enters the job record, the log, or a page.
+   The sync re-verifies it itself (H5), so a stale shell value cannot be used twice.
+
+Two modes: *Sync* (`scripts.run_sync`) and *Sync & refresh* (`scripts.weekly_report`
+WITHOUT `--skip-sync`, the repository's primary entry point exactly as a hand run:
+non-canonical, filed under the week's archive). The tool registry still does not offer
+`run_sync`; the guarded page is the only way. What a sync touches: `data/current/`
+(rewritten by design) and the rows it APPENDS to the season logs; never a log rewrite,
+never `data/weeks/`, `data/decisions/` or the predictions log.
 
 ### W5 (optional, later) — Sandbox root
 
