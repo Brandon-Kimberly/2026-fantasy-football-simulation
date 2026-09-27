@@ -1,19 +1,30 @@
 {% extends "base.html" %}
-{% block title %}{{ tool.title }} · {{ brand }}{% endblock %}
+{% block title %}{{ tool.name|tool_title }} · {{ brand }}{% endblock %}
 {% block body %}
 <style>
-.sugg-wrap { position: relative; max-width: 420px; }
-.sugg { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: var(--chip); border: 1px solid var(--rule); border-top: 0; max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 6px 18px var(--ring); }
+.sugg-wrap { position: relative; }
+.sugg { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: var(--chip); border: 1px solid var(--rule); border-top: 0; border-radius: 0 0 var(--r-ctl) var(--r-ctl); max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 6px 18px var(--ring); }
 .sugg div { padding: 7px 10px; cursor: pointer; font-size: 13.5px; display: flex; gap: 10px; align-items: baseline; }
 .sugg div .m { color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; }
 .sugg div:hover, .sugg div.on { background: var(--pos-bg); }
+.thead { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: end; }
+.thead .est { text-align: right; font-size: 12px; color: var(--muted); }
+.thead .est b { display: block; font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; }
+@media (max-width: 720px) { .thead { grid-template-columns: 1fr; } .thead .est { text-align: left; } }
 </style>
-<div class="head">
-  <p class="eyebrow">{% if tool.engine %}engine run · minutes{% elif tool.heavy %}decision tool · minutes{% else %}decision tool · seconds{% endif %}</p>
-  <h1>{{ tool.name|tool_title }}</h1>
-  <p class="lede">{{ tool.question }}</p>
+{% set who = tool.fields|selectattr('kind', 'in', ['team', 'player', 'myplayer', 'myplayers', 'free_players', 'team_players', 'players'])|list %}
+{% set when = tool.fields|selectattr('name', 'in', ['week', 'season'])|rejectattr('kind', 'equalto', 'flag')|list %}
+{% set opts = tool.fields|selectattr('kind', 'equalto', 'flag')|list %}
+{% set how = tool.fields|rejectattr('name', 'in', (who + when + opts)|map(attribute='name')|list)|list %}
+<div class="head thead">
+  <div>
+    <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %} · {{ tool.name|replace("_", " ") }}</p>
+    <h1>{{ tool.name|tool_title }}</h1>
+    <p class="lede">{{ tool.question }}</p>
+    {% if tool.note %}<p class="small muted" style="margin:8px 0 0;max-width:80ch">{{ tool.note }}</p>{% endif %}
+  </div>
+  <div class="est">{% if avg and avg[0] %}<b>{{ avg[0]|dshort }}</b>average of the last {{ avg[1] }} run{{ 's' if avg[1] != 1 }}{% else %}<b>{{ 'minutes' if (tool.heavy or tool.engine) else 'seconds' }}</b>typical, no runs yet{% endif %}</div>
 </div>
-{% if tool.note %}<p class="small muted" style="margin:-6px 0 14px;max-width:80ch">{{ tool.note }}</p>{% endif %}
 {% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>. A second launch waits until it finishes.</div>{% endif %}
 {% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
 {% if tool.engine and fr %}
@@ -26,28 +37,57 @@
 </div>
 {% endif %}
 
-<section>
-<h2>Settings <span class="hint">blank = the tool's default{% if tool.fields|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
-<form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off">
-<input type="hidden" name="_csrf" value="{{ csrf_token }}">
-{% for f in tool.fields %}
-<div class="f">
-<label for="f_{{ f.name }}">{{ f.label }}{% if f.required %} *{% endif %}</label>
-<div>
-{% if f.kind == "flag" %}<input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}>
-{% elif f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
-{% elif f.is_player %}<div class="sugg-wrap"><input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-player="1" data-list="{{ '1' if f.is_list else '0' }}" data-owner="{{ f.owner_spec(values) or 'all' }}"{% if f.owner_field %} data-owner-field="f_{{ f.owner_field }}"{% endif %} placeholder="{% if f.is_list %}names, comma-separated{% else %}player name{% endif %}"><div class="sugg" id="s_{{ f.name }}"></div></div>
-{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}"{% if f.kind != 'text' %} style="max-width:160px"{% endif %}>
+{% macro control(f) -%}
+{% if f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
+{% elif f.is_player %}<div class="sugg-wrap"><input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}" data-player="1" data-list="{{ '1' if f.is_list else '0' }}" data-owner="{{ f.owner_spec(values) or 'all' }}"{% if f.owner_field %} data-owner-field="f_{{ f.owner_field }}"{% endif %} placeholder="{% if f.is_list %}names, comma-separated{% else %}start typing a name{% endif %}"><div class="sugg" id="s_{{ f.name }}"></div></div>
+{% elif f.kind in ("int", "float") %}<input type="number" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}"{% if f.kind == 'float' %} step="any"{% else %} step="1"{% endif %}{% if f.default is not none %} placeholder="{{ f.default }}"{% endif %}>
+{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}"{% if f.default is not none %} placeholder="{{ f.default }}"{% endif %}>
 {% endif %}
-{% if f.help %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %} — from your roster{% elif f.kind == 'free_players' %} — free agents only{% elif f.kind == 'team_players' %} — from the selected team's roster{% endif %}</div>{% endif %}
+{%- endmacro %}
+
+{% macro field(f) -%}
+<div class="f{% if f.is_list or f.kind == 'text' and f.name == 'positions' %} wide{% endif %}">
+<label for="f_{{ f.name }}">{{ f.label|capitalize }}{% if f.required %}<span class="req" title="required">*</span>{% endif %}</label>
+{{ control(f) }}
+{% if f.help or f.kind in ('myplayer','myplayers','free_players','team_players') or f.default is not none %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %}{{ ' — ' if f.help }}from your roster{% elif f.kind == 'free_players' %}{{ ' — ' if f.help }}free agents only{% elif f.kind == 'team_players' %}{{ ' — ' if f.help }}from the selected team's roster{% endif %}{% if f.default is not none and f.kind not in ('flag',) %}{{ ' · ' if (f.help or f.kind in ('myplayer','myplayers','free_players','team_players')) }}default {{ f.default }}{% endif %}</div>{% endif %}
 </div>
+{%- endmacro %}
+
+<section>
+<h2>Set it up <span class="hint">blank = the tool's default{% if who|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
+<form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off" id="toolform">
+<input type="hidden" name="_csrf" value="{{ csrf_token }}">
+{% if who %}<div class="grp g-who"><h3><svg class="i c-turf"><use href="#i-users"/></svg> Who <span class="hint">teams and players</span></h3><div class="fields">{% for f in who %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if when %}<div class="grp g-when"><h3><svg class="i c-gold"><use href="#i-cal"/></svg> When <span class="hint">blank = this week</span></h3><div class="fields">{% for f in when %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if how %}<div class="grp g-how"><h3><svg class="i c-pos"><use href="#i-engine"/></svg> How much <span class="hint">the defaults are the ones the terminal uses</span></h3><div class="fields">{% for f in how %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if opts %}<div class="grp g-opt"><h3><svg class="i c-violet"><use href="#i-flag"/></svg> Options</h3>
+{% for f in opts %}<div class="sw"><input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1" data-arg="--{{ f.name }}"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}><span class="tog" onclick="document.getElementById('f_{{ f.name }}').click()"></span><div><label for="f_{{ f.name }}">{{ f.label|capitalize }}</label>{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}</div></div>{% endfor %}
+</div>{% endif %}
+{% if not tool.fields %}<p class="small muted">This one takes no settings.</p>{% endif %}
+<div class="launch">
+  <button type="submit"><svg class="i"><use href="#i-arrow"/></svg> Launch</button>
+  <div class="cmd" id="cmd" data-tool="{{ tool.name }}" data-forced="{{ tool.forced|join(' ') }}">py -3.10 -m scripts.{{ tool.name }}</div>
+  <span class="small muted">the answer opens on the job page when it finishes</span>
 </div>
-{% endfor %}
-<div class="actions"><button type="submit">Launch</button><span class="small muted">the answer opens on the job page when it finishes</span></div>
 </form>
 </section>
 <script>
 (function () {
+  // the command that will run, kept in step with the form (a preview, not the launcher's argv)
+  var form = document.getElementById('toolform'), cmd = document.getElementById('cmd');
+  function build() {
+    var parts = ['py -3.10 -m scripts.' + cmd.getAttribute('data-tool')], pos = [];
+    form.querySelectorAll('[data-arg]').forEach(function (el) {
+      var arg = el.getAttribute('data-arg'), v = el.type === 'checkbox' ? (el.checked ? '1' : '') : el.value.trim();
+      if (!v) return;
+      var q = /\s/.test(v) ? '"' + v + '"' : v;
+      if (el.type === 'checkbox') parts.push(arg); else if (arg === '') pos.push(q); else parts.push(arg + ' ' + q);
+    });
+    var forced = cmd.getAttribute('data-forced');
+    cmd.textContent = parts.concat(pos).join(' ') + (forced ? ' ' + forced : '');
+  }
+  form.addEventListener('input', build); form.addEventListener('change', build); build();
+
   var timers = {};
   function owner(inp) {
     var f = inp.getAttribute('data-owner-field');
@@ -60,7 +100,7 @@
     return i < 0 ? { head: '', tail: inp.value } : { head: inp.value.slice(0, i + 1) + ' ', tail: inp.value.slice(i + 1) };
   }
   function close(box) { box.style.display = 'none'; box.innerHTML = ''; }
-  function fill(inp, box, players, typed) {
+  function fill(inp, box, players) {
     box.innerHTML = '';
     if (!players.length) { close(box); return; }
     players.forEach(function (p, i) {
@@ -76,15 +116,14 @@
   }
   function choose(inp, box, name) {
     var s = segment(inp);
-    inp.value = s.head + name + (inp.getAttribute('data-list') === '1' ? '' : '');
-    close(box);
-    inp.focus();
+    inp.value = s.head + name;
+    close(box); inp.focus(); build();
   }
   function query(inp, box) {
     var s = segment(inp), q = s.tail.trim();
     var url = '/api/players?q=' + encodeURIComponent(q) + '&owner=' + encodeURIComponent(owner(inp));
     fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); })
-      .then(function (j) { if (document.activeElement === inp) fill(inp, box, j.players || [], q); })
+      .then(function (j) { if (document.activeElement === inp) fill(inp, box, j.players || []); })
       .catch(function () { close(box); });
   }
   document.querySelectorAll('input[data-player]').forEach(function (inp) {

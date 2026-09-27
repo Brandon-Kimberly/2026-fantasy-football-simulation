@@ -58,7 +58,7 @@
 <h2>{{ view.title|real }} <span class="hint">{{ view.subtitle|real }} · <a href="{{ job.record }}">the record on disk</a></span></h2>
 {{ record(view) }}
 </section>
-{% elif job.record and not running %}<div class="note good"><b>Written:</b> <a href="{{ job.record }}">{{ job.record.rsplit('/', 1)[-1] }}</a></div>
+{% elif job.record and not running %}<div class="note good"><b>Record written</b> — <a href="{{ job.record }}">open it</a></div>
 {% endif %}
 
 <section>
@@ -68,6 +68,6 @@
 <h2>What the tool printed <span class="hint">{{ (size / 1024)|round(1) }} KB · <a href="/jobs/{{ job.id }}/log">plain text</a></span></h2>
 {{ console(blocks) }}
 {% endif %}
-<details class="sec"><summary>The command, and where it ran</summary><p class="small"><code>py -3.10 {{ job.args|join(" ")|real }}</code></p><p class="small muted">job <code>{{ job.id }}</code>{% if job.pid %} · pid {{ job.pid }}{% endif %} · in <code>{{ job.cwd }}</code> · started {{ job.started_at }}{% if job.finished_at %} · finished {{ job.finished_at }}{% endif %}{% if job.rc is not none %} · exit code {{ job.rc }}{% endif %}</p></details>
+<details class="sec"><summary>The command, and where it ran</summary><p class="small"><code>py -3.10 {{ job.args|join(" ")|real }}</code></p><p class="small muted">job <code>{{ job.id }}</code>{% if job.pid %} · pid {{ job.pid }}{% endif %} · started {{ job.started_at|when }}{% if job.finished_at %} · finished {{ job.finished_at|when }}{% endif %}{% if job.rc is not none %} · exit code {{ job.rc }}{% endif %}</p></details>
 </section>
 {% endblock %}

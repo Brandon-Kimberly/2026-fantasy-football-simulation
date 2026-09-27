@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, teamlink %}
+{% from "_macros.html" import tiles, mark, teamlink, rawlink %}
 {% block title %}Week {{ week }} forecast · {{ brand }}{% endblock %}
 {% block body %}
 {% set mine = forecast.get(my_team) or {} %}{% set mf = mine.forecast or {} %}{% set mc = mine.current_state or {} %}
@@ -18,6 +18,14 @@
 
 {% if rows %}
 <section>
+<h2><svg class="i"><use href="#i-trophy"/></svg> Playoff odds <span class="hint">every team, from this run</span></h2>
+<div class="viz2">
+  <div class="vizbox"><div class="k">playoff probability</div><div class="hbar">{% for r in rows %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i style="background:hsl({{ r.team|hue }} 55% 48%)" data-width="{{ (r.playoff or 0)|round(1) }}"></i></span><span class="v">{{ r.playoff|num(1) }}%</span>{% endfor %}</div></div>
+  <div class="vizbox"><div class="k">title probability</div><div class="hbar">{% for r in rows|sort(attribute='champ', reverse=true) %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i style="background:hsl({{ r.team|hue }} 55% 48%)" data-width="{{ (r.champ or 0)|round(1) }}"></i></span><span class="v">{{ r.champ|num(1) }}%</span>{% endfor %}</div></div>
+</div>
+</section>
+
+<section>
 <h2>Every team <span class="hint">sorted by playoff odds · click a column to sort</span></h2>
 <div class="scroller"><table><thead><tr>
 <th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th>
@@ -34,9 +42,66 @@
 </section>
 {% endif %}
 
+{% if traj %}
+{% set names = rows|map(attribute='team')|list if rows else traj.keys()|list %}
+{% set series = [] %}{% for t in names %}{% set v = (traj.get(t) or {}).get('expected_cumulative_wins_by_week') %}{% if v %}{% set _ = series.append((t, v)) %}{% endif %}{% endfor %}
+{% if series %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-chart"/></svg> Expected wins, week by week <span class="hint">every team · mine in green</span></h2>
+{% set W = 720 %}{% set H = 240 %}{% set pad = 30 %}{% set top = 12 %}
+{% set n = series[0][1]|length %}{% set mx = [(series|map(attribute=1)|map('max')|max)|float, 1.0]|max %}
+<div class="vizbox">
+<svg class="viz" viewBox="0 0 {{ W }} {{ H }}" preserveAspectRatio="none" aria-label="expected wins by week">
+{% for g in range(0, 5) %}{% set y = top + (H - top - 24) * (1 - g / 4) %}<line class="ax" x1="{{ pad }}" y1="{{ y|round(1) }}" x2="{{ W - 10 }}" y2="{{ y|round(1) }}"/><text x="{{ pad - 4 }}" y="{{ (y + 4)|round(1) }}" text-anchor="end">{{ (mx * g / 4)|round(0)|int }}</text>{% endfor %}
+{% for t, v in series %}{% if t != my_team %}<polyline class="ln" points="{% for x in v %}{{ (pad + loop.index0 * (W - pad - 10) / (n - 1))|round(1) }},{{ (top + (H - top - 24) * (1 - (x or 0) / mx))|round(1) }} {% endfor %}"><title>{{ t|real }}</title></polyline>{% endif %}{% endfor %}
+{% for t, v in series %}{% if t == my_team %}<polyline class="ln me" points="{% for x in v %}{{ (pad + loop.index0 * (W - pad - 10) / (n - 1))|round(1) }},{{ (top + (H - top - 24) * (1 - (x or 0) / mx))|round(1) }} {% endfor %}"/>{% set last = v[-1] %}<text x="{{ W - 12 }}" y="{{ (top + (H - top - 24) * (1 - (last or 0) / mx) - 6)|round(1) }}" text-anchor="end" style="fill:var(--turf);font-weight:600">{{ my_team|real }} · {{ last|num(1) }}</text>{% endif %}{% endfor %}
+{% if week and week - 1 < n %}{% set xw = pad + (week - 1) * (W - pad - 10) / (n - 1) %}<line class="ax2" x1="{{ xw|round(1) }}" y1="{{ top }}" x2="{{ xw|round(1) }}" y2="{{ H - 24 }}" stroke-dasharray="3 3"/><text x="{{ (xw + 4)|round(1) }}" y="{{ top + 10 }}">now</text>{% endif %}
+{% for i in range(n) %}<text x="{{ (pad + i * (W - pad - 10) / (n - 1))|round(1) }}" y="{{ H - 8 }}" text-anchor="{{ 'start' if i == 0 else ('end' if i == n - 1 else 'middle') }}">{{ i + 1 }}</text>{% endfor %}
+</svg>
+<div class="legend"><span><i style="background:var(--turf)"></i>{{ my_team|real }}</span><span><i style="background:var(--rule)"></i>every other team (hover a line for its name)</span><span>x = week · y = expected cumulative wins</span></div>
+</div>
+</section>
+{% endif %}
+{% endif %}
+
+{% if seeds %}
+<section>
+<h2><svg class="i c-violet"><use href="#i-flag"/></svg> Where each team finishes <span class="hint">probability of each seed · darker = likelier</span></h2>
+{% set names = rows|map(attribute='team')|list if rows else seeds.keys()|list %}
+{% set seedkeys = (seeds[names[0]] or {}).keys()|list %}
+<div class="scroller"><table class="heat"><thead><tr><th class="nm">Team</th>{% for k in seedkeys %}<th>{{ k|replace('Seed ', '#') }}</th>{% endfor %}</tr></thead><tbody>
+{% for t in names %}<tr{% if t == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for k in seedkeys %}{% set v = (seeds.get(t) or {}).get(k) %}<td><span style="background:rgba(107,91,210,{{ ((v or 0) / 100 * 0.85)|round(3) }});{% if (v or 0) > 45 %}color:#fff{% endif %}">{{ v|num(0) }}</span></td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+
+{% if h2h %}
+<section>
+<h2><svg class="i c-pos"><use href="#i-swap"/></svg> Head to head <span class="hint">chance the row beats the column in a game · blue favours the row, red the column</span></h2>
+{% set names = rows|map(attribute='team')|list if rows else h2h.keys()|list %}
+<div class="scroller"><table class="heat"><thead><tr><th class="nm"></th>{% for c in names %}<th title="{{ c|real }}">{{ mark(c) }}</th>{% endfor %}</tr></thead><tbody>
+{% for r in names %}<tr{% if r == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r) }}{{ teamlink(r) }}</td>{% for c in names %}{% set v = (h2h.get(r) or {}).get(c) %}{% if r == c or v is none or v != v %}<td><span class="muted">·</span></td>{% else %}{% set d = (v - 50) / 50 %}<td><span style="background:{% if d >= 0 %}rgba(42,120,214,{{ (d * 0.8)|round(3) }}){% else %}rgba(227,73,72,{{ (-d * 0.8)|round(3) }}){% endif %}">{{ v|num(0) }}</span></td>{% endif %}{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+
+{% if wins_dist or score_pct %}
+<section>
+<h2><svg class="i c-warm"><use href="#i-pulse"/></svg> Floors and ceilings <span class="hint">season wins and a typical week's score, p10 · p50 · p90</span></h2>
+{% set names = rows|map(attribute='team')|list if rows else wins_dist.keys()|list %}
+{% set wmax = [(wins_dist.values()|map(attribute='p90_ceiling')|max if wins_dist else 1)|float, 1.0]|max %}
+{% set smax = [(score_pct.values()|map(attribute='p90_ceiling')|max if score_pct else 1)|float, 1.0]|max %}
+<div class="scroller"><table><thead><tr><th>Team</th><th>Season wins</th><th class="num">Mean</th><th>Weekly score</th><th class="num">Mean</th></tr></thead><tbody>
+{% for t in names %}{% set w = wins_dist.get(t) or {} %}{% set s = score_pct.get(t) or {} %}<tr{% if t == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>
+<td>{% if w %}<span class="rng"><span class="bar"><i style="left:{{ (100 * (w.p10_floor or 0) / wmax)|round(1) }}%;width:{{ (100 * ((w.p90_ceiling or 0) - (w.p10_floor or 0)) / wmax)|round(1) }}%"></i><b style="left:{{ (100 * (w.p50_median or 0) / wmax)|round(1) }}%"></b></span><span class="n">{{ w.p10_floor|num(0) }} · {{ w.p50_median|num(0) }} · {{ w.p90_ceiling|num(0) }}</span></span>{% endif %}</td><td class="num">{{ w.expected_mean|num(1) }}</td>
+<td>{% if s %}<span class="rng"><span class="bar"><i style="left:{{ (100 * (s.p10_floor or 0) / smax)|round(1) }}%;width:{{ (100 * ((s.p90_ceiling or 0) - (s.p10_floor or 0)) / smax)|round(1) }}%;border-color:var(--warm);background:var(--warm-bg)"></i><b style="left:{{ (100 * (s.mean or 0) / smax)|round(1) }}%;background:var(--warm)"></b></span><span class="n">{{ s.p10_floor|num(0) }} · {{ s.mean|num(0) }} · {{ s.p90_ceiling|num(0) }}</span></span>{% endif %}</td><td class="num">{{ s.mean|num(1) }}{% if s.std %} <span class="muted tiny">± {{ s.std|num(0) }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+
 {% if charts %}
 <section>
-<h2>Charts <span class="hint">click to open full size</span></h2>
+<h2>Charts <span class="hint">from the run · click to open full size</span></h2>
 <div class="charts">{% for e in charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_week_" ~ week, "")|replace("_"," ")|replace("syndicate ","") }}</figcaption></figure>{% endfor %}</div>
 </section>
 {% endif %}
@@ -45,16 +110,17 @@
 <section>
 <h2>Who wins titles <span class="hint">how often each player starts for the simulated champion</span></h2>
 <p class="small muted">Highest single-week score seen: {{ insights.highest_single_week_score_observed }} by {{ (insights.team_with_highest_ceiling_game or "")|real }} in week {{ insights.week_of_highest_score }}.</p>
-<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number" class="num">In the champion's lineup</th><th data-key="p" data-type="number" class="num">Avg. points those weeks</th></tr></thead><tbody>
-{% for name, v in insights.most_valuable_players_championship_shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td class="num" data-sort="{{ v.championship_lineup_appearance_pct }}">{{ v.championship_lineup_appearance_pct|num(1) }}%</td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
+{% set shares = insights.most_valuable_players_championship_shares %}{% set amax = [(shares.values()|map(attribute='championship_lineup_appearance_pct')|max)|float, 1.0]|max %}
+<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number">In the champion's lineup</th><th data-key="p" data-type="number" class="num">Avg. points those weeks</th></tr></thead><tbody>
+{% for name, v in shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td data-sort="{{ v.championship_lineup_appearance_pct }}"><span class="bc" style="justify-content:flex-start"><span class="mini gold" style="width:120px;min-width:120px"><i data-width="{{ (100 * (v.championship_lineup_appearance_pct or 0) / amax)|round(0)|int }}"></i></span>{{ v.championship_lineup_appearance_pct|num(1) }}%</span></td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
 
 <section>
 <details class="sec"><summary>Files from this run<span class="n">{{ jsons|length }}{% for sub, files in subdirs.items() %}{% if files %} + {{ files|length }} {{ sub|replace("_"," ") }}{% endif %}{% endfor %}</span></summary>
-<div class="rows" style="margin-top:8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
-{% for sub, files in subdirs.items() %}{% for e in files %}<div class="row"><span class="t">{{ sub|replace("_"," ") }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "")|real }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}{% endfor %}</div>
+<div class="rows" style="margin-top:8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
+{% for sub, files in subdirs.items() %}{% for e in files %}<div class="row"><span class="t">{{ sub|replace("_"," ") }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "")|real }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}{% endfor %}</div>
 </details>
 </section>
 

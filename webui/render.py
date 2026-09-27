@@ -244,14 +244,31 @@ def console_blocks(text):
 
 
 # ------------------------------------------------------------------------ record views
-def col(key, label=None, kind="text", nd=1, link=None):
-    """link='team' renders the cell as a link to that team on the League page."""
-    return {"key": key, "label": label or key.replace("_", " "), "kind": kind, "nd": nd, "link": link}
+def col(key, label=None, kind="text", nd=1, link=None, lo=None, mid=None, hi=None):
+    """link='team' renders the cell as a link to that team on the League page.
+    kind='range' draws a lo-hi band with a tick at mid (three row keys), scaled to the
+    table's largest hi so every row's bar is comparable."""
+    return {"key": key, "label": label or key.replace("_", " "), "kind": kind, "nd": nd, "link": link,
+            "lo": lo, "mid": mid, "hi": hi}
+
+
+def _num(v):
+    try:
+        f = float(v)
+        return None if f != f else f
+    except Exception:
+        return None
 
 
 def _cell(row, c):
     v = row.get(c["key"]) if isinstance(row, dict) else None
     k = c["kind"]
+    if k == "range":
+        lo, mid, hi = (_num(row.get(c["lo"])), _num(row.get(c["mid"])), _num(row.get(c["hi"]))) if isinstance(row, dict) else (None, None, None)
+        if lo is None or hi is None:
+            return {"text": "—", "num": True, "tone": "", "range": None}
+        return {"text": f"{fnum(lo, c['nd'])}–{fnum(hi, c['nd'])}", "num": True, "tone": "",
+                "range": {"lo": lo, "mid": mid, "hi": hi, "max": hi}}
     if k == "num":
         return {"text": fnum(v, c["nd"]), "num": True, "tone": ""}
     if k == "pct":
@@ -267,10 +284,16 @@ def _cell(row, c):
 
 def table(title, columns, rows, note=None, me_key=None, collapsed=False):
     rows = rows or []
+    out = [{"cells": [_cell(r, c) for c in columns], "me": (r.get(me_key) if me_key and isinstance(r, dict) else None)}
+           for r in rows if isinstance(r, dict)]
+    for i, c in enumerate(columns):               # one scale per range column, so bars compare across rows
+        if c["kind"] == "range":
+            top = max([r["cells"][i]["range"]["hi"] for r in out if r["cells"][i].get("range")] or [0])
+            for r in out:
+                if r["cells"][i].get("range"):
+                    r["cells"][i]["range"]["max"] = top
     return {"kind": "table", "title": title, "note": note, "me_key": me_key, "collapsed": collapsed,
-            "columns": columns,
-            "rows": [{"cells": [_cell(r, c) for c in columns], "me": (r.get(me_key) if me_key and isinstance(r, dict) else None)}
-                     for r in rows if isinstance(r, dict)]}
+            "columns": columns, "rows": out}
 
 
 def kv(title, items, note=None):
@@ -303,8 +326,8 @@ def _lineup(d):
                   tile("locked in place", str(d.get("pinned", 0)), "starters whose game has kicked off" if d.get("locks_active") else "no games have kicked off"),
                   tile("unfilled slots", str(len(d.get("unfilled") or [])), "no eligible player" if d.get("unfilled") else "every slot filled", "neg" if d.get("unfilled") else "")],
         "sections": [
-            table("Starters", [col("slot"), col("name"), col("pos"), col("expected", kind="num"), col("p10", kind="num", nd=0),
-                               col("p50", kind="num", nd=0), col("p90", kind="num", nd=0), col("p_zero", "P(0 pts)", "pct"),
+            table("Starters", [col("slot"), col("name"), col("pos"), col("expected", kind="num"),
+                               col("band", "floor–ceiling (p10 · p50 · p90)", "range", nd=0, lo="p10", mid="p50", hi="p90"), col("p_zero", "P(0 pts)", "pct"),
                                col("margin", "margin over bench", "signed", 1), col("alternative", "best alternative"), col("flag", "status", "flag")],
                   starters),
             table("Questionable starters", [col("name"), col("slot"), col("expected", kind="num"), col("fallback"),
@@ -399,8 +422,9 @@ def _compare(d):
                       tile(f"{bn} wins", fpct(d.get("p_b")), f"tie {fpct(d.get('p_tie'))}"),
                       tile("mean difference", fsigned(d.get("mean_diff")), f"{an} minus {bn}", tone(d.get("mean_diff"))),
                       tile("draws", f"{int(d.get('n') or 0):,}", "quick mode: baseline parameters, no simulation" if quick else "joint simulation")],
-            "sections": [table("Distributions", [col("player"), col("mean", kind="num"), col("p10", kind="num"), col("p25", kind="num"), col("p50", kind="num"),
-                                                 col("p75", kind="num"), col("p90", kind="num"), col("p_zero", "P(0 pts)", "pct")], rows),
+            "sections": [table("Distributions", [col("player"), col("mean", kind="num"),
+                                                 col("band", "floor–ceiling (p10 · p50 · p90)", "range", lo="p10", mid="p50", hi="p90"),
+                                                 col("p25", kind="num"), col("p75", kind="num"), col("p_zero", "P(0 pts)", "pct")], rows),
                          text("Caveat", d.get("note"))]}
 
 
@@ -576,16 +600,57 @@ def duration(seconds):
     return f"{s // 3600} h {(s % 3600) // 60} m"
 
 
-def when(iso):
-    """'2026-09-27T05:59:45Z' -> 'Sep 27 05:59Z'."""
-    import datetime as _dt
+def duration_short(seconds):
+    """For a card: 45 -> '45 s'; 138 -> '2.3 m'; 4000 -> '1.1 h'."""
     try:
-        return _dt.datetime.strptime(str(iso), "%Y-%m-%dT%H:%M:%SZ").strftime("%b %d %H:%MZ")
+        s = max(0.0, float(seconds))
     except Exception:
+        return "—"
+    if s < 60:
+        return f"{int(round(s))} s"
+    if s < 3600:
+        return f"{s / 60:.1f} m"
+    return f"{s / 3600:.1f} h"
+
+
+def parse_time(value):
+    """A UTC datetime from anything the repo writes: an aware or naive datetime, an ISO
+    'Z' stamp, a compact 20260924T165331Z stamp, or epoch seconds. None otherwise."""
+    import datetime as _dt
+    if isinstance(value, _dt.datetime):
+        return value if value.tzinfo else value.replace(tzinfo=_dt.timezone.utc)
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
         try:
-            return _dt.datetime.strptime(str(iso), "%Y%m%dT%H%M%SZ").strftime("%b %d %H:%MZ")
+            return _dt.datetime.fromtimestamp(float(value), _dt.timezone.utc)
         except Exception:
-            return str(iso or "—")
+            return None
+    s = str(value or "").strip()
+    for fmt in ("%Y-%m-%dT%H:%M:%SZ", "%Y%m%dT%H%M%SZ", "%Y-%m-%dT%H:%M:%S.%fZ", "%Y-%m-%d %H:%MZ", "%Y-%m-%dT%H:%MZ"):
+        try:
+            return _dt.datetime.strptime(s, fmt).replace(tzinfo=_dt.timezone.utc)
+        except ValueError:
+            continue
+    return None
+
+
+def human_time(value, now=None):
+    """Local wall-clock time as a person writes it: 'Sep 24, 4:53 pm'; the year is added
+    only when it is not this year. Anything unparseable comes back as itself."""
+    import datetime as _dt
+    dt = parse_time(value)
+    if dt is None:
+        return str(value or "—")
+    local = dt.astimezone()                      # the machine's zone, which is the owner's
+    ref = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone()
+    h = local.hour % 12 or 12
+    ampm = "am" if local.hour < 12 else "pm"
+    year = f", {local.year}" if local.year != ref.year else ""
+    return f"{local:%b} {local.day}{year}, {h}:{local:%M} {ampm}"
+
+
+def when(value):
+    """The one time filter every template uses (see human_time)."""
+    return human_time(value)
 
 
 def slug(name):

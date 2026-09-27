@@ -23,6 +23,7 @@ from webui import brand, render
 from webui.glance import (freshness_report, home_report, latest_digests, logs_git_report, team_hue,
                           windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
+from webui.live import LiveBoard
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
 from webui.players import PlayerIndex
@@ -49,22 +50,6 @@ def _allowed_host(host, port):
     if port and hport and str(hport) != str(port):
         return False
     return True
-
-
-def _fmt_stamp(s):
-    """20260924T165331Z -> 2026-09-24 16:53Z; anything else unchanged."""
-    try:
-        return _dt.datetime.strptime(str(s), "%Y%m%dT%H%M%SZ").strftime("%Y-%m-%d %H:%MZ")
-    except (TypeError, ValueError):
-        return s
-
-
-def _fmt_epoch(t):
-    """epoch seconds -> 2026-09-24 16:53Z; None -> em dash."""
-    try:
-        return _dt.datetime.fromtimestamp(float(t), _dt.timezone.utc).strftime("%Y-%m-%d %H:%MZ")
-    except Exception:            # None, a string, or a Jinja Undefined (whose __float__ raises)
-        return "—"
 
 
 def _elapsed(meta):
@@ -116,6 +101,8 @@ def week_report(root, week):
                      "exp_points": o.get("Expected_Points"), "magic": fc.get("approximate_magic_number"), "faab": cs.get("remaining_faab")})
     return {"week": n, "forecast": forecast, "teams": teams, "outcomes": outcomes, "rows": rows,
             "metadata": matrix.get("metadata") or {}, "seeds": matrix.get("finishing_seed_probabilities") or {},
+            "h2h": matrix.get("h2h_win_probability_matrix") or {}, "wins_dist": matrix.get("win_distributions") or {},
+            "traj": matrix.get("weekly_trajectories") or {}, "score_pct": matrix.get("weekly_score_percentiles") or {},
             "insights": insights, "warnings": audit.get("warnings") or [],
             "charts": charts, "jsons": jsons, "subdirs": listing["subdirs"]}
 
@@ -151,12 +138,15 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
-def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
+def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
     runner = runner if runner is not None else JobRunner(root)
     from fantasy_sim.config import MY_TEAM
+    # W6: the live scoreboard's in-memory cache. Tests inject one with a fake fetch; the
+    # default only reads the network when the league is configured and this is no runner.
+    live = live if live is not None else LiveBoard.default(root, MY_TEAM)
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
     app = Flask(__name__, template_folder="templates", static_folder=None)
@@ -164,9 +154,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
                       CSRF_TOKEN=csrf_token or secrets.token_urlsafe(32),
                       MY_TEAM=MY_TEAM, TEMPLATES_AUTO_RELOAD=False)
     app.jinja_env.filters["real"] = overlay.text
-    app.jinja_env.filters["stamp"] = _fmt_stamp
+    app.jinja_env.filters["stamp"] = render.human_time
     app.jinja_env.filters["num"] = _fmt_num
-    app.jinja_env.filters["ts"] = _fmt_epoch
+    app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["signed"] = render.fsigned
     app.jinja_env.filters["ago"] = render.ago
@@ -179,6 +169,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
     app.jinja_env.filters["initials"] = lambda s: "".join(w[0] for w in str(s or "").split()[:2]).upper() or "?"
     app.jinja_env.filters["hue"] = team_hue
     app.jinja_env.filters["log_title"] = render.log_title
+    app.jinja_env.filters["clock"] = render.human_time
+    app.jinja_env.filters["dshort"] = render.duration_short
+    app.jinja_env.filters["avatar"] = overlay.avatar
 
     @app.context_processor
     def _ctx():
@@ -186,7 +179,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
-                "r1": R1_SENTENCE, "now": _dt.datetime.now(_dt.timezone.utc).strftime("%Y-%m-%d %H:%MZ")}
+                "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc))}
 
     @app.before_request
     def _host_check():
@@ -225,7 +218,29 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
     # ---------------------------------------------------------------- routes (GET only)
     @app.route("/")
     def home():
-        return render_template("home.html", **home_report(root, MY_TEAM, runner))
+        rep = home_report(root, MY_TEAM, runner)
+        return render_template("home.html", live=_live_payload(live.peek()), **rep)
+
+    def _live_payload(p):
+        """The board's payload with the overlay applied to the two team names -- the JSON
+        the panel's script consumes, so real names reach it the same way they reach HTML."""
+        snap = p.get("snapshot")
+        if snap:
+            snap = dict(snap)
+            for k in ("team", "opponent"):
+                if snap.get(k):
+                    snap[k] = overlay.text(snap[k])
+            p = dict(p, snapshot=snap)
+        return p
+
+    @app.route("/api/live")
+    def api_live():
+        """The live scoreboard (W6). ?refresh=1 asks the board to re-read Sleeper and the
+        scoreboard, subject to its minimum interval; nothing is written anywhere."""
+        wk = freshness_report(root)["week"]
+        if not wk:
+            return {"enabled": False, "snapshot": None, "error": "no sync week on disk", "age_seconds": None}
+        return _live_payload(live.get(wk, refresh=request.args.get("refresh") == "1"))
 
     @app.route("/system")
     def system():
@@ -349,8 +364,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     @app.route("/tools")
     def tools():
+        avg = {n: runner.average_seconds(n) for n in list(TOOLS) + list(ENGINE)}
         return render_template("tools.html", tools=list(TOOLS.values()), engine=list(ENGINE.values()),
-                               current=runner.current())
+                               current=runner.current(), avg=avg)
 
     @app.route("/tools/<name>", methods=["GET", "POST"])
     def tool(name):
@@ -383,7 +399,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
             except FormError as ex:
                 error = str(ex)
         return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
-                               fr=fr, windows=win)
+                               fr=fr, windows=win, avg=runner.average_seconds(t.name))
 
     @app.route("/jobs")
     def jobs():

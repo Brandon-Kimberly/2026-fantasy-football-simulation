@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark %}
+{% from "_macros.html" import tiles, mark, rawlink %}
 {% block title %}League · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -9,9 +9,12 @@
 .card:target { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos-bg); }
 .card h4 .mark { margin-right: 2px; }
 .card .cnt { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; }
+.card .strip { display: flex; gap: 2px; height: 6px; margin: 4px 0 10px; border-radius: 999px; overflow: hidden; }
+.card .strip i { display: block; height: 100%; }
 </style>
 {% set mine = standings|selectattr(0, "equalto", my_team)|list %}
 {% set wk = state.current_week or 1 %}
+{% set pmax = [(standings|map(attribute=1)|map(attribute='points_scored')|max if standings else 1)|float, 1.0]|max %}
 <div class="head">
   <p class="eyebrow">league · week {{ wk }} · refreshed by every sync</p>
   <h1>League</h1>
@@ -26,9 +29,9 @@
 
 {% if standings %}
 <section>
-<h2>Standings <span class="hint">click a column to sort</span></h2>
+<h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">click a column to sort</span></h2>
 <div class="scroller"><table><thead><tr><th></th><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="o" data-type="number" class="num">Playoff odds</th><th data-key="f" data-type="number" class="num">Budget left</th></tr></thead><tbody>
-{% for team, s in standings %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}">{{ s.points_scored|num(1) }}</td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}{{ odds.get(team)|num(1) }}%{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}">{{ s.remaining_faab|num(0) }}</td></tr>{% endfor %}
+{% for team, s in standings %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (s.points_scored or 0) / pmax)|round(0)|int }}"></i></span>{{ s.points_scored|num(1) }}</span></td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (odds.get(team) or 0)|round(0)|int }}"></i></span>{{ odds.get(team)|num(1) }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}"><span class="bc"><span class="mini gold"><i data-width="{{ (s.remaining_faab or 0)|round(0)|int }}"></i></span>{{ s.remaining_faab|num(0) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
@@ -40,12 +43,14 @@
 {% endif %}
 
 <section>
-<h2>Rosters <span class="hint">sorted by season projection · injury status from the last sync</span></h2>
+<h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · injury status from the last sync</span></h2>
 <div class="roster-nav">{% for team in rosters %}<a href="#t-{{ team|slug }}">{{ mark(team) }}{{ team|real }}</a>{% endfor %}</div>
 <div class="cards">
 {% for team, rows in rosters.items() %}
+{% set tot = [(rows|map(attribute='mean')|select('number')|sum), 0.001]|max %}
 <div class="card" id="t-{{ team|slug }}">
-<h4>{{ mark(team) }}{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %}<span class="cnt">{{ rows|length }} players</span></h4>
+<h4>{{ mark(team) }}{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %}<span class="cnt">{{ rows|length }} players · {{ tot|num(0) }} pts/wk of projection</span></h4>
+<div class="strip" title="each player's share of the roster's weekly projection">{% for r in rows %}{% if r.mean %}<i style="width:{{ (100 * r.mean / tot)|round(2) }}%;background:hsl({{ team|hue }} 55% {{ (36 + loop.index0 * 3)|round(0)|int }}%)" title="{{ r.name }} · {{ r.mean|num(1) }}"></i>{% endif %}{% endfor %}</div>
 <div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="p" data-type="text">Pos</th><th data-key="t" data-type="text">NFL</th><th data-key="m" data-type="number" class="num">Proj. / wk</th><th data-key="s" data-type="text">Status</th></tr></thead><tbody>
 {% for r in rows %}<tr><td class="nm" data-sort="{{ r.name }}">{{ r.name }}</td><td data-sort="{{ r.pos }}">{{ r.pos }}</td><td data-sort="{{ r.nfl }}" class="muted">{{ r.nfl }}</td><td class="num" data-sort="{{ r.mean if r.mean is not none else -1 }}">{{ r.mean|num(1) }}</td><td data-sort="{{ r.status }}">{% if r.status %}<span class="flag">{{ r.status }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
@@ -61,7 +66,7 @@
 
 <section>
 <details class="sec"><summary>Raw files<span class="n">{{ files|length }}</span></summary>
-<div class="rows" style="margin-top:8px">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "") }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
+<div class="rows" style="margin-top:8px">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
 </details>
 </section>
 {% endblock %}
