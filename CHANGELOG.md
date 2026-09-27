@@ -5,6 +5,41 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v10.2.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.2.0) — 2026-09-27 (MINOR)
+
+**The web UI becomes something you read, not something you decode.** Two passes on
+v10.1.0's viewer, both UI-only; the model is unchanged and the goldens byte-identical.
+
+**Records as tables.** Every decision tool writes a JSON record, and that record — not the
+tool's stdout — is now what a job page leads with: headline tiles and sortable tables from
+per-tool views (`optimize_lineup`, `matchup_lineup`, `waiver_targets`, `roster_grades`,
+`find_trades`, `compare_players`, both paired evaluations, `roster_calendar`,
+`matchup_watch`) and a generic walk for any record the views do not know. Stdout is parsed
+into blocks — the engine's logging mirror folded into one collapsible, ALL-CAPS headings,
+column-aligned runs as real tables, the `logged ->` line as a link — and collapsed under
+the record. One design system across every page (the same tokens and display face as the
+published draft audit and report card, light and dark), page heads, stat tiles, cards,
+state pills. All 110 records on disk render.
+
+**Pick players, don't type them.** Player fields declare their pool — any player, my
+roster, free agents, or the roster of the team chosen in another field — suggest as you
+type, and resolve every name before the launch: an obvious near-miss is corrected and the
+job says so (`devonte smith → DeVonta Smith`); a bare surname with several candidates is
+refused with them listed; a real player asked in the wrong pool is told where he is.
+
+**Quieter, and honest about progress.** A job's title is a sentence (`Compare players · A
+vs B`), never its numeric knobs; the command and ids sit in one collapsed details; the
+week page's warnings open closed; the R1 sentence appears once. A running job polls a
+JSON status every two seconds and updates in place — elapsed, the stage reached (read off
+the markers the engine actually prints), the tool's last line, a bar against the typical
+duration of past runs — and reloads once at the end. The meta refresh is gone.
+
+**MINOR**: capability only. Suite 1522 → 1562. Four defects found by rendering the real
+tree rather than the fixtures, all pinned: a Jinja `Undefined` raised inside the number
+filters; `s.items` in the record macro resolved to `dict.items()` (every paired evaluation
+was a 500); fuzzy fill-up made an obvious player match ambiguous; a fresh checkout with no
+player pool blocked every launch.
+
 ## [v10.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.1.0) — 2026-09-27 (MINOR)
 
 **A local web UI, and the model unchanged.** `py -3.10 -m webui` serves everything the
