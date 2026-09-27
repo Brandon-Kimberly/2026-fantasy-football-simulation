@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1562%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1569%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -87,10 +87,12 @@ py -3.10 -m pip install -r requirements-web.txt   # Flask, kept out of the golde
 py -3.10 -m webui                                  # http://127.0.0.1:8765/  (--port, --root, --no-real-names)
 ```
 
-A **localhost-only** reader over everything the scripts write -- freshness and run
-windows, every week's forecast and charts, the canonical and archived decision records
-and digests, the current rosters and standings, the season logs -- served straight from
-`data/`, never copied. The design, its phases and its constraints are in
+A **localhost-only** reader over everything the scripts write -- a landing page with this
+week's matchup as the model priced it, the playoff ring, the expected-wins sparkline,
+standings and a watch list, plus a health strip; then every week's forecast and charts,
+the canonical and archived decision records and digests, the current rosters and
+standings, the season logs, and a System page for the sync, the run windows and the logs'
+push state -- served straight from `data/`, never copied. The design, its phases and its constraints are in
 `docs/WEB_UI.md`; the three that shape it: the web process **never imports the engine**
 (importing it truncates `syndicate_warnings.log`; a subprocess test pins this), it never
 `chdir`s (one absolute root, one path chokepoint that refuses `data/local/` and anything
@@ -237,7 +239,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1562 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1569 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -262,7 +264,7 @@ platform lock working, not a broken build.
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Without
 Flask (`requirements-web.txt`) the web UI's route tests skip cleanly too, the same way
-the `espn_api` and `hypothesis` tests do -- `skipped=36`, not a failure. Any engine
+the `espn_api` and `hypothesis` tests do -- `skipped=41`, not a failure. Any engine
 change either leaves the golden hashes byte-identical or regenerates them with the deltas
 explained in the commit.
 

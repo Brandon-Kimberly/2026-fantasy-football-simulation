@@ -101,7 +101,7 @@ def build_tree(root):
     _w(root, "data/local/identity_map.json", {"real_to_fictional": {"CANARY-REAL-TEAM": "Quantum Ferrets"}})
 
 
-ROUTES = ("/", "/health", "/weeks", "/weeks/3", "/decisions", "/decisions/3", "/decisions/adhoc", "/results",
+ROUTES = ("/", "/system", "/status", "/health", "/weeks", "/weeks/3", "/decisions", "/decisions/3", "/decisions/adhoc", "/results",
           "/current", "/logs", "/logs/decision_log.jsonl", "/logs/decision_log.jsonl?n=1",
           "/file/weeks/week_03/live_season_forecast_week_3.json", "/file/weeks/week_03/live_season_forecast_week_3.json?raw=1",
           "/file/weeks/week_03/Power_Rankings.png", "/file/weeks/week_03/tiers/QB_tiers.html",
@@ -137,11 +137,11 @@ class TestViewer(unittest.TestCase):
                 self.assertNotIn(b"Traceback", resp.data)
         self.assertEqual(self.root.tree_digest(), before, "a read-only viewer wrote to the tree")
 
-    def test_status_page_carries_the_freshness_verdict_windows_note_and_r1(self):
-        body = self.client().get("/").get_data(as_text=True)
-        self.assertIn("OK", body)
+    def test_system_page_carries_the_freshness_verdict_windows_note_and_r1(self):
+        body = self.client().get("/system").get_data(as_text=True)
+        self.assertIn("pill DEGRADED", body)                        # the fixture manifest has a tolerated failure
         self.assertIn("run a sync to persist them", body)          # no kickoffs: never live-fetched
-        self.assertIn("one engine process at a time", body)
+        self.assertIn("one engine process at a time", body)        # once, inside the collapsed terminal notes
         self.assertIn("scripts.run_sync", body)
 
     def test_health_json(self):
