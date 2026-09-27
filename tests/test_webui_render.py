@@ -115,9 +115,10 @@ class TestRecordViews(unittest.TestCase):
         self.assertEqual([c["label"] for c in starters["columns"]][:3], ["slot", "name", "pos"])
         cells = starters["rows"][0]["cells"]
         self.assertEqual(cells[1]["text"], "Patrick Mahomes")
-        self.assertEqual(cells[7]["text"], "1.5%")          # p_zero as a percentage
-        self.assertEqual(cells[8]["text"], "+11.6")         # margin signed
-        self.assertEqual(cells[8]["tone"], "pos")
+        self.assertEqual(cells[4]["range"], {"lo": 12.0, "mid": 28.0, "hi": 48.0, "max": 48.0})   # p10/p50/p90 as one band
+        self.assertEqual(cells[5]["text"], "1.5%")          # p_zero as a percentage
+        self.assertEqual(cells[6]["text"], "+11.6")         # margin signed
+        self.assertEqual(cells[6]["tone"], "pos")
 
     def test_compare_record_leads_with_the_probability(self):
         v = render.record_view(COMPARE)

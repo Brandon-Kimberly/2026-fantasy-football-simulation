@@ -57,7 +57,7 @@ class TestWebProcessImports(unittest.TestCase):
     def test_importing_every_webui_module_loads_no_engine_and_leaves_the_warnings_log_alone(self):
         with tempfile.TemporaryDirectory() as wd:
             sentinel = _plant(wd)
-            r = _run("import webui, webui.paths, webui.names, webui.app, webui.__main__\n" + REPORT, wd)
+            r = _run("import webui, webui.paths, webui.names, webui.live, webui.app, webui.__main__\n" + REPORT, wd)
             self.assertEqual(r.returncode, 0, r.stderr[-2000:])
             line = [ln for ln in r.stdout.splitlines() if ln.startswith("REPORT ")]
             self.assertTrue(line, r.stdout[-1000:])

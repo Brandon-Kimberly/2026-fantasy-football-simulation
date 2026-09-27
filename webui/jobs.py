@@ -166,6 +166,25 @@ class JobRunner:
         secs.sort()
         return secs[len(secs) // 2]
 
+    def average_seconds(self, tool, n=5):
+        """(mean wall time of the last `n` OK runs of `tool`, how many runs) -- what the
+        Tools page prints as 'avg 2.3 m'; (None, 0) before the first successful run."""
+        runs = []
+        for m in self.list():                          # newest first
+            if m.get("tool") != tool or m.get("state") != OK:
+                continue
+            try:
+                a = _dt.datetime.strptime(m["started_at"], "%Y-%m-%dT%H:%M:%SZ")
+                b = _dt.datetime.strptime(m["finished_at"], "%Y-%m-%dT%H:%M:%SZ")
+            except (KeyError, TypeError, ValueError):
+                continue
+            runs.append((b - a).total_seconds())
+            if len(runs) >= n:
+                break
+        if not runs:
+            return None, 0
+        return sum(runs) / len(runs), len(runs)
+
     def tail(self, job_id, chars=6000):
         try:
             with open(os.path.join(self._dir(job_id), "stdout.log"), "rb") as fh:

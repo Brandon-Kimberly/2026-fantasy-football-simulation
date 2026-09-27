@@ -5,7 +5,8 @@
 <style>
 .hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: var(--surface); border: 1px solid var(--grid); border-top: 3px solid var(--turf); border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
-.hero > * { position: relative; }
+.hero::after { content: ""; position: absolute; top: 0; bottom: 0; right: 0; width: 9%; background: linear-gradient(90deg, transparent, var(--turf-bg)); pointer-events: none; }
+.hero > * { position: relative; z-index: 1; }
 .hero .top-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
 .hero .who { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin: 14px 0 8px; }
 .hero .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
@@ -23,25 +24,48 @@
 .split::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--rule); }
 .hero .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .hero .facts b { color: var(--ink); font-weight: 600; }
+/* the live scoreboard */
+.live { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--rule); }
+.live .lh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
+.live .lh .k { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: var(--turf); display: inline-flex; align-items: center; gap: 6px; }
+.live .lh .k svg.i { color: var(--neg); }
+.live .lh .k.on svg.i { animation: blink 1.4s ease-in-out infinite; }
+.live .lh .meta { font-size: 12px; color: var(--muted); }
+.live .lh .ctl { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.live .lh .ctl button { padding: 6px 12px; font-size: 11px; }
+.live .lh .ctl label { font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.live .score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-top: 12px; }
+.live .score .pts { font-family: var(--display); font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.live .score .r { text-align: right; }
+.live .score .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.live .score .mid { text-align: center; font-size: 12px; color: var(--muted); }
+.live .score .mid b { display: block; font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.live .bars { margin-top: 10px; display: grid; gap: 6px; }
+.live .bars .bar { display: grid; grid-template-columns: 6.5rem 1fr 6rem; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.live .bars .bar .b { height: 10px; background: var(--mid); border-radius: 999px; overflow: hidden; display: flex; }
+.live .bars .bar .b i { display: block; height: 100%; } .live .bars .bar .b i.done { background: var(--turf); } .live .bars .bar .b i.left { background: var(--turf-bg); border-left: 1px solid var(--turf); }
+.live .bars .bar.them .b i.done { background: var(--warm); } .live .bars .bar.them .b i.left { background: var(--warm-bg); border-left-color: var(--warm); }
+.live .bars .bar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.live .note-l { font-size: 12px; color: var(--muted); margin-top: 10px; }
+.live details { margin-top: 8px; } .live details table { font-size: 12.5px; }
 .grid2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; margin-top: 14px; }
 .ring { width: 96px; height: 96px; }
 .ring circle { fill: none; stroke-width: 9; }
 .ring .bg { stroke: var(--mid); }
 .ring .fg { stroke: var(--pos); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; }
 .stat { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px; animation: rise .5s ease both; }
+.stat.a { border-left: 3px solid var(--pos); } .stat.b { border-left: 3px solid var(--gold); }
 .stat .big { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .stat .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .stat .s { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
 .spark { width: 100%; height: 88px; display: block; }
 .spark .base { stroke: var(--grid); stroke-width: 1; }
 .spark .played { stroke: var(--ink); stroke-width: 2.2; fill: none; }
-.spark .fut { stroke: var(--pos); stroke-width: 2.2; fill: none; stroke-dasharray: 4 4; }
+.spark .fut { stroke: var(--gold); stroke-width: 2.2; fill: none; stroke-dasharray: 4 4; }
 .spark .dot { fill: var(--ink); }
-.spark .now { fill: var(--pos); }
+.spark .now { fill: var(--gold); }
 .spark text { font: 10px var(--sans); fill: var(--muted); }
 .mini-standings td { padding: 6px 8px; }
-.mini-standings .pcell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
-.mini-standings .pcell .mini { width: 64px; flex: none; }
 .games { margin-top: 12px; display: grid; gap: 4px; }
 .game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; }
 .game .a { text-align: right; } .game .p { font-variant-numeric: tabular-nums; font-weight: 600; } .game .p.a { text-align: right; } .game .vs { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
@@ -49,7 +73,7 @@
 .game .fav { color: var(--pos); }
 .watch td .small { display: block; }
 .qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
@@ -64,7 +88,7 @@
   </div>
   {% if m.p_win is not none %}
   <div class="pwin">
-    <div class="big"><span data-count="{{ (m.p_win * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ (m.p_win * 100)|round(1) }}%</span><small>to win</small></div>
+    <div class="big"><span data-count="{{ (m.p_win * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ (m.p_win * 100)|round(1) }}%</span><small>to win, pre-game</small></div>
     <div class="split" title="your share vs theirs"><i data-width="{{ (m.p_win * 100)|round(1) }}"></i></div>
     <div class="big" style="color:var(--muted)"><span data-count="{{ ((1 - m.p_win) * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ ((1 - m.p_win) * 100)|round(1) }}%</span></div>
   </div>
@@ -77,21 +101,34 @@
   {% else %}
   <div class="note" style="margin-top:12px">No prediction logged for week {{ week }} yet — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup.</div>
   {% endif %}
+
+  {# ---- live scoreboard (W6): read-only, off-disk; see webui/live.py ---- #}
+  <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}">
+    <div class="lh">
+      <span class="k" id="live-k"><svg class="i"><use href="#i-live"/></svg> Live</span>
+      <span class="meta" id="live-meta">{% if not live.enabled %}not connected — set SLEEPER_LEAGUE_ID for this server{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
+      <span class="ctl">
+        <label title="re-read Sleeper and the NFL scoreboard every 3 minutes; nothing is written to disk"><input type="checkbox" id="live-auto"> auto-refresh</label>
+        <button type="button" class="ghost" id="live-refresh"{% if not live.enabled %} disabled{% endif %}><svg class="i"><use href="#i-refresh"/></svg> Refresh</button>
+      </span>
+    </div>
+    <div id="live-body">{% if live.snapshot and live.snapshot.ok %}<div class="note-l">loading…</div>{% elif live.enabled %}<div class="note-l">Press refresh for points scored so far and an updated chance to win. Reads Sleeper and the NFL scoreboard only; nothing is written, so the model's data and logs are untouched.</div>{% endif %}</div>
+  </div>
   {% else %}
   <p class="lede">No matchup on file for week {{ week or "?" }} — the league schedule arrives with the sync.</p>
   {% endif %}
 </div>
 
 <div class="grid2">
-  <div class="stat" style="animation-delay:.05s">
+  <div class="stat a" style="animation-delay:.05s">
     {% set po = f.playoff_probability_pct or 0 %}{% set circ = 2 * 3.14159 * 40 %}
     <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
-    <div><div class="k"><svg class="i"><use href="#i-trophy"/></svg> playoff probability</div>
+    <div><div class="k"><svg class="i c-pos"><use href="#i-trophy"/></svg> playoff probability</div>
       <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
       <div class="s">± {{ f.playoff_standard_error|num(2) }} · title {{ champ|num(1) }}% · {{ f.expected_final_wins|num(1) }} expected wins{% if f.approximate_magic_number %} · {{ f.approximate_magic_number|num(0) }} more to clinch{% endif %}</div></div>
   </div>
-  <div class="stat" style="grid-template-columns:1fr;animation-delay:.1s">
-    <div class="k"><svg class="i"><use href="#i-chart"/></svg> expected wins, week by week</div>
+  <div class="stat b" style="grid-template-columns:1fr;animation-delay:.1s">
+    <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set n = trajectory|length %}{% set mx = (trajectory|max)|float %}{% set W = 320 %}{% set H = 70 %}{% set pad = 6 %}
     {% set pts = [] %}{% for v in trajectory %}{% set _ = pts.append(((pad + loop.index0 * (W - 2 * pad) / (n - 1))|round(1), (H - pad - (v / (mx if mx else 1)) * (H - 2 * pad))|round(1))) %}{% endfor %}
     {% set done = (week or 1) - 1 %}
@@ -111,7 +148,7 @@
 <div class="chips">
   <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/system"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours|ago }}{% endif %}</span></a>
   <a class="chip {{ 'warn' if fresh.n_fell or fresh.n_bad }}" href="/system"><svg class="i"><use href="#i-cloud"/></svg><span class="k">sources</span><span class="v">{{ fresh.n_ok }} ok{% if fresh.n_fell %} · {{ fresh.n_fell }} fell back{% endif %}{% if fresh.n_bad %} · {{ fresh.n_bad }} failed{% endif %}</span></a>
-  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline.strftime("%a %H:%M") }}Z{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
+  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline|clock }}{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
   <a class="chip" href="{% if last_job %}/jobs/{{ last_job.id }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
   <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
@@ -120,7 +157,7 @@
   <section style="margin-top:28px">
     <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ week }} forecast</span></h2>
     <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
-    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num muted">{{ r.rank }}</td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="pcell"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|num(1) }}%</span></td><td class="num muted">{{ r.champ|num(1) }}%</td></tr>{% endfor %}
+    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num muted">{{ r.rank }}</td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|num(1) }}%</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
     </tbody></table></div>
     {% if all_matchups %}<h3 style="margin-top:16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
     <div class="games">{% for mm in all_matchups %}{% set pa = (mm.p_a or 0) * 100 %}{% set pb = (mm.p_b or 0) * 100 %}<div class="game{% if my_team in (mm.a, mm.b) %} me{% endif %}"><span class="a{% if pa >= pb %} fav{% endif %}">{{ teamlink(mm.a) }}</span><span class="p a{% if pa >= pb %} fav{% endif %}">{{ pa|round(0)|int }}%</span><span class="vs">vs</span><span class="p{% if pb > pa %} fav{% endif %}">{{ pb|round(0)|int }}%</span><span{% if pb > pa %} class="fav"{% endif %}>{{ teamlink(mm.b) }}</span></div>{% endfor %}</div>{% endif %}
@@ -149,4 +186,56 @@
     </div>
   </section>
 </div>
+
+<script>
+(function () {
+  var box = document.getElementById('live'); if (!box) return;
+  var enabled = box.getAttribute('data-enabled') === '1';
+  var body = document.getElementById('live-body'), meta = document.getElementById('live-meta'), k = document.getElementById('live-k');
+  var auto = document.getElementById('live-auto'), btn = document.getElementById('live-refresh'), timer = null;
+  var initial = {{ live|tojson }};
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
+  function pct(p) { return p == null ? '—' : (100 * p).toFixed(1) + '%'; }
+  function ago(s) { if (s == null) return ''; if (s < 60) return s + ' s ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; return (s / 3600).toFixed(1) + ' h ago'; }
+  function side(st, cls, name) {
+    var tot = Math.max(1, st.projected, 1);
+    return '<div class="bar ' + cls + '"><span>' + esc(name) + '</span><span class="b"><i class="done" style="width:' + (100 * st.banked / tot).toFixed(1) + '%"></i><i class="left" style="width:' + (100 * st.left_mu / tot).toFixed(1) + '%"></i></span><span class="v">' + n1(st.banked) + ' + ' + n1(st.left_mu) + ' to come</span></div>';
+  }
+  function rows(st) {
+    return st.rows.map(function (r) { return '<tr><td class="nm">' + esc(r.name) + ' <span class="muted">' + esc(r.pos) + '</span></td><td class="muted">' + esc(r.nfl) + '</td><td>' + esc(r.status) + '</td><td class="num">' + n1(r.scored) + '</td><td class="num muted">' + n1(r.left) + '</td></tr>'; }).join('');
+  }
+  function draw(p) {
+    var s = p.snapshot;
+    if (!p.enabled) { meta.textContent = 'not connected — set SLEEPER_LEAGUE_ID for this server'; return; }
+    if (!s) { meta.textContent = p.error ? 'could not fetch: ' + p.error : 'not fetched yet'; return; }
+    if (!s.ok) { meta.textContent = s.error || 'no live data'; body.innerHTML = ''; return; }
+    meta.textContent = 'updated ' + ago(p.age_seconds) + (p.error ? ' · last refresh failed: ' + p.error : '');
+    var me = s.mine, th = s.theirs || { banked: 0, left_mu: 0, projected: 0, to_play: 0, starters: 0, rows: [] };
+    var html = '<div class="score"><div><div class="pts" style="color:var(--turf)">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' starters still to play</div></div>' +
+      '<div class="mid">chance to win now<b>' + pct(s.p_win) + '</b>' + (s.p_win_wide != null ? '<span>' + pct(s.p_win_wide) + ' if same-game swings are wider</span>' : '') + '</div>' +
+      '<div class="r"><div class="pts" style="color:var(--warm)">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' starters still to play</div></div></div>' +
+      '<div class="bars">' + side(me, 'me', s.team) + side(th, 'them', s.opponent || 'opponent') + '</div>' +
+      '<div class="note-l">Quick estimate: points banked plus the unplayed share of each starter\'s pre-game expectation' + (s.sources && s.sources.length ? ' (from this week\'s ' + esc(s.sources.join(' and ')) + ')' : ' (baseline means)') + ', Normal-approximated.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as pregame.') + ' For the engine\'s own number run <a href="/tools/live_matchup">Live matchup</a>. Nothing here is written to disk.</div>' +
+      '<details><summary>every starter</summary><div class="scroller"><table><thead><tr><th>' + esc(s.team) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(me) + '</tbody>' +
+      (s.theirs ? '<thead><tr><th>' + esc(s.opponent) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(th) + '</tbody>' : '') + '</table></div></details>';
+    body.innerHTML = html;
+  }
+  function fetchLive(refresh) {
+    if (!enabled) return;
+    btn.disabled = true; k.classList.add('on');
+    fetch('/api/live' + (refresh ? '?refresh=1' : ''), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.json(); }).then(draw)
+      .catch(function (e) { meta.textContent = 'could not reach the server: ' + e; })
+      .then(function () { btn.disabled = false; k.classList.remove('on'); });
+  }
+  function schedule() { if (timer) clearInterval(timer); timer = null; if (auto.checked) timer = setInterval(function () { fetchLive(true); }, 180000); }
+  try { auto.checked = localStorage.getItem('live-auto') === '1'; } catch (e) {}
+  auto.addEventListener('change', function () { try { localStorage.setItem('live-auto', auto.checked ? '1' : '0'); } catch (e) {} schedule(); if (auto.checked) fetchLive(true); });
+  btn.addEventListener('click', function () { fetchLive(true); });
+  draw(initial);
+  if (enabled && (auto.checked || (initial.snapshot && initial.snapshot.ok))) fetchLive(!initial.snapshot);
+  schedule();
+})();
+</script>
 {% endblock %}

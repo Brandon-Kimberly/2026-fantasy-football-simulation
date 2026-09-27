@@ -2,7 +2,7 @@
    every URL is built from the pseudonym so it stays pseudonymous. #}
 
 {% macro mark(team, size='') -%}
-<span class="mark {{ size }}" style="background:hsl({{ team|hue }} 55% 42%)">{{ (team|real)|initials }}</span>
+{% set av = team|avatar %}{% if av %}<img class="mark {{ size }}" src="{{ av }}" alt="" loading="lazy" referrerpolicy="no-referrer">{% else %}<span class="mark {{ size }}" style="background:hsl({{ team|hue }} 55% 42%)">{{ (team|real)|initials }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro teamlink(team) -%}
@@ -10,14 +10,18 @@
 {%- endmacro %}
 
 {% macro tiles(items) -%}
-{% if items %}<div class="tiles">{% for t in items %}<div class="tile"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ t.s|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+{% if items %}<div class="tiles">{% for t in items %}<div class="tile {{ t.tone }}"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ t.s|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+{%- endmacro %}
+
+{% macro rangebar(r, nd=0) -%}
+{% if r and r.max %}{% set mx = r.max if r.max > 0 else 1 %}<span class="rng"><span class="bar"><i style="left:{{ (100 * r.lo / mx)|round(1) }}%;width:{{ (100 * (r.hi - r.lo) / mx)|round(1) }}%"></i>{% if r.mid is not none %}<b style="left:{{ (100 * r.mid / mx)|round(1) }}%"></b>{% endif %}</span><span class="n">{{ r.lo|num(nd) }}{% if r.mid is not none %} · {{ r.mid|num(nd) }}{% endif %} · {{ r.hi|num(nd) }}</span></span>{% else %}<span class="muted">—</span>{% endif %}
 {%- endmacro %}
 
 {% macro datatable(columns, rows, me_key=None) -%}
 <div class="scroller"><table>
-<thead><tr>{% for c in columns %}<th data-key="{{ c.key }}" data-type="{{ 'number' if c.kind in ('num','pct','signed') else 'text' }}"{% if c.kind in ('num','pct','signed') %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
+<thead><tr>{% for c in columns %}<th data-key="{{ c.key }}" data-type="{{ 'number' if c.kind in ('num','pct','signed','range') else 'text' }}"{% if c.kind in ('num','pct','signed') %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
 <tbody>
-{% for r in rows %}<tr{% if r.me and r.me == my_team %} class="me"{% endif %}>{% for cell in r.cells %}{% set c = columns[loop.index0] %}<td class="{{ 'num' if cell.num }}{{ ' nm' if loop.first }}{{ ' wrap' if (not cell.num and cell.text|length > 34) }}" data-sort="{{ cell.text|real }}">{% if cell.link == 'team' and cell.raw %}{{ teamlink(cell.raw) }}{% elif cell.tone == 'neg' and not cell.num %}<span class="flag">{{ cell.text|real }}</span>{% else %}<span class="{{ cell.tone }}">{{ cell.text|real }}</span>{% endif %}</td>{% endfor %}</tr>
+{% for r in rows %}<tr{% if r.me and r.me == my_team %} class="me"{% endif %}>{% for cell in r.cells %}{% set c = columns[loop.index0] %}<td class="{{ 'num' if cell.num and c.kind != 'range' }}{{ ' nm' if loop.first }}{{ ' wrap' if (not cell.num and cell.text|length > 34) }}" data-sort="{{ (cell.range.mid if cell.range and cell.range.mid is not none else (cell.range.hi if cell.range else cell.text|real)) }}">{% if c.kind == 'range' %}{{ rangebar(cell.range, c.nd) }}{% elif cell.link == 'team' and cell.raw %}{{ teamlink(cell.raw) }}{% elif cell.tone == 'neg' and not cell.num %}<span class="flag">{{ cell.text|real }}</span>{% else %}<span class="{{ cell.tone }}">{{ cell.text|real }}</span>{% endif %}</td>{% endfor %}</tr>
 {% endfor %}
 </tbody></table></div>
 {%- endmacro %}
@@ -49,7 +53,7 @@
 {% for b in blocks %}
 {% if b.kind == 'heading' %}<div class="con-h">{{ b.text|real }}</div>
 {% elif b.kind == 'table' %}<div class="scroller"><table><tbody>{% for r in b.rows %}<tr>{% for c in r %}<td{% if loop.first %} class="nm"{% endif %}>{{ c|real }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record written: <a href="{{ b.link }}">{{ b.name }}</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
+{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record written — <a href="{{ b.link }}">open it</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
 {% elif b.kind == 'chatter' %}<details><summary>engine chatter · {{ b.lines|length }} lines</summary><pre>{{ b.lines|join('\n')|real }}</pre></details>
 {% else %}<pre>{{ b.text|real }}</pre>
 {% endif %}
@@ -57,7 +61,26 @@
 </div>
 {%- endmacro %}
 
+{% macro rawlink(e) -%}
+<a class="raw" href="{{ e.link }}{% if e.ext in ('json','jsonl','md','txt','log','csv') %}?raw=1{% endif %}" title="{{ e.name }}"><svg class="i"><use href="#i-arrow"/></svg> {{ e.ext }}</a>
+{%- endmacro %}
+
 {% macro filelist(entries) -%}
 {% set rows = entries|pair_digests %}
-{% if rows %}<div class="rows">{% for e in rows %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="tiny muted" href="{{ e.md_link }}">markdown</a>{% endif %}<span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
+{% if rows %}<div class="rows">{% for e in rows %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="raw" href="{{ e.md_link }}" title="the same digest as markdown">markdown</a>{% endif %}{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
+{%- endmacro %}
+
+{# a single-series line chart: values by week, my line in turf; `done` = weeks played #}
+{% macro linechart(values, done=0, unit='', nd=1, W=420, H=120, color='me', labels=None) -%}
+{% if values and values|length > 1 %}{% set n = values|length %}{% set pad = 28 %}{% set top = 12 %}{% set mx = [(values|max)|float, 0.0001]|max %}
+{% set pts = [] %}{% for v in values %}{% set _ = pts.append(((pad + loop.index0 * (W - pad - 10) / (n - 1))|round(1), (top + (H - top - 22) * (1 - (v or 0) / mx))|round(1))) %}{% endfor %}
+<svg class="viz" viewBox="0 0 {{ W }} {{ H }}" preserveAspectRatio="none" aria-label="chart">
+<line class="ax" x1="{{ pad }}" y1="{{ H - 22 }}" x2="{{ W - 10 }}" y2="{{ H - 22 }}"/><line class="ax" x1="{{ pad }}" y1="{{ top }}" x2="{{ W - 10 }}" y2="{{ top }}" stroke-dasharray="2 3"/>
+<text x="{{ pad - 4 }}" y="{{ top + 4 }}" text-anchor="end">{{ mx|num(0) }}{{ unit }}</text><text x="{{ pad - 4 }}" y="{{ H - 20 }}" text-anchor="end">0</text>
+<polygon class="area" points="{{ pts[0][0] }},{{ H - 22 }} {% for p in pts %}{{ p[0] }},{{ p[1] }} {% endfor %}{{ pts[-1][0] }},{{ H - 22 }}"/>
+<polyline class="ln {{ color }}" points="{% for p in pts %}{{ p[0] }},{{ p[1] }} {% endfor %}"/>
+{% for p in pts %}<circle class="dot {{ 'pos' if color == 'pos' else '' }}" cx="{{ p[0] }}" cy="{{ p[1] }}" r="{{ 3.5 if loop.last else 2.2 }}"/>{% endfor %}
+{% for p in pts %}{% if loop.first or loop.last or (n <= 8) or loop.index0 % 2 == 0 %}<text x="{{ p[0] }}" y="{{ H - 8 }}" text-anchor="{{ 'start' if loop.first else ('end' if loop.last else 'middle') }}">wk {{ labels[loop.index0] if labels else loop.index }}</text>{% endif %}{% endfor %}
+<text x="{{ pts[-1][0] }}" y="{{ pts[-1][1] - 7 }}" text-anchor="end" style="fill:var(--ink);font-weight:600">{{ values[-1]|num(nd) }}{{ unit }}</text>
+</svg>{% endif %}
 {%- endmacro %}

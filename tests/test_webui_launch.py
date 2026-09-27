@@ -43,6 +43,9 @@ class FakeRunner:
     def typical_seconds(self, tool):
         return None
 
+    def average_seconds(self, tool, n=5):
+        return None, 0
+
     def read(self, jid):
         return self.metas.get(jid)
 
