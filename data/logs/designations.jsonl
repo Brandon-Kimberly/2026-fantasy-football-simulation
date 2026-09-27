@@ -219,3 +219,4 @@
 {"injury_body_part": null, "injury_status": null, "name": "Nate Landman", "player_id": "8659", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Crimson Marmots", "week": 3}
 {"injury_body_part": "Knee", "injury_status": "Questionable", "name": "De'Von Achane", "player_id": "9226", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Neon Walruses", "week": 3}
 {"injury_body_part": "Finger", "injury_status": "Out", "name": "Adonai Mitchell", "player_id": "11625", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Nick Emmanwori", "player_id": "12597", "practice_participation": null, "recorded_at": "2026-09-27T18:33:03Z", "team": "Turbo Llamas", "week": 3}
