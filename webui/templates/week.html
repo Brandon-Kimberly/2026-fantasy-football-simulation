@@ -1,41 +1,35 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles %}
-{% block title %}Week {{ week }} · {{ brand }}{% endblock %}
+{% from "_macros.html" import tiles, mark, teamlink %}
+{% block title %}Week {{ week }} forecast · {{ brand }}{% endblock %}
 {% block body %}
 {% set mine = forecast.get(my_team) or {} %}{% set mf = mine.forecast or {} %}{% set mc = mine.current_state or {} %}
+{% set nice = {"live_season_forecast": "Season forecast", "syndicate_comprehensive_matrix": "Full results matrix", "syndicate_insights": "Insights", "simulation_audit_log_sim0": "Audit log (simulation 0)"} %}
 <div class="head">
-  <p class="eyebrow">simulation export · {{ metadata.simulations or "?" }} simulations in {{ metadata.batches or "?" }} batches</p>
+  <p class="eyebrow">season forecast · run at week {{ week }} · {{ "{:,}".format(metadata.simulations) if metadata.simulations else "?" }} simulations{% if metadata.batches %} in {{ metadata.batches }} batches{% endif %}</p>
   <h1>Week {{ week }}</h1>
-  <p class="lede">The season from here, as the engine sees it on the data on disk. Files: {% for e in jsons %}<a href="{{ e.link }}">{{ e.name|replace("_week_" ~ week ~ ".json","")|replace("_"," ") }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>
+  <p class="lede">The rest of the season as the engine saw it from here, using the data on disk at the time.</p>
 </div>
 {% if mine %}{{ tiles([
-  {"k": my_team ~ " · playoff", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": "± " ~ mf.playoff_standard_error|num(2) ~ " SE", "tone": ""},
-  {"k": "expected final wins", "v": mf.expected_final_wins|num(2), "s": mc.actual_wins_banked|num(0) ~ " banked · " ~ mf.expected_future_wins|num(2) ~ " to come", "tone": ""},
-  {"k": "banked points", "v": mc.actual_points_banked|num(1), "s": "the league's record (F84)", "tone": ""},
-  {"k": "magic number", "v": mf.approximate_magic_number|num(0), "s": "wins to clinch, approximately", "tone": ""}
+  {"k": "my playoff odds", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": "± " ~ mf.playoff_standard_error|num(2) ~ " simulation noise", "tone": ""},
+  {"k": "expected final wins", "v": mf.expected_final_wins|num(2), "s": mc.actual_wins_banked|num(0) ~ " banked · " ~ mf.expected_future_wins|num(2) ~ " still to come", "tone": ""},
+  {"k": "points so far", "v": mc.actual_points_banked|num(1), "s": "the league's record", "tone": ""},
+  {"k": "wins to clinch", "v": mf.approximate_magic_number|num(0), "s": "approximate magic number", "tone": ""}
 ]) }}{% endif %}
 
-{% if teams %}
+{% if rows %}
 <section>
-<h2>Season forecast <span class="hint">sorted by playoff probability · click a header to sort</span></h2>
+<h2>Every team <span class="hint">sorted by playoff odds · click a column to sort</span></h2>
 <div class="scroller"><table><thead><tr>
-<th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Banked W</th><th data-key="p" data-type="number" class="num">Banked pts</th>
-<th data-key="ew" data-type="number" class="num">Exp. final wins</th><th data-key="po" data-type="number" class="num">Playoff %</th><th data-key="se" data-type="number" class="num">± SE</th>
-<th data-key="mn" data-type="number" class="num">Magic no.</th><th data-key="fb" data-type="number" class="num">FAAB</th></tr></thead><tbody>
-{% for t in teams %}{% set cs = forecast[t].current_state or {} %}{% set fc = forecast[t].forecast or {} %}
-<tr{% if t == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ t|real }}">{{ t|real }}</td><td class="num" data-sort="{{ cs.actual_wins_banked }}">{{ cs.actual_wins_banked|num(0) }}</td><td class="num" data-sort="{{ cs.actual_points_banked }}">{{ cs.actual_points_banked|num(1) }}</td>
-<td class="num" data-sort="{{ fc.expected_final_wins }}">{{ fc.expected_final_wins|num(2) }}</td><td class="num" data-sort="{{ fc.playoff_probability_pct }}"><b>{{ fc.playoff_probability_pct|num(1) }}</b></td><td class="num muted" data-sort="{{ fc.playoff_standard_error }}">{{ fc.playoff_standard_error|num(2) }}</td>
-<td class="num" data-sort="{{ fc.approximate_magic_number }}">{{ fc.approximate_magic_number|num(0) }}</td><td class="num" data-sort="{{ cs.remaining_faab }}">{{ cs.remaining_faab|num(0) }}</td></tr>
+<th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th>
+<th data-key="ew" data-type="number" class="num">Exp. wins</th><th data-key="ep" data-type="number" class="num">Exp. points</th>
+<th data-key="po" data-type="number" class="num">Playoff</th><th data-key="c" data-type="number" class="num">Title</th><th data-key="x" data-type="number" class="num">Last place</th>
+<th data-key="mn" data-type="number" class="num">To clinch</th><th data-key="fb" data-type="number" class="num">Budget</th></tr></thead><tbody>
+{% for r in rows %}
+<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ r.team|real }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num" data-sort="{{ r.wins }}">{{ r.wins|num(0) }}</td><td class="num" data-sort="{{ r.points }}">{{ r.points|num(1) }}</td>
+<td class="num" data-sort="{{ r.exp_wins }}">{{ r.exp_wins|num(2) }}</td><td class="num muted" data-sort="{{ r.exp_points }}">{{ r.exp_points|num(0) }}</td>
+<td class="num" data-sort="{{ r.playoff }}"><b>{{ r.playoff|num(1) }}%</b>{% if r.se %} <span class="muted tiny">± {{ r.se|num(1) }}</span>{% endif %}</td><td class="num" data-sort="{{ r.champ }}">{{ r.champ|num(1) }}%</td><td class="num muted" data-sort="{{ r.toilet }}">{{ r.toilet|num(1) }}%</td>
+<td class="num" data-sort="{{ r.magic }}">{{ r.magic|num(0) }}</td><td class="num muted" data-sort="{{ r.faab }}">{{ r.faab|num(0) }}</td></tr>
 {% endfor %}
-</tbody></table></div>
-</section>
-{% endif %}
-
-{% if outcomes %}
-<section>
-<h2>Season outcomes <span class="hint">championship, playoff and last-place shares</span></h2>
-<div class="scroller"><table><thead><tr><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Exp. wins</th><th data-key="p" data-type="number" class="num">Exp. points</th><th data-key="po" data-type="number" class="num">Playoff %</th><th data-key="c" data-type="number" class="num">Champ %</th><th data-key="x" data-type="number" class="num">Toilet %</th></tr></thead><tbody>
-{% for o in outcomes %}<tr{% if o.Team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ o.Team|real }}">{{ o.Team|real }}</td><td class="num" data-sort="{{ o.Expected_Wins }}">{{ o.Expected_Wins|num(2) }}</td><td class="num" data-sort="{{ o.Expected_Points }}">{{ o.Expected_Points|num(0) }}</td><td class="num" data-sort="{{ o.Playoff_Pct }}">{{ o.Playoff_Pct|num(1) }}</td><td class="num" data-sort="{{ o.Champ_Pct }}"><b>{{ o.Champ_Pct|num(1) }}</b></td><td class="num" data-sort="{{ o.Toilet_Pct }}">{{ o.Toilet_Pct|num(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
@@ -43,28 +37,32 @@
 {% if charts %}
 <section>
 <h2>Charts <span class="hint">click to open full size</span></h2>
-<div class="charts">{% for e in charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_"," ") }}</figcaption></figure>{% endfor %}</div>
+<div class="charts">{% for e in charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_week_" ~ week, "")|replace("_"," ")|replace("syndicate ","") }}</figcaption></figure>{% endfor %}</div>
 </section>
 {% endif %}
 
 {% if insights and insights.most_valuable_players_championship_shares %}
 <section>
-<h2>Championship lineups <span class="hint">who appears in the simulated title winners' lineups</span></h2>
-<p class="small muted">highest single week observed {{ insights.highest_single_week_score_observed }} ({{ (insights.team_with_highest_ceiling_game or "")|real }}, week {{ insights.week_of_highest_score }})</p>
-<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number" class="num">Appearance %</th><th data-key="p" data-type="number" class="num">Avg pts / champ week</th></tr></thead><tbody>
-{% for name, v in insights.most_valuable_players_championship_shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td class="num" data-sort="{{ v.championship_lineup_appearance_pct }}">{{ v.championship_lineup_appearance_pct|num(1) }}</td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
+<h2>Who wins titles <span class="hint">how often each player starts for the simulated champion</span></h2>
+<p class="small muted">Highest single-week score seen: {{ insights.highest_single_week_score_observed }} by {{ (insights.team_with_highest_ceiling_game or "")|real }} in week {{ insights.week_of_highest_score }}.</p>
+<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number" class="num">In the champion's lineup</th><th data-key="p" data-type="number" class="num">Avg. points those weeks</th></tr></thead><tbody>
+{% for name, v in insights.most_valuable_players_championship_shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td class="num" data-sort="{{ v.championship_lineup_appearance_pct }}">{{ v.championship_lineup_appearance_pct|num(1) }}%</td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
 
-{% for sub, files in subdirs.items() %}{% if files %}
-<section><h2>{{ sub|replace("_"," ") }}</h2><div class="rows">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a href="{{ e.link }}">{{ e.name|real }}</a></span><span class="r"></span></div>{% endfor %}</div></section>
-{% endif %}{% endfor %}
+<section>
+<details class="sec"><summary>Files from this run<span class="n">{{ jsons|length }}{% for sub, files in subdirs.items() %}{% if files %} + {{ files|length }} {{ sub|replace("_"," ") }}{% endif %}{% endfor %}</span></summary>
+<div class="rows" style="margin-top:8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
+{% for sub, files in subdirs.items() %}{% for e in files %}<div class="row"><span class="t">{{ sub|replace("_"," ") }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "")|real }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}{% endfor %}</div>
+</details>
+</section>
 
 {% if warnings %}
 <section>
-<h2>Run warnings <span class="hint">{{ warnings|length }} · this run's own record (F10), not the shared mirror log</span></h2>
-<details><summary>show</summary><div class="rows">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div></details>
+<details class="sec"><summary>Warnings from this run<span class="n">{{ warnings|length }}</span></summary>
+<div class="rows" style="margin-top:8px">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level|lower }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div>
+</details>
 </section>
 {% endif %}
 {% endblock %}

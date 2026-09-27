@@ -220,7 +220,7 @@ class TestRoutes(unittest.TestCase):
         jid = list(self.runner.metas)[-1]
         self.assertEqual(self.runner.metas[jid]["resolved"], ["devonte smith → DeVonta Smith", "worthy → Xavier Worthy"])
         page = self.c.get(f"/jobs/{jid}").get_data(as_text=True)
-        self.assertIn("Matched as typed", page)
+        self.assertIn("Players matched", page)
         self.assertIn("DeVonta Smith vs Xavier Worthy", page)
         self.assertNotIn("2000", page.split("<h1")[1].split("</h1>")[0], "the title carries names, not knobs")
 

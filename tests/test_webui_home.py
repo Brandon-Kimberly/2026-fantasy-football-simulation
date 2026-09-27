@@ -99,7 +99,7 @@ class TestHome(unittest.TestCase):
         body = self.client().get("/").get_data(as_text=True)
         self.assertIn(OPP, body)
         self.assertIn('data-count="70.0"', body)                    # P(win) from the canonical row
-        self.assertIn("beat the median", body)
+        self.assertIn("above the league median", body)
         self.assertIn('class="spark"', body)
         self.assertEqual(body.count("<polyline"), 2)                 # played + forecast
         self.assertIn("1 ok", body)                                  # sources chip
@@ -121,7 +121,7 @@ class TestHome(unittest.TestCase):
     def test_system_page_is_the_trimmed_status(self):
         body = self.client().get("/system").get_data(as_text=True)
         self.assertIn("pill DEGRADED", body)
-        self.assertIn("vegas_odds", body)
+        self.assertIn("vegas odds", body)
         self.assertIn("fell back", body)
         self.assertIn("run a sync to persist them", body)
         self.assertIn("from a terminal", body)

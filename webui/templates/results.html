@@ -1,13 +1,14 @@
 {% extends "base.html" %}
+{% from "_macros.html" import filelist %}
 {% block title %}Runner results · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">downloaded from Actions</p><h1>Runner results</h1><p class="lede">Canonical-run artifacts under <code>data/results/week_NN/</code>, localized in place by <code>scripts.localize_reports --fetch</code>.</p></div>
+<div class="head"><p class="eyebrow">scheduled runs · downloaded from GitHub Actions</p><h1>Runner results</h1><p class="lede">What the scheduled runner produced each week, as downloaded. These are the same digests and records as a local run, made on the runner's clock.</p></div>
 {% if results %}
 {% for r in results|reverse %}
 <section><h2>Week {{ r.week }}</h2>
-{% for run in r.runs %}<h3>{{ run.name }}</h3><div class="rows">{% for e in run.files %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{{ e.stamp|stamp if e.stamp else "" }}</span></div>{% endfor %}</div>{% endfor %}
-{% if r.files %}<div class="rows">{% for e in r.files %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r"></span></div>{% endfor %}</div>{% endif %}
+{% for run in r.runs %}<h3>{{ run.name|replace("_"," ") }} <span class="hint">{{ run.files|length }} file{{ 's' if run.files|length != 1 }}</span></h3>{{ filelist(run.files) }}{% endfor %}
+{% if r.files %}{{ filelist(r.files) }}{% endif %}
 </section>
 {% endfor %}
-{% else %}<div class="note">Nothing downloaded yet.</div>{% endif %}
+{% else %}<div class="note">Nothing downloaded yet — from a terminal, <code>py -3.10 -m scripts.localize_reports --fetch</code> pulls the runner's artifacts into <code>data/results/</code>.</div>{% endif %}
 {% endblock %}

@@ -9,23 +9,25 @@
 .sugg div:hover, .sugg div.on { background: var(--pos-bg); }
 </style>
 <div class="head">
-  <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %}</p>
-  <h1>{{ tool.title }}</h1>
+  <p class="eyebrow">{% if tool.engine %}engine run · minutes{% elif tool.heavy %}decision tool · minutes{% else %}decision tool · seconds{% endif %}</p>
+  <h1>{{ tool.name|tool_title }}</h1>
   <p class="lede">{{ tool.question }}</p>
 </div>
-{% if tool.note %}<div class="note">{{ tool.note }}</div>{% endif %}
-{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. A second launch is refused until it finishes.</div>{% endif %}
+{% if tool.note %}<p class="small muted" style="margin:-6px 0 14px;max-width:80ch">{{ tool.note }}</p>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>. A second launch waits until it finishes.</div>{% endif %}
 {% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
 {% if tool.engine and fr %}
+{% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
-<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% endif %}
-{% if fr.reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
-{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
+<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy; the run goes ahead on slightly older inputs{% endif %}
+{% if fr.status == "STALE" and fr.reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+{% if fr.status == "DEGRADED" and degraded %}<details class="sec" style="margin-top:6px"><summary>What fell back<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
+{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
 </div>
 {% endif %}
 
 <section>
-<h2>Arguments <span class="hint">blank = the tool's default{% if tool.fields|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
+<h2>Settings <span class="hint">blank = the tool's default{% if tool.fields|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
 <form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
 {% for f in tool.fields %}
@@ -41,7 +43,7 @@
 </div>
 </div>
 {% endfor %}
-<div class="actions"><button type="submit">Launch</button><span class="small muted">the record opens on the job page when it finishes</span></div>
+<div class="actions"><button type="submit">Launch</button><span class="small muted">the answer opens on the job page when it finishes</span></div>
 </form>
 </section>
 <script>

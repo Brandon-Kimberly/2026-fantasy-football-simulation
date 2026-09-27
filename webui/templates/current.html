@@ -1,53 +1,67 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles %}
+{% from "_macros.html" import tiles, mark %}
 {% block title %}League · {{ brand }}{% endblock %}
 {% block body %}
+<style>
+.roster-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 14px; }
+.roster-nav a { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px 4px 5px; border: 1px solid var(--grid); border-radius: 999px; background: var(--surface); color: var(--ink-2); font-size: 12.5px; text-decoration: none; }
+.roster-nav a:hover { border-color: var(--pos); color: var(--pos); }
+.card:target { border-color: var(--pos); box-shadow: 0 0 0 3px var(--pos-bg); }
+.card h4 .mark { margin-right: 2px; }
+.card .cnt { margin-left: auto; font-size: 12px; color: var(--muted); font-weight: 400; }
+</style>
 {% set mine = standings|selectattr(0, "equalto", my_team)|list %}
+{% set wk = state.current_week or 1 %}
 <div class="head">
-  <p class="eyebrow">current state · week {{ state.current_week or "?" }} · rewritten every sync</p>
+  <p class="eyebrow">league · week {{ wk }} · refreshed by every sync</p>
   <h1>League</h1>
-  <p class="lede">Standings are the league's <b>banked</b> record (F84). Roster means are healthy-week baselines; replacement levels and VORP need the engine and live in a <a href="/tools/roster_grades">roster_grades</a> record, never here.</p>
+  <p class="lede">Every team's record, roster and remaining budget as the league reports them. Click a team to jump to its roster; the playoff odds come from the week-{{ odds_week or "?" }} forecast.</p>
 </div>
 {% if mine %}{% set s = mine[0][1] %}{{ tiles([
-  {"k": my_team ~ " · record", "v": s.h2h_wins|string ~ "–" ~ ((2 * (state.current_week or 1) - 2 - (s.h2h_wins or 0))|string), "s": "banked decisions, H2H + median", "tone": ""},
-  {"k": "points", "v": s.points_scored|num(1), "s": "banked", "tone": ""},
-  {"k": "FAAB left", "v": s.remaining_faab|num(0), "s": "of 100", "tone": ""},
-  {"k": "roster", "v": (rosters.get(my_team) or [])|length|string, "s": "players incl. IR", "tone": ""}
+  {"k": "my record", "v": s.h2h_wins|string ~ "–" ~ ((2 * wk - 2 - (s.h2h_wins or 0))|string), "s": "head-to-head plus the median game", "tone": ""},
+  {"k": "points scored", "v": s.points_scored|num(1), "s": "season to date", "tone": ""},
+  {"k": "budget left", "v": s.remaining_faab|num(0), "s": "of 100 FAAB", "tone": ""},
+  {"k": "roster size", "v": (rosters.get(my_team) or [])|length|string, "s": "including IR", "tone": ""}
 ]) }}{% endif %}
 
 {% if standings %}
 <section>
-<h2>Standings <span class="hint">click a header to sort</span></h2>
-<div class="scroller"><table><thead><tr><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="f" data-type="number" class="num">FAAB left</th></tr></thead><tbody>
-{% for team, s in standings %}<tr{% if team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ team|real }}">{{ team|real }}</td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}">{{ s.points_scored|num(1) }}</td><td class="num" data-sort="{{ s.remaining_faab }}">{{ s.remaining_faab|num(0) }}</td></tr>{% endfor %}
+<h2>Standings <span class="hint">click a column to sort</span></h2>
+<div class="scroller"><table><thead><tr><th></th><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="o" data-type="number" class="num">Playoff odds</th><th data-key="f" data-type="number" class="num">Budget left</th></tr></thead><tbody>
+{% for team, s in standings %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}">{{ s.points_scored|num(1) }}</td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}{{ odds.get(team)|num(1) }}%{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}">{{ s.remaining_faab|num(0) }}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
 
 {% if pending and pending.trades %}
-<section><h2>Pending trades <span class="hint">advisory (T3): pending is not complete</span></h2><pre>{{ pending.trades|tojson(indent=1)|real }}</pre></section>
+<section><h2>Pending trades <span class="hint">not final — a vetoed trade returns the players</span></h2>
+{% for tr in pending.trades %}<div class="note">{% if tr is mapping %}{% for k, v in tr.items() %}<b>{{ k|replace("_"," ") }}</b> {{ v|string|real }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}{{ tr|string|real }}{% endif %}</div>{% endfor %}
+</section>
 {% endif %}
 
 <section>
-<h2>Rosters <span class="hint">sorted by season mean · designations from the last sync</span></h2>
+<h2>Rosters <span class="hint">sorted by season projection · injury status from the last sync</span></h2>
+<div class="roster-nav">{% for team in rosters %}<a href="#t-{{ team|slug }}">{{ mark(team) }}{{ team|real }}</a>{% endfor %}</div>
 <div class="cards">
 {% for team, rows in rosters.items() %}
-<div class="card">
-<h4>{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %} <span class="m" style="margin-left:auto">{{ rows|length }}</span></h4>
-<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="p" data-type="text">Pos</th><th data-key="t" data-type="text">NFL</th><th data-key="m" data-type="number" class="num">Mean</th><th data-key="s" data-type="text">Status</th></tr></thead><tbody>
+<div class="card" id="t-{{ team|slug }}">
+<h4>{{ mark(team) }}{{ team|real }}{% if team == my_team %} <span class="you"></span>{% endif %}<span class="cnt">{{ rows|length }} players</span></h4>
+<div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="p" data-type="text">Pos</th><th data-key="t" data-type="text">NFL</th><th data-key="m" data-type="number" class="num">Proj. / wk</th><th data-key="s" data-type="text">Status</th></tr></thead><tbody>
 {% for r in rows %}<tr><td class="nm" data-sort="{{ r.name }}">{{ r.name }}</td><td data-sort="{{ r.pos }}">{{ r.pos }}</td><td data-sort="{{ r.nfl }}" class="muted">{{ r.nfl }}</td><td class="num" data-sort="{{ r.mean if r.mean is not none else -1 }}">{{ r.mean|num(1) }}</td><td data-sort="{{ r.status }}">{% if r.status %}<span class="flag">{{ r.status }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
+{% if team == my_team %}<p class="small" style="margin:10px 0 0"><a href="/tools/optimize_lineup">Set my lineup</a> · <a href="/tools/roster_grades">Grade every roster</a> · <a href="/tools/roster_calendar">Bye weeks ahead</a></p>{% else %}<p class="small" style="margin:10px 0 0"><a href="/tools/evaluate_trade?team_b={{ team|urlencode }}">Propose a trade with {{ team|real }}</a></p>{% endif %}
 </div>
 {% endfor %}
 </div>
 </section>
 
 {% if manifest.degraded %}
-<section><h2>Last sync <span class="hint">{{ manifest.degraded|length }} tolerated failure(s)</span></h2><details><summary>show</summary><pre>{{ manifest.degraded|join('\n')|real }}</pre></details></section>
+<section><details class="sec"><summary>Sources that fell back in the last sync<span class="n">{{ manifest.degraded|length }}</span></summary><pre>{{ manifest.degraded|join('\n')|real }}</pre></details></section>
 {% endif %}
 
 <section>
-<h2>Files <span class="hint">data/current/</span></h2>
-<div class="rows">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
+<details class="sec"><summary>Raw files<span class="n">{{ files|length }}</span></summary>
+<div class="rows" style="margin-top:8px">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "") }}</a><span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
+</details>
 </section>
 {% endblock %}

@@ -1,25 +1,44 @@
 {% extends "base.html" %}
 {% block title %}Tools · {{ brand }}{% endblock %}
 {% block body %}
+<style>
+.card h4 .m { font-weight: 400; }
+.card .q { min-height: 2.6em; }
+.card .go { margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; }
+.card a.cover { position: absolute; inset: 0; }
+.card { position: relative; }
+.card .go, .card h4 a { position: relative; z-index: 1; }
+</style>
+{% set by = {} %}{% for t in tools %}{% set _ = by.update({t.name: t}) %}{% endfor %}
+{% set groups = [
+  ("This week", "set the lineup, plan the matchup, work the wire", ["optimize_lineup", "matchup_lineup", "waiver_targets", "matchup_watch", "live_matchup", "market_sweep"]),
+  ("Players & trades", "one question at a time, priced by the same simulation", ["compare_players", "evaluate_move", "evaluate_trade", "find_trades", "trade_leverage", "roster_grades", "roster_calendar"]),
+  ("Review & health", "how the model and the data are doing", ["check_freshness", "run_windows", "odds_history", "luck_ledger", "decision_scorecard", "data_health", "bid_review"]),
+] %}
 <div class="head">
-  <p class="eyebrow">launch · one at a time</p>
+  <p class="eyebrow">tools · one launch at a time</p>
   <h1>Tools</h1>
-  <p class="lede">Each runs the same command you would type and opens its record as tables when it finishes. One at a time — a crashed run is void, re-run it alone (R1).</p>
+  <p class="lede">Each one runs the same command you would type and opens its answer as tables when it finishes. Only one runs at a time; a crashed run counts for nothing and is simply re-run.</p>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a> since {{ current.started_at }}. A second launch is refused until it finishes.</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. A second launch waits until it finishes.</div>{% endif %}
 
+{% for title, hint, names in groups %}
 <section>
-<h2>Decision tools <span class="hint">read data/current, write a record under data/decisions</span></h2>
+<h2>{{ title }} <span class="hint">{{ hint }}</span></h2>
 <div class="cards">
-{% for t in tools %}<div class="card"><h4><a href="/tools/{{ t.name }}">{{ t.name|replace("_"," ") }}</a><span class="m" style="margin-left:auto">{% if t.heavy %}minutes{% else %}seconds{% endif %}</span></h4><p class="q">{{ t.question }}</p>{% if t.note %}<p class="m">{{ t.note }}</p>{% endif %}</div>{% endfor %}
+{% for n in names if n in by %}{% set t = by[n] %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a><span class="m" style="margin-left:auto">{% if t.heavy %}minutes{% else %}seconds{% endif %}</span></h4><p class="q">{{ t.question }}</p></div>{% endfor %}
 </div>
 </section>
+{% endfor %}
+{% set placed = groups|map(attribute=2)|sum(start=[]) %}
+{% set rest = tools|rejectattr("name", "in", placed)|list %}
+{% if rest %}<section><h2>Other</h2><div class="cards">{% for t in rest %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a><span class="m" style="margin-left:auto">{% if t.heavy %}minutes{% else %}seconds{% endif %}</span></h4><p class="q">{{ t.question }}</p></div>{% endfor %}</div></section>{% endif %}
 
 <section>
-<h2>Engine runs <span class="hint">minutes · the week's exports are rewritten · same lock</span></h2>
+<h2>Engine runs <span class="hint">minutes · the week's forecast is rewritten</span></h2>
 <div class="cards">
-{% for t in engine %}<div class="card"><h4><a href="/tools/{{ t.name }}">{{ t.name|replace("_"," ") }}</a><span class="m" style="margin-left:auto">minutes</span></h4><p class="q">{{ t.question }}</p>{% if t.note %}<p class="m">{{ t.note }}</p>{% endif %}</div>{% endfor %}
+{% for t in engine %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a><span class="m" style="margin-left:auto">minutes</span></h4><p class="q">{{ t.question }}</p></div>{% endfor %}
 </div>
-<p class="small muted" style="margin-top:14px">Not launchable here, on purpose: sync (a terminal act, H5/C3 — the report always runs <code>--skip-sync</code>), gameday (opens a browser), the backtests and studies, and anything that appends to a tracked season log.</p>
+<p class="small muted" style="margin-top:14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
 </section>
 {% endblock %}

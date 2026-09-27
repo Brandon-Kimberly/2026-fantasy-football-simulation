@@ -26,6 +26,15 @@ MAX_TEXT = 200
 PLAYER_KINDS = ("player", "players", "myplayer", "myplayers", "free_players", "team_players")
 LIST_KINDS = ("players", "myplayers", "free_players", "team_players")
 
+# What a form calls an argument. The argv keeps the tool's own flag; the label is for a
+# person, so 'sims' is 'simulations' and 'light' says what it does.
+LABELS = {"sims": "simulations", "seed": "random seed", "light": "quick mode (no simulation)",
+          "k": "risk weight", "no_cross": "skip the cross-construction table", "top": "show top N",
+          "evaluate": "simulate the top N packages", "batches": "batches", "full": "include the trade finder",
+          "embed": "embed the charts", "seller_threshold": "seller threshold (playoff %)", "offline": "offline (skip the week check)",
+          "all": "every season in the chain", "bid": "FAAB bid", "json": "JSON output", "canonical": "canonical run",
+          "week": "week", "team": "team", "opponent": "opponent", "positions": "positions", "season": "season"}
+
 
 class FormError(ValueError):
     """A submitted value the form schema rejects. Rendered back on the form, never launched."""
@@ -40,7 +49,7 @@ def _team_choices():
 class Field:
     def __init__(self, name, kind, label=None, default=None, help="", required=False,
                  positional=False, choices=None, owner_field=None):
-        self.name, self.kind, self.label = name, kind, label or name.replace("_", " ")
+        self.name, self.kind, self.label = name, kind, label or LABELS.get(name) or name.replace("_", " ")
         self.default, self.help, self.required = default, help, required
         self.positional, self.choices, self.owner_field = positional, choices, owner_field
 

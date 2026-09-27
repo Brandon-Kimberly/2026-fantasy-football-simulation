@@ -223,14 +223,22 @@ class Root:
         return files
 
     def results(self):
+        """data/results/week_NN/<run>/... -- a downloaded artifact nests its files one or two
+        directories deeper (week_NN/ inside the run), so each run is walked, not listed."""
         out = []
         for wk in self._week_dirs("results"):
             rel = f"results/week_{wk:02d}"
             files, dirs = self._files(rel)
             runs = []
             for d in dirs:
-                sub_files, _ = self._files(rel + "/" + d)
-                runs.append({"name": d, "files": sub_files})
+                found = []
+                stack = [rel + "/" + d]
+                while stack:
+                    cur = stack.pop()
+                    sub_files, sub_dirs = self._files(cur)
+                    found.extend(sub_files)
+                    stack.extend(cur + "/" + s for s in sub_dirs if cur.count("/") < 5)
+                runs.append({"name": d, "files": sorted(found, key=lambda e: (e["ext"] != "html", e["name"]))})
             out.append({"week": wk, "files": files, "runs": runs})
         return out
 

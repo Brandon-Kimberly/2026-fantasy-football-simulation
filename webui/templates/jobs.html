@@ -1,10 +1,10 @@
 {% extends "base.html" %}
 {% block title %}Jobs · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">every launch from this UI</p><h1>Jobs</h1><p class="lede">Newest first. One runs at a time.</p></div>
+<div class="head"><p class="eyebrow">jobs · every launch from this UI</p><h1>Jobs</h1><p class="lede">Newest first. A finished job links straight to its answer; a VOID one is a run that crashed or was cancelled, and counts for nothing.</p></div>
 {% if jobs %}
-<div class="scroller"><table><thead><tr><th>State</th><th>Tool</th><th>Started</th><th>Finished</th><th class="num">Exit</th><th>Record</th></tr></thead><tbody>
-{% for j in jobs %}<tr><td><span class="pill {{ j.state }}">{{ j.state }}</span></td><td class="nm"><a href="/jobs/{{ j.id }}">{{ j.label|real }}</a></td><td class="tnum muted">{{ j.started_at }}</td><td class="tnum muted">{{ j.finished_at or "" }}</td><td class="num">{{ j.rc if j.rc is not none else "" }}</td><td>{% if j.record %}<a href="{{ j.record }}">open</a>{% endif %}</td></tr>{% endfor %}
+<div class="scroller"><table><thead><tr><th>State</th><th>Job</th><th>Started</th><th class="num">Took</th><th>Answer</th></tr></thead><tbody>
+{% for j in jobs %}<tr><td><span class="pill {{ j.state }}">{{ j.state }}</span></td><td class="nm"><a href="/jobs/{{ j.id }}">{{ j.tool|tool_title }}</a>{% if j.label and j.label != j.tool %}<span class="small muted" style="display:block;font-weight:400">{{ j.label|real }}</span>{% endif %}</td><td class="tnum muted">{{ j.started_at|when }}</td><td class="num muted">{% if j.finished_at %}{{ j.seconds|dur }}{% elif j.state == 'RUNNING' %}running{% endif %}</td><td>{% if j.record %}<a href="{{ j.record }}">open record</a>{% elif j.state == 'VOID' %}<span class="small muted">{{ (j.note or '')|real|truncate(60) }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-{% else %}<div class="note">Nothing launched yet. <a href="/tools">Tools</a>.</div>{% endif %}
+{% else %}<div class="note">Nothing launched yet — pick something from <a href="/tools">Tools</a>.</div>{% endif %}
 {% endblock %}
