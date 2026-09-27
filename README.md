@@ -80,7 +80,7 @@ the digest with its `DEGRADED` list every week it persists. These gates exist be
 an earlier defect silently truncated real data on every suite run and was found only by
 accident (`docs/AUDIT_PLAN.md` F11).
 
-## Local web UI
+## Local web UI — Syndicate
 
 ```bash
 py -3.10 -m pip install -r requirements-web.txt   # Flask, kept out of the golden-pinned requirements.txt

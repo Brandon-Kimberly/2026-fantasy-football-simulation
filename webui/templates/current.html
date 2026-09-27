@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import tiles %}
-{% block title %}League · fantasy-sim{% endblock %}
+{% block title %}League · {{ brand }}{% endblock %}
 {% block body %}
 {% set mine = standings|selectattr(0, "equalto", my_team)|list %}
 <div class="head">

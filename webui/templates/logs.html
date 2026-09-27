@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Logs · fantasy-sim{% endblock %}
+{% block title %}Logs · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">append-only season logs</p><h1>Logs</h1><p class="lede"><code>data/logs/</code> — the tracked ones are the record that survives a machine loss. Newest rows first; every row is one JSON line.</p></div>
 <div class="rows">{% for e in logs %}<div class="row"><span class="t">{{ e.ext }}</span><span><a href="{% if e.ext == 'jsonl' %}/logs/{{ e.name }}{% else %}{{ e.link }}{% endif %}">{{ e.name }}</a></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>

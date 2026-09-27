@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import tiles %}
-{% block title %}Week {{ week }} · fantasy-sim{% endblock %}
+{% block title %}Week {{ week }} · {{ brand }}{% endblock %}
 {% block body %}
 {% set mine = forecast.get(my_team) or {} %}{% set mf = mine.forecast or {} %}{% set mc = mine.current_state or {} %}
 <div class="head">

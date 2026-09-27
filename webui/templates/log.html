@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ name }} · fantasy-sim{% endblock %}
+{% block title %}{{ name }} · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">data/logs · newest first</p><h1>{{ name }}</h1><p class="lede">Last {{ rows|length }} of {{ total }} rows. <a href="/logs/{{ name }}?n=50">50</a> · <a href="/logs/{{ name }}?n=200">200</a> · <a href="/logs/{{ name }}?n=1000">1000</a> · <a href="{{ link }}?raw=1">raw file</a></p></div>
 <div class="con"><pre>{% for r in rows %}{{ r|real }}

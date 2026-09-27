@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% from "_macros.html" import record %}
-{% block title %}{{ view.title }} · fantasy-sim{% endblock %}
+{% block title %}{{ view.title }} · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head">
   <p class="eyebrow">{{ view.tool|replace("_"," ") }} · {{ view.stamp|stamp }} · data/{{ rel.rsplit('/', 1)[0] }}</p>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Runner results · fantasy-sim{% endblock %}
+{% block title %}Runner results · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">downloaded from Actions</p><h1>Runner results</h1><p class="lede">Canonical-run artifacts under <code>data/results/week_NN/</code>, localized in place by <code>scripts.localize_reports --fetch</code>.</p></div>
 {% if results %}

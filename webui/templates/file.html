@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ rel }} · fantasy-sim{% endblock %}
+{% block title %}{{ rel }} · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">data/{{ rel.rsplit('/', 1)[0] }}</p><h1 style="font-size:20px;letter-spacing:0">{{ rel.rsplit('/', 1)[-1] }}</h1><p class="lede small"><a href="{{ link }}?raw=1">raw</a></p></div>
 <div class="con"><pre>{{ body|real }}</pre></div>

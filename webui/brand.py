@@ -3,5 +3,5 @@
 TAGLINE is the one line under the name on the landing page. Neither carries any league
 identity: they name the tool, not the league.
 """
-NAME = "fantasy-sim"
+NAME = "Syndicate"
 TAGLINE = "the league, priced"
