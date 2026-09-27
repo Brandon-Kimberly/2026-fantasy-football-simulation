@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block title %}{{ job.label|real }} - fantasy-sim{% endblock %}
+{% block body %}
+{% if refresh %}<meta http-equiv="refresh" content="5">{% endif %}
+<h1><span class="pill {{ job.state }}">{{ job.state }}</span> {{ job.label|real }}</h1>
+<p class="small muted">job <code>{{ job.id }}</code> &middot; started {{ job.started_at }}{% if job.finished_at %} &middot; finished {{ job.finished_at }}{% endif %}{% if job.rc is not none %} &middot; exit {{ job.rc }}{% endif %}{% if job.pid %} &middot; pid {{ job.pid }}{% endif %}</p>
+<p class="small"><code>py -3.10 {{ job.args|join(" ")|real }}</code> in <code>{{ job.cwd }}</code></p>
+{% if job.state == "VOID" %}<p class="note" style="border-left-color:#8a1c1c"><b>VOID.</b> {{ job.note }}</p>
+{% elif job.state == "RUNNING" %}<p class="note">Running -- this page refreshes every 5 s. {{ r1 }}</p>
+<form method="post" action="/jobs/{{ job.id }}/cancel"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button type="submit">Cancel (the job becomes VOID)</button></form>
+{% elif job.record %}<p class="note"><b>Record:</b> <a href="{{ job.record }}">{{ job.record }}</a></p>
+{% else %}<p class="note">Finished; no record path was announced in the output.</p>{% endif %}
+<h2>Output <span class="muted small">last {{ (tail|length) }} of {{ size }} bytes &middot; <a href="/jobs/{{ job.id }}/log">full log</a></span></h2>
+<pre>{{ tail|real }}</pre>
+{% endblock %}

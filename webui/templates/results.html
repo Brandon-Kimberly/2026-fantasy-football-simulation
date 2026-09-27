@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Runner results - fantasy-sim{% endblock %}
+{% block body %}
+<h1>Runner results</h1>
+<p class="muted small">data/results/week_NN/ -- canonical-run artifacts downloaded from Actions and localized in place by <code>scripts.localize_reports --fetch</code>.</p>
+{% if results %}
+{% for r in results|reverse %}
+<h2>week {{ r.week }}</h2>
+{% for run in r.runs %}
+<h3>{{ run.name }}</h3>
+<ul class="files">{% for e in run.files %}<li><span class="tool">{{ e.tool }}</span> <a href="{{ e.link }}">{{ e.name }}</a></li>{% endfor %}</ul>
+{% endfor %}
+{% if r.files %}<ul class="files">{% for e in r.files %}<li><span class="tool">{{ e.tool }}</span> <a href="{{ e.link }}">{{ e.name }}</a></li>{% endfor %}</ul>{% endif %}
+{% endfor %}
+{% else %}<p class="muted">nothing downloaded yet</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,6 @@
+{% extends "base.html" %}
+{% block title %}Logs - fantasy-sim{% endblock %}
+{% block body %}
+<h1>Season logs <span class="muted small">data/logs/ -- append-only, the tracked ones survive a machine loss</span></h1>
+<ul class="files">{% for e in logs %}<li><span class="tool">{{ e.ext }}</span> <a href="{% if e.ext == 'jsonl' %}/logs/{{ e.name }}{% else %}{{ e.link }}{% endif %}">{{ e.name }}</a> <span class="muted">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></li>{% endfor %}</ul>
+{% endblock %}

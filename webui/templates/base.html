@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}fantasy-sim{% endblock %}</title>
+<style>
+{{ table_css|safe }}
+body { max-width: 1180px; margin: 1.2rem auto; padding: 0 1rem; }
+nav { display: flex; flex-wrap: wrap; gap: .2rem 1rem; align-items: baseline; border-bottom: 2px solid #1a1a1a; padding-bottom: .5rem; margin-bottom: 1rem; }
+nav a { text-decoration: none; color: #1a1a1a; font-weight: 600; }
+nav a.brand { font-size: 1.05rem; margin-right: .5rem; }
+nav .meta { margin-left: auto; color: #777; font-size: .85rem; }
+h2 { font-size: 1.1rem; margin: 1.6rem 0 .5rem; border-bottom: 1px solid #ddd; padding-bottom: .25rem; }
+h3 { font-size: .95rem; margin: 1rem 0 .4rem; color: #333; }
+.pill { display: inline-block; padding: .1rem .5rem; border-radius: .3rem; font-size: .8rem; font-weight: 600; }
+.OK { background: #e3f5e6; color: #1e6b2b; } .DEGRADED { background: #fff3d6; color: #8a5a00; } .STALE { background: #fde3e3; color: #8a1c1c; }
+.VOID { background: #fde3e3; color: #8a1c1c; } .RUNNING { background: #e3ecf5; color: #1c4b8a; }
+.muted { color: #777; } .small { font-size: .85rem; }
+.private { border-left: 4px solid #7a2e2e; background: #fbeeee; padding: .5rem .8rem; margin: 0 0 1rem; font-size: .9rem; }
+.note { border-left: 4px solid #999; background: #f6f6f6; padding: .5rem .8rem; margin: .6rem 0; font-size: .9rem; }
+.charts { display: flex; flex-wrap: wrap; gap: .8rem; }
+.charts figure { margin: 0; max-width: 560px; }
+.charts img { max-width: 100%; height: auto; border: 1px solid #e4e4e4; }
+figcaption { font-size: .8rem; color: #555; }
+pre { background: #f6f6f6; padding: .8rem; overflow: auto; font-size: .82rem; line-height: 1.35; white-space: pre-wrap; word-break: break-word; }
+code { background: #f1f1f1; padding: 0 .25rem; }
+ul.files { list-style: none; padding: 0; margin: 0; }
+ul.files li { padding: .15rem 0; border-bottom: 1px solid #f0f0f0; font-size: .9rem; }
+ul.files .tool { display: inline-block; min-width: 9rem; color: #555; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem; }
+td.me, tr.me td { background: #eef4fb; }
+</style>
+</head>
+<body>
+<nav>
+  <a class="brand" href="/">fantasy-sim</a>
+  <a href="/weeks">Weeks</a>
+  <a href="/decisions">Decisions</a>
+  <a href="/current">Current state</a>
+  <a href="/logs">Logs</a>
+  <a href="/results">Runner results</a>
+  <a href="/tools">Tools</a>
+  <a href="/jobs">Jobs</a>
+  <span class="meta">{{ now }} &middot; localhost only &middot; {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %}</span>
+</nav>
+{% if overlay_enabled %}<div class="private"><b>{{ private_marker }}.</b> Real names are an in-memory overlay on this page only; every file on disk and every URL stays pseudonymous.</div>{% endif %}
+{% block body %}{% endblock %}
+<script>
+{{ table_js|safe }}
+</script>
+</body>
+</html>

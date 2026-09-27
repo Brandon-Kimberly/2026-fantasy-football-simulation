@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Status - fantasy-sim{% endblock %}
+{% block body %}
+<h1>Status <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
+<p class="muted small">Sync week {{ fr.week or "?" }} &middot; offline verdict (the week roll is not checked from the server) &middot; root <code>{{ root_path }}</code></p>
+
+{% if fr.reasons %}
+<ul>{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>
+{% else %}
+<p>Every sync output is at least as new as the sync's start, Vegas is stamped for week {{ fr.vegas_week }}, and the week's simulation export is newer than the sync.</p>
+{% endif %}
+
+{% if fr.manifest %}
+<h2>Last sync</h2>
+<p class="small">started {{ fr.manifest.started_at }} &middot; finished {{ fr.manifest.finished_at }} &middot; ok={{ fr.manifest.ok }}{% if fr.vegas_stale_since %} &middot; <b>Vegas kept from {{ fr.vegas_stale_since }} (C3: the fetch failed and the real lines were preserved)</b>{% endif %}</p>
+{% if fr.manifest.degraded %}
+<details><summary>{{ fr.manifest.degraded|length }} tolerated failure(s) in the sync</summary>
+<ul class="small">{% for d in fr.manifest.degraded %}<li>{{ d|real }}</li>{% endfor %}</ul></details>
+{% endif %}
+{% endif %}
+
+<h2>Run windows</h2>
+{% if windows.note %}<p class="note">{{ windows.note }}</p>{% endif %}
+{% if windows.result %}
+<p class="small muted">target week {{ windows.result.target_week }} &middot; kickoffs from the {{ windows.source }}</p>
+<table><thead><tr><th>Window</th><th>Opens (UTC)</th><th>Deadline (UTC)</th><th>Status</th><th>Covered by</th></tr></thead><tbody>
+{% for w in windows.result.windows %}
+<tr><td>{{ w.name }}</td><td>{{ w.start.strftime("%Y-%m-%d %H:%MZ") if w.start else "" }}</td><td>{{ w.deadline.strftime("%Y-%m-%d %H:%MZ") if w.deadline else "" }}</td><td>{{ w.status }}</td><td>{{ w.covered_by or "" }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% for f in windows.result.flags or [] %}<p class="note">{{ f }}</p>{% endfor %}
+{% if windows.verdict and windows.verdict.actionable %}<p class="note"><b>Action:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h ({{ a.deadline }}){% if not loop.last %}; {% endif %}{% endfor %}</p>{% endif %}
+{% endif %}
+
+<h2>Reports on disk</h2>
+{% if weeks %}<p>Simulation exports: {% for w in weeks %}<a href="/weeks/{{ w }}">week {{ w }}</a>{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>{% else %}<p class="muted">No simulation export yet.</p>{% endif %}
+{% if digests %}<ul class="files">{% for wk, e in digests.items()|sort(reverse=true) %}<li><span class="tool">week {{ wk }} canonical</span> <a href="{{ e.link }}">{{ e.name }}</a> <span class="muted">{{ e.stamp|stamp }}</span></li>{% endfor %}</ul>{% else %}<p class="muted">No canonical digest on disk (a scheduled run's digest lives on the runner; <code>scripts.localize_reports --fetch</code> files it under data/results/).</p>{% endif %}
+
+<h2>Logs push state</h2>
+{% if git is none %}<p class="muted">Not a git checkout, or git unavailable.</p>
+{% else %}<p class="small">{% if git.uncommitted %}<b>uncommitted:</b> {{ git.uncommitted|join(", ") }}{% else %}nothing uncommitted under data/logs{% endif %} &middot; {% if git.unpushed is none %}no upstream{% elif git.unpushed %}<b>{{ git.unpushed }} unpushed commit(s)</b>{% else %}nothing unpushed{% endif %}</p>{% endif %}
+
+<h2>From a terminal</h2>
+<p class="small">This page reads; it does not sync. Sync is a deliberate terminal act (docs/WEB_UI.md, W4).</p>
+<table><tbody>{% for cmd, why in commands %}<tr><td><code>{{ cmd }}</code></td><td class="small">{{ why }}</td></tr>{% endfor %}</tbody></table>
+<p class="note">{{ r1 }}</p>
+<p class="note small">{{ warnings_note }}</p>
+{% endblock %}

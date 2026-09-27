@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Week {{ week }} - fantasy-sim{% endblock %}
+{% block body %}
+<h1>Week {{ week }} simulation</h1>
+<p class="muted small">{{ metadata.simulations or "?" }} simulations in {{ metadata.batches or "?" }} batches &middot; files: {% for e in jsons %}<a href="{{ e.link }}">{{ e.name }}</a>{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
+
+{% if teams %}
+<h2>Season forecast</h2>
+<table><thead><tr>
+<th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number">Banked W</th><th data-key="p" data-type="number">Banked pts</th>
+<th data-key="ew" data-type="number">Exp. final wins</th><th data-key="po" data-type="number">Playoff %</th><th data-key="se" data-type="number">&plusmn; SE</th>
+<th data-key="mn" data-type="number">Magic no.</th><th data-key="fb" data-type="number">FAAB</th></tr></thead><tbody>
+{% for t in teams %}{% set cs = forecast[t].current_state or {} %}{% set fc = forecast[t].forecast or {} %}
+<tr{% if t == my_team %} class="me"{% endif %}>
+<td data-sort="{{ t|real }}">{{ t|real }}</td><td class="num" data-sort="{{ cs.actual_wins_banked }}">{{ cs.actual_wins_banked|num(0) }}</td><td class="num" data-sort="{{ cs.actual_points_banked }}">{{ cs.actual_points_banked|num(2) }}</td>
+<td class="num" data-sort="{{ fc.expected_final_wins }}">{{ fc.expected_final_wins|num(2) }}</td><td class="num" data-sort="{{ fc.playoff_probability_pct }}">{{ fc.playoff_probability_pct|num(1) }}</td><td class="num" data-sort="{{ fc.playoff_standard_error }}">{{ fc.playoff_standard_error|num(2) }}</td>
+<td class="num" data-sort="{{ fc.approximate_magic_number }}">{{ fc.approximate_magic_number|num(0) }}</td><td class="num" data-sort="{{ cs.remaining_faab }}">{{ cs.remaining_faab|num(0) }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% endif %}
+
+{% if outcomes %}
+<h2>Season outcomes</h2>
+<table><thead><tr><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number">Exp. wins</th><th data-key="p" data-type="number">Exp. points</th><th data-key="po" data-type="number">Playoff %</th><th data-key="c" data-type="number">Champ %</th><th data-key="x" data-type="number">Toilet %</th></tr></thead><tbody>
+{% for o in outcomes %}
+<tr{% if o.Team == my_team %} class="me"{% endif %}><td data-sort="{{ o.Team|real }}">{{ o.Team|real }}</td><td class="num" data-sort="{{ o.Expected_Wins }}">{{ o.Expected_Wins|num(2) }}</td><td class="num" data-sort="{{ o.Expected_Points }}">{{ o.Expected_Points|num(0) }}</td><td class="num" data-sort="{{ o.Playoff_Pct }}">{{ o.Playoff_Pct|num(1) }}</td><td class="num" data-sort="{{ o.Champ_Pct }}">{{ o.Champ_Pct|num(1) }}</td><td class="num" data-sort="{{ o.Toilet_Pct }}">{{ o.Toilet_Pct|num(1) }}</td></tr>
+{% endfor %}
+</tbody></table>
+{% endif %}
+
+{% if insights %}
+<h2>Insights</h2>
+<p class="small">{{ insights.engine_simulations_run }} simulations &middot; highest single week observed {{ insights.highest_single_week_score_observed }} ({{ (insights.team_with_highest_ceiling_game or "")|real }}, week {{ insights.week_of_highest_score }})</p>
+{% if insights.most_valuable_players_championship_shares %}
+<details><summary>Championship-lineup appearances</summary><table><thead><tr><th>Player</th><th data-type="number">Appearance %</th><th data-type="number">Avg pts / champ week</th></tr></thead><tbody>
+{% for name, v in insights.most_valuable_players_championship_shares.items() %}<tr><td>{{ name }}</td><td class="num">{{ v.championship_lineup_appearance_pct|num(1) }}</td><td class="num">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
+</tbody></table></details>
+{% endif %}
+{% endif %}
+
+{% if charts %}
+<h2>Charts</h2>
+<div class="charts">{% for e in charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name }}</figcaption></figure>{% endfor %}</div>
+{% endif %}
+
+{% for sub, files in subdirs.items() %}{% if files %}
+<h3>{{ sub }}</h3>
+<ul class="files">{% for e in files %}<li><a href="{{ e.link }}">{{ e.name|real }}</a></li>{% endfor %}</ul>
+{% endif %}{% endfor %}
+
+{% if warnings %}
+<h2>Run warnings ({{ warnings|length }})</h2>
+<details><summary>the warnings this run recorded (F10: the per-run record, not the shared mirror log)</summary>
+<ul class="small">{% for w in warnings %}<li><b>{{ w.level }}</b> {{ w.message|real }}</li>{% endfor %}</ul></details>
+{% endif %}
+{% endblock %}
