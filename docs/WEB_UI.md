@@ -392,6 +392,31 @@ Team avatars (owner's eyes only) ride the same path as real names: `Overlay.avat
 is fetched in memory when real names are on, rendered as `<img src>`, never written,
 and off whenever the overlay is off.
 
+### W7 — Readable addresses, the Decisions tab, VORP on the League page (2026-09-27)
+
+Every list links to a readable address and the file paths keep working underneath:
+`/records/week-3/optimal-lineup/2026-09-24-165331` (archive runs under `/archive/`,
+compare records keep the A-vs-B, digests keep the run name and end in `/markdown` for
+the md twin), `/jobs/optimal-lineup/2026-09-26-000000-000001`, `/logs/decision-log`,
+`/forecasts/week-3`, `/league`. One function (`render.pretty_url`) builds them and the
+resolver matches an entry by the same function, so there is one mapping to keep.
+
+The **Decisions** tab joins the decision log to itself: each `type` row (a move) to the
+`record_type: evaluation` row `evaluate_move --evaluate-unevaluated` wrote for it, by
+transaction id. It shows every move with its effect on the team that made it (playoff
+and title percentage points, ± the batch spread), sums each team's own moves into a
+ledger, and charts my cumulative effect. Nothing is computed that the tools did not
+write; a skipped evaluation (roster drift) says so rather than showing a number.
+
+The League page's VORP comes from the newest `roster_grades` record that carries
+`rosters` -- `scripts.roster_grades` writes per-player detail for every team since this
+date -- never from a replacement level recomputed in the UI (that would be a second
+definition of the engine's number). Until one has been run the column says so.
+
+The `--json` tools (live matchup, luck ledger, odds history, data health, bid review,
+run windows, decision scorecard) always run `--json` from the UI and their document
+renders as tables on the job page; the text form is one click away in the log.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
