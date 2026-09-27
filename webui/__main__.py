@@ -38,6 +38,8 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--root", default=DEFAULT_ROOT, help="the checkout (or a copy) whose data/ to serve")
     ap.add_argument("--no-real-names", action="store_true")
+    ap.add_argument("--mode", choices=("dev", "simple"), default=None,
+                    help="the view to start in (W8); the stored setting wins once it exists, the header toggles it")
     args = ap.parse_args(argv)          # an unknown option such as --host exits 2 here, before any bind
 
     _pre_import_environment(args.no_real_names)
@@ -50,9 +52,9 @@ def main(argv=None):
         print(f"webui: {root.data} does not exist -- is --root a checkout with a data/ tree?", file=sys.stderr)
         return 2
     overlay = Overlay.from_environment()
-    app = create_app(root, overlay=overlay, port=args.port)
+    app = create_app(root, overlay=overlay, port=args.port, default_mode=args.mode)
     print(f"webui: http://127.0.0.1:{args.port}/   root={root.root}   "
-          f"real names={'on' if overlay.enabled else 'off (pseudonyms)'}", flush=True)
+          f"real names={'on' if overlay.enabled else 'off (pseudonyms)'}   mode={app.config['SETTINGS'].mode}", flush=True)
     app.run(host="127.0.0.1", port=args.port, debug=False, use_reloader=False, threaded=True)
     return 0
 

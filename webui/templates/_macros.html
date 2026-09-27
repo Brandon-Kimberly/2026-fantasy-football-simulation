@@ -10,7 +10,7 @@
 {%- endmacro %}
 
 {% macro tiles(items) -%}
-{% if items %}<div class="tiles">{% for t in items %}<div class="tile {{ t.tone }}"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ t.s|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
+{% if items %}<div class="tiles">{% for t in items %}<div class="tile {{ t.tone }}"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ (t.s if dev else t.s|plain)|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
 {%- endmacro %}
 
 {% macro rangebar(r, nd=0) -%}
@@ -29,7 +29,7 @@
 {% macro section_body(s) -%}
 {% if s.kind == 'table' %}{{ datatable(s.columns, s.rows, s.me_key) }}
 {% elif s.kind == 'kv' %}<dl class="kv">{% for k, v in s['items'] %}<dt>{{ k }}</dt><dd>{{ v|real }}</dd>{% endfor %}</dl>
-{% elif s.kind == 'text' %}<p class="small muted" style="max-width:80ch">{{ s.text|real }}</p>{% endif %}
+{% elif s.kind == 'text' %}<p class="small muted" style="max-width:80ch">{{ (s.text if dev else s.text|plain)|real }}</p>{% endif %}
 {%- endmacro %}
 
 {% macro record(view) -%}
@@ -40,7 +40,7 @@
 {% if s.collapsed %}
 <details class="sec"><summary>{{ s.title|real }}{% if s.kind == 'table' %}<span class="n">{{ s.rows|length }} rows</span>{% endif %}</summary>{{ section_body(s) }}</details>
 {% else %}
-<h2>{{ s.title|real }}{% if s.note %}<span class="hint">{{ s.note|real }}</span>{% endif %}</h2>
+<h2>{{ s.title|real }}{% if s.note %}<span class="hint">{{ (s.note if dev else s.note|plain)|real }}</span>{% endif %}</h2>
 {{ section_body(s) }}
 {% endif %}
 </section>
@@ -62,7 +62,7 @@
 {%- endmacro %}
 
 {% macro rawlink(e) -%}
-<a class="raw" href="{{ e.link }}{% if e.ext in ('json','jsonl','md','txt','log','csv') %}?raw=1{% endif %}" title="{{ e.name }}"><svg class="i"><use href="#i-arrow"/></svg> {{ e.ext }}</a>
+{% if dev %}<a class="raw" href="{{ e.link }}{% if e.ext in ('json','jsonl','md','txt','log','csv') %}?raw=1{% endif %}" title="{{ e.name }}"><svg class="i"><use href="#i-arrow"/></svg> {{ e.ext }}</a>{% endif %}
 {%- endmacro %}
 
 {% macro filelist(entries) -%}

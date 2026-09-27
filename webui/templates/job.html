@@ -1,6 +1,6 @@
 {% extends "base.html" %}
-{% from "_macros.html" import record, console %}
-{% block title %}{{ job.label|real }} · {{ brand }}{% endblock %}
+{% from "_macros.html" import record, console with context %}
+{% block title %}{{ job.tool|tool_title }} · {{ brand }}{% endblock %}
 {% block body %}
 <style>
 .stages { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 10px; }
@@ -16,14 +16,14 @@
 .elapsed { font-variant-numeric: tabular-nums; }
 </style>
 <div class="head">
-  <p class="eyebrow">{{ 'engine run' if job.tool in ('run_simulation', 'weekly_report') else 'decision tool' }} · started {{ job.started_at|when }}{% if job.finished_at %} · took <span class="elapsed">{{ elapsed|dur }}</span>{% endif %}</p>
-  <h1><span class="pill {{ job.state }}" id="pill">{{ job.state }}</span> {{ job.tool|tool_title }}</h1>
-  {% if job.label and job.label != job.tool %}<p class="lede">{{ job.label|real }}</p>{% endif %}
+  <p class="eyebrow">{% if dev %}{{ 'engine run' if job.tool in ('run_simulation', 'weekly_report') else 'decision tool' }}{% else %}your question{% endif %} · started {{ job.started_at|when }}{% if job.finished_at %} · took <span class="elapsed">{{ elapsed|dur }}</span>{% endif %}</p>
+  <h1><span class="pill {{ job.state }}" id="pill">{{ job.state|state_label }}</span> {{ job.tool|tool_title }}</h1>
+  {% if job.label and job.label != job.tool %}<p class="lede">{{ (job.label|replace(job.tool, job.tool|tool_title))|real }}</p>{% endif %}
   {% if job.resolved %}<p class="small muted">Players matched: {{ job.resolved|join(" · ")|real }}</p>{% endif %}
 </div>
 
-{% if job.state == "VOID" %}<div class="note bad"><b>VOID.</b> {{ job.note }}</div>{% endif %}
-{% if job.sync %}<div class="note {{ 'good' if job.state == 'OK' else '' }}"><b>{{ 'Synced.' if job.state == 'OK' else 'A sync from the Sync page.' }}</b> The key came from {{ job.key_source }}{% if job.key_remaining %} ({{ job.key_remaining }} the-odds-api requests left){% endif %}; data/current/ was backed up first as <code>{{ job.backup }}</code>.{% if job.state == 'OK' %} <a href="/system">See the data on disk</a>, <a href="/league">the League</a>{% if job.tool == 'run_sync' %}, or <a href="/tools">re-run the tools</a> — a plain sync leaves the forecast and records as they were{% endif %}.{% endif %} <a href="/sync">Backups and restore</a>.</div>{% endif %}
+{% if job.state == "VOID" %}<div class="note bad"><b>{% if dev %}VOID.{% else %}It didn't finish.{% endif %}</b> {% if dev %}{{ job.note }}{% else %}Try again; if it keeps happening, tell the owner.{% endif %}</div>{% endif %}
+{% if job.sync and dev %}<div class="note {{ 'good' if job.state == 'OK' else '' }}"><b>{{ 'Synced.' if job.state == 'OK' else 'A sync from the Sync page.' }}</b> The key came from {{ job.key_source }}{% if job.key_remaining %} ({{ job.key_remaining }} the-odds-api requests left){% endif %}; data/current/ was backed up first as <code>{{ job.backup }}</code>.{% if job.state == 'OK' %} <a href="/system">See the data on disk</a>, <a href="/league">the League</a>{% if job.tool == 'run_sync' %}, or <a href="/tools">re-run the tools</a> — a plain sync leaves the forecast and records as they were{% endif %}.{% endif %} <a href="/sync">Backups and restore</a>.</div>{% endif %}
 
 {% if running %}
 <section id="live">
@@ -31,7 +31,7 @@
 <div class="stages" id="stages">{% for s in progress.stages %}<span class="stage {{ 'done' if loop.index < progress.reached else ('now' if loop.index == progress.reached) }}">{{ s }}</span>{% endfor %}</div>
 <div class="bar {{ '' if typical else 'pulse' }}" id="bar"><i style="width:{{ ((elapsed or 0) / typical * 100)|round(0)|int if typical else 40 }}%"></i></div>
 <div class="latest" id="latest">{{ progress.last|real or "starting…" }}</div>
-<form method="post" action="/jobs/{{ job.id }}/cancel" class="actions"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button type="submit" class="ghost">Cancel</button><span class="small muted">a cancelled job is VOID; the page updates in place and reloads once when the run ends</span></form>
+<form method="post" action="/jobs/{{ job.id }}/cancel" class="actions"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button type="submit" class="ghost">Cancel</button><span class="small muted">{% if dev %}a cancelled job is VOID; {% endif %}the page updates in place and reloads once when the run ends</span></form>
 </section>
 <script>
 (function () {
@@ -56,12 +56,13 @@
 
 {% if view %}
 <section>
-<h2>{{ view.title|real }} <span class="hint">{{ view.subtitle|real }} · <a href="{{ job.record }}">the record on disk</a></span></h2>
+<h2>{{ view.title|real }} <span class="hint">{{ view.subtitle|real }}{% if dev %} · <a href="{{ job.record }}">the record on disk</a>{% endif %}</span></h2>
 {{ record(view) }}
 </section>
-{% elif job.record and not running %}<div class="note good"><b>Record written</b> — <a href="{{ job.record }}">open it</a></div>
+{% elif job.record and not running and dev %}<div class="note good"><b>Record written</b> — <a href="{{ job.record }}">open it</a></div>
 {% endif %}
 
+{% if dev %}
 <section>
 {% if view %}
 <details class="sec"><summary>What the tool printed<span class="n">{{ (size / 1024)|round(1) }} KB · <a href="/jobs/{{ job.id }}/log">plain text</a></span></summary>{{ console(blocks) }}</details>
@@ -71,4 +72,7 @@
 {% endif %}
 <details class="sec"><summary>The command, and where it ran</summary><p class="small"><code>py -3.10 {{ job.args|join(" ")|real }}</code></p><p class="small muted">job <code>{{ job.id }}</code>{% if job.pid %} · pid {{ job.pid }}{% endif %} · started {{ job.started_at|when }}{% if job.finished_at %} · finished {{ job.finished_at|when }}{% endif %}{% if job.rc is not none %} · exit code {{ job.rc }}{% endif %}</p></details>
 </section>
+{% elif not view and not running %}
+<section><h2>What it said</h2>{{ console(blocks) }}</section>
+{% endif %}
 {% endblock %}

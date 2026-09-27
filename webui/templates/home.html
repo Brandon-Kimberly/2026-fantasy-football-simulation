@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink %}
+{% from "_macros.html" import mark, teamlink with context %}
 {% block title %}{{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -72,7 +72,7 @@
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
 <div class="hero">
   <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
-    {% if m.logged_at %}<span class="tiny muted">prediction logged {{ m.logged_at|when }}{% if m.canonical %} · canonical run{% endif %}</span>{% endif %}</div>
+    {% if m.logged_at %}<span class="tiny muted">prediction made {{ m.logged_at|when }}{% if m.canonical and dev %} · canonical run{% endif %}</span>{% endif %}</div>
   {% if opponent %}
   <div class="who">
     <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ teamlink(my_team) }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} pts{% endif %}</div></div></div>
@@ -92,20 +92,20 @@
     {% if lineup and lineup.expected_total %}<span>lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">see the lineup</a>{% endif %}</span>{% endif %}
   </div>
   {% else %}
-  <div class="note" style="margin-top:12px">No prediction logged for week {{ week }} yet — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup.</div>
+  <div class="note" style="margin-top:12px">No prediction for week {{ week }} yet{% if dev %} — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup{% endif %}.</div>
   {% endif %}
 
   {# ---- live scoreboard (W6): read-only, off-disk; see webui/live.py ---- #}
   <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}">
     <div class="lh">
       <span class="k" id="live-k"><svg class="i"><use href="#i-live"/></svg> Live</span>
-      <span class="meta" id="live-meta">{% if not live.enabled %}not connected — set SLEEPER_LEAGUE_ID for this server{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
+      <span class="meta" id="live-meta">{% if not live.enabled %}{% if dev %}not connected — set SLEEPER_LEAGUE_ID for this server{% else %}live scores are not connected{% endif %}{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
       <span class="ctl">
-        <label title="re-read Sleeper and the NFL scoreboard every 3 minutes; nothing is written to disk"><input type="checkbox" id="live-auto"> auto-refresh</label>
+        <label title="re-read the scores every 3 minutes"><input type="checkbox" id="live-auto"> auto-refresh</label>
         <button type="button" class="ghost" id="live-refresh"{% if not live.enabled %} disabled{% endif %}><svg class="i"><use href="#i-refresh"/></svg> Refresh</button>
       </span>
     </div>
-    <div id="live-body">{% if live.snapshot and live.snapshot.ok %}<div class="note-l">loading…</div>{% elif live.enabled %}<div class="note-l">Press refresh for points scored so far and an updated chance to win. Reads Sleeper and the NFL scoreboard only; nothing is written, so the model's data and logs are untouched.</div>{% endif %}</div>
+    <div id="live-body" data-dev="{{ '1' if dev else '0' }}">{% if live.snapshot and live.snapshot.ok %}<div class="note-l">loading…</div>{% elif live.enabled %}<div class="note-l">Press refresh for points scored so far and an updated chance to win.{% if dev %} Reads Sleeper and the NFL scoreboard only; nothing is written, so the model's data and logs are untouched.{% endif %}</div>{% endif %}</div>
   </div>
   {% else %}
   <p class="lede">No matchup on file for week {{ week or "?" }} — the league schedule arrives with the sync.</p>
@@ -124,11 +124,12 @@
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
     {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, height=150, marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
-    <div class="s">the model's expected cumulative wins by week, from this week's forecast · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
-    {% else %}<div class="s">No simulation export yet — <a href="/tools/run_simulation">run one</a>.</div>{% endif %}
+    <div class="s">expected wins by week, from this week's forecast · {{ c.actual_wins_banked|num(0) }} so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    {% else %}<div class="s">No forecast yet{% if dev %} — <a href="/tools/run_simulation">run one</a>{% endif %}.</div>{% endif %}
   </div>
 </div>
 
+{% if dev %}
 <div class="chips">
   <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/sync" title="sync the league's current state"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours|ago }}{% endif %} · sync</span></a>
   <a class="chip {{ 'warn' if fresh.n_fell or fresh.n_bad }}" href="/system"><svg class="i"><use href="#i-cloud"/></svg><span class="k">sources</span><span class="v">{{ fresh.n_ok }} ok{% if fresh.n_fell %} · {{ fresh.n_fell }} fell back{% endif %}{% if fresh.n_bad %} · {{ fresh.n_bad }} failed{% endif %}</span></a>
@@ -136,6 +137,9 @@
   <a class="chip" href="{% if last_job %}{{ last_job|job_url }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
   <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
+{% else %}
+<p class="small muted" style="margin-top:16px">{% if fresh.manifest %}League data as of {{ fresh.manifest.finished_at|when }}{% if fresh.status == 'STALE' %} — <span class="neg">it is out of date; the owner needs to refresh it</span>{% endif %}.{% else %}No league data yet.{% endif %}</p>
+{% endif %}
 
 <div class="grid2">
   <section style="margin-top:28px">
@@ -161,12 +165,12 @@
     <div class="scroller"><table class="watch"><thead><tr><th>Week</th><th>Slot</th><th></th></tr></thead><tbody>
     {% for w, slots in holes.items() %}<tr><td class="nm">week {{ w }}</td><td><span class="flag">{{ slots|join(", ") }}</span></td><td class="small muted">no eligible player on the roster{% if calendar_link %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
-    {% if not q and not designations and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">the lineup tool</a> and <a href="/tools/roster_calendar">the roster calendar</a> to populate this.{% endif %}</p>{% endif %}
+    {% if not q and not designations and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">Set my lineup</a> and <a href="/tools/roster_calendar">Bye weeks ahead</a> to fill this in.{% endif %}</p>{% endif %}
     <div class="qa">
       <a class="btn" href="/tools/optimize_lineup"><svg class="i"><use href="#i-clip"/></svg> Set my lineup</a>
       <a class="btn ghost" href="/tools/matchup_lineup">Game-plan the matchup</a>
       <a class="btn ghost" href="/tools/waiver_targets">Waiver targets</a>
-      <a class="btn ghost" href="/tools/weekly_report">Weekly digest</a>
+      {% if dev %}<a class="btn ghost" href="/tools/weekly_report">Weekly digest</a>{% endif %}
     </div>
   </section>
 </div>
@@ -200,7 +204,9 @@
       '<div class="mid">chance to win now<b>' + pct(s.p_win) + '</b>' + (s.p_win_wide != null ? '<span>' + pct(s.p_win_wide) + ' if same-game swings are wider</span>' : '') + '</div>' +
       '<div class="r"><div class="pts" style="color:var(--warm)">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' starters still to play</div></div></div>' +
       '<div class="bars">' + side(me, 'me', s.team) + side(th, 'them', s.opponent || 'opponent') + '</div>' +
-      '<div class="note-l">Quick estimate: points banked plus the unplayed share of each starter\'s pre-game expectation' + (s.sources && s.sources.length ? ' (from this week\'s ' + esc(s.sources.join(' and ')) + ')' : ' (baseline means)') + ', Normal-approximated.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as pregame.') + ' For the engine\'s own number run <a href="/tools/live_matchup">Live matchup</a>. Nothing here is written to disk.</div>' +
+      (body.getAttribute('data-dev') === '1'
+        ? '<div class="note-l">Quick estimate: points banked plus the unplayed share of each starter\'s pre-game expectation' + (s.sources && s.sources.length ? ' (from this week\'s ' + esc(s.sources.join(' and ')) + ')' : ' (baseline means)') + ', Normal-approximated.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as pregame.') + ' For the engine\'s own number run <a href="/tools/live_matchup">Live matchup</a>. Nothing here is written to disk.</div>'
+        : '<div class="note-l">An estimate from the points so far and each starter\'s pre-game projection.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as not yet played.') + ' <a href="/tools/live_matchup">Run the full live matchup</a> for the model\'s own number.</div>') +
       '<details><summary>every starter</summary><div class="scroller"><table><thead><tr><th>' + esc(s.team) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(me) + '</tbody>' +
       (s.theirs ? '<thead><tr><th>' + esc(s.opponent) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(th) + '</tbody>' : '') + '</table></div></details>';
     body.innerHTML = html;

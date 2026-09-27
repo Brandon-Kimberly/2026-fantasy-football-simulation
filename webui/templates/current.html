@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, rawlink, teamlink %}
+{% from "_macros.html" import tiles, mark, rawlink, teamlink with context %}
 {% block title %}League · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -28,9 +28,9 @@
 {% set vt = vorp.teams if vorp else {} %}
 {% set vmax = [(vt.values()|map(attribute='lineup_vorp')|max if vt else 1)|float, 1.0]|max %}
 <div class="head">
-  <p class="eyebrow">league · week {{ wk }} · refreshed by every sync</p>
+  <p class="eyebrow">league · week {{ wk }}{% if dev %} · refreshed by every sync{% endif %}</p>
   <h1>League</h1>
-  <p class="lede">Every team's record, roster and remaining budget as the league reports them. Click a team to jump to its roster; the playoff odds come from the week-{{ odds_week or "?" }} forecast{% if vorp %}, and the roster strength (VORP) from the roster grades run on {{ vorp.stamp|when }}{% endif %}.</p>
+  <p class="lede">Every team's record, roster and remaining budget as the league reports them. Click a team to jump to its roster; the playoff odds come from the week-{{ odds_week or "?" }} forecast{% if vorp %}, and the roster strength (VORP) from the roster grades of {{ vorp.stamp|when }}{% endif %}.</p>
 </div>
 {% if mine %}{% set s = mine[0][1] %}{{ tiles([
   {"k": "my record", "v": s.h2h_wins|string ~ "–" ~ ((2 * wk - 2 - (s.h2h_wins or 0))|string), "s": "head-to-head plus the median game", "tone": ""},
@@ -45,7 +45,7 @@
 <div class="scroller"><table><thead><tr><th></th><th data-key="t" data-type="text">Team</th><th data-key="w" data-type="number" class="num">Wins</th><th data-key="p" data-type="number" class="num">Points</th><th data-key="o" data-type="number" class="num">Playoff odds</th><th data-key="v" data-type="number" class="num">Lineup VORP</th><th data-key="f" data-type="number" class="num">Budget left</th></tr></thead><tbody>
 {% for team, s in standings %}{% set v = vt.get(team) if vt else None %}<tr{% if team == my_team %} class="me"{% endif %}><td class="num muted">{{ loop.index }}</td><td class="nm" data-sort="{{ team|real }}">{{ mark(team) }}<a href="#t-{{ team|slug }}" class="tl">{{ team|real }}</a></td><td class="num" data-sort="{{ s.h2h_wins }}"><b>{{ s.h2h_wins }}</b></td><td class="num" data-sort="{{ s.points_scored }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (s.points_scored or 0) / pmax)|round(0)|int }}"></i></span>{{ s.points_scored|num(1) }}</span></td><td class="num" data-sort="{{ odds.get(team) or 0 }}">{% if odds.get(team) is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (odds.get(team) or 0)|round(0)|int }}"></i></span>{{ odds.get(team)|num(1) }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ v.lineup_vorp if v else -999 }}">{% if v %}<span class="bc"><span class="mini violet"><i data-width="{{ (100 * ([v.lineup_vorp, 0]|max) / vmax)|round(0)|int }}"></i></span>{{ v.lineup_vorp|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ s.remaining_faab }}"><span class="bc"><span class="mini gold"><i data-width="{{ (s.remaining_faab or 0)|round(0)|int }}"></i></span>{{ s.remaining_faab|num(0) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
-{% if not vorp %}<p class="small muted" style="margin-top:8px">Lineup VORP appears once <a href="/tools/roster_grades">roster grades</a> has been run — it needs the engine's replacement levels, which this page will not recompute on its own.</p>{% endif %}
+{% if not vorp %}<p class="small muted" style="margin-top:8px">{% if dev %}Lineup VORP appears once <a href="/tools/roster_grades">roster grades</a> has been run — it needs the engine's replacement levels, which this page will not recompute on its own.{% else %}Roster strength appears once the owner has run the roster grades.{% endif %}</p>{% endif %}
 </section>
 {% endif %}
 
@@ -56,9 +56,9 @@
 {% endif %}
 
 <section>
-<h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · status from the last sync{% if vorp %} · VORP from roster grades{% endif %}</span></h2>
+<h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · status as of the last update{% if vorp %} · VORP from roster grades{% endif %}</span></h2>
 <div class="roster-nav">{% for team in rosters %}<a href="#t-{{ team|slug }}">{{ mark(team) }}{{ team|real }}</a>{% endfor %}</div>
-{% if vorp %}<div class="vorp-head"><span><b>VORP</b> = a player's season projection over the replacement level of his position — what he is worth over the best free agent you could have instead.</span><span class="muted">from <a href="{{ vorp.entry|pretty }}">the week-{{ vorp.week }} roster grades</a></span></div>{% endif %}
+{% if vorp %}<div class="vorp-head"><span><b>VORP</b> = a player's season projection over the replacement level of his position — what he is worth over the best free agent you could have instead.</span>{% if dev %}<span class="muted">from <a href="{{ vorp.entry|pretty }}">the week-{{ vorp.week }} roster grades</a></span>{% endif %}</div>{% endif %}
 <div class="cards wide">
 {% for team, rows in rosters.items() %}
 {% set tot = [(rows|map(attribute='mean')|select('number')|sum), 0.001]|max %}
@@ -79,13 +79,15 @@
 <p class="small muted" style="margin-top:10px">Status: <span class="st q">Q</span> questionable · <span class="st">D</span> doubtful · <span class="st">O</span> out · <span class="st ir">IR</span> injured reserve · <span class="st ir">PUP</span> physically unable · <span class="st ir">SUS</span> suspended. Hover a name for its role, slot and tier.</p>
 </section>
 
-{% if manifest.degraded %}
+{% if dev and manifest.degraded %}
 <section><details class="sec"><summary>Sources that fell back in the last sync<span class="n">{{ manifest.degraded|length }}</span></summary><pre>{{ manifest.degraded|join('\n')|real }}</pre></details></section>
 {% endif %}
 
+{% if dev %}
 <section>
 <details class="sec"><summary>Raw files<span class="n">{{ files|length }}</span></summary>
 <div class="rows" style="margin-top:8px">{% for e in files %}<div class="row"><span class="t">{{ e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
 </details>
 </section>
+{% endif %}
 {% endblock %}

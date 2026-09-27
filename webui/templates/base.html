@@ -235,6 +235,9 @@ button:hover, .btn:hover { opacity: .88; transform: translateY(-1px); }
 button.ghost, .btn.ghost { background: transparent; color: var(--ink); }
 button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
 .actions { display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+.foot { margin-top: 56px; padding-top: 14px; border-top: 1px solid var(--grid); font-size: 12px; }
+.foot .modeform { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.foot button { padding: 5px 11px; font-size: 10.5px; }
 
 @media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
@@ -266,21 +269,17 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
 <header class="top">
   <a class="brand" href="/"><svg class="i"><use href="#i-ball"/></svg>{{ brand }}</a>
   <nav class="tabs">
-    <a href="/" class="{{ 'on' if path == '/' }}">Home</a>
-    <a href="/league" class="{{ 'on' if path.startswith('/current') or path.startswith('/league') }}">League</a>
-    <a href="/forecasts" class="{{ 'on' if path.startswith('/weeks') or path.startswith('/forecasts') }}">Forecasts</a>
-    <a href="/decisions" class="{{ 'on' if path == '/decisions' }}">Decisions</a>
-    <a href="/records" class="{{ 'on' if path.startswith('/records') or path.startswith('/decisions/') or path.startswith('/file/decisions') }}">Records</a>
-    <a href="/tools" class="{{ 'on' if path.startswith('/tools') }}">Tools</a>
-    <a href="/jobs" class="{{ 'on' if path.startswith('/jobs') }}">Jobs</a>
-    <a href="/logs" class="{{ 'on' if path.startswith('/logs') }}">Logs</a>
-    <a href="/system" class="{{ 'on' if path.startswith('/system') or path.startswith('/results') }}">System</a>
-    <a href="/sync" class="{{ 'on' if path.startswith('/sync') }}">Sync</a>
+    {% set alias = {"/league": ("/current",), "/forecasts": ("/weeks",), "/records": ("/decisions/", "/file/decisions"), "/system": ("/results",)} %}
+    {% for href, label in nav %}<a href="{{ href }}" class="{{ 'on' if (path == href if href in ('/', '/decisions') else (path.startswith(href) or (alias.get(href) and (alias[href]|select('in', path)|list)))) }}">{{ label }}</a>
+    {% endfor %}
   </nav>
-  <span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %}</span>
+  {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </header>
-{% if overlay_enabled %}<div class="private"><b>{{ private_marker }}.</b> Real names are an in-memory overlay on this page only; every file on disk and every URL stays pseudonymous.</div>{% endif %}
+{% if overlay_enabled and dev %}<div class="private"><b>{{ private_marker }}.</b> Real names are an in-memory overlay on this page only; every file on disk and every URL stays pseudonymous.</div>{% endif %}
 {% block body %}{% endblock %}
+<footer class="foot">
+  <form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
+</footer>
 </div>
 <script>
 {{ table_js|safe }}

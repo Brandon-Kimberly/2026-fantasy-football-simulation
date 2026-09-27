@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, teamlink %}
+{% from "_macros.html" import tiles, mark, teamlink with context %}
 {% block title %}Decisions · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -26,7 +26,7 @@
 <div class="head">
   <p class="eyebrow">decisions · every move in the league, scored</p>
   <h1>Decisions</h1>
-  <p class="lede">Every add, claim and trade the league has made this season, and what the paired evaluation said it did to that team's playoff and title chances — the same roster simulated with and without the move, on the same seeds. The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them.</p>
+  <p class="lede">Every add, claim and trade the league has made this season, and what it did to that team's playoff and title chances — the same roster simulated with and without the move, on the same seeds.{% if dev %} The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them.{% endif %}</p>
 </div>
 
 {{ tiles([
@@ -83,7 +83,7 @@
       {% if d.type == 'trade' %}{% for t in d.teams if t != d.actor and d.effect.get(t) %}<div class="other">{{ t|real }}: {{ d.effect[t].playoff|signed(1) }} playoff · {{ d.effect[t].champ|signed(1) }} title</div>{% endfor %}{% endif %}
       {% if d.reversed %}<div class="s">roster had moved on; evaluated as of the log</div>{% endif %}
     {% elif d.skipped %}
-      <div class="s">not measurable — {{ d.skipped|truncate(90) }}</div>
+      <div class="s">not measurable{% if dev %} — {{ d.skipped|truncate(90) }}{% else %} — the rosters had already moved on{% endif %}</div>
     {% else %}
       <div class="s">not evaluated yet</div>
     {% endif %}
@@ -91,7 +91,7 @@
 </div>
 {% endfor %}
 </div>
-<p class="small muted" style="margin-top:12px">No moves logged yet? The decision log fills as the sync sees transactions; evaluations arrive when <code>py -3.10 -m scripts.evaluate_move --evaluate-unevaluated</code> runs.</p>
+{% if dev %}<p class="small muted" style="margin-top:12px">No moves logged yet? The decision log fills as the sync sees transactions; evaluations arrive when <code>py -3.10 -m scripts.evaluate_move --evaluate-unevaluated</code> runs.</p>{% endif %}
 </section>
 <script>
 (function () {

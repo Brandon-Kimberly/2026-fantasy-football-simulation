@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import filelist %}
+{% from "_macros.html" import filelist with context %}
 {% block title %}Runner results · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">scheduled runs · downloaded from GitHub Actions</p><h1>Runner results</h1><p class="lede">What the scheduled runner produced each week, as downloaded. These are the same digests and records as a local run, made on the runner's clock.</p></div>
