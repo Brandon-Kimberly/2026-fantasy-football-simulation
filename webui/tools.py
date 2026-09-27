@@ -128,7 +128,7 @@ class Tool:
     def __init__(self, name, question, fields, note="", heavy=False, forced=(), engine=False):
         self.name, self.question, self.fields, self.note, self.heavy = name, question, fields, note, heavy
         # `forced`: argv items every launch carries, before the form's -- the W3 report is
-        # ALWAYS --skip-sync (the UI never syncs: docs/WEB_UI.md W4). `engine`: a full
+        # ALWAYS --skip-sync (syncing is its own guarded page: docs/WEB_UI.md W4). `engine`: a full
         # simulation run; the launch page shows freshness and the run windows first, and a
         # STALE tree refuses the launch before the tool would.
         self.forced, self.engine = tuple(forced), engine
@@ -285,7 +285,7 @@ ENGINE = {t.name: t for t in (
           Field("evaluate", "int", default=0, help="with full: paired evaluations of the top N trade packages"),
           Field("embed", "flag", help="inline the charts as data URIs (portable, 15-20 MB)"),
           CANONICAL],
-         note="always --skip-sync: this UI never syncs. STALE data stops the run (the digest carries a FAILED banner and the job is VOID). "
+         note="always --skip-sync here: syncing has its own page (Sync), with a key preflight and a backup first. STALE data stops the run (the digest carries a FAILED banner and the job is VOID). "
               "A non-canonical run files under week_NN/archive/ and appends a non-canonical row to the predictions log, exactly as a hand run does.",
          heavy=True, forced=("--skip-sync",), engine=True),
 )}

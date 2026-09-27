@@ -2,8 +2,9 @@
 tests.test_webui_engine -- the two engine entry points through the launcher (W3).
 
 The runner and the lock are pinned in tests.test_webui_jobs; here what is pinned is
-W3's contract: the report ALWAYS carries --skip-sync (the UI never syncs), --canonical only
-when ticked, run_simulation takes no options, run_sync is not launchable, a STALE tree is
+W3's contract: the report ALWAYS carries --skip-sync from the Tools page (syncing is the
+guarded Sync page's job, W4 -- tests.test_webui_sync), --canonical only when ticked,
+run_simulation takes no options, run_sync is not a tool, a STALE tree is
 refused before any launch, the launch form shows the freshness verdict, and reloading a
 job page never re-launches. Skips cleanly without Flask.
 """

@@ -275,6 +275,7 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
     <a href="/jobs" class="{{ 'on' if path.startswith('/jobs') }}">Jobs</a>
     <a href="/logs" class="{{ 'on' if path.startswith('/logs') }}">Logs</a>
     <a href="/system" class="{{ 'on' if path.startswith('/system') or path.startswith('/results') }}">System</a>
+    <a href="/sync" class="{{ 'on' if path.startswith('/sync') }}">Sync</a>
   </nav>
   <span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %}</span>
 </header>

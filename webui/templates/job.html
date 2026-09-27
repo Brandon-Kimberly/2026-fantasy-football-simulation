@@ -23,6 +23,7 @@
 </div>
 
 {% if job.state == "VOID" %}<div class="note bad"><b>VOID.</b> {{ job.note }}</div>{% endif %}
+{% if job.sync %}<div class="note {{ 'good' if job.state == 'OK' else '' }}"><b>{{ 'Synced.' if job.state == 'OK' else 'A sync from the Sync page.' }}</b> The key came from {{ job.key_source }}{% if job.key_remaining %} ({{ job.key_remaining }} the-odds-api requests left){% endif %}; data/current/ was backed up first as <code>{{ job.backup }}</code>.{% if job.state == 'OK' %} <a href="/system">See the data on disk</a>, <a href="/league">the League</a>{% if job.tool == 'run_sync' %}, or <a href="/tools">re-run the tools</a> — a plain sync leaves the forecast and records as they were{% endif %}.{% endif %} <a href="/sync">Backups and restore</a>.</div>{% endif %}
 
 {% if running %}
 <section id="live">

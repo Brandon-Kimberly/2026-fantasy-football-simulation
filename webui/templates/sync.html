@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Sync · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 4px; }
+.step { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 14px 16px; }
+.step .n { font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--turf); margin-bottom: 6px; }
+.step b { display: block; margin-bottom: 4px; }
+.step p { font-size: 13px; color: var(--ink-2); margin: 0; }
+.modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 4px; }
+.mode { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px; border-left: 3px solid var(--turf); }
+.mode.refresh { border-left-color: var(--warm); }
+.mode h4 { font-family: var(--display); font-size: 15px; font-weight: 800; margin: 0 0 4px; }
+.mode p { font-size: 13.5px; color: var(--ink-2); margin: 0 0 12px; }
+.mode .t { font-size: 12px; color: var(--muted); margin-left: 10px; }
+.bk td { font-size: 13px; }
+</style>
+<div class="head">
+  <p class="eyebrow">sync · pull the league's current state</p>
+  <h1>Sync <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
+  <p class="lede">Rosters, standings, betting lines and projections on disk are from the last sync{% if fr.manifest %} — <b>{{ fr.manifest.finished_at|when }}</b>{% if fr.age_hours is not none %}, {{ fr.age_hours|ago }}{% endif %}{% endif %}. A sync rewrites <code>data/current/</code> and appends the new transactions to the decision log; it never rewrites a log row, a forecast or a record. Three things happen before anything is written.</p>
+</div>
+
+<div class="steps">
+  <div class="step"><div class="n">1 · preflight</div><b>The odds key is proven live first</b><p>Read from the Windows User scope ({{ key_source }}{% if not key_present %} — <span class="neg">none found</span>{% endif %}), probed against the-odds-api. Anything but an accepted key stops here: a dead key would silently write the flat 21.5 line over the real ones (C3).</p></div>
+  <div class="step"><div class="n">2 · backup</div><b>Everything in data/current/ is copied first</b><p>To a stamped folder under <code>data/local/</code> (never tracked), with a restore button below. The ten newest are kept.</p></div>
+  <div class="step"><div class="n">3 · the run</div><b>The same command you would type</b><p>With the verified key injected into that process only — it never enters a job record, a log or this page. The sync checks the key again itself (H5).</p></div>
+</div>
+
+{% if error %}<div class="note bad" style="margin-top:16px"><b>Not launched — nothing was written.</b> {{ error }}{% if probe and probe.remaining %} <span class="muted">(the-odds-api quota: {{ probe.remaining }} requests left){% endif %}</div>{% endif %}
+{% if restored is defined and restored %}<div class="note good" style="margin-top:16px"><b>Restored.</b> {{ restored }} file{{ 's' if restored != 1 }} copied back from <code>{{ restored_name }}</code>. The forecast and records were not touched; re-run what you need.</div>{% endif %}
+{% if current %}<div class="note warn" style="margin-top:16px">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. Sync when it has finished.</div>{% endif %}
+
+<section>
+<h2><svg class="i"><use href="#i-cloud"/></svg> Sync now <span class="hint">one at a time · the job page shows progress</span></h2>
+<div class="modes">
+{% for key, m in modes.items() %}
+<div class="mode {{ key }}">
+<h4>{{ m.label }}</h4>
+<p>{{ m.what|capitalize }}.</p>
+<form method="post" action="/sync/launch"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="mode" value="{{ key }}"><button type="submit"{% if current or not key_present %} disabled{% endif %}><svg class="i"><use href="#i-refresh"/></svg> {% if key == 'sync' %}Sync{% else %}Sync &amp; refresh{% endif %}</button><span class="t">{% if key == 'sync' %}about a minute{% else %}several minutes: a full simulation follows the sync{% endif %}</span></form>
+</div>
+{% endfor %}
+</div>
+<p class="small muted" style="margin-top:12px">After a plain sync the forecast, lineup and waiver records are still the old ones — run them again from <a href="/tools">Tools</a>, or choose <i>Sync &amp; refresh</i> to do it in one go. The refresh is a non-canonical run: it files under the week's archive and its prediction row is marked as such, exactly like a hand run.</p>
+{% if not key_present %}<div class="note bad">No ODDS_API_KEY is set in the Windows User scope or this server's environment, so the button is off. Set it with <code>setx ODDS_API_KEY ...</code>, restart the server, and come back. A deliberate fallback sync stays a terminal act: <code>py -3.10 -m scripts.run_sync --allow-fallback</code>.</div>{% endif %}
+</section>
+
+<section>
+<h2><svg class="i c-gold"><use href="#i-lock"/></svg> Backups <span class="hint">data/current/ as it was before each sync launched here</span></h2>
+{% if backups %}
+<div class="scroller"><table class="bk"><thead><tr><th>Taken</th><th>Why</th><th class="num">Week</th><th class="num">Files</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for b in backups %}<tr><td class="nm">{{ b.taken_at|when }}</td><td>{{ b.reason }}</td><td class="num">{{ b.week or "—" }}</td><td class="num">{{ b.files|length }}</td><td class="num">{{ (b.bytes / 1048576)|round(1) }} MB</td><td><form method="post" action="/sync/restore" onsubmit="return confirm('Copy this backup back over data/current/? The current files will be replaced.')"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ b.name }}"><button type="submit" class="ghost" style="padding:5px 10px;font-size:11px"{% if current %} disabled{% endif %}>Restore</button></form></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="small muted">None yet — the first sync from this page will take one.</p>{% endif %}
+</section>
+
+{% if last_job %}
+<section>
+<h2>Last sync from here</h2>
+<p class="small"><span class="pill {{ last_job.state }}">{{ last_job.state }}</span> <a href="{{ last_job|job_url }}">{{ last_job.label|real }}</a> · {{ last_job.started_at|when }}{% if last_job.backup %} · backup <code>{{ last_job.backup }}</code>{% endif %}</p>
+</section>
+{% endif %}
+{% endblock %}

@@ -229,13 +229,17 @@ class JobRunner:
                 self._write(m["id"], m)
 
     # ------------------------------------------------------------------ launch
-    def launch(self, argv, tool, label=None, extra=None):
+    def launch(self, argv, tool, label=None, extra=None, env=None):
         """Start `argv` (a list; argv[0] the interpreter) as the one running job. Returns
         the job id. Raises JobRefused when a job is running, an engine.lock is held by a
         live pid, or another engine process is on the machine. `extra`: additional meta
-        fields (e.g. the player-name corrections the form made) -- never the environment."""
+        fields (e.g. the player-name corrections the form made) -- never the environment.
+        `env`: variables laid over this process's environment for the child only (W4: the
+        verified ODDS_API_KEY); they are never written to the job record or the log."""
         if not isinstance(argv, (list, tuple)) or not argv:
             raise JobRefused("argv must be a non-empty list")
+        child_env = os.environ.copy()
+        child_env.update({str(k): str(v) for k, v in (env or {}).items()})
         if not self._lock.acquire(blocking=False):
             raise JobRefused(f"busy: job {self._current} is still running")
         try:
@@ -258,7 +262,7 @@ class JobRunner:
                     "record": None, "note": None, **{k: v for k, v in (extra or {}).items() if k not in ("id", "state", "pid")}}
             logfh = open(os.path.join(jdir, "stdout.log"), "ab")
             try:
-                proc = self._popen(list(argv), cwd=self.root.root, env=os.environ.copy(),
+                proc = self._popen(list(argv), cwd=self.root.root, env=child_env,
                                    stdout=logfh, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL,
                                    shell=False)
             except Exception as ex:
