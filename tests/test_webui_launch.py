@@ -29,15 +29,19 @@ class FakeRunner:
         self.launches, self.metas, self.busy = [], {}, busy
         self.cancelled = []
 
-    def launch(self, argv, tool, label=None):
+    def launch(self, argv, tool, label=None, extra=None):
         if self.busy:
             raise JobRefused(f"busy: job {self.busy['id']} is still running")
         self.launches.append((argv, tool, label))
         jid = f"20260926T000000Z_{len(self.launches):06x}_{tool}"
         self.metas[jid] = {"id": jid, "tool": tool, "label": label or tool, "state": RUNNING,
                            "started_at": "2026-09-26T00:00:00Z", "finished_at": None, "rc": None,
-                           "pid": 1, "python": argv[0], "args": argv[1:], "cwd": "root", "record": None, "note": None}
+                           "pid": 1, "python": argv[0], "args": argv[1:], "cwd": "root", "record": None, "note": None,
+                           **(extra or {})}
         return jid
+
+    def typical_seconds(self, tool):
+        return None
 
     def read(self, jid):
         return self.metas.get(jid)
@@ -106,7 +110,8 @@ class TestLauncher(unittest.TestCase):
         page = self.c.get(r.headers["Location"]).get_data(as_text=True)
         self.assertIn("RUNNING", page)
         self.assertIn("fake log", page)
-        self.assertIn('http-equiv="refresh"', page)
+        self.assertNotIn('http-equiv="refresh"', page)          # polled in place, never reloaded
+        self.assertIn(r.headers["Location"].split("/jobs/")[-1] + ".json", page)
 
     def test_a_form_error_is_rendered_not_launched(self):
         r = self.c.post("/tools/evaluate_move", data={"_csrf": "tok-123", "team": MY_TEAM, "add": "--evaluate-unevaluated"})

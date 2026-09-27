@@ -24,7 +24,8 @@ from webui import render
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
-from webui.tools import ENGINE, TOOLS, FormError, get as get_tool
+from webui.players import PlayerIndex
+from webui.tools import ENGINE, TOOLS, FormError, get as get_tool, label_for, resolve_form
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
@@ -67,6 +68,17 @@ def _fmt_epoch(t):
         return _dt.datetime.fromtimestamp(float(t), _dt.timezone.utc).strftime("%Y-%m-%d %H:%MZ")
     except Exception:            # None, a string, or a Jinja Undefined (whose __float__ raises)
         return "—"
+
+
+def _elapsed(meta):
+    """Seconds from started_at to finished_at (or now), or None."""
+    try:
+        a = _dt.datetime.strptime(meta["started_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
+        b = (_dt.datetime.strptime(meta["finished_at"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=_dt.timezone.utc)
+             if meta.get("finished_at") else _dt.datetime.now(_dt.timezone.utc))
+        return max(0, int((b - a).total_seconds()))
+    except (KeyError, TypeError, ValueError):
+        return None
 
 
 def _fmt_num(v, nd=1):
@@ -407,10 +419,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
                 raise JobRefused("the data on disk is STALE -- " + "; ".join(fr["reasons"]) +
                                  " -- run scripts.run_sync from a terminal first (this UI never syncs)")
             try:
-                argv = t.argv(request.form)
-                shown = [a for a in argv[3:] if not a.startswith("--")][:3]
-                label = f"{name}" + (f" {' '.join(shown)}" if shown else "")
-                job_id = runner.launch(argv, tool=name, label=label)
+                form, notes = resolve_form(t, request.form, PlayerIndex.for_root(root), MY_TEAM)
+                values.update({f.name: form.get(f.name, "") for f in t.fields})
+                argv = t.argv(form)
+                job_id = runner.launch(argv, tool=name, label=label_for(t, form),
+                                       extra={"resolved": notes} if notes else None)
                 return redirect(url_for("job", job_id=job_id))
             except FormError as ex:
                 error = str(ex)
@@ -437,7 +450,34 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
         if rec.startswith("/file/") and rec.endswith(".json"):
             view = render.record_view(root.read_json(rec[len("/file/"):]))
         return render_template("job.html", job=meta, blocks=blocks, view=view, size=len(log_text.encode("utf-8")),
-                               refresh=(meta.get("state") == RUNNING))
+                               running=(meta.get("state") == RUNNING), progress=render.progress(log_text, meta.get("tool")),
+                               typical=runner.typical_seconds(meta.get("tool")), elapsed=_elapsed(meta))
+
+    @app.route("/jobs/<job_id>.json")
+    def job_status(job_id):
+        """What the job page polls: state, elapsed, the stage reached, the last line the
+        tool printed, and the log tail -- updated in place, no page reload until the end."""
+        meta = runner.read(job_id)
+        if not meta:
+            abort(404)
+        log_text = runner.log_text(job_id)
+        tail = [ln for ln in log_text.splitlines() if ln.strip() and not render._is_chatter(ln)][-30:]
+        return {"state": meta.get("state"), "rc": meta.get("rc"), "started_at": meta.get("started_at"),
+                "finished_at": meta.get("finished_at"), "elapsed": _elapsed(meta),
+                "typical": runner.typical_seconds(meta.get("tool")), "record": meta.get("record"),
+                "note": meta.get("note"), "progress": render.progress(log_text, meta.get("tool")),
+                "tail": [overlay.text(ln) for ln in tail]}
+
+    @app.route("/api/players")
+    def api_players():
+        """Suggestions for a player field: ?q=partial&owner=all|free|mine|<team>. Pseudonymous
+        in, pseudonymous out; the page applies the overlay to what it shows."""
+        q = request.args.get("q", "")
+        owner = request.args.get("owner", "all")
+        idx = PlayerIndex.for_root(root)
+        return {"players": [{"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+                             "owner": overlay.text(p.get("owner")) if p.get("owner") else None}
+                            for p in idx.search(q, owner, MY_TEAM, limit=12)]}
 
     @app.route("/jobs/<job_id>/log")
     def job_log(job_id):

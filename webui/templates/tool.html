@@ -1,26 +1,32 @@
 {% extends "base.html" %}
-{% block title %}{{ tool.name }} · fantasy-sim{% endblock %}
+{% block title %}{{ tool.title }} · fantasy-sim{% endblock %}
 {% block body %}
+<style>
+.sugg-wrap { position: relative; max-width: 420px; }
+.sugg { position: absolute; left: 0; right: 0; top: 100%; z-index: 20; background: var(--chip); border: 1px solid var(--rule); border-top: 0; max-height: 280px; overflow-y: auto; display: none; box-shadow: 0 6px 18px var(--ring); }
+.sugg div { padding: 7px 10px; cursor: pointer; font-size: 13.5px; display: flex; gap: 10px; align-items: baseline; }
+.sugg div .m { color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; }
+.sugg div:hover, .sugg div.on { background: var(--pos-bg); }
+</style>
 <div class="head">
-  <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %} · <code>py -3.10 -m scripts.{{ tool.name }}</code></p>
-  <h1>{{ tool.name|replace("_"," ") }}</h1>
+  <p class="eyebrow">{% if tool.engine %}engine run{% else %}decision tool{% endif %}</p>
+  <h1>{{ tool.title }}</h1>
   <p class="lede">{{ tool.question }}</p>
 </div>
 {% if tool.note %}<div class="note">{{ tool.note }}</div>{% endif %}
-{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. This launch will be refused until it finishes.</div>{% endif %}
-{% if error %}<div class="note bad"><b>Not launched.</b> {{ error }}</div>{% endif %}
+{% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a>. A second launch is refused until it finishes.</div>{% endif %}
+{% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
 {% if tool.engine and fr %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
-<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first (this UI never syncs){% endif %}
+<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> sync week {{ fr.week or "?" }}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% endif %}
 {% if fr.reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
-{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (target week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
-<p class="small" style="margin:8px 0 0">{{ r1 }}</p>
+{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
 </div>
 {% endif %}
 
 <section>
-<h2>Arguments <span class="hint">blank = the tool's default</span></h2>
-<form method="post" action="/tools/{{ tool.name }}" class="tool">
+<h2>Arguments <span class="hint">blank = the tool's default{% if tool.fields|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
+<form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
 {% for f in tool.fields %}
 <div class="f">
@@ -28,14 +34,74 @@
 <div>
 {% if f.kind == "flag" %}<input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}>
 {% elif f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
-{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" autocomplete="off"{% if f.kind != 'text' %} style="max-width:160px"{% endif %}>
+{% elif f.is_player %}<div class="sugg-wrap"><input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-player="1" data-list="{{ '1' if f.is_list else '0' }}" data-owner="{{ f.owner_spec(values) or 'all' }}"{% if f.owner_field %} data-owner-field="f_{{ f.owner_field }}"{% endif %} placeholder="{% if f.is_list %}names, comma-separated{% else %}player name{% endif %}"><div class="sugg" id="s_{{ f.name }}"></div></div>
+{% else %}<input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}"{% if f.kind != 'text' %} style="max-width:160px"{% endif %}>
 {% endif %}
-{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}
+{% if f.help %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %} — from your roster{% elif f.kind == 'free_players' %} — free agents only{% elif f.kind == 'team_players' %} — from the selected team's roster{% endif %}</div>{% endif %}
 </div>
 </div>
 {% endfor %}
-<div class="actions"><button type="submit">Launch {{ tool.name|replace("_"," ") }}</button><span class="small muted">output and the record appear on the job page</span></div>
+<div class="actions"><button type="submit">Launch</button><span class="small muted">the record opens on the job page when it finishes</span></div>
 </form>
-<p class="tiny muted" style="margin-top:14px">Team selectors post the fictional name; real names never enter a URL, an argument, or a log.</p>
 </section>
+<script>
+(function () {
+  var timers = {};
+  function owner(inp) {
+    var f = inp.getAttribute('data-owner-field');
+    if (f) { var sel = document.getElementById(f); return (sel && sel.value) ? sel.value : 'all'; }
+    return inp.getAttribute('data-owner') || 'all';
+  }
+  function segment(inp) {
+    if (inp.getAttribute('data-list') !== '1') return { head: '', tail: inp.value };
+    var i = inp.value.lastIndexOf(',');
+    return i < 0 ? { head: '', tail: inp.value } : { head: inp.value.slice(0, i + 1) + ' ', tail: inp.value.slice(i + 1) };
+  }
+  function close(box) { box.style.display = 'none'; box.innerHTML = ''; }
+  function fill(inp, box, players, typed) {
+    box.innerHTML = '';
+    if (!players.length) { close(box); return; }
+    players.forEach(function (p, i) {
+      var d = document.createElement('div');
+      if (i === 0) d.className = 'on';
+      var n = document.createElement('span'); n.textContent = p.name;
+      var m = document.createElement('span'); m.className = 'm'; m.textContent = (p.pos || '') + (p.nfl ? ' · ' + p.nfl : '') + (p.owner ? ' · ' + p.owner : ' · free agent');
+      d.appendChild(n); d.appendChild(m);
+      d.addEventListener('mousedown', function (e) { e.preventDefault(); choose(inp, box, p.name); });
+      box.appendChild(d);
+    });
+    box.style.display = 'block';
+  }
+  function choose(inp, box, name) {
+    var s = segment(inp);
+    inp.value = s.head + name + (inp.getAttribute('data-list') === '1' ? '' : '');
+    close(box);
+    inp.focus();
+  }
+  function query(inp, box) {
+    var s = segment(inp), q = s.tail.trim();
+    var url = '/api/players?q=' + encodeURIComponent(q) + '&owner=' + encodeURIComponent(owner(inp));
+    fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); })
+      .then(function (j) { if (document.activeElement === inp) fill(inp, box, j.players || [], q); })
+      .catch(function () { close(box); });
+  }
+  document.querySelectorAll('input[data-player]').forEach(function (inp) {
+    var box = document.getElementById('s_' + inp.name);
+    inp.addEventListener('input', function () { clearTimeout(timers[inp.name]); timers[inp.name] = setTimeout(function () { query(inp, box); }, 120); });
+    inp.addEventListener('focus', function () { query(inp, box); });
+    inp.addEventListener('blur', function () { setTimeout(function () { close(box); }, 150); });
+    inp.addEventListener('keydown', function (e) {
+      var items = Array.from(box.querySelectorAll('div')), on = items.findIndex(function (d) { return d.classList.contains('on'); });
+      if (!items.length || box.style.display === 'none') return;
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        e.preventDefault();
+        var next = e.key === 'ArrowDown' ? Math.min(items.length - 1, on + 1) : Math.max(0, on - 1);
+        items.forEach(function (d) { d.classList.remove('on'); }); items[next].classList.add('on'); items[next].scrollIntoView({ block: 'nearest' });
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (on >= 0) { e.preventDefault(); choose(inp, box, items[on].firstChild.textContent); }
+      } else if (e.key === 'Escape') { close(box); }
+    });
+  });
+})();
+</script>
 {% endblock %}

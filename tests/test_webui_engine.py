@@ -77,7 +77,6 @@ class TestEngineRoutes(unittest.TestCase):
         self.assertIn("Data on disk", body)
         self.assertIn('pill DEGRADED', body)      # the fixture manifest carries a tolerated failure: DEGRADED, launchable
         self.assertIn("run a sync to persist them", body)     # no kickoffs in the fixture schedule
-        self.assertIn("one engine process at a time", body)
         self.assertNotIn('name="canonical" value="1" checked', body)
 
     def test_a_non_stale_tree_launches_the_report_with_skip_sync(self):
