@@ -3,13 +3,12 @@
 {% block title %}{{ view.title }} · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head">
-  <p class="eyebrow">{{ view.tool|replace("_"," ") }} · {{ view.stamp|stamp }} · data/{{ rel.rsplit('/', 1)[0] }}</p>
+  <p class="eyebrow">{{ view.tool|tool_title }} · {{ view.stamp|when }} · {{ 'canonical' if '/archive/' not in rel and rel.startswith('decisions/week_') else ('archive' if '/archive/' in rel else rel.rsplit('/', 1)[0]|replace('decisions/', '')) }}</p>
   <h1>{{ view.title|real }}</h1>
   {% if view.subtitle %}<p class="lede">{{ view.subtitle|real }}</p>{% endif %}
 </div>
 {{ record(view) }}
 <section>
-<h2>Raw record <span class="hint"><a href="{{ link }}?raw=1">download JSON</a></span></h2>
-<details><summary>show the JSON</summary><pre>{{ body|real }}</pre></details>
+<details class="sec"><summary>The record as written<span class="n"><a href="{{ link }}?raw=1">download JSON</a></span></summary><pre>{{ body|real }}</pre></details>
 </section>
 {% endblock %}

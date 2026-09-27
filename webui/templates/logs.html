@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Logs · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">append-only season logs</p><h1>Logs</h1><p class="lede"><code>data/logs/</code> — the tracked ones are the record that survives a machine loss. Newest rows first; every row is one JSON line.</p></div>
-<div class="rows">{% for e in logs %}<div class="row"><span class="t">{{ e.ext }}</span><span><a href="{% if e.ext == 'jsonl' %}/logs/{{ e.name }}{% else %}{{ e.link }}{% endif %}">{{ e.name }}</a></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
+<div class="head"><p class="eyebrow">season logs · append-only</p><h1>Logs</h1><p class="lede">The season's memory: what was predicted, decided and bid, one line per event. These are tracked in git, so they survive a machine loss. Newest rows open first.</p></div>
+<div class="rows">{% for e in logs %}{% set lt = e.name|log_title %}<div class="row"><span class="t">{{ e.ext }}</span><span><a class="main" href="{% if e.ext == 'jsonl' %}/logs/{{ e.name }}{% else %}{{ e.link }}{% endif %}">{{ lt[0] }}</a>{% if lt[1] %}<span class="sub" style="font-family:var(--sans)">{{ lt[1] }}</span>{% endif %}<span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>
 {% endblock %}

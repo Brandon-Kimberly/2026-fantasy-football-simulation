@@ -20,7 +20,8 @@ import secrets
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import brand, render
-from webui.glance import freshness_report, home_report, latest_digests, logs_git_report, windows_report
+from webui.glance import (freshness_report, home_report, latest_digests, logs_git_report, team_hue,
+                          windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
@@ -104,7 +105,16 @@ def week_report(root, week):
     if isinstance(outcomes, dict):
         outcomes = [dict(Team=k, **v) for k, v in outcomes.items()]
     teams = sorted(forecast, key=lambda t: -float((forecast[t].get("forecast") or {}).get("playoff_probability_pct") or 0))
-    return {"week": n, "forecast": forecast, "teams": teams, "outcomes": outcomes,
+    # one table, not two with overlapping columns: forecast + outcomes joined per team
+    by_team = {o.get("Team"): o for o in outcomes if isinstance(o, dict)}
+    rows = []
+    for t in teams:
+        fc, cs, o = forecast[t].get("forecast") or {}, forecast[t].get("current_state") or {}, by_team.get(t) or {}
+        rows.append({"team": t, "wins": cs.get("actual_wins_banked"), "points": cs.get("actual_points_banked"),
+                     "exp_wins": fc.get("expected_final_wins"), "playoff": fc.get("playoff_probability_pct"),
+                     "se": fc.get("playoff_standard_error"), "champ": o.get("Champ_Pct"), "toilet": o.get("Toilet_Pct"),
+                     "exp_points": o.get("Expected_Points"), "magic": fc.get("approximate_magic_number"), "faab": cs.get("remaining_faab")})
+    return {"week": n, "forecast": forecast, "teams": teams, "outcomes": outcomes, "rows": rows,
             "metadata": matrix.get("metadata") or {}, "seeds": matrix.get("finishing_seed_probabilities") or {},
             "insights": insights, "warnings": audit.get("warnings") or [],
             "charts": charts, "jsons": jsons, "subdirs": listing["subdirs"]}
@@ -119,6 +129,12 @@ def current_report(root):
     manifest = root.read_json("current/sync_manifest.json", {}) or {}
     table = sorted(standings.items(),
                    key=lambda kv: (-float(kv[1].get("h2h_wins") or 0), -float(kv[1].get("points_scored") or 0)))
+    odds, odds_week = {}, None                  # playoff odds from the newest export, so the
+    weeks = root.weeks()                        # standings page answers "and where is that going?"
+    if weeks:
+        odds_week = weeks[-1]
+        f = root.read_json(f"weeks/week_{odds_week:02d}/live_season_forecast_week_{odds_week}.json", {}) or {}
+        odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in f.items() if isinstance(v, dict)}
     roster_rows = {}
     for team, entries in rosters.items():
         rows = []
@@ -130,7 +146,7 @@ def current_report(root):
                          "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or "")})
         rows.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
         roster_rows[team] = rows
-    return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state,
+    return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
             "manifest": manifest, "files": root.current()}
 
 
@@ -153,6 +169,16 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
     app.jinja_env.filters["ts"] = _fmt_epoch
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["signed"] = render.fsigned
+    app.jinja_env.filters["ago"] = render.ago
+    app.jinja_env.filters["dur"] = render.duration
+    app.jinja_env.filters["when"] = render.when
+    app.jinja_env.filters["slug"] = render.slug
+    app.jinja_env.filters["tool_title"] = render.tool_title
+    app.jinja_env.filters["entry_title"] = render.entry_title
+    app.jinja_env.filters["pair_digests"] = render.pair_digests
+    app.jinja_env.filters["initials"] = lambda s: "".join(w[0] for w in str(s or "").split()[:2]).upper() or "?"
+    app.jinja_env.filters["hue"] = team_hue
+    app.jinja_env.filters["log_title"] = render.log_title
 
     @app.context_processor
     def _ctx():
@@ -220,10 +246,18 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     @app.route("/weeks")
     def weeks():
+        """One row per export, carrying MY forecast from that export -- so the page reads as
+        the odds across the season's runs, not as a directory listing."""
         rows = []
         for n in root.weeks():
             f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
-            rows.append({"week": n, "teams": len(f), "files": len(root.week_files(n)["files"]),
+            fc = (f.get(MY_TEAM) or {}).get("forecast") or {}
+            cs = (f.get(MY_TEAM) or {}).get("current_state") or {}
+            m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
+            champ = next((o.get("Champ_Pct") for o in (m.get("season_outcomes") or []) if isinstance(o, dict) and o.get("Team") == MY_TEAM), None)
+            rows.append({"week": n, "playoff": fc.get("playoff_probability_pct"), "se": fc.get("playoff_standard_error"),
+                         "exp_wins": fc.get("expected_final_wins"), "champ": champ, "banked": cs.get("actual_wins_banked"),
+                         "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
         return render_template("weeks.html", rows=rows)
 
@@ -325,6 +359,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
         except KeyError:
             abort(404)
         values = {f.name: ("" if f.default is None else str(f.default)) for f in t.fields}
+        # A link can pre-fill a form (?a=X&b=Y from a watch-list row); only known fields, GET only.
+        if request.method == "GET":
+            values.update({f.name: request.args.get(f.name) for f in t.fields if request.args.get(f.name)})
         error = None
         # W3: an engine run shows the freshness verdict and the run windows first, and a
         # STALE tree is refused here, before the tool would refuse it itself.
@@ -350,7 +387,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     @app.route("/jobs")
     def jobs():
-        return render_template("jobs.html", jobs=runner.list(), current=runner.current())
+        jobs = [dict(m, seconds=_elapsed(m)) for m in runner.list()]
+        return render_template("jobs.html", jobs=jobs, current=runner.current())
 
     @app.route("/jobs/<job_id>")
     def job(job_id):

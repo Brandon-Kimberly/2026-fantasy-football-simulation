@@ -1,43 +1,54 @@
 {% extends "base.html" %}
 {% block title %}System · {{ brand }}{% endblock %}
 {% block body %}
+{% set stale = fr.reasons if fr.status == 'STALE' else [] %}
+{% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="head">
-  <p class="eyebrow">system · sync week {{ fr.week or "?" }}</p>
+  <p class="eyebrow">system · data for week {{ fr.week or "?" }}</p>
   <h1>System <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
-  <p class="lede">{% if fr.reasons %}{{ fr.reasons|join('; ') }}{% else %}Sync outputs newer than the sync's start, Vegas stamped for week {{ fr.vegas_week }}, simulation export newer than the sync.{% endif %}</p>
+  <p class="lede">
+    {% if fr.status == 'STALE' %}The data on disk is not good enough to run on: {{ stale|join('; ') }}.
+    {% elif fr.status == 'DEGRADED' %}The sync ran this week, but {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy — the model runs, on slightly older inputs. The list is under <b>Last sync</b>.
+    {% else %}Everything is current: the sync ran this week, the betting lines are for week {{ fr.vegas_week }}, and the simulation export is newer than the sync.{% endif %}
+  </p>
 </div>
 
 <section>
-<h2><svg class="i"><use href="#i-cloud"/></svg> Last sync <span class="hint">{% if fr.manifest %}{{ fr.manifest.finished_at }}{% if fr.age_hours is not none %} · {{ fr.age_hours }} h ago{% endif %}{% else %}none on record{% endif %}</span></h2>
-{% if fr.vegas_stale_since %}<div class="note warn"><b>Vegas kept from {{ fr.vegas_stale_since }}.</b> The odds fetch failed and the real lines were preserved (C3).</div>{% endif %}
+<h2><svg class="i"><use href="#i-cloud"/></svg> Last sync <span class="hint">{% if fr.manifest %}{{ fr.manifest.finished_at|when }}{% if fr.age_hours is not none %} · {{ fr.age_hours|ago }}{% endif %}{% else %}none on record{% endif %}</span></h2>
+{% if fr.vegas_stale_since %}<div class="note warn"><b>Betting lines kept from {{ fr.vegas_stale_since|when }}.</b> The odds fetch failed and the last real lines were preserved rather than overwritten.</div>{% endif %}
 {% if fr.sources %}
-<div class="scroller"><table><thead><tr><th>Source</th><th></th><th class="num">Rows</th><th>Fallback</th></tr></thead><tbody>
-{% for name, s in fr.sources.items()|sort %}<tr><td class="nm">{{ name }}</td><td><span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span></td><td class="num">{{ s.rows }}</td><td class="small muted">{{ s.fallback or "" }}</td></tr>{% endfor %}
+<div class="scroller"><table><thead><tr><th>Source</th><th>State</th><th class="num">Rows</th><th>Fell back to</th></tr></thead><tbody>
+{% for name, s in fr.sources.items()|sort %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td><span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span></td><td class="num">{{ s.rows }}</td><td class="small muted">{{ s.fallback or "" }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
-{% if fr.manifest and fr.manifest.degraded %}<details><summary>{{ fr.manifest.degraded|length }} tolerated failure(s)</summary><pre>{{ fr.manifest.degraded|join('\n')|real }}</pre></details>{% endif %}
+{% if degraded %}<details class="sec" style="margin-top:10px"><summary>What fell back<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
 </section>
 
 <section>
-<h2><svg class="i"><use href="#i-whistle"/></svg> Run windows <span class="hint">{% if windows.result %}week {{ windows.result.target_week }} · {{ windows.source }}{% else %}America/Los_Angeles, shown in UTC{% endif %}</span></h2>
+<h2><svg class="i"><use href="#i-whistle"/></svg> Run windows <span class="hint">{% if windows.result %}week {{ windows.result.target_week }} · schedule from {{ windows.source }}{% else %}Pacific time, shown in UTC{% endif %}</span></h2>
 {% if windows.note %}<div class="note">{{ windows.note }}</div>{% endif %}
 {% if windows.result %}
-<div class="scroller"><table><thead><tr><th>Window</th><th>Opens</th><th>Deadline</th><th></th><th>Covered by</th></tr></thead><tbody>
-{% for w in windows.result.windows %}<tr><td class="nm">{{ w.name }}</td><td class="tnum">{{ w.start.strftime("%a %d %H:%MZ") if w.start else "" }}</td><td class="tnum">{{ w.deadline.strftime("%a %d %H:%MZ") if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status }}</span></td><td class="small muted">{{ w.covered_by or "" }}</td></tr>{% endfor %}
+<div class="scroller"><table><thead><tr><th>Window</th><th>Opens</th><th>Closes</th><th>State</th><th>Covered by</th></tr></thead><tbody>
+{% for w in windows.result.windows %}<tr><td class="nm">{{ w.name }}</td><td class="tnum">{{ w.start.strftime("%a %d %b %H:%M") ~ "Z" if w.start else "" }}</td><td class="tnum">{{ w.deadline.strftime("%a %d %b %H:%M") ~ "Z" if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status|lower }}</span></td><td class="small muted">{{ w.covered_by or "" }}</td></tr>{% endfor %}
 </tbody></table></div>
-{% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>Action:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h{% if not loop.last %}; {% endif %}{% endfor %} — run <code>py -3.10 -m scripts.weekly_report --canonical --embed</code>, or launch the report from Tools with <i>canonical</i> ticked.</div>{% endif %}
+{% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>A window is open:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h{% if not loop.last %}; {% endif %}{% endfor %}. <a href="/tools/weekly_report?canonical=1">Launch the canonical digest</a>, or from a terminal <code>py -3.10 -m scripts.weekly_report --canonical --embed</code>.</div>{% endif %}
 {% endif %}
 </section>
 
 <section>
-<h2><svg class="i"><use href="#i-git"/></svg> Logs <span class="hint">data/logs is the record that survives a machine loss</span></h2>
-<p class="small">{% if git is none %}Not a git checkout, or git unavailable.{% else %}{% if git.uncommitted %}<b>Uncommitted:</b> {{ git.uncommitted|join(", ") }}. {% else %}Nothing uncommitted. {% endif %}{% if git.unpushed is none %}No upstream.{% elif git.unpushed %}<b>{{ git.unpushed }} unpushed commit(s).</b>{% else %}Nothing unpushed.{% endif %}{% endif %}</p>
-{% if digests %}<p class="small muted">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e.link }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %} · <a href="/results">runner results</a></p>{% else %}<p class="small muted"><a href="/results">Runner results</a></p>{% endif %}
+<h2><svg class="i"><use href="#i-git"/></svg> Season logs <span class="hint">the record that survives a machine loss</span></h2>
+<div class="chips" style="margin-top:0">
+  <a class="chip {{ 'warn' if git and git.uncommitted }}" href="/logs"><svg class="i"><use href="#i-git"/></svg><span class="k">uncommitted</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} file{{ 's' if git.uncommitted|length != 1 }}{% else %}none{% endif %}</span></a>
+  <a class="chip {{ 'warn' if git and git.unpushed }}" href="/logs"><svg class="i"><use href="#i-cloud"/></svg><span class="k">unpushed</span><span class="v">{% if git is none or git.unpushed is none %}—{% elif git.unpushed %}{{ git.unpushed }} commit{{ 's' if git.unpushed != 1 }}{% else %}none{% endif %}</span></a>
+  <a class="chip" href="/results"><svg class="i"><use href="#i-clip"/></svg><span class="k">runner results</span><span class="v">downloaded artifacts</span></a>
+</div>
+{% if git is none %}<p class="small muted" style="margin-top:10px">Not a git checkout, or git is unavailable.</p>{% elif git.uncommitted %}<p class="small muted" style="margin-top:10px">Uncommitted: {{ git.uncommitted|join(", ") }}</p>{% endif %}
+{% if digests %}<p class="small muted" style="margin-top:10px">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e.link }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 </section>
 
 <section>
-<details><summary>from a terminal — what this UI will not do</summary>
-<div class="rows" style="margin-top:8px">{% for cmd, why in commands %}<div class="row" style="grid-template-columns:1fr"><span><code>{{ cmd }}</code> <span class="small muted">— {{ why }}</span></span></div>{% endfor %}</div>
+<details class="sec"><summary>What this UI will not do, and the terminal command for each</summary>
+<div class="rows" style="margin-top:8px">{% for cmd, why in commands %}<div class="row" style="grid-template-columns:1fr"><span><code>{{ cmd }}</code><span class="sub" style="font-family:var(--sans)">{{ why }}</span></span></div>{% endfor %}</div>
 <p class="small muted" style="margin-top:10px">{{ r1 }}</p>
 <p class="small muted">{{ warnings_note }}</p>
 </details>

@@ -1,21 +1,24 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink %}
 {% block title %}{{ brand }}{% endblock %}
 {% block body %}
 <style>
-.hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: var(--surface); border: 1px solid var(--grid); border-top: 3px solid var(--turf); overflow: hidden; animation: rise .5s ease both; }
+.hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: var(--surface); border: 1px solid var(--grid); border-top: 3px solid var(--turf); border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
 .hero > * { position: relative; }
-.hero .top-line { display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px 18px; }
+.hero .top-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
 .hero .who { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin: 14px 0 8px; }
-.hero .side { display: flex; align-items: center; gap: 12px; }
+.hero .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .hero .side.r { justify-content: flex-end; text-align: right; flex-direction: row-reverse; }
 .hero .side .nm { font-family: var(--display); font-weight: 800; font-size: clamp(18px, 2.6vw, 26px); letter-spacing: -0.02em; line-height: 1.1; }
-.hero .side .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.hero .side .nm a { color: inherit; text-decoration: none; }
+.hero .side .nm a:hover { color: var(--pos); }
+.hero .side .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
 .hero .vs { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
 .hero .pwin { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; margin-top: 12px; }
 .hero .pwin .big { font-family: var(--display); font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .hero .pwin .big small { font-size: 16px; font-weight: 600; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
-.split { height: 12px; background: var(--neg-bg); border-radius: 3px; overflow: hidden; position: relative; }
+.split { height: 12px; background: var(--neg-bg); border-radius: 999px; overflow: hidden; position: relative; }
 .split i { display: block; height: 100%; background: var(--pos); width: 0; transition: width 1s cubic-bezier(.2,.8,.2,1); }
 .split::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--rule); }
 .hero .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -25,7 +28,7 @@
 .ring circle { fill: none; stroke-width: 9; }
 .ring .bg { stroke: var(--mid); }
 .ring .fg { stroke: var(--pos); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; }
-.stat { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--grid); padding: 16px 18px; animation: rise .5s ease both; }
+.stat { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px; animation: rise .5s ease both; }
 .stat .big { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .stat .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
 .stat .s { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
@@ -37,19 +40,27 @@
 .spark .now { fill: var(--pos); }
 .spark text { font: 10px var(--sans); fill: var(--muted); }
 .mini-standings td { padding: 6px 8px; }
+.mini-standings .pcell { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.mini-standings .pcell .mini { width: 64px; flex: none; }
+.games { margin-top: 12px; display: grid; gap: 4px; }
+.game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; }
+.game .a { text-align: right; } .game .p { font-variant-numeric: tabular-nums; font-weight: 600; } .game .p.a { text-align: right; } .game .vs { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
+.game.me { border-color: var(--pos); background: var(--pos-bg); }
+.game .fav { color: var(--pos); }
+.watch td .small { display: block; }
 .qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
 <div class="hero">
   <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
-    {% if m.logged_at %}<span class="tiny muted">priced {{ m.logged_at[5:16]|replace("T"," ") }}Z{% if m.canonical %} · canonical{% endif %}</span>{% endif %}</div>
+    {% if m.logged_at %}<span class="tiny muted">prediction logged {{ m.logged_at|when }}{% if m.canonical %} · canonical run{% endif %}</span>{% endif %}</div>
   {% if opponent %}
   <div class="who">
-    <div class="side"><span class="mark lg" style="background:hsl({{ hue }} 55% 42%)">{{ (my_team|real)[:2]|upper }}</span><div><div class="nm">{{ my_team|real }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} pts{% endif %}</div></div></div>
+    <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ teamlink(my_team) }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} pts{% endif %}</div></div></div>
     <div class="vs">vs</div>
-    <div class="side r"><span class="mark lg" style="background:hsl({{ opp_hue }} 55% 42%)">{{ (opponent|real)[:2]|upper }}</span><div><div class="nm">{{ opponent|real }}</div><div class="sub">{% set orow = standings|selectattr("team","equalto",opponent)|list %}{% if orow %}{{ orow[0].wins }} wins · {{ orow[0].points|num(1) }} pts{% endif %}</div></div></div>
+    <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ teamlink(opponent) }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|num(1) }} pts{% endif %}</div></div></div>
   </div>
   {% if m.p_win is not none %}
   <div class="pwin">
@@ -58,16 +69,16 @@
     <div class="big" style="color:var(--muted)"><span data-count="{{ ((1 - m.p_win) * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ ((1 - m.p_win) * 100)|round(1) }}%</span></div>
   </div>
   <div class="facts">
-    <span>expected <b>{{ m.mine|num(1) }}</b> vs <b>{{ m.theirs|num(1) }}</b></span>
-    {% if m.p_median is not none %}<span>beat the median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
-    {% if m.se %}<span class="muted">± {{ (m.se * 100)|round(1) }} on the win probability</span>{% endif %}
-    {% if lineup and lineup.expected_total %}<span>lineup set at <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">record</a>{% endif %}</span>{% endif %}
+    <span>expected <b>{{ m.mine|num(1) }}</b> vs <b>{{ m.theirs|num(1) }}</b> points</span>
+    {% if m.p_median is not none %}<span>above the league median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
+    {% if m.se %}<span class="muted">± {{ (m.se * 100)|round(1) }} points of win probability (simulation noise)</span>{% endif %}
+    {% if lineup and lineup.expected_total %}<span>lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">see the lineup</a>{% endif %}</span>{% endif %}
   </div>
   {% else %}
-  <div class="note" style="margin-top:12px">No prediction logged for week {{ week }} yet — run the weekly report, or <code>py -3.10 -m scripts.weekly_report --skip-sync</code>.</div>
+  <div class="note" style="margin-top:12px">No prediction logged for week {{ week }} yet — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup.</div>
   {% endif %}
   {% else %}
-  <p class="lede">No matchup on file for week {{ week or "?" }} — the league schedule comes from the sync.</p>
+  <p class="lede">No matchup on file for week {{ week or "?" }} — the league schedule arrives with the sync.</p>
   {% endif %}
 </div>
 
@@ -77,7 +88,7 @@
     <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
     <div><div class="k"><svg class="i"><use href="#i-trophy"/></svg> playoff probability</div>
       <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
-      <div class="s">± {{ f.playoff_standard_error|num(2) }} · champion {{ champ|num(1) }}% · expected {{ f.expected_final_wins|num(1) }} wins{% if f.approximate_magic_number %} · magic number {{ f.approximate_magic_number|num(0) }}{% endif %}</div></div>
+      <div class="s">± {{ f.playoff_standard_error|num(2) }} · title {{ champ|num(1) }}% · {{ f.expected_final_wins|num(1) }} expected wins{% if f.approximate_magic_number %} · {{ f.approximate_magic_number|num(0) }} more to clinch{% endif %}</div></div>
   </div>
   <div class="stat" style="grid-template-columns:1fr;animation-delay:.1s">
     <div class="k"><svg class="i"><use href="#i-chart"/></svg> expected wins, week by week</div>
@@ -92,40 +103,49 @@
       <circle class="dot" cx="{{ pts[n-1][0] }}" cy="{{ pts[n-1][1] }}" r="2.5"/>
       <text x="{{ pad }}" y="{{ H + 11 }}">wk 1</text><text x="{{ W - pad }}" y="{{ H + 11 }}" text-anchor="end">wk {{ n }} · {{ trajectory[-1]|num(1) }}</text>
     </svg>
-    <div class="s">solid = played, dashed = the model's expectation from here · {{ c.actual_wins_banked|num(0) }} banked</div>
-    {% else %}<div class="s">no simulation export yet</div>{% endif %}
+    <div class="s">solid = played · dashed = expected from here · {{ c.actual_wins_banked|num(0) }} wins banked{% if weeks %} · <a href="/weeks/{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    {% else %}<div class="s">No simulation export yet — <a href="/tools/run_simulation">run one</a>.</div>{% endif %}
   </div>
 </div>
 
 <div class="chips">
-  <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/system"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours }} h ago{% endif %}</span></a>
+  <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/system"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours|ago }}{% endif %}</span></a>
   <a class="chip {{ 'warn' if fresh.n_fell or fresh.n_bad }}" href="/system"><svg class="i"><use href="#i-cloud"/></svg><span class="k">sources</span><span class="v">{{ fresh.n_ok }} ok{% if fresh.n_fell %} · {{ fresh.n_fell }} fell back{% endif %}{% if fresh.n_bad %} · {{ fresh.n_bad }} failed{% endif %}</span></a>
-  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next window</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline.strftime("%a %H:%MZ") }}{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
-  <a class="chip" href="{% if last_job %}/jobs/{{ last_job.id }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.label|real }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
-  <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}clean{% endif %}</span></a>
+  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline.strftime("%a %H:%M") }}Z{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
+  <a class="chip" href="{% if last_job %}/jobs/{{ last_job.id }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
+  <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
 
 <div class="grid2">
   <section style="margin-top:28px">
-    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">banked record · playoff probability from the week-{{ week }} export</span></h2>
-    <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num">W</th><th class="num">Pts</th><th class="num">Playoff</th><th></th><th class="num">Champ</th></tr></thead><tbody>
-    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num muted">{{ r.rank }}</td><td class="nm"><span class="mark" style="background:hsl({{ r.hue }} 55% 42%)">{{ (r.team|real)[:2]|upper }}</span>{{ r.team|real }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num">{{ r.playoff|num(1) }}%</td><td style="width:90px"><div class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></div></td><td class="num muted">{{ r.champ|num(1) }}%</td></tr>{% endfor %}
+    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ week }} forecast</span></h2>
+    <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
+    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num muted">{{ r.rank }}</td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="pcell"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|num(1) }}%</span></td><td class="num muted">{{ r.champ|num(1) }}%</td></tr>{% endfor %}
     </tbody></table></div>
-    {% if all_matchups %}<div class="rows" style="margin-top:12px">{% for mm in all_matchups %}<div class="row" style="grid-template-columns:1fr auto 1fr"><span class="{{ 'small' }}" style="text-align:right">{{ mm.a|real }} <b class="tnum">{{ (mm.p_a * 100)|round(0)|int }}%</b></span><span class="tiny muted">vs</span><span class="small"><b class="tnum">{{ (mm.p_b * 100)|round(0)|int }}%</b> {{ mm.b|real }}</span></div>{% endfor %}</div>{% endif %}
+    {% if all_matchups %}<h3 style="margin-top:16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
+    <div class="games">{% for mm in all_matchups %}{% set pa = (mm.p_a or 0) * 100 %}{% set pb = (mm.p_b or 0) * 100 %}<div class="game{% if my_team in (mm.a, mm.b) %} me{% endif %}"><span class="a{% if pa >= pb %} fav{% endif %}">{{ teamlink(mm.a) }}</span><span class="p a{% if pa >= pb %} fav{% endif %}">{{ pa|round(0)|int }}%</span><span class="vs">vs</span><span class="p{% if pb > pa %} fav{% endif %}">{{ pb|round(0)|int }}%</span><span{% if pb > pa %} class="fav"{% endif %}>{{ teamlink(mm.b) }}</span></div>{% endfor %}</div>{% endif %}
   </section>
   <section style="margin-top:28px">
     <h2><svg class="i"><use href="#i-flag"/></svg> Watch list <span class="hint">from the newest records</span></h2>
     {% set q = lineup.questionable_starters if lineup else [] %}
-    {% if q %}<h3>Questionable starters</h3><div class="rows">{% for x in q %}<div class="row" style="grid-template-columns:1fr auto"><span><b>{{ x.name }}</b> <span class="muted small">{{ x.slot }} · {{ x.expected|num(1) }}</span><br><span class="small muted">fallback {{ x.fallback }} ({{ x.fallback_expected|num(1) }}, gives up {{ x.give_up|num(1) }})</span></span><span class="r"></span></div>{% endfor %}</div>{% endif %}
-    {% if designations %}<h3>Designations</h3><div class="rows">{% for x in designations %}<div class="row" style="grid-template-columns:1fr auto"><span><b>{{ x.name }}</b> <span class="muted small">{{ x.nfl_team }} · {{ x.expected|num(1) }}</span></span><span class="r"><span class="flag">{{ x.flag }}</span></span></div>{% endfor %}</div>{% endif %}
-    {% if holes %}<h3>Holes ahead</h3><div class="rows">{% for w, slots in holes.items() %}<div class="row" style="grid-template-columns:6rem 1fr"><span class="t">week {{ w }}</span><span><span class="flag">{{ slots|join(", ") }}</span> <span class="muted small">— no eligible player{% if calendar_link %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</span></span></div>{% endfor %}</div>{% endif %}
-    {% if not q and not designations and not holes %}<p class="small muted">Nothing flagged. {% if not lineup %}Run <a href="/tools/optimize_lineup">optimize lineup</a> and <a href="/tools/roster_calendar">roster calendar</a> to populate this.{% endif %}</p>{% endif %}
+    {% if q %}<h3>Questionable starters</h3>
+    <div class="scroller"><table class="watch"><thead><tr><th>Starter</th><th class="num">Proj.</th><th>If out</th><th class="num">Costs</th><th></th></tr></thead><tbody>
+    {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num neg">−{{ x.give_up|num(1) }}</td><td><a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a></td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}
+    {% if designations %}<h3>Injury designations</h3>
+    <div class="scroller"><table class="watch"><thead><tr><th>Player</th><th>NFL</th><th class="num">Proj.</th><th>Status</th></tr></thead><tbody>
+    {% for x in designations %}<tr><td class="nm">{{ x.name }}</td><td class="muted">{{ x.nfl_team }}</td><td class="num">{{ x.expected|num(1) }}</td><td><span class="flag">{{ x.flag }}</span></td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}
+    {% if holes %}<h3>Empty slots ahead</h3>
+    <div class="scroller"><table class="watch"><thead><tr><th>Week</th><th>Slot</th><th></th></tr></thead><tbody>
+    {% for w, slots in holes.items() %}<tr><td class="nm">week {{ w }}</td><td><span class="flag">{{ slots|join(", ") }}</span></td><td class="small muted">no eligible player on the roster{% if calendar_link %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</td></tr>{% endfor %}
+    </tbody></table></div>{% endif %}
+    {% if not q and not designations and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">the lineup tool</a> and <a href="/tools/roster_calendar">the roster calendar</a> to populate this.{% endif %}</p>{% endif %}
     <div class="qa">
-      <a class="btn" href="/tools/optimize_lineup"><svg class="i"><use href="#i-clip"/></svg> Lineup</a>
-      <a class="btn ghost" href="/tools/matchup_lineup">Matchup</a>
-      <a class="btn ghost" href="/tools/waiver_targets">Waivers</a>
-      <a class="btn ghost" href="/tools/weekly_report">Weekly report</a>
-      {% if weeks %}<a class="btn ghost" href="/weeks/{{ weeks[-1] }}"><svg class="i"><use href="#i-chart"/></svg> Week {{ weeks[-1] }} export</a>{% endif %}
+      <a class="btn" href="/tools/optimize_lineup"><svg class="i"><use href="#i-clip"/></svg> Set my lineup</a>
+      <a class="btn ghost" href="/tools/matchup_lineup">Game-plan the matchup</a>
+      <a class="btn ghost" href="/tools/waiver_targets">Waiver targets</a>
+      <a class="btn ghost" href="/tools/weekly_report">Weekly digest</a>
     </div>
   </section>
 </div>

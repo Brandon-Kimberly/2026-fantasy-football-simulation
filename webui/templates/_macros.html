@@ -1,4 +1,13 @@
-{# Shared pieces. Every string cell passes through |real so the overlay applies everywhere. #}
+{# Shared pieces. Every string cell passes through |real so the overlay applies everywhere;
+   every URL is built from the pseudonym so it stays pseudonymous. #}
+
+{% macro mark(team, size='') -%}
+<span class="mark {{ size }}" style="background:hsl({{ team|hue }} 55% 42%)">{{ (team|real)|initials }}</span>
+{%- endmacro %}
+
+{% macro teamlink(team) -%}
+<a href="/current#t-{{ team|slug }}" class="tl">{{ team|real }}</a>
+{%- endmacro %}
 
 {% macro tiles(items) -%}
 {% if items %}<div class="tiles">{% for t in items %}<div class="tile"><div class="k">{{ t.k|real }}</div><div class="v {{ t.tone }}">{{ t.v|real }}</div>{% if t.s %}<div class="s">{{ t.s|real }}</div>{% endif %}</div>{% endfor %}</div>{% endif %}
@@ -8,9 +17,15 @@
 <div class="scroller"><table>
 <thead><tr>{% for c in columns %}<th data-key="{{ c.key }}" data-type="{{ 'number' if c.kind in ('num','pct','signed') else 'text' }}"{% if c.kind in ('num','pct','signed') %} class="num"{% endif %}>{{ c.label }}</th>{% endfor %}</tr></thead>
 <tbody>
-{% for r in rows %}<tr{% if r.me and r.me == my_team %} class="me"{% endif %}>{% for cell in r.cells %}{% set c = columns[loop.index0] %}<td class="{{ 'num' if cell.num }}{{ ' nm' if loop.first }}{{ ' wrap' if (not cell.num and cell.text|length > 34) }}" data-sort="{{ cell.text|real }}">{% if cell.tone == 'neg' and not cell.num %}<span class="flag">{{ cell.text|real }}</span>{% else %}<span class="{{ cell.tone }}">{{ cell.text|real }}</span>{% endif %}</td>{% endfor %}</tr>
+{% for r in rows %}<tr{% if r.me and r.me == my_team %} class="me"{% endif %}>{% for cell in r.cells %}{% set c = columns[loop.index0] %}<td class="{{ 'num' if cell.num }}{{ ' nm' if loop.first }}{{ ' wrap' if (not cell.num and cell.text|length > 34) }}" data-sort="{{ cell.text|real }}">{% if cell.link == 'team' and cell.raw %}{{ teamlink(cell.raw) }}{% elif cell.tone == 'neg' and not cell.num %}<span class="flag">{{ cell.text|real }}</span>{% else %}<span class="{{ cell.tone }}">{{ cell.text|real }}</span>{% endif %}</td>{% endfor %}</tr>
 {% endfor %}
 </tbody></table></div>
+{%- endmacro %}
+
+{% macro section_body(s) -%}
+{% if s.kind == 'table' %}{{ datatable(s.columns, s.rows, s.me_key) }}
+{% elif s.kind == 'kv' %}<dl class="kv">{% for k, v in s['items'] %}<dt>{{ k }}</dt><dd>{{ v|real }}</dd>{% endfor %}</dl>
+{% elif s.kind == 'text' %}<p class="small muted" style="max-width:80ch">{{ s.text|real }}</p>{% endif %}
 {%- endmacro %}
 
 {% macro record(view) -%}
@@ -18,16 +33,11 @@
 {{ tiles(view.tiles) }}
 {% for s in view.sections %}
 <section>
-{% if s.kind == 'table' %}
+{% if s.collapsed %}
+<details class="sec"><summary>{{ s.title|real }}{% if s.kind == 'table' %}<span class="n">{{ s.rows|length }} rows</span>{% endif %}</summary>{{ section_body(s) }}</details>
+{% else %}
 <h2>{{ s.title|real }}{% if s.note %}<span class="hint">{{ s.note|real }}</span>{% endif %}</h2>
-{{ datatable(s.columns, s.rows, s.me_key) }}
-{% elif s.kind == 'kv' %}
-<h2>{{ s.title|real }}</h2>
-{# s['items'], not s.items: on a dict, Jinja's attribute lookup finds the .items() METHOD first #}
-<dl class="kv">{% for k, v in s['items'] %}<dt>{{ k|replace('_',' ') }}</dt><dd>{{ v|real }}</dd>{% endfor %}</dl>
-{% elif s.kind == 'text' %}
-<h2>{{ s.title|real }}</h2>
-<p class="small muted" style="max-width:80ch">{{ s.text|real }}</p>
+{{ section_body(s) }}
 {% endif %}
 </section>
 {% endfor %}
@@ -39,7 +49,7 @@
 {% for b in blocks %}
 {% if b.kind == 'heading' %}<div class="con-h">{{ b.text|real }}</div>
 {% elif b.kind == 'table' %}<div class="scroller"><table><tbody>{% for r in b.rows %}<tr>{% for c in r %}<td{% if loop.first %} class="nm"{% endif %}>{{ c|real }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record: <a href="{{ b.link }}">{{ b.path }}</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
+{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record written: <a href="{{ b.link }}">{{ b.name }}</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
 {% elif b.kind == 'chatter' %}<details><summary>engine chatter · {{ b.lines|length }} lines</summary><pre>{{ b.lines|join('\n')|real }}</pre></details>
 {% else %}<pre>{{ b.text|real }}</pre>
 {% endif %}
@@ -48,5 +58,6 @@
 {%- endmacro %}
 
 {% macro filelist(entries) -%}
-{% if entries %}<div class="rows">{% for e in entries %}<div class="row"><span class="t">{{ e.tool }}</span><span><a href="{{ e.link }}">{{ e.name }}</a></span><span class="r">{{ e.stamp|stamp if e.stamp else "" }}{% if e.size %} · {{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
+{% set rows = entries|pair_digests %}
+{% if rows %}<div class="rows">{% for e in rows %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><a class="main" href="{{ e.link }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="tiny muted" href="{{ e.md_link }}">markdown</a>{% endif %}<span class="sub">{{ e.name }}</span></span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}</div>{% else %}<p class="muted small">nothing here</p>{% endif %}
 {%- endmacro %}

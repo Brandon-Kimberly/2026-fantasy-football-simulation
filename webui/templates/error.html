@@ -2,6 +2,6 @@
 {% block title %}{{ code }} · {{ brand }}{% endblock %}
 {% block body %}
 <div class="head"><p class="eyebrow">{{ code }}</p><h1>{% if code == 409 %}Not launched{% elif code == 404 %}Not here{% else %}Refused{% endif %}</h1><p class="lede">{{ message|real }}</p></div>
-{% if current is defined and current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a> since {{ current.started_at }}. {{ r1 }}</div>{% endif %}
-<p class="small muted">Served paths are relative to data/ and limited to current/, weeks/, decisions/, logs/ and results/; data/local/ is never served.</p>
+{% if current is defined and current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. {{ r1 }}</div>{% endif %}
+{% if code != 409 %}<p class="small muted">This page only serves files under data/current, weeks, decisions, logs and results; anything private under data/local is never served.</p>{% endif %}
 {% endblock %}

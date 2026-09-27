@@ -121,7 +121,7 @@ class TestRecordViews(unittest.TestCase):
 
     def test_compare_record_leads_with_the_probability(self):
         v = render.record_view(COMPARE)
-        self.assertIn("P(C.J. Stroud > Jordan Love)", v["tiles"][0]["k"])
+        self.assertIn("C.J. Stroud wins", v["tiles"][0]["k"])
         self.assertEqual(v["tiles"][0]["v"], "57.1%")
         self.assertEqual(v["tiles"][0]["tone"], "pos")
         self.assertEqual(v["tiles"][2]["v"], "+2.80")
@@ -130,8 +130,8 @@ class TestRecordViews(unittest.TestCase):
 
     def test_paired_evaluation_puts_the_principals_first_and_signs_the_deltas(self):
         v = render.record_view(TRADE)
-        self.assertEqual(v["tiles"][0]["k"], "Quantum Ferrets playoff")
-        self.assertEqual(v["tiles"][0]["v"], "+0.50")
+        self.assertEqual(v["tiles"][0]["k"], "Quantum Ferrets · playoff")
+        self.assertEqual(v["tiles"][0]["v"], "+0.50 pts")
         self.assertEqual(v["tiles"][1]["tone"], "neg")
         rows = v["sections"][0]["rows"]
         self.assertEqual([r["cells"][0]["text"] for r in rows], ["Quantum Ferrets", "Rocket Pandas", "Polar Yetis"])
@@ -142,7 +142,7 @@ class TestRecordViews(unittest.TestCase):
         v = render.record_view({"tool": "brand_new_tool", "timestamp_utc": "x", "score": 1.5, "flag": True,
                                 "rows": [{"a": 1, "b": "x"}, {"a": 2, "b": "y"}], "by_team": {"T1": {"w": 1}, "T2": {"w": 2}},
                                 "meta": {"k": "v"}, "names": ["p", "q"]})
-        self.assertEqual(v["title"], "brand new tool")
+        self.assertEqual(v["title"], "Brand new tool")
         kinds = [(s["kind"], s["title"]) for s in v["sections"]]
         self.assertEqual(kinds[0], ("kv", "Summary"))
         self.assertIn(("table", "rows"), kinds)
@@ -211,7 +211,7 @@ class TestRenderedPages(unittest.TestCase):
         c = self.client()
         page = c.get("/file/decisions/week_03/archive/lineup_20260927T030606Z_week3.json").get_data(as_text=True)
         self.assertIn("Optimal lineup", page)
-        self.assertIn("show the JSON", page)
+        self.assertIn("The record as written", page)
         self.assertIn("Questionable starters", page)
         raw = c.get("/file/decisions/week_03/archive/lineup_20260927T030606Z_week3.json?raw=1")
         self.assertEqual(raw.mimetype, "application/json")

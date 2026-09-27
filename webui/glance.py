@@ -210,6 +210,8 @@ def home_report(root, my_team, runner=None):
         r["rank"] = i + 1
     my_row = next((r for r in table if r["team"] == my_team), None)
     losses = (2 * (wk - 1) - int(my_row["wins"] or 0)) if (my_row and wk) else None
+    opp_row = next((r for r in table if r["team"] == opponent), None) if opponent else None
+    opp_losses = (2 * (wk - 1) - int(opp_row["wins"] or 0)) if (opp_row and wk) else None
 
     # ---- newest records
     dec = root.decisions(wk) if wk and wk in root.decision_weeks() else {"canonical": [], "archive": []}
@@ -230,7 +232,7 @@ def home_report(root, my_team, runner=None):
     git = logs_git_report(root)
     return {"week": wk, "opponent": opponent, "matchup": matchup, "all_matchups": all_matchups,
             "forecast": mine_fc, "current": mine_cs, "champ": champ, "trajectory": traj,
-            "standings": table, "my_row": my_row, "losses": losses,
+            "standings": table, "my_row": my_row, "losses": losses, "opp_row": opp_row, "opp_losses": opp_losses,
             "lineup": lineup, "lineup_link": lineup_e["link"] if lineup_e else None,
             "holes": holes, "calendar_link": cal_e["link"] if cal_e else None,
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,

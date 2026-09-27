@@ -1,10 +1,15 @@
 {% extends "base.html" %}
-{% block title %}Weeks · {{ brand }}{% endblock %}
+{% block title %}Forecasts · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">simulation exports</p><h1>Weeks</h1><p class="lede">One directory per simulated week under <code>data/weeks/</code>. A later week's run never overwrites an earlier week's export; a re-run of the same week does.</p></div>
+<style>
+.trend { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.trend .mini { width: 72px; flex: none; }
+</style>
+<div class="head"><p class="eyebrow">season forecasts · one per simulated week</p><h1>Forecasts</h1><p class="lede">How my season looked from each week the engine ran. A later week never overwrites an earlier one, so this reads as the odds moving through the season; open a week for every team's numbers and the charts.</p></div>
 {% if rows %}
-<div class="scroller"><table><thead><tr><th>Week</th><th class="num">Teams forecast</th><th class="num">Files</th><th>Export written</th></tr></thead><tbody>
-{% for r in rows|reverse %}<tr><td class="nm"><a href="/weeks/{{ r.week }}">week {{ r.week }}</a></td><td class="num">{{ r.teams }}</td><td class="num">{{ r.files }}</td><td class="tnum muted">{{ r.mtime|ts }}</td></tr>{% endfor %}
+<div class="scroller"><table><thead><tr><th>Week</th><th class="num">Playoff odds</th><th class="num">Title odds</th><th class="num">Expected wins</th><th class="num">Wins banked</th><th class="num">Simulations</th><th>Run</th></tr></thead><tbody>
+{% for r in rows|reverse %}<tr><td class="nm"><a href="/weeks/{{ r.week }}">Week {{ r.week }}</a></td><td class="num"><span class="trend"><span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span><b>{{ r.playoff|num(1) }}%</b>{% if r.se %} <span class="muted tiny">± {{ r.se|num(1) }}</span>{% endif %}</span></td><td class="num">{{ r.champ|num(1) }}%</td><td class="num">{{ r.exp_wins|num(2) }}</td><td class="num">{{ r.banked|num(0) }}</td><td class="num muted">{{ "{:,}".format(r.sims) if r.sims else "—" }}</td><td class="tnum muted">{{ r.mtime|ts }}</td></tr>{% endfor %}
 </tbody></table></div>
-{% else %}<div class="note">No exports on disk yet — run <code>py -3.10 -m scripts.run_simulation</code>, or launch it from Tools.</div>{% endif %}
+<p class="small muted" style="margin-top:10px">Odds are mine; ± is the simulation's own noise on the playoff figure.</p>
+{% else %}<div class="note">No forecasts yet — <a href="/tools/run_simulation">run the simulation</a> from Tools, or <code>py -3.10 -m scripts.run_simulation</code>.</div>{% endif %}
 {% endblock %}
