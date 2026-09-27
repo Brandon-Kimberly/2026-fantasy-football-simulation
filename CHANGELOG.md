@@ -5,6 +5,36 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v10.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.1.0) — 2026-09-27 (MINOR)
+
+**A local web UI, and the model unchanged.** `py -3.10 -m webui` serves everything the
+scripts write — freshness and run windows, every week's forecast and charts, the canonical
+and archived decision records and digests, rosters, standings, the season logs — straight
+from `data/`, and launches the decision tools and the two engine entry points as the exact
+command you would type, one subprocess at a time. Design, phases and constraints in
+`docs/WEB_UI.md`; built as **W1** (viewer), **W2** (launcher) and **W3** (engine runs).
+
+Three rules shape it, each pinned by a test: the web process **never imports the engine**
+(importing it truncates `syndicate_warnings.log` — F10 — and a subprocess guard proves the
+import graph stays clean); it never `chdir`s (one absolute root, one path chokepoint that
+refuses traversal and all of `data/local/`); and real names are an in-memory overlay on
+response bodies only — files, URLs, job arguments and logs stay pseudonymous (H1/F37/F48).
+It binds `127.0.0.1` with no `--host` option, refuses any other `Host` header (the
+DNS-rebinding defence a localhost service otherwise lacks), carries a per-launch CSRF token
+on every POST, and never syncs: the weekly report is always launched `--skip-sync`, a STALE
+tree is refused, and sync stays a terminal act (H5/C3).
+
+Every launch takes one single-flight lock, enforced three ways for R1 — an in-process lock,
+a pid lock file, and a scan for any other engine process on the machine — and a job that
+exits non-zero or is cancelled is **VOID** with the R1 sentence, never "finished with
+errors". Proven on the real tree: a tool launched from the UI changed exactly one file (its
+record); the first UI-launched weekly report ran to completion and its digest rendered.
+
+**MINOR**: goldens byte-identical (no engine, constant, baseline or gate change). Suite
+1444 → 1522; Flask lives in `requirements-web.txt`, outside the golden-pinned numeric stack,
+and the web tests skip cleanly without it. Also carried: the v10.0.0 `CITATION.cff` date,
+one day stale (H4's guard had been red on `main` since that release commit).
+
 ## [v10.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.0.0) — 2026-09-25 (MAJOR)
 
 **Both season charts drew the league 0-0 until today.** `global_trajectories` is zeroed and
