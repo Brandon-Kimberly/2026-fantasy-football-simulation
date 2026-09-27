@@ -16,11 +16,11 @@ import datetime as _dt
 import json
 import os
 import secrets
-import subprocess
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
-from webui import render
+from webui import brand, render
+from webui.glance import freshness_report, home_report, latest_digests, logs_git_report, windows_report
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
@@ -48,10 +48,6 @@ def _allowed_host(host, port):
     if port and hport and str(hport) != str(port):
         return False
     return True
-
-
-def _parse_iso(t):
-    return _dt.datetime.fromisoformat(str(t).replace("Z", "+00:00")).astimezone(_dt.timezone.utc)
 
 
 def _fmt_stamp(s):
@@ -94,90 +90,6 @@ def _fmt_num(v, nd=1):
 
 
 # ------------------------------------------------------------------------- readers
-def freshness_report(root):
-    """freshness.assess over values read from the bound root (its own readers are CWD-relative)."""
-    from fantasy_sim.freshness import assess, parse_stamp
-    from fantasy_sim.storage import SYNC_OUTPUT_FILES
-    manifest = root.read_json("current/sync_manifest.json")
-    sync_start = parse_stamp((manifest or {}).get("started_at", "")) if manifest else None
-    mtimes = {os.path.basename(p): root.mtime("current/" + os.path.basename(p)) for p in SYNC_OUTPUT_FILES}
-    meta = (root.read_json("current/vegas_totals.json", {}) or {}).get("_meta") or {}
-    week = (manifest or {}).get("current_week") or (root.read_json("current/league_state.json", {}) or {}).get("current_week")
-    export_mtime = None
-    if week:
-        export_mtime = root.mtime(f"weeks/week_{int(week):02d}/syndicate_comprehensive_matrix_week_{int(week)}.json")
-    status, reasons = assess(manifest, sync_start, mtimes, meta.get("week"), export_mtime, None,
-                             vegas_stale_since=meta.get("stale_since"))
-    return {"status": status, "reasons": list(reasons), "manifest": manifest, "week": week,
-            "vegas_week": meta.get("week"), "vegas_stale_since": meta.get("stale_since")}
-
-
-def canonical_stamps(root, week):
-    """(marker, aware UTC datetime) for `week`: canonical digests on disk plus the committed
-    predictions rows -- the two things run_windows counts as coverage."""
-    from fantasy_sim.run_windows import parse_canonical_digest, stamps_from_predictions_rows
-    out = []
-    for e in root.decisions(week)["canonical"]:
-        if e["ext"] == "md":
-            dt = parse_canonical_digest(e["name"], week)
-            if dt is not None:
-                out.append((e["name"], dt))
-    for e in root.logs():
-        if e["name"].startswith("predictions_") and e["ext"] == "jsonl":
-            rows, _n = root.tail_jsonl(e["rel"], n=100000)
-            out.extend(stamps_from_predictions_rows(rows, week))
-    return out
-
-
-def windows_report(root, state_week):
-    """run_windows.compute_windows on the SYNCED kickoffs only. The CLI live-fetches ESPN when
-    the schedule carries none; the server never does, and says so instead."""
-    from fantasy_sim.run_windows import compute_windows, watch_verdict
-    sched = root.read_json("current/nfl_schedule.json", {}) or {}
-    raw = (sched.get("_meta") or {}).get("kickoffs") or {}
-    if not raw:
-        return {"source": None, "result": None, "verdict": None,
-                "note": "no kickoffs in the synced schedule: run a sync to persist them (the CLI would "
-                        "live-fetch ESPN here; this server never reaches the network for it)"}
-    kicks = {int(w): [_parse_iso(t) for t in ts] for w, ts in raw.items() if ts}
-    now = _dt.datetime.now(_dt.timezone.utc)
-    probe = compute_windows(now, kicks, [], state_week=state_week)
-    target = probe.get("target_week")
-    if target is None:
-        return {"source": "synced schedule", "result": probe, "verdict": None, "note": None}
-    result = compute_windows(now, kicks, canonical_stamps(root, target), state_week=state_week,
-                             next_week_stamps=canonical_stamps(root, target + 1))
-    return {"source": "synced schedule", "result": result,
-            "verdict": watch_verdict(result, now), "note": None}
-
-
-def logs_git_report(root):
-    """freshness.logs_git_state over git run in the root; None when the root is not a checkout."""
-    from fantasy_sim.freshness import logs_git_state
-    try:
-        por = subprocess.run(["git", "status", "--porcelain", "--", "data/logs"], cwd=root.root,
-                             capture_output=True, text=True, timeout=15)
-        if por.returncode != 0:
-            return None
-        ahead = subprocess.run(["git", "rev-list", "--count", "@{u}..HEAD", "--", "data/logs"],
-                               cwd=root.root, capture_output=True, text=True, timeout=15)
-        uncommitted, n_ahead = logs_git_state(por.stdout, ahead.stdout if ahead.returncode == 0 else None)
-        return {"uncommitted": uncommitted, "unpushed": n_ahead}
-    except (OSError, subprocess.SubprocessError):
-        return None
-
-
-def latest_digests(root):
-    """{week: newest canonical weekly_report .html entry}."""
-    out = {}
-    for wk in root.decision_weeks():
-        for e in root.decisions(wk)["canonical"]:
-            if e["tool"] == "weekly_report" and e["ext"] == "html":
-                out[wk] = e
-                break
-    return out
-
-
 def week_report(root, week):
     n = int(week)
     d = f"weeks/week_{n:02d}"
@@ -244,7 +156,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     @app.context_processor
     def _ctx():
-        return {"overlay_enabled": overlay.enabled,
+        return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
@@ -286,13 +198,19 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None):
 
     # ---------------------------------------------------------------- routes (GET only)
     @app.route("/")
-    def status():
+    def home():
+        return render_template("home.html", **home_report(root, MY_TEAM, runner))
+
+    @app.route("/system")
+    def system():
         fr = freshness_report(root)
-        wk = fr["week"]
-        return render_template("status.html", fr=fr, windows=windows_report(root, wk),
+        return render_template("status.html", fr=fr, windows=windows_report(root, fr["week"]),
                                git=logs_git_report(root), digests=latest_digests(root),
-                               weeks=root.weeks(), commands=TERMINAL_COMMANDS,
-                               warnings_note=WARNINGS_LOG_NOTE)
+                               commands=TERMINAL_COMMANDS, warnings_note=WARNINGS_LOG_NOTE)
+
+    @app.route("/status")
+    def status():
+        return redirect(url_for("system"))
 
     @app.route("/health")
     def health():
