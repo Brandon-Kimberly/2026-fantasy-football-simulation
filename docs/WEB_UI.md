@@ -386,6 +386,40 @@ non-canonical, filed under the week's archive). The tool registry still does not
 (rewritten by design) and the rows it APPENDS to the season logs; never a log rewrite,
 never `data/weeks/`, `data/decisions/` or the predictions log.
 
+### W8 — Two views: dev and simple (2026-09-27)
+
+The owner's words: the site is a developer's view now -- files, jobs, logs, syncs,
+verdict codes -- and "if other people used this they would never want to know any of
+that"; long term the engine is hosted somewhere and the UI is simple enough for anyone.
+
+One codebase, two views, every page rendered in both:
+
+- **dev** -- everything W1--W7 built: every file and raw link, the jobs list, logs,
+  System, Sync, Records, the engine runs, every tool with every setting, the command
+  preview, the audit codes in method notes, the header's localhost/real-names line and
+  the private banner.
+- **simple** -- Home, League, Forecast, Decisions, and the tools that answer a
+  manager's question (`webui.tools.SIMPLE_TOOLS`), asking only who and when. A tool's
+  answer (the job page) is for everyone but shows no command, log, exit code or job id;
+  a record opens as tables with no raw JSON; states read Running / Done / Didn't
+  finish; method notes lose their audit codes (`render.simplify`); no page names a
+  file, a sync, the engine, or a verdict code.
+
+The mode is server-side (`webui.settings`, data/local/webui/settings.json) so every
+request agrees; the footer toggles it through one POST route (`/mode`, CSRF), and
+`py -3.10 -m webui --mode simple` sets the default before a setting exists. Today the
+server is localhost-only, so "only the owner can switch" is true by construction; when
+the engine is hosted for other people, `/mode` is the one route to put behind the
+owner's login -- everything else already keys off the stored mode.
+
+**The rule, from here on: every change to the UI is made for both views.** It is
+enforced, not remembered: `tests.test_webui_modes` renders every simple page on the
+full fixture tree and fails on any developer vocabulary (`DEV_TERMS`) in the visible
+text, and checks the dev-only pages and tools stay 404 in the simple view. A new page
+goes into `SIMPLE_PAGES` or `DEV_ONLY_PREFIXES`; a new tool into `SIMPLE_TOOLS` or
+not; a new sentence with a file name, a code or the word "sync" goes inside
+`{% if dev %}`. Macros are imported `with context` so `dev` reaches them.
+
 ### W5 (optional, later) — Sandbox root
 
 `--root` already allows serving a copy. A "sandbox run" button — copy `data/` to a temp

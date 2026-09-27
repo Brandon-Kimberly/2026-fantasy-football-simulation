@@ -18,7 +18,7 @@ requirements.txt`). On this machine plain `python` resolves to the retired Windo
 access violation in the test process (`AUDIT_PLAN.md` R1). Use the launcher:
 
 ```bash
-py -3.10 -m unittest discover tests      # full suite — 1640 tests, must all pass
+py -3.10 -m unittest discover tests      # full suite — 1649 tests, must all pass
 py -3.10 -m tests.test_golden_master     # reproducibility harness — 15 tests, three scenarios, byte-exact
 py -3.10 -m tests.golden_sync            # sync-stage golden: baseline generation from pinned inputs (--regenerate = MAJOR)
 py -3.10 -m scripts.run_behavior_check   # sim mechanic rates vs real 2025 + drift vs committed baseline
@@ -135,6 +135,12 @@ These are non-negotiable and exist because each was learned the hard way on this
    merges, delete its branch. If `git log <new-branch> --oneline` shows commits from a
    different `audit/phase-N-*` branch, the branch point was wrong — stop and re-branch from
    `main` before doing any work.
+
+10. **The web UI has two views, and every UI change is made for both** (docs/WEB_UI.md W8,
+    2026-09-27). `dev` is the owner's (files, jobs, logs, sync, codes); `simple` is the one
+    anyone could use. `tests.test_webui_modes` renders every simple page and fails on
+    developer vocabulary in the visible text — a new page, tool or sentence is either
+    plain in both views or inside `{% if dev %}`. Do not add UI that only works in one.
 
 ## Deliberate decisions — do not "fix" these
 
