@@ -2,28 +2,71 @@
 {% from "_macros.html" import record, console %}
 {% block title %}{{ job.label|real }} · fantasy-sim{% endblock %}
 {% block body %}
-{% if refresh %}<meta http-equiv="refresh" content="5">{% endif %}
+<style>
+.stages { display: flex; flex-wrap: wrap; gap: 6px; margin: 14px 0 10px; }
+.stage { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 5px 10px; border: 1px solid var(--grid); color: var(--muted); background: var(--surface); }
+.stage.done { color: var(--ink); border-color: var(--rule); }
+.stage.now { color: var(--pos); border-color: var(--pos); background: var(--pos-bg); }
+.bar { height: 6px; background: var(--mid); margin: 12px 0 6px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--pos); width: 0; transition: width .6s ease; }
+.bar.pulse i { animation: pulse 1.6s ease-in-out infinite; width: 40%; }
+@keyframes pulse { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+@media (prefers-reduced-motion: reduce) { .bar.pulse i { animation: none; width: 100%; opacity: .4; } }
+.latest { font-family: var(--mono); font-size: 12.5px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--grid); padding: 8px 12px; white-space: pre-wrap; word-break: break-word; }
+.elapsed { font-variant-numeric: tabular-nums; }
+</style>
 <div class="head">
-  <p class="eyebrow">job · {{ job.id }}{% if job.pid %} · pid {{ job.pid }}{% endif %}</p>
-  <h1><span class="pill {{ job.state }}">{{ job.state }}</span> {{ job.label|real }}</h1>
-  <p class="lede"><code>py -3.10 {{ job.args|join(" ")|real }}</code> · started {{ job.started_at }}{% if job.finished_at %} · finished {{ job.finished_at }}{% endif %}{% if job.rc is not none %} · exit {{ job.rc }}{% endif %}</p>
+  <p class="eyebrow">{{ job.tool|replace("_"," ") }} · started {{ job.started_at[11:16] }}Z{% if job.finished_at %} · took <span class="elapsed">{{ (elapsed // 60) }} m {{ (elapsed % 60) }} s</span>{% endif %}</p>
+  <h1><span class="pill {{ job.state }}" id="pill">{{ job.state }}</span> {{ job.label|real }}</h1>
+  {% if job.resolved %}<p class="lede small">Matched as typed: {{ job.resolved|join(" · ")|real }}</p>{% endif %}
 </div>
 
-{% if job.state == "VOID" %}<div class="note bad"><b>VOID.</b> {{ job.note }}</div>
-{% elif job.state == "RUNNING" %}<div class="note">Running — this page refreshes every 5 s. {{ r1 }}</div>
-<form method="post" action="/jobs/{{ job.id }}/cancel" class="actions"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button type="submit" class="ghost">Cancel — the job becomes VOID</button></form>
-{% elif job.record and not view %}<div class="note good"><b>Record:</b> <a href="{{ job.record }}">{{ job.record }}</a></div>
-{% elif not job.record %}<div class="note">Finished; no record path was announced in the output.</div>{% endif %}
+{% if job.state == "VOID" %}<div class="note bad"><b>VOID.</b> {{ job.note }}</div>{% endif %}
+
+{% if running %}
+<section id="live">
+<h2>Running <span class="hint"><span id="elapsed" class="elapsed">{{ (elapsed or 0) // 60 }} m {{ (elapsed or 0) % 60 }} s</span>{% if typical %} · typically ~{{ (typical // 60)|int }} m {{ (typical % 60)|int }} s{% endif %}</span></h2>
+<div class="stages" id="stages">{% for s in progress.stages %}<span class="stage {{ 'done' if loop.index < progress.reached else ('now' if loop.index == progress.reached) }}">{{ s }}</span>{% endfor %}</div>
+<div class="bar {{ '' if typical else 'pulse' }}" id="bar"><i style="width:{{ ((elapsed or 0) / typical * 100)|round(0)|int if typical else 40 }}%"></i></div>
+<div class="latest" id="latest">{{ progress.last|real or "starting…" }}</div>
+<form method="post" action="/jobs/{{ job.id }}/cancel" class="actions"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button type="submit" class="ghost">Cancel</button><span class="small muted">a cancelled job is VOID; the page updates in place and reloads once when the run ends</span></form>
+</section>
+<script>
+(function () {
+  var url = "/jobs/{{ job.id }}.json", typical = {{ typical or 'null' }};
+  function mmss(s) { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + " m " + (s % 60) + " s"; }
+  function tick() {
+    fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (j) {
+      if (j.state !== "RUNNING") { location.reload(); return; }
+      document.getElementById("elapsed").textContent = mmss(j.elapsed);
+      var p = j.progress || {}, st = document.getElementById("stages");
+      Array.from(st.children).forEach(function (el, i) { el.className = "stage " + (i + 1 < p.reached ? "done" : (i + 1 === p.reached ? "now" : "")); });
+      if (p.last) document.getElementById("latest").textContent = p.last;
+      var bar = document.getElementById("bar");
+      if (typical) { var pct = Math.min(96, Math.round((j.elapsed / typical) * 100)); bar.className = "bar"; bar.firstChild.style.width = pct + "%"; }
+      setTimeout(tick, 2000);
+    }).catch(function () { setTimeout(tick, 4000); });
+  }
+  setTimeout(tick, 2000);
+})();
+</script>
+{% endif %}
 
 {% if view %}
 <section>
 <h2>{{ view.title|real }} <span class="hint">{{ view.subtitle|real }} · <a href="{{ job.record }}">open the record</a></span></h2>
 {{ record(view) }}
 </section>
+{% elif job.record and not running %}<div class="note good"><b>Record:</b> <a href="{{ job.record }}">{{ job.record.rsplit('/', 1)[-1] }}</a></div>
 {% endif %}
 
 <section>
+{% if view %}
+<details><summary>raw output · {{ size }} bytes · <a href="/jobs/{{ job.id }}/log">full log</a></summary>{{ console(blocks) }}</details>
+{% else %}
 <h2>Output <span class="hint">{{ size }} bytes · <a href="/jobs/{{ job.id }}/log">full log</a></span></h2>
 {{ console(blocks) }}
+{% endif %}
+<details><summary>command &amp; job id</summary><p class="small"><code>py -3.10 {{ job.args|join(" ")|real }}</code></p><p class="small muted">job <code>{{ job.id }}</code>{% if job.pid %} · pid {{ job.pid }}{% endif %} · in <code>{{ job.cwd }}</code> · started {{ job.started_at }}{% if job.finished_at %} · finished {{ job.finished_at }}{% endif %}{% if job.rc is not none %} · exit {{ job.rc }}{% endif %}</p></details>
 </section>
 {% endblock %}

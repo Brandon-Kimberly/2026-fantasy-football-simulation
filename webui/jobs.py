@@ -148,6 +148,24 @@ class JobRunner:
     def current(self):
         return self.read(self._current) if self._current else None
 
+    def typical_seconds(self, tool):
+        """Median wall time of past OK runs of `tool`, or None -- the only estimate the job
+        page makes, and it says 'typically', never 'remaining'."""
+        secs = []
+        for m in self.list():
+            if m.get("tool") != tool or m.get("state") != OK:
+                continue
+            try:
+                a = _dt.datetime.strptime(m["started_at"], "%Y-%m-%dT%H:%M:%SZ")
+                b = _dt.datetime.strptime(m["finished_at"], "%Y-%m-%dT%H:%M:%SZ")
+            except (KeyError, TypeError, ValueError):
+                continue
+            secs.append((b - a).total_seconds())
+        if not secs:
+            return None
+        secs.sort()
+        return secs[len(secs) // 2]
+
     def tail(self, job_id, chars=6000):
         try:
             with open(os.path.join(self._dir(job_id), "stdout.log"), "rb") as fh:
@@ -192,10 +210,11 @@ class JobRunner:
                 self._write(m["id"], m)
 
     # ------------------------------------------------------------------ launch
-    def launch(self, argv, tool, label=None):
+    def launch(self, argv, tool, label=None, extra=None):
         """Start `argv` (a list; argv[0] the interpreter) as the one running job. Returns
         the job id. Raises JobRefused when a job is running, an engine.lock is held by a
-        live pid, or another engine process is on the machine."""
+        live pid, or another engine process is on the machine. `extra`: additional meta
+        fields (e.g. the player-name corrections the form made) -- never the environment."""
         if not isinstance(argv, (list, tuple)) or not argv:
             raise JobRefused("argv must be a non-empty list")
         if not self._lock.acquire(blocking=False):
@@ -217,7 +236,7 @@ class JobRunner:
             meta = {"id": job_id, "tool": tool, "label": label or tool, "state": RUNNING,
                     "started_at": _iso(now), "finished_at": None, "rc": None, "pid": None,
                     "python": argv[0], "args": list(argv[1:]), "cwd": self.root.root,
-                    "record": None, "note": None}
+                    "record": None, "note": None, **{k: v for k, v in (extra or {}).items() if k not in ("id", "state", "pid")}}
             logfh = open(os.path.join(jdir, "stdout.log"), "ab")
             try:
                 proc = self._popen(list(argv), cwd=self.root.root, env=os.environ.copy(),

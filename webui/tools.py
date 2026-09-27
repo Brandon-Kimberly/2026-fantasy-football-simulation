@@ -1,4 +1,4 @@
-"""webui.tools -- the launchable tools, their forms, and the argv each form builds (W2).
+"""webui.tools -- the launchable tools, their forms, and the argv each form builds (W2/W3).
 
 An ALLOWLIST, not a discovery: only the tools named here can be launched, each through the
 exact CLI the owner already types (`<this interpreter> -m scripts.<name> ...`), so the UI
@@ -6,16 +6,25 @@ adds no code path into the engine. Every argument is one argv item -- never a sh
 string -- and a free-text value that begins with `-` is refused rather than passed, because
 argparse would read it as an option.
 
-Excluded on purpose (docs/WEB_UI.md W2): gameday (opens a browser), run_sync (W4),
-run_simulation / weekly_report (W3), the backtests and studies (milestone tools), bid_review
---add / --bid and evaluate_move --log-tx (they append to a TRACKED season log, which is not
-"the tool's own record under data/decisions/"), and every path-valued option.
+Player-valued fields (`player`, `players`, `myplayer(s)`, `free_players`, `team_players`) are
+resolved against webui.players before the argv is built: a typed name that is not an exact
+player is either corrected to its one close match (and the job records the correction) or
+refused with the candidates listed. The form offers suggestions from the same index.
+
+Excluded on purpose (docs/WEB_UI.md W2): gameday (opens a browser), run_sync (W4), the
+backtests and studies (milestone tools), bid_review --add / --bid and evaluate_move --log-tx
+(they append to a TRACKED season log, which is not "the tool's own record under
+data/decisions/"), and every path-valued option.
 
 Pure stdlib except the team list, which comes from fantasy_sim.config (import-safe).
 """
 import sys
 
+from webui.players import Ambiguous, NoMatch, csv_split
+
 MAX_TEXT = 200
+PLAYER_KINDS = ("player", "players", "myplayer", "myplayers", "free_players", "team_players")
+LIST_KINDS = ("players", "myplayers", "free_players", "team_players")
 
 
 class FormError(ValueError):
@@ -30,14 +39,33 @@ def _team_choices():
 
 class Field:
     def __init__(self, name, kind, label=None, default=None, help="", required=False,
-                 positional=False, choices=None):
+                 positional=False, choices=None, owner_field=None):
         self.name, self.kind, self.label = name, kind, label or name.replace("_", " ")
         self.default, self.help, self.required = default, help, required
-        self.positional, self.choices = positional, choices
+        self.positional, self.choices, self.owner_field = positional, choices, owner_field
 
     @property
     def flag(self):
         return "--" + self.name.replace("_", "-")
+
+    @property
+    def is_player(self):
+        return self.kind in PLAYER_KINDS
+
+    @property
+    def is_list(self):
+        return self.kind in LIST_KINDS
+
+    def owner_spec(self, form=None):
+        """Which roster suggestions and resolution draw from: 'mine', 'free', a team field's
+        current value, or None for every player."""
+        if self.kind in ("myplayer", "myplayers"):
+            return "mine"
+        if self.kind == "free_players":
+            return "free"
+        if self.kind == "team_players" and self.owner_field:
+            return (form or {}).get(self.owner_field) or None
+        return None
 
     def parse(self, raw):
         """The argv items this field contributes for one submitted value ('' = omitted)."""
@@ -68,7 +96,7 @@ class Field:
             names, _mine = _team_choices()
             if raw not in names:
                 raise FormError(f"{self.label}: not a team in this league: {raw!r}")
-        elif self.kind != "text":
+        elif self.kind != "text" and not self.is_player:
             raise FormError(f"{self.name}: unknown field kind {self.kind}")
         return [raw] if self.positional else [self.flag, raw]
 
@@ -99,6 +127,10 @@ class Tool:
     def module(self):
         return "scripts." + self.name
 
+    @property
+    def title(self):
+        return humanize(self.name)
+
     def argv(self, form, python=None):
         """[python, -m, scripts.<name>, ...] from a submitted mapping. Forced items first,
         then options, then positionals, so a positional can never be swallowed as an
@@ -113,6 +145,61 @@ class Tool:
         return out
 
 
+def humanize(name):
+    return str(name or "").replace("_", " ").strip().capitalize()
+
+
+def resolve_form(tool, form, index, mine=None):
+    """(corrected form, notes). Every player-valued field is resolved against the index:
+    exact names pass, a unique close match is substituted and noted, anything else is a
+    FormError that lists the candidates. `index` None = no resolution (tests without a tree)."""
+    out = {k: form.get(k, "") for k in (getattr(form, "keys", lambda: [])())}
+    for f in tool.fields:
+        out.setdefault(f.name, form.get(f.name, ""))
+    notes = []
+    if index is None or not getattr(index, "players", None):
+        return out, notes          # no pool on disk (no sync yet): nothing to resolve against
+    for f in tool.fields:
+        if not f.is_player:
+            continue
+        raw = (out.get(f.name) or "").strip()
+        if not raw:
+            continue
+        owner = f.owner_spec(out)
+        names = csv_split(raw) if f.is_list else [raw]
+        fixed = []
+        for n in names:
+            try:
+                canonical, exact = index.resolve(n, owner, mine)
+            except Ambiguous as ex:
+                raise FormError(f"{f.label}: '{n}' could be " + ", ".join(ex.options) + " -- pick one") from None
+            except NoMatch as ex:
+                where = {"mine": "on your roster", "free": "among the free agents"}.get(owner, f"on {owner}" if owner else "in the player pool")
+                if ex.elsewhere:
+                    raise FormError(f"{f.label}: {n} is on {ex.elsewhere}, not {where.replace('on ', '').replace('among ', '')}") from None
+                raise FormError(f"{f.label}: no player named '{n}' {where}") from None
+            if not exact:
+                notes.append(f"{n} → {canonical}")
+            fixed.append(canonical)
+        out[f.name] = ", ".join(fixed)
+    return out, notes
+
+
+def label_for(tool, form):
+    """A job title a person would write: the tool, then the names that matter -- never
+    the numeric knobs. 'Compare players · A vs B', 'Optimize lineup · <team>'."""
+    vals = []
+    for f in tool.fields:
+        if f.kind in ("int", "float", "flag"):
+            continue
+        v = (form.get(f.name) or "").strip()
+        if v:
+            vals.append(v)
+    if tool.name == "compare_players" and len(vals) >= 2:
+        return f"{tool.title} · {vals[0]} vs {vals[1]}"
+    return tool.title + (" · " + " · ".join(vals[:3]) if vals else "")
+
+
 def _sims(default, help=""):
     return Field("sims", "int", default=default, help=help or f"simulations; default {default}")
 
@@ -124,7 +211,7 @@ TOOLS = {t.name: t for t in (
          [team(), WEEK, team("opponent", default_mine=False), _sims(5000), SEED,
           Field("k", "float", default=0.5, help="risk weight; default 0.5"),
           Field("no_cross", "flag", label="no cross", help="skip the cross-construction table"),
-          Field("opponent_lineup", "text", help="comma-separated names; blank = his max-expectation lineup"),
+          Field("opponent_lineup", "team_players", help="comma-separated; blank = his max-expectation lineup", owner_field="opponent"),
           CANONICAL]),
     Tool("waiver_targets", "Who should I claim, and what should I bid?",
          [team(), WEEK, Field("top", "int", default=15), Field("positions", "text", help="comma-separated, e.g. RB,WR"),
@@ -137,20 +224,20 @@ TOOLS = {t.name: t for t in (
           Field("evaluate", "int", default=0, help="paired evaluations of the top N packages (each is a full simulation pair)"),
           Field("batches", "int", default=3), _sims(1000), CANONICAL], heavy=True),
     Tool("compare_players", "Start A or B this week? P(A > B) from the joint simulated distributions.",
-         [Field("a", "text", label="player A", required=True, positional=True),
-          Field("b", "text", label="player B", required=True, positional=True),
+         [Field("a", "player", label="player A", required=True, positional=True),
+          Field("b", "player", label="player B", required=True, positional=True),
           WEEK, _sims(2000), SEED,
           Field("light", "flag", help="sample both from baseline parameters; no simulation (seconds, not minutes)")],
          note="a rostered player triggers a reduced simulation (~2 min); --light skips it", heavy=True),
     Tool("evaluate_trade", "Is this specific trade good for me? Two paired full simulations on the same seeds.",
-         [team("team_a", label="team A"), Field("a_gives", "text", label="A gives", help="comma-separated"),
-          team("team_b", default_mine=False, label="team B"), Field("b_gives", "text", label="B gives", help="comma-separated"),
-          Field("a_drops", "text", label="A drops"), Field("b_drops", "text", label="B drops"),
+         [team("team_a", label="team A"), Field("a_gives", "team_players", label="A gives", help="comma-separated", owner_field="team_a"),
+          team("team_b", default_mine=False, label="team B"), Field("b_gives", "team_players", label="B gives", help="comma-separated", owner_field="team_b"),
+          Field("a_drops", "team_players", label="A drops", owner_field="team_a"), Field("b_drops", "team_players", label="B drops", owner_field="team_b"),
           Field("a_faab", "int", label="A sends FAAB", default=0), Field("b_faab", "int", label="B sends FAAB", default=0),
           Field("batches", "int", default=10), _sims(300)],
          note="minutes: two full simulations", heavy=True),
     Tool("evaluate_move", "What is adding X (and dropping Y) worth, in the same paired Champ%/Playoff% terms?",
-         [team(), Field("add", "text", help="comma-separated free agents"), Field("drop", "text", help="comma-separated rostered players"),
+         [team(), Field("add", "free_players", help="comma-separated free agents"), Field("drop", "myplayers", help="comma-separated rostered players"),
           Field("bid", "int", help="FAAB bid: adds the budget-cost block"), Field("batches", "int", default=10), _sims(300)],
          note="minutes: two full simulations", heavy=True),
     Tool("matchup_watch", "What should I be watching this week?",
@@ -176,7 +263,6 @@ TOOLS = {t.name: t for t in (
     Tool("bid_review", "What I suggested vs what I bid vs what it cost (review only; recording a claim stays a terminal act).",
          [team(), WEEK, JSON_FLAG]),
 )}
-
 
 # W3: the two engine entry points, through the same runner and the same lock. The report is
 # ALWAYS --skip-sync -- sync stays a terminal act (W4) -- and it self-gates on STALE data.

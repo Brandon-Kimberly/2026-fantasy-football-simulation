@@ -4,7 +4,7 @@
 <div class="head">
   <p class="eyebrow">launch · one at a time</p>
   <h1>Tools</h1>
-  <p class="lede">Each runs the same command you would type — one subprocess in the checkout — and writes only its own record, which opens as tables when it finishes. Every launch takes the same lock. {{ r1 }}</p>
+  <p class="lede">Each runs the same command you would type and opens its record as tables when it finishes. One at a time — a crashed run is void, re-run it alone (R1).</p>
 </div>
 {% if current %}<div class="note warn">Running now: <a href="/jobs/{{ current.id }}">{{ current.label|real }}</a> since {{ current.started_at }}. A second launch is refused until it finishes.</div>{% endif %}
 

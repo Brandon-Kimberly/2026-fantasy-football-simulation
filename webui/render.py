@@ -20,8 +20,13 @@ the overlay (`|real`) at render time. Nothing here reads the filesystem.
 """
 import re
 
-CHATTER_PREFIXES = ("[INFO]", "[PRE-FLIGHT", "[>>>]", "[SUCCESS]", "[EXPORT COMPLETE]",
-                    "ERROR | VEGAS", "WARNING | BANKED", "INFO |", "[NOTE] window", "Imputed whitelisted")
+# Column-0 lines that are the engine talking to itself, not the tool talking to the owner:
+# logging's `LEVEL | message` mirror (ROSTER HOLES, VEGAS STALE, BANKED RECORD, DEPTH
+# WATCHDOG ...), the engine's bracketed milestones, and the imputation notices. Indented
+# lines of the same shape are a tool's own content (check_freshness quotes the sync's
+# degraded list) and stay.
+CHATTER_PREFIXES = ("[INFO]", "[PRE-FLIGHT", "[>>>]", "[SUCCESS]", "[EXPORT COMPLETE]", "[NOTE]",
+                    "ERROR |", "WARNING |", "INFO |", "DEBUG |", "Imputed whitelisted")
 RECORD_RE = re.compile(r"(?:logged|report|chart|written|recorded|digest|html)\s*->\s*(\S+)")
 HEADING_RE = re.compile(r"^\s{0,2}(?:[A-Z][A-Z0-9/&'.]*)(?:\s+[A-Z0-9][A-Z0-9/&'.,-]*){0,7}(?:\s+--.*|:)?\s*$")
 UNDERLINE_RE = re.compile(r"^\s*[=\-]{4,}\s*$")
@@ -426,3 +431,39 @@ def record_view(data):
     view["stamp"] = data.get("timestamp_utc")
     view["sections"] = [s for s in view.get("sections") or [] if s and (s.get("kind") != "table" or s.get("rows")) and (s.get("kind") != "text" or s.get("text"))]
     return view
+
+
+# ----------------------------------------------------------------------------- progress
+# What a running job has reached, read off the markers the engine and the tools actually
+# print (fantasy_sim/simulation.py's four milestones; each sub-tool's 'logged ->' line; the
+# report's 'digest ->'). Honest by construction: a stage is reached only when its marker has
+# appeared, and the only estimate on the page is the typical duration of past runs.
+ENGINE_STAGES = (("validating projections", ("[PRE-FLIGHT SUCCESS]",)),
+                 ("simulating", ("[>>>] EXECUTING",)),
+                 ("rendering charts", ("[SUCCESS] Markov",)),
+                 ("exports written", ("[EXPORT COMPLETE]",)))
+REPORT_STAGES = ENGINE_STAGES + (("roster grades", ("roster_grades_",)), ("lineup", ("lineup_",)),
+                                 ("matchup", ("matchup_",)), ("waivers", ("waivers_",)),
+                                 ("digest written", ("digest ->",)))
+TOOL_STAGES = (("validating projections", ("[PRE-FLIGHT SUCCESS]",)),
+               ("computing", ("[PRE-FLIGHT SUCCESS]",)),
+               ("record written", (" -> ",)))
+
+
+def progress(text, tool):
+    """{stages, reached, stage, last}: the ordered stage names, how many have been reached,
+    the current one ('starting' before any), and the last line the tool itself printed."""
+    text = text or ""
+    stages = REPORT_STAGES if tool == "weekly_report" else (ENGINE_STAGES if tool == "run_simulation" else TOOL_STAGES)
+    reached = 0
+    for i, (_name, markers) in enumerate(stages):
+        if any(m in text for m in markers):
+            reached = i + 1
+    last = ""
+    for ln in reversed(text.splitlines()):
+        s = ln.strip()
+        if s and not _is_chatter(ln):
+            last = s[:160]
+            break
+    return {"stages": [n for n, _m in stages], "reached": reached,
+            "stage": stages[reached - 1][0] if reached else "starting", "last": last}

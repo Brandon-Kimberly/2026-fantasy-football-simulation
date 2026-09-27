@@ -64,7 +64,7 @@
 {% if warnings %}
 <section>
 <h2>Run warnings <span class="hint">{{ warnings|length }} · this run's own record (F10), not the shared mirror log</span></h2>
-<details open><summary>show</summary><div class="rows">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div></details>
+<details><summary>show</summary><div class="rows">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div></details>
 </section>
 {% endif %}
 {% endblock %}
