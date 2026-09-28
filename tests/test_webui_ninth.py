@@ -153,7 +153,7 @@ class TestPages(unittest.TestCase):
         self.assertIn('"/system"', items)
         self.assertIn('"/tools/compare_players"', items)
         self.assertIn('"/tools/run_simulation"', items)
-        self.assertIn('"/league#t-', items)                                        # the teams
+        self.assertIn('"/team/', items)                                            # the teams, to their pages (UI-A1)
         simple = self.get("/", mode="simple")
         items = re.search(r"var PALETTE = (\[.*?\]);", simple).group(1)
         self.assertNotIn('"/system"', items)

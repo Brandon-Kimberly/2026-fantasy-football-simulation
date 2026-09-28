@@ -11,6 +11,7 @@ decisions_report. Nothing here reaches the network or writes anything.
 The Sleeper players cache is ~20 MB; it is read once per file modification, trimmed to the
 fields a player page shows, and held in memory -- the pattern PlayerIndex already uses.
 """
+import datetime as _dt
 import json
 import math
 
@@ -93,6 +94,14 @@ def _chance(matrix, a, b):
     except (TypeError, ValueError):
         return None
     return None if math.isnan(v) else round(v / 100.0, 4)
+
+
+def _epoch_iso(ms):
+    """Sleeper's news_updated (epoch milliseconds) -> ISO UTC; None when absent or unreadable."""
+    try:
+        return _dt.datetime.fromtimestamp(float(ms) / 1000.0, _dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except (TypeError, ValueError, OverflowError, OSError):
+        return None
 
 
 def _wl(v):
@@ -221,7 +230,7 @@ def player_report(root, pid, my_team):
             "status": b.get("injury_status") or c.get("injury_status"), "on_ir": bool(b.get("on_ir")),
             "body_part": c.get("injury_body_part"), "notes": c.get("injury_notes"),
             "practice": c.get("practice_participation"), "practice_note": c.get("practice_description"),
-            "news_updated": c.get("news_updated"), "season_mean": b.get("mean"), "bye": b.get("bye"),
+            "news_updated": _epoch_iso(c.get("news_updated")), "season_mean": b.get("mean"), "bye": b.get("bye"),
             "week": cur, "week_mean": wk_price.get("mean") if wk_price.get("source") not in (None, "baseline") else None,
             "week_source": wk_price.get("source") if wk_price.get("source") not in (None, "baseline") else None,
             "range": rg, "odds_week": now["week"], "history": history, "moves": moves}

@@ -6,7 +6,11 @@
 {%- endmacro %}
 
 {% macro teamlink(team) -%}
-<a href="/league#t-{{ team|slug }}" class="tl">{{ team|real }}</a>
+<a href="/team/{{ team|slug }}" class="tl">{{ team|real }}</a>
+{%- endmacro %}
+
+{% macro playerlink(name, pid) -%}
+{% if pid %}<a href="/player/{{ pid }}" class="pl" data-player="{{ name }}">{{ name }}</a>{% else %}<span data-player="{{ name }}">{{ name }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro tiles(items) -%}

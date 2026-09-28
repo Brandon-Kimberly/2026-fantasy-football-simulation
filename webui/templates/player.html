@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_macros.html" import tiles, mark, teamlink, rangebar with context %}
+{% block title %}{{ name }} · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.facts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 24px; margin-top: 10px; }
+.facts2 div { display: flex; flex-direction: column; gap: 2px; } .facts2 .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } .facts2 b { font-weight: 600; }
+.diff.pos { color: var(--turf); } .diff.neg { color: var(--neg); }
+.verdict { font-size: 11px; font-weight: 600; } .verdict.pos { color: var(--turf); } .verdict.neg { color: var(--neg); } .verdict.none { color: var(--muted); }
+</style>
+{% set hin = (height|int) if (height and height|string|trim|int(-1) > 0) else None %}
+<div class="head">
+  <p class="eyebrow">player · {{ pos or "?" }} · {{ nfl or "no NFL team" }}{% if number is not none %} · #{{ number }}{% endif %}{% if depth %} · {{ depth }} on the depth chart{% endif %}</p>
+  <h1>{{ name }}</h1>
+  <p class="lede">{% if owner %}{{ mark(owner) }}On {{ teamlink(owner) }}{% if is_mine %} (mine){% endif %}{% else %}A free agent in this league{% endif %}{% if bye %} · bye week {{ bye }}{% endif %}. <a href="/tools/compare_players?a={{ name|urlencode }}">Compare with…</a></p>
+</div>
+
+{{ tiles([
+  {"k": ("week " ~ week) if week else "this week", "v": week_mean|num(1) if week_mean is not none else "—", "s": ("from this week's " ~ week_source) if week_source else "not priced for this week yet", "tone": ""},
+  {"k": "season mean", "v": season_mean|num(1) if season_mean is not none else "—", "s": "the season baseline, not this week's number", "tone": ""},
+  {"k": "likely range", "v": (range.p10|num(1) ~ "–" ~ range.p90|num(1)) if range else "—", "s": ("one week, 8 in 10 · week-" ~ odds_week ~ " forecast") if range else "only rostered players are simulated", "tone": ""},
+  {"k": "status", "v": ("IR" if on_ir else (status or "healthy")), "s": body_part or "", "tone": ("neg" if (on_ir or status in ("Out", "Doubtful", "IR")) else "")}
+]) }}
+
+<section>
+<h2><svg class="i"><use href="#i-health"/></svg> Availability <span class="hint">{% if news_updated %}Sleeper's report, updated {{ news_updated|when }}{% else %}Sleeper's report{% endif %}</span></h2>
+<div class="facts2">
+  <div><span class="k">Status</span><b>{{ "IR" if on_ir else (status or "healthy") }}</b></div>
+  <div><span class="k">Injury</span><b>{{ body_part or "—" }}</b></div>
+  <div><span class="k">Practice</span><b>{{ practice or "—" }}{% if practice_note %} <span class="muted">· {{ practice_note }}</span>{% endif %}</b></div>
+  {% if notes %}<div style="grid-column: 1 / -1"><span class="k">Notes</span><b>{{ notes }}</b></div>{% endif %}
+</div>
+</section>
+
+<section>
+<h2><svg class="i"><use href="#i-users"/></svg> Profile</h2>
+<div class="facts2">
+  <div><span class="k">Age</span><b>{{ age if age is not none else "—" }}</b></div>
+  <div><span class="k">College</span><b>{{ college or "—" }}</b></div>
+  <div><span class="k">Height</span><b>{% if hin %}{{ hin // 12 }}′{{ hin % 12 }}″{% else %}{{ height or "—" }}{% endif %}</b></div>
+  <div><span class="k">Weight</span><b>{{ (weight ~ " lb") if weight else "—" }}</b></div>
+  <div><span class="k">Seasons</span><b>{{ years_exp if years_exp is not none else "—" }}</b></div>
+</div>
+</section>
+
+<section>
+<h2><svg class="i"><use href="#i-chart"/></svg> Week by week <span class="hint">the last projection logged before each week's first kickoff, against the points first recorded</span></h2>
+{% if history %}
+<div class="scroller"><table><thead><tr><th>Week</th><th class="num">Projected</th><th class="num">ESPN</th><th class="num">Points</th><th class="num">Difference</th></tr></thead><tbody>
+{% for h in history %}{% set dd = (h.points - h.projected) if (h.points is not none and h.projected is not none) else None %}<tr><td><a href="/matchups/week-{{ h.week }}">Week {{ h.week }}</a></td><td class="num">{{ h.projected|num(1) if h.projected is not none else "—" }}</td><td class="num muted">{{ h.espn|num(1) if h.espn is not none else "—" }}</td><td class="num"><b>{{ h.points|num(1) if h.points is not none else "—" }}</b></td><td class="num">{% if dd is not none %}<span class="diff {{ 'pos' if dd > 0 else ('neg' if dd < 0) }}">{{ dd|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="small muted">No projections or points on file for this player yet.</p>{% endif %}
+</section>
+
+{% if moves %}
+<section>
+<h2><svg class="i"><use href="#i-swap"/></svg> Moves <span class="hint">every transaction involving this player</span></h2>
+<div class="scroller"><table><thead><tr><th>Week</th><th>Move</th><th>Team</th><th class="num">Effect for that team</th><th>Verdict</th></tr></thead><tbody>
+{% for d in moves %}{% set fx = d.actor_effect %}<tr><td>{{ d.week }}</td><td>{{ d.label }}{% if d.faab_bid %} <span class="muted">· bid {{ d.faab_bid|num(0) }}</span>{% endif %}</td><td class="nm">{% if d.actor %}{{ mark(d.actor) }}{{ teamlink(d.actor) }}{% endif %}</td>
+<td class="num">{% if fx and fx.playoff is not none %}{{ fx.playoff|signed(1) }} <span class="muted tiny">{{ fx.playoff_se|se }}</span>{% else %}<span class="muted">{{ 'not measurable' if d.skipped else 'not priced yet' }}</span>{% endif %}</td>
+<td>{% set v = fx.playoff|verdict(fx.playoff_se) if fx else None %}{% if v %}<span class="verdict {{ v.tier }} {{ v.sign if v.tier != 'none' }}">{{ v.text }}</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+{% endblock %}
