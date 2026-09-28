@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, compare as comparemod, objects, render
+from webui import brand, compare as comparemod, objects, players_page as playersmod, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
@@ -45,10 +45,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
@@ -317,6 +317,42 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if not rep:
             abort(404)
         return render_template("player.html", **rep)
+
+    # ---- UI-P1 / W1: every player, and the waiver board
+    POSITIONS = ("all", "QB", "RB", "WR", "TE", "K", "DL", "LB", "DB")
+
+    def _players(board):
+        t = playersmod.players_table(root, MY_TEAM)
+        rows = t["rows"]
+        if board:
+            rows = [r for r in rows if r["standing"] in ("free", "waivers")]
+            rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0, -(r["week_mean"] or 0.0)))
+            shows = (("available", "Everyone available"), ("free", "Free agents"), ("waivers", "On waivers"))
+        else:
+            shows = (("all", "Everyone"), ("available", "Available"), ("mine", "Mine"), ("rostered", "On a team"))
+        pos = request.args.get("pos", "all")
+        pos = pos if pos in POSITIONS else "all"
+        show = request.args.get("show", shows[0][0])
+        show = show if show in dict(shows) else shows[0][0]
+        if pos != "all":
+            rows = [r for r in rows if r["pos"] == pos]
+        keep = {"available": ("free", "waivers"), "free": ("free",), "waivers": ("waivers",), "mine": ("mine",),
+                "rostered": ("mine", "rostered")}.get(show)
+        if keep:
+            rows = [r for r in rows if r["standing"] in keep]
+        total = len(rows)
+        shown_rows = rows if request.args.get("all") == "1" or request.args.get("q") else rows[:200]
+        return render_template("players.html", board=board, rows=shown_rows, total=total, shown=len(shown_rows),
+                               positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
+                               week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"])
+
+    @app.route("/players")
+    def players_list():
+        return _players(False)
+
+    @app.route("/waivers")
+    def waivers_board():
+        return _players(True)
 
     @app.route("/matchups")
     @app.route("/matchups/week-<int:week>")

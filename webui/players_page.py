@@ -95,7 +95,8 @@ def players_table(root, my_team, now=None):
         if not isinstance(b, dict) or b.get("player_id") is None:
             continue
         owner = owners.get(name)
-        standing, clears = ("mine" if owner == my_team else "rostered") if owner else ("free", None)
+        standing = ("mine" if owner == my_team else "rostered") if owner else "free"
+        clears = None
         if not owner and last_drop.get(name):
             c = clears_at(last_drop[name])
             if c and _parse(c) > now_d:
