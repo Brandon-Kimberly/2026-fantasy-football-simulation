@@ -66,6 +66,11 @@ def kickoffs(when):
     return plant
 
 
+def _plant_players(root):
+    from tests.test_webui_live import plant as plant_live
+    plant_live(root)
+
+
 class Quiet(WSGIRequestHandler if HAS_DEPS else object):
     def log(self, *a, **k):                                  # no per-request lines in the test output
         pass
@@ -215,6 +220,43 @@ class TestSortableTables(BrowserCase):
         again = [float(x) for x in self.column(table, i)]
         self.assertEqual(again, sorted(again))
         self.assertEqual(p.get_attribute(f"{table} thead th[data-key='p']", "aria-sort"), "ascending")
+
+
+class TestKeyboardAndExport(BrowserCase):
+    """UI-V7 and R4: a sortable header is a keyboard control, a player link's card opens on
+    focus as well as hover, and any sortable table downloads as CSV."""
+
+    def test_a_sort_header_is_reached_by_tab_and_sorted_by_enter(self):
+        p = self.open("/league", "simple")
+        th = "section:has(h2:has-text('Standings')) table thead th[data-key='p']"
+        self.assertEqual(p.get_attribute(th, "tabindex"), "0")
+        p.focus(th)
+        p.keyboard.press("Enter")
+        self.assertEqual(p.get_attribute(th, "aria-sort"), "descending")
+
+    def test_a_sortable_table_downloads_as_csv(self):
+        import csv
+        import io
+        p = self.open("/league", "simple")
+        btn = "section:has(h2:has-text('Standings')) button.csv"
+        with p.expect_download() as dl:
+            p.click(btn)
+        with open(dl.value.path(), encoding="utf-8") as fh:
+            rows = list(csv.reader(io.StringIO(fh.read().lstrip("﻿"))))
+        self.assertIn("Points", rows[0])
+        self.assertEqual(len(rows), 9, "the header and eight teams")
+
+
+class TestPlayerCardByKeyboard(BrowserCase):
+    """UI-V7: the player card opened only on mouse hover; a keyboard user never saw it."""
+    plant = staticmethod(_plant_players)
+
+    def test_the_player_card_opens_on_keyboard_focus_and_escape_closes_it(self):
+        p = self.open("/players", "simple")
+        p.focus("#ptable a.pl[data-player]")
+        p.wait_for_selector("#pcard", state="visible")
+        p.keyboard.press("Escape")
+        p.wait_for_selector("#pcard", state="hidden")
 
 
 class TestPaletteAndShortcuts(BrowserCase):
@@ -428,11 +470,6 @@ class TestMatchupsLive(BrowserCase):
         self.assertIn("101.5", card.inner_text())
         self.assertIn("83%", card.inner_text())
         self.assertIn("3 to play", card.inner_text())
-
-
-def _plant_players(root):
-    from tests.test_webui_live import plant as plant_live
-    plant_live(root)
 
 
 class TestInstantCompare(BrowserCase):
