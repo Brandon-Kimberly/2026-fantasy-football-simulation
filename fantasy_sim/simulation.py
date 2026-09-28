@@ -45,7 +45,7 @@ from fantasy_sim.storage import (
     TEAM_RATINGS_FILE, DEFENSIVE_RATINGS_FILE, DEFENSIVE_TIERS_FILE, LEAGUE_SCHEDULE_FILE,
     NFL_SCHEDULE_FILE, WEEKLY_ACTUALS_FILE, PLAYOFF_BRACKET_FILE,
     live_season_forecast_path, model_learning_report_path, syndicate_insights_path,
-    syndicate_comprehensive_matrix_path, power_rankings_chart_path, season_outcomes_chart_path,
+    syndicate_comprehensive_matrix_path, power_rankings_chart_path, season_outcomes_chart_path, sim_outcomes_path,
     all_teams_trajectories_chart_path, expected_wins_chart_path, h2h_heatmap_chart_path,
     seeding_distribution_path, weekly_scoring_density_path
 )
@@ -1311,6 +1311,17 @@ class FantasySimulationEngine:
         }
         seed_matrix = {t: np.zeros(len(self.team_names)) for t in self.team_names}
         h2h_matrix = {t: {opp: 0 for opp in self.team_names} for t in self.team_names}
+        # Decision 1 / UI-E5 (owner ruling 2026-09-28): one compact record per simulated season --
+        # each remaining regular-season game's result, each team against that week's median, the
+        # final seeds and the champion -- so the web UI answers conditional questions ("in the
+        # seasons where X happened...") by filtering, never by re-simulating. READ-ONLY capture:
+        # nothing below draws from the RNG or changes a value, so every other output is
+        # byte-identical; the goldens differ by this one additional file (tests.test_sim_outcomes
+        # checks the record reproduces the engine's own wins, seeds and title counts).
+        outcome_index = {t: i for i, t in enumerate(self.team_names)}
+        outcome_weeks = list(range(self.current_week, REGULAR_SEASON_WEEKS + 1))
+        outcome_hex = max(1, (len(self.team_names) + 3) // 4)
+        outcome_rows = []
         points_against = {t: 0.0 for t in self.team_names}
         all_play_wins = {t: 0 for t in self.team_names}
         championship_player_shares = {}
@@ -1360,6 +1371,7 @@ class FantasySimulationEngine:
                 sim_points = {t: float(self.actual_total_points[t]) for t in self.team_names}
                 top4 = list(seeded_top4)
                 w1, w2 = seeded_w1, seeded_w2
+                outcome_codes, outcome_seeds, outcome_champ = [], list(seeded_ranked), None
                 if self.current_week > REGULAR_SEASON_WEEKS:
                     # the week-14 seeding block will not run: bank its bookkeeping now
                     for rank_idx, team_ranked in enumerate(seeded_ranked):
@@ -1783,13 +1795,24 @@ class FantasySimulationEngine:
                             else:
                                 sim_wins[t1] += 0.5
                                 sim_wins[t2] += 0.5
-                                
+
+                        outcome_bits = 0
+                        if SIM_CONFIG.get('MEDIAN_SCORING_ENABLED', True):
+                            for t_name, score in week_scores.items():
+                                if score >= median_cut and t_name in outcome_index:
+                                    outcome_bits |= 1 << outcome_index[t_name]
+                        outcome_codes.append("".join(
+                            "1" if week_scores.get(t1, 0) > week_scores.get(t2, 0) else
+                            ("0" if week_scores.get(t2, 0) > week_scores.get(t1, 0) else "2")
+                            for t1, t2 in matchups) + format(outcome_bits, "0%dx" % outcome_hex))
+
                         for t in self.team_names:
                             global_trajectories[t][sim_counter, week_idx] = sim_wins[t]
 
                         if week_num == 14:
                             ranked = sorted(self.team_names, key=lambda t: (sim_wins[t], sim_points[t]), reverse=True)
                             top4 = ranked[:4]
+                            outcome_seeds = list(ranked)
 
                             for rank_idx, team_ranked in enumerate(ranked):
                                 seed_matrix[team_ranked][rank_idx] += 1
@@ -1823,6 +1846,7 @@ class FantasySimulationEngine:
                     elif week_num == 16:
                         champ = self._playoff_winner(w1, w2, week_scores, top4)
                         b_champs[champ] += 1
+                        outcome_champ = champ
                         for p, p_score in team_starters.get(champ, []):
                             if "STREAMER" not in p:
                                 cs = championship_player_shares.setdefault(p, {'appearances': 0, 'total_points': 0.0})
@@ -1842,6 +1866,9 @@ class FantasySimulationEngine:
                 for t in self.team_names:
                     global_season_wins[t][sim_counter] = sim_wins[t]
                     global_season_points[t][sim_counter] = sim_points[t]
+                outcome_rows.append("|".join(outcome_codes) + ";"
+                                    + ",".join(str(outcome_index[t]) for t in outcome_seeds) + ";"
+                                    + ("" if outcome_champ is None else str(outcome_index[outcome_champ])))
 
                 sim_counter += 1
 
@@ -1858,6 +1885,18 @@ class FantasySimulationEngine:
             max_single_week_score, max_score_team, max_score_week, audit_log, total_sims,
             global_weekly_scores, seed_matrix
         )
+        save_json(sim_outcomes_path(self.current_week), {
+            "_meta": {"week": self.current_week, "sims": total_sims, "batches": num_batches,
+                      "format": "one string per simulated season: '<week codes joined by |>;<seeds>;<champion>'. "
+                                "A week code is one character per scheduled game in `matchups` order -- 1 the "
+                                "first team won, 0 the second, 2 a tie -- then `median_hex` hex digits whose bit i "
+                                "is set when teams[i] scored at or above that week's median. Seeds are team indices, "
+                                "comma-separated, best first; the champion is a team index."},
+            "teams": list(self.team_names), "weeks": outcome_weeks, "median_hex": outcome_hex,
+            "median_enabled": bool(SIM_CONFIG.get('MEDIAN_SCORING_ENABLED', True)),
+            "matchups": {str(w): [list(p) for p in (self.league_schedule[w - 1] if w - 1 < len(self.league_schedule) else [])]
+                         for w in outcome_weeks},
+            "seasons": outcome_rows})
 
     def export_and_visualize(self, wins, points, b_playoffs, b_champs, b_toilets, trajectories,
                              h2h, pts_against, all_play, champ_players, max_score, max_team, max_wk,
