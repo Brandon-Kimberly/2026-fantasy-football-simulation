@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}Tools · {{ brand }}{% endblock %}
 {% block body %}
+<style>.card .last { margin: 8px 0 0; font-size: 12px; } .card .last a { position: relative; z-index: 2; }</style>
+{% macro last(t) -%}
+{% set la = latest.get(t.name) %}{% if la %}<p class="last"><span class="muted">latest</span> <b>{{ (la.head if dev else la.head|plain)|real }}</b> <span class="muted">· {{ la.stamp|when }}</span> <a href="{{ la.link }}">open</a></p>{% elif t.name in writes %}<p class="last muted">Not run yet</p>{% endif %}
+{%- endmacro %}
+
 <style>
 .card h4 .m { font-weight: 400; }
 .card h4 svg.i { width: 1.2em; height: 1.2em; flex: none; align-self: center; }
@@ -27,23 +32,23 @@
 </div>
 {% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. Wait for it to finish.</div>{% endif %}
 
-{% for title, hint, stripe, ic, icon, names in groups %}
+{% for title, hint, stripe, ic, icon, names in groups %}{% set present = [] %}{% for n in names if n in by %}{% set _ = present.append(n) %}{% endfor %}{% if present %}
 <section>
 <h2><svg class="i {{ ic }}"><use href="#{{ icon }}"/></svg> {{ title }} <span class="hint">{{ hint }}</span></h2>
 <div class="cards">
-{% for n in names if n in by %}{% set t = by[n] %}<div class="card {{ stripe }}"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i {{ ic }}"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p></div>{% endfor %}
+{% for n in names if n in by %}{% set t = by[n] %}<div class="card {{ stripe }}"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i {{ ic }}"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
 </div>
-</section>
+</section>{% endif %}
 {% endfor %}
 {% set placed = groups|map(attribute=5)|sum(start=[]) %}
 {% set rest = tools|rejectattr("name", "in", placed)|list %}
-{% if rest %}<section><h2>Other</h2><div class="cards">{% for t in rest %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p></div>{% endfor %}</div></section>{% endif %}
+{% if rest %}<section><h2>Other</h2><div class="cards">{% for t in rest %}<div class="card"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}</div></section>{% endif %}
 
 {% if engine %}
 <section>
 <h2><svg class="i c-warm"><use href="#i-engine"/></svg> Engine runs <span class="hint">the week's forecast is rewritten</span></h2>
 <div class="cards">
-{% for t in engine %}<div class="card s-warm"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i c-warm"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p></div>{% endfor %}
+{% for t in engine %}<div class="card s-warm"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i c-warm"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
 </div>
 <p class="small muted" style="margin-top:14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
 </section>

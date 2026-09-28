@@ -24,8 +24,9 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 from webui import accuracy as accuracymod
 from webui import brand, compare as comparemod, objects, players_page as playersmod, render
 from webui import sync as syncmod
-from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
-                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
+from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
+                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
+                          TOOL_RECORD)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
 from webui.names import Overlay
@@ -667,7 +668,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         avg = {n: runner.average_seconds(n) for n in list(TOOLS) + list(ENGINE)}
         tools = list(TOOLS.values()) if settings.mode == "dev" else [TOOLS[n] for n in SIMPLE_TOOLS if n in TOOLS]
         return render_template("tools.html", tools=tools, engine=list(ENGINE.values()) if settings.mode == "dev" else [],
-                               current=runner.current(), avg=avg)
+                               current=runner.current(), avg=avg, latest=latest_answers(root), writes=TOOL_RECORD)
 
     def _compare_args():
         names = [n for n in request.args.getlist("p") if n.strip()]
