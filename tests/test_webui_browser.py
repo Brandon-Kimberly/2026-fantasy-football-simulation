@@ -356,8 +356,16 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         self.assertIn("+2.5 points of chance to win the game", text)
         self.assertIn("+3.0 to beat the median", text)
 
-    def test_home_shows_the_certainty_once_decided(self):
-        self.assertEqual(self.shown_with(live_payload(True, 1.0), "/", "#pw-val").strip(), "100%")
+    def test_home_states_the_result_once_decided(self):
+        """UI-M1 supersedes UI-M8's "100%" here: a decided game shows its result, not a
+        probability (disclosed change of this test's expectation)."""
+        pay = live_payload(True, 1.0)
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/")
+        self.page.wait_for_function("/final/.test(document.getElementById('pw-lab').textContent)")
+        self.assertEqual(self.page.inner_text("#pw-val").strip(), "Won")
+        self.assertNotIn("%", self.page.inner_text("#pw-val"))
+        self.assertIn("31.5", self.page.inner_text("#pw-lab"))
 
     def test_game_day_says_over_99_while_players_are_left(self):
         self.assertIn(">99%", self.shown_with(live_payload(False, 0.998), "/gameday", ".mid b"))
