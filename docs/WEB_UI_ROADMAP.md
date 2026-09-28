@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): a backlog, nothing built.** This is the scoped log of what the web UI
+**Status (2026-09-28): wave 1 under way; 12 items built (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -12,6 +12,32 @@ and from whom, what is in and out, where the data comes from, which views it ser
 the tests that should be written first (rule 1). Items that need an engine change, a
 sync change or a decision from the owner are marked, and the decisions are collected in
 section 3 so none of them happens by accident.
+
+## Progress
+
+Built on `feature/webui-wave1`, each as a red characterisation commit and then its fix.
+
+| Item | What landed |
+|---|---|
+| UI-E1 | Browser tests: Playwright drives the installed Edge (`tests/test_webui_browser.py`). Against the pre-fix templates the Decisions filter test fails with the original defect. Its first run found a real 404 on Game Day's favicon. |
+| UI-F1 | Home reads live scores on load once any game of the week has kicked off. |
+| UI-F2 | Sync sources and sync warnings are counted apart ("1 source failed, and the sync raised 30 warnings"). |
+| UI-F4 | League splits each record into head-to-head and median, shown only when the weekly actuals reconcile with the league's standings. |
+| UI-F6 | The player card shows this week's price beside the season mean, and never calls the season mean a "projection". |
+| UI-E4 | Every page reads the odds through `odds_at` / `odds_now`. Home had been blank between Tuesday's sync and that week's simulation. |
+| UI-M8 | No 0% or 100% until a game is decided. Also fixed: the count-up animation was painting over a fast live answer. |
+| UI-V6 / UI-T2 | "±" is always one standard error and prints through one filter. Every evaluated move shows a verdict in standard errors, and the "moved" filter uses the same line. |
+| UI-O3 | "What week N did" on Forecasts, and a one-line version on Home. |
+| UI-Q2 | Past results carry the model's own pre-kickoff quote, taken from the same row the Accuracy page scores. |
+| UI-O12 | Final wins shown as a range: a strip on Home and a column on League. |
+
+**Found while building, not on the original list.**
+- A result the standings contradict. Week 2's box scores give Quantum Ferrets the win over Cosmic Badgers (148.52 to 144.19), but the league's standings record a loss.
+  - The standings' season points only add up at the scores before a later stat correction.
+  - Pages now flag such a result instead of stating it.
+  - Open question for the owner: the Accuracy page still scores that game from the box score.
+- Twenty web tests error instead of skipping on a bare install without Flask. They import fixtures inside a Flask probe.
+  - This predates the roadmap. The README's no-Flask skip count is right, but its "not a failure" is not.
 
 ---
 
