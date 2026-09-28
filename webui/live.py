@@ -271,6 +271,78 @@ def team_state(m, clocks, exp):
             "to_play": sum(1 for r in rows if r["frac"] > 0), "starters": len(rows)}
 
 
+def lineup_plan(root, week):
+    """The newest optimal-lineup record for `week`: the slate the tool would field, keyed
+    by name, what it expected from each man, what it priced the bench at, and when it was
+    written. Empty when the tool has not been run for the week -- there is then nothing to
+    compare against, and the UI says nothing rather than guessing."""
+    from webui.glance import _newest
+    out = {"starts": {}, "bench": {}, "stamp": None, "total": None, "week": week}
+    wk = int(week) if week else None
+    if not wk or wk not in root.decision_weeks():
+        return out
+    dec = root.decisions(wk)
+    entries = sorted(dec["canonical"] + dec["archive"], key=lambda e: (e["stamp"] or "", e["name"]), reverse=True)
+    entry = _newest(entries, "lineup")
+    if not entry:
+        return out
+    rec = root.read_json(entry["rel"], {}) or {}
+    for r in rec.get("lineup") or []:
+        if r.get("name"):
+            out["starts"][r["name"]] = {"slot": r.get("slot"), "pos": r.get("pos"),
+                                        "expected": r.get("expected"), "flag": r.get("flag") or ""}
+    for r in rec.get("bench") or []:
+        if r.get("name"):
+            out["bench"][r["name"]] = r.get("expected")
+    out["stamp"] = rec.get("timestamp_utc") or entry.get("stamp")
+    out["total"] = rec.get("expected_total")
+    return out
+
+
+def lineup_diff(plan, my_rows, clock_by_name=None):
+    """What the model would change about the lineup Sleeper says I am actually fielding.
+
+    A set difference, with the points at stake attached and one piece of honesty on top: a
+    man whose NFL game has kicked off cannot be moved, so he is reported and marked
+    `locked` rather than advised. `actionable` is true only when there is at least one
+    unlocked man to start AND one unlocked man to bench -- anything else is history.
+
+    The benched man is priced at the RECORD'S number for him where it has one, because
+    that is the number the advice is being measured against; his live row (a season
+    baseline) is the fallback."""
+    out = {"start": [], "bench": [], "delta": 0.0, "stamp": None, "total": None,
+           "actionable": False, "locked": 0}
+    starts = (plan or {}).get("starts") or {}
+    if not starts:
+        return out
+    clock = clock_by_name or {}
+    mine = {r.get("name"): r for r in (my_rows or []) if r.get("name")}
+    priced = (plan or {}).get("bench") or {}
+    out["stamp"], out["total"] = (plan or {}).get("stamp"), (plan or {}).get("total")
+    for name, info in starts.items():
+        if name in mine:
+            continue
+        out["start"].append({"name": name, "pos": info.get("pos"), "slot": info.get("slot"),
+                             "expected": info.get("expected"), "flag": info.get("flag") or "",
+                             "locked": float(clock.get(name, 1.0)) < 1.0})
+    for name, row in mine.items():
+        if name in starts:
+            continue
+        value = priced.get(name)
+        out["bench"].append({"name": name, "pos": row.get("pos"), "slot": None,
+                             "expected": row.get("expected") if value is None else value,
+                             "flag": "", "locked": float(row.get("frac", 1.0)) < 1.0})
+    out["start"].sort(key=lambda x: -(x["expected"] or 0.0))
+    out["bench"].sort(key=lambda x: (x["expected"] or 0.0))
+    gain = sum(x["expected"] or 0.0 for x in out["start"])
+    give = sum(x["expected"] or 0.0 for x in out["bench"])
+    out["delta"] = round(gain - give, 2)
+    out["locked"] = sum(1 for x in out["start"] + out["bench"] if x["locked"])
+    out["actionable"] = (any(not x["locked"] for x in out["start"])
+                         and any(not x["locked"] for x in out["bench"]))
+    return out
+
+
 def week_stats(root, week, pids, fetch):
     """{pid: {stat: value}} for these players this week, from Sleeper's stat lines -- what
     the scoring feed breaks a player's points down by. The season comes from the sync
@@ -317,11 +389,17 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
     labels = sorted({r["status"] for r in mine["rows"]} | {r["status"] for r in (theirs or {"rows": []})["rows"]})
     pids = [r["pid"] for r in mine["rows"]] + [r["pid"] for r in (theirs or {"rows": []})["rows"]]
     stats = week_stats(root, wk, pids, fetch)
+    # W14: what the tool would change about the lineup Sleeper says I am actually fielding.
+    # A man the tool wants started is on my bench, so his clock comes from his NFL team.
+    plan = lineup_plan(root, wk)
+    bench_clocks = {e["name"]: clocks.get(e.get("nfl") or "?", (1.0, ""))[0]
+                    for e in exp.values() if e.get("name")}
+    plan_diff = lineup_diff(plan, mine["rows"], bench_clocks)
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
-            "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats,
+            "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats, "plan": plan_diff,
             "sources": sorted({e.get("source") for e in exp.values() if e.get("source") != "baseline"} - {None})}
 
 

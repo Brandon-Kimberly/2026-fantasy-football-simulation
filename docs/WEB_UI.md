@@ -636,6 +636,27 @@ to clinch, banked.
 4K monitor; the narrow breakpoints are untouched, so the phone layout is still there for
 when it matters.
 
+### W14 - What the model would change (2026-09-28)
+
+The first thing in this UI that asks for a decision instead of reporting one. The
+live read already knows the starters Sleeper has me fielding; the newest
+optimal-lineup record already knows the ones the tool would field; nothing compared
+them. `live.lineup_plan` reads the record, `live.lineup_diff` is the pure comparison,
+and the result rides on the snapshot as `plan`.
+
+It is a set difference with the points at stake attached, and one piece of honesty on
+top: a man whose NFL game has kicked off cannot be moved, so he is reported and marked
+`locked` rather than advised, and `actionable` is true only when there is at least one
+unlocked man to start AND one to bench. The benched man is priced at the RECORD'S
+number for him where it has one -- that is the number the advice is being measured
+against -- with his live row as the fallback. Agreement is silence: when the two slates
+match, the panel does not render at all.
+
+The comparison can only live here. `live_rosters.json` carries rosters but no starters,
+so the lineup I am ACTUALLY fielding is knowable from the live read and nowhere else;
+that is why the panel needs the live scoreboard connected, and why it says nothing
+when the optimiser has not been run for the week.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
