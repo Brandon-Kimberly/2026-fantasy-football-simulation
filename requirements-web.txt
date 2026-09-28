@@ -13,3 +13,10 @@ MarkupSafe==3.0.3
 itsdangerous==2.2.0
 click==8.5.0
 blinker==1.9.0
+# The browser test layer (tests/test_webui_browser.py, docs/WEB_UI_ROADMAP.md UI-E1) drives
+# the INSTALLED Edge through Playwright's channel="msedge" -- no browser download, so
+# `playwright install` is not needed here or on the windows-latest runner. Its tests skip
+# cleanly without it. Pinned 2026-09-28, Python 3.10.0.
+playwright==1.63.0
+greenlet==3.5.6
+pyee==13.0.1

@@ -247,6 +247,14 @@ cleanly without it, so `py -3.10 -m unittest discover tests` stays runnable from
 `ci.yml`'s ruff step adds `webui` to its paths. The expected local verdict changes from
 `skipped=1` to `skipped=1+N` when Flask is absent — document it beside the espn_api note.
 
+**The browser layer (2026-09-28, roadmap UI-E1).** Presence tests pin a script by its
+text in the served page, which is why the Decisions filters shipped broken: the script was
+right and a class's `display` beat the browser's rule for `hidden`. `tests/test_webui_browser.py`
+serves the fixture tree on a loopback port and drives the installed Edge through Playwright,
+asserting on what is DISPLAYED. Run against the templates before `b36f933`, its filter test
+fails in both views with the original defect ("4 not less than 4"); on the fix it passes.
+Any new script behaviour gets a test here, not only a presence pin.
+
 ---
 
 ## 4. Phased backlog
