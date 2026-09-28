@@ -730,6 +730,19 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### Three panes at 4K (2026-09-28, roadmap UI-V1; the owner chose three panes over a wider column)
+
+At 2200 CSS px and wider -- a 4K monitor at the usual 125-150% scaling gives a browser 2560
+to 3072 -- Home becomes three panes: standings and this week's games on the left, sticky so
+they stay in view beside a long live panel; the matchup and the live panel (scoring feed
+included) in the centre; the season outlook, the watch list and the expected-wins chart on
+the right. It is CSS only: one wrapper div that is a plain block below the breakpoint, and
+a grid with `display: contents` on the two old row containers above it. Below 2200px the
+page is pixel-identical to before (1280 and 1920 compared screenshot to screenshot), so
+nothing is closed off for a phone later. The scoring feed stays in the centre because the
+live panel draws it as part of itself. `tests.test_webui_browser.TestThreePaneHome`
+measures the panes' boxes at 2560 and the stacking at 1280 and 1920.
+
 ### One grammar for uncertainty (2026-09-28, roadmap UI-V6 / UI-T2)
 
 - **"±" means one standard error, on every page.** It prints only through the `se` filter
