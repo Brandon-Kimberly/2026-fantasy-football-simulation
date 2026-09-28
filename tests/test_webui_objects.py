@@ -194,6 +194,35 @@ class TestWeekGames(ObjectCase):
         self.assertEqual((w["week"], w["current"], w["weeks"]), (3, 3, list(range(1, 15))))
 
 
+class TestLiveLeague(unittest.TestCase):
+    """UI-A3 live: the snapshot already reads every roster's matchup from Sleeper; it now keeps
+    every game, not only mine, so the Matchups page can show all four as they happen."""
+
+    def setUp(self):
+        from tests.test_webui_live import plant as plant_live
+        self.td = tempfile.TemporaryDirectory()
+        plant_live(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def test_the_snapshot_carries_every_game(self):
+        from tests.test_webui_live import OPP, fake_fetch
+        from webui.live import snapshot
+        s = snapshot(self.root, 3, MY_TEAM, "L", fake_fetch)
+        self.assertEqual(len(s["league"]), 1, "the fake league has one game")
+        g = s["league"][0]
+        mine = "a" if g["a"] == MY_TEAM else "b"
+        theirs = "b" if mine == "a" else "a"
+        self.assertEqual({g["a"], g["b"]}, {MY_TEAM, OPP})
+        self.assertEqual((g[mine + "_banked"], g[theirs + "_banked"]), (31.5, 0.0))
+        self.assertAlmostEqual(g["p_a"] if mine == "a" else 1 - g["p_a"], s["p_win"], places=3,
+                               msg="the same estimate as my own panel")
+        self.assertFalse(g["decided"])
+        self.assertGreater(g[theirs + "_to_play"], 0)
+
+
 class TestPages(ObjectCase):
     PAGES = ("/team/quantum-ferrets", "/team/cosmic-badgers", "/player/100", "/matchups", "/matchups/week-2",
              "/matchups/week-5")
@@ -227,6 +256,12 @@ class TestPages(ObjectCase):
         text = visible_text(self.get("/team/quantum-ferrets", "simple"))
         self.assertIn("Cosmic Badgers", text)
         self.assertIn("re-scored", text)
+
+    def test_the_current_week_is_ready_for_live_scores(self):
+        body = self.get("/matchups/week-3")
+        self.assertIn('data-a="Quantum Ferrets"', body)
+        self.assertIn('id="mlive"', body)
+        self.assertIn("/api/live", body)
 
     def test_the_player_page_shows_the_injury_and_the_two_prices(self):
         text = visible_text(self.get("/player/100", "simple"))
