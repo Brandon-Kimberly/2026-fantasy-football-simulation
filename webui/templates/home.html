@@ -74,6 +74,21 @@
 .live .pl { margin-top: 12px; display: grid; grid-template-columns: minmax(120px, 240px) 1fr; gap: 14px; align-items: center; font-size: 12px; color: var(--muted); }
 .live .pl svg { width: 100%; height: 44px; display: block; } .live .pl polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; } .live .pl line { stroke: var(--rule); stroke-dasharray: 3 3; } .live .pl circle { fill: var(--turf); }
 
+/* W14: what the model would change about the lineup I am actually fielding */
+.plan { margin-top: 14px; border: 1px solid var(--turf); border-left-width: 3px; border-radius: var(--r-card); padding: 12px 15px; background: linear-gradient(90deg, var(--turf-bg), transparent 70%); }
+.plan.late { border-color: var(--grid); border-left-color: var(--muted); background: none; }
+.plan .k { display: flex; align-items: center; gap: 8px; font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.plan .k .d { margin-left: auto; font-family: var(--display); font-size: 17px; font-weight: 800; letter-spacing: -0.01em; text-transform: none; font-variant-numeric: tabular-nums; }
+.plan .k .d.pos { color: var(--turf); } .plan .k .d.neg { color: var(--neg); }
+.plan .rows { display: grid; gap: 5px; margin-top: 11px; }
+.plan .r { display: flex; align-items: baseline; gap: 10px; font-size: 13.5px; }
+.plan .r .w { flex: none; width: 4.2rem; font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; padding: 3px 0; border-radius: 999px; text-align: center; }
+.plan .r.in .w { background: var(--turf-bg); color: var(--turf); } .plan .r.out .w { background: var(--neg-bg); color: var(--neg); }
+.plan .r b { color: var(--ink); font-weight: 600; } .plan .r i { font-style: normal; color: var(--muted); font-size: 12px; }
+.plan .r .v { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--ink-2); font-weight: 600; }
+.plan .r .lk { flex: none; font-size: 11px; color: var(--muted); font-style: italic; }
+.plan .s { font-size: 12px; color: var(--muted); margin-top: 9px; }
+
 /* every starter, both rosters side by side */
 .starters { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
 /* one fixed column set, so the two rosters line up with each other and not just inside themselves */
@@ -309,6 +324,30 @@
     return '<div class="bar ' + cls + '"><span>' + esc(name) + '</span><span class="b"><i class="done" style="width:' + (100 * st.banked / scale).toFixed(1) + '%"></i><i class="left" style="width:' + (100 * st.left_mu / scale).toFixed(1) + '%"></i></span>' +
       '<span class="v"><b>' + n1(st.banked) + '</b> + ' + n1(st.left_mu) + ' to come</span></div>';
   }
+  function tstamp(t) {
+    var m = String(t || '').match(/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z$/);
+    return clock(m ? m[1] + '-' + m[2] + '-' + m[3] + 'T' + m[4] + ':' + m[5] + ':' + m[6] + 'Z' : t);
+  }
+  // the one thing on this page that asks for a decision rather than reporting one
+  function planline(verb, x, cls) {
+    return '<div class="r ' + cls + '"><span class="w">' + verb + '</span><b>' + esc(x.name) + '</b>' +
+      '<i>' + esc(x.pos || '') + (x.slot && x.slot !== x.pos ? ' &middot; ' + esc(x.slot) : '') + '</i>' +
+      (x.locked ? '<span class="lk">too late</span>' : '') +
+      '<span class="v">' + n1(x.expected) + '</span></div>';
+  }
+  function plan(p) {
+    if (!p || !((p.start || []).length || (p.bench || []).length)) return '';
+    var rows = p.start.map(function (x) { return planline('Start', x, 'in'); })
+      .concat(p.bench.map(function (x) { return planline('Bench', x, 'out'); })).join('');
+    var when = tstamp(p.stamp), made = when ? ' &middot; from the lineup run at ' + when : '';
+    var note = p.actionable
+      ? 'Sleeper has the other man in your lineup right now' + made + '.'
+      : 'Reported, not advised: the games have started, so this is too late to act on' + made + '.';
+    return '<div class="plan ' + (p.actionable ? 'act' : 'late') + '">' +
+      '<div class="k"><svg class="i"><use href="#i-lineup"/></svg>The model would field a different lineup' +
+      '<span class="d ' + (p.delta >= 0 ? 'pos' : 'neg') + '">' + (p.delta > 0 ? '+' : '') + n1(p.delta) + '</span></div>' +
+      '<div class="rows">' + rows + '</div><div class="s">' + note + '</div></div>';
+  }
   function srow(r) {
     var started = r.frac < 1, pace = r.expected * (1 - r.frac), d = r.scored - pace;
     var mark = !started ? '<span class="d">—</span>'
@@ -395,7 +434,7 @@
       '<div class="l"><div class="pts me">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' still to play · projects <b>' + n1(me.projected) + '</b></div></div>' +
       '<div class="mid">live margin<b class="' + (margin >= 0 ? 'pos' : 'neg') + '">' + (margin > 0 ? '+' : '') + n1(margin) + '</b><span class="s">projected ' + n1(me.projected - th.projected) + '</span></div>' +
       '<div class="r"><div class="pts them">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' still to play · projects <b>' + n1(th.projected) + '</b></div></div></div>' +
-      dayline(p.history) +
+      plan(s.plan) + dayline(p.history) +
       '<div class="bars">' + side(me, 'me', s.team, scale) + side(th, 'them', s.opponent || 'opponent', scale) + '</div>' +
       (body.getAttribute('data-dev') === '1'
         ? '<div class="note-l">Quick estimate: points banked plus the unplayed share of each starter\'s pre-game expectation' + (s.sources && s.sources.length ? ' (from this week\'s ' + esc(s.sources.join(' and ')) + ')' : ' (baseline means)') + ', Normal-approximated.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as pregame.') + ' For the engine\'s own number run <a href="/tools/live_matchup">Live matchup</a>. Nothing here is written to disk.</div>'
