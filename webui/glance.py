@@ -613,9 +613,18 @@ def decisions_report(root, my_team):
     for r in rows:                              # newest first: the first seen per id wins
         if r.get("record_type") == "evaluation" and r.get("transaction_id") not in evals:
             evals[r["transaction_id"]] = r
+    # a move captured by both the local and the scheduled sync is union-merged onto two
+    # lines; count it once, first row in FILE order wins -- the engine's own readers'
+    # rule (decisions._read_decision_log, read_faab_observations). rows are newest first.
+    first = {}
+    for r in reversed(rows):
+        if r.get("type") and r.get("transaction_id") is not None:
+            first.setdefault(r["transaction_id"], id(r))
     out = []
     for r in rows:
         if not r.get("type"):
+            continue
+        if r.get("transaction_id") is not None and first.get(r["transaction_id"]) != id(r):
             continue
         ev = evals.get(r.get("transaction_id"))
         teams = _tx_teams(r)
