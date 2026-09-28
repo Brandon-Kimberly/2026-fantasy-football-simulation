@@ -868,7 +868,15 @@ SIM_CONFIG = {
     #   Jordyn Tyson: WR, NO (Sleeper pid 13281, rookie, depth_chart_order 3). Sleeper's week-1
     #   projection entry exists but carries an empty stats block, so sync drops him. mean 6.5 is
     #   UNVERIFIED (carried over); team was 'FA' until Phase 3 finding 6 corrected it to NO.
+    #   Tyreek Hill: WR, no NFL team (Sleeper pid 3321, team null, roster reads 'FA'). Added
+    #   2026-09-28 when a manager rostered him on the rumour of a return. The zeros are not a
+    #   guess and not "unverified": a player on no roster in the league cannot be in a game,
+    #   so his expected points are zero with no spread around them. This entry is self-
+    #   cancelling -- the moment he signs, Sleeper projects him, sync writes a real baseline
+    #   and the engine stops imputing (the whitelist applies only to a missing or zero mean).
+    #   If he is still unsigned and this reads as a real projection to you, it is not one.
     "KNOWN_MISSING_ASSETS": {
-        "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "NO", "bye": 0}
+        "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "NO", "bye": 0},
+        "Tyreek Hill": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "FA", "bye": 0},
     }
 }
