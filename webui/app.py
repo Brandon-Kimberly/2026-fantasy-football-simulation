@@ -20,6 +20,7 @@ import sys
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
+from webui import accuracy as accuracymod
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
@@ -43,10 +44,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs")
 DEV_ONLY_EXACT = ("/jobs",)
@@ -473,6 +474,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             if render.pretty_url(e) == want:
                 return file_view(e["rel"])
         abort(404)
+
+    @app.route("/accuracy")
+    def accuracy_page():
+        """W17: what the model quoted before each week's games, against what happened."""
+        return render_template("accuracy.html", **accuracymod.report(root))
 
     @app.route("/decisions")
     def decisions_tab():
