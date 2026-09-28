@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1 and 2 under way; 16 items built (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–3 under way; 22 items built (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -30,6 +30,10 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-O3 | "What week N did" on Forecasts, and a one-line version on Home. |
 | UI-Q2 | Past results carry the model's own pre-kickoff quote, taken from the same row the Accuracy page scores. |
 | UI-O12 | Final wins shown as a range: a strip on Home and a column on League. |
+| UI-P4 | Instant compare for two to four players. A saved full comparison replaces the estimate. |
+| UI-L1 | The live lineup callout prices the swap in chance to win. |
+| UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
+| UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
 | UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |
 
@@ -39,6 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
   - Pages now flag such a result instead of stating it.
   - **Owner ruling (2026-09-28): the league's record as played decides.** `scripts.as_played_record` rebuilt weeks 1–2 from the frozen snapshot. The rebuild matches every team's banked wins exactly. Every page, Accuracy included, now counts week 2 as the loss. Accuracy's weeks 1–2 *points* are still compared across the scoring change; F83 records that as not yet corrected.
 - The Decisions page counted union-merged moves twice: 133 listed for 100 transactions, and the ledger summed the repeats twice. The engine already de-duplicated them; the UI now does too.
+- Column sorting never worked. League said "click a column to sort", but no script ever did. One sorter now serves every table.
 - Twenty web tests error instead of skipping on a bare install without Flask. They import fixtures inside a Flask probe.
   - This predates the roadmap. The README's no-Flask skip count is right, but its "not a failure" is not.
 
