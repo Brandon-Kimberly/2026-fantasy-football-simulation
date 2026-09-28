@@ -7,6 +7,9 @@ UI-F9  a player on no NFL team reads "no NFL team", not a bare dash or "FA".
 UI-F11 the compare tool's week is a pick-list of the season's weeks, not a free number box.
 UI-W2  Home says when the next daily waiver run is (09:00 Pacific, docs/WAIVER_MECHANICS.md).
 UI-T5  in weeks 9 to 11 Home counts down to the week-11 trade deadline.
+UI-P7  an injury and practice report for a roster -- status, body part, practice
+       participation, notes and when Sleeper last updated it, most serious first -- read from
+       the current roster and Sleeper's cache, not from a tool record that may be stale.
 """
 import datetime as _dt
 import json
@@ -123,6 +126,25 @@ class TestHomeClocks(Case):
         self.assertEqual([t for t in DEV_TERMS if t in text], [])
         self.set_week(3)
         self.assertNotIn("trade deadline", visible_text(self.get("/", "simple")))
+
+
+class TestInjuryReport(Case):
+    def test_a_rosters_designations_with_the_detail(self):
+        from webui.objects import injury_report
+        rows = injury_report(self.root, "Quantum Ferrets")
+        r = next(x for x in rows if x["name"] == "Player 0 O'Neil")
+        self.assertEqual((r["status"], r["body_part"], r["practice"], r["pid"]), ("Questionable", "Ankle", "Limited", "100"))
+        self.assertTrue(r["updated"])
+
+    def test_home_and_the_team_page_show_it(self):
+        for path in ("/", "/team/quantum-ferrets"):
+            for mode in ("dev", "simple"):
+                with self.subTest(path=path, mode=mode):
+                    text = visible_text(self.get(path, mode))
+                    self.assertIn("Ankle", text)
+                    self.assertIn("Limited", text)
+                    if mode == "simple":
+                        self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
 
 if __name__ == "__main__":
