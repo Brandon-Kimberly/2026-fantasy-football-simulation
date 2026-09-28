@@ -16,6 +16,11 @@ week while League, Forecasts and the odds race read the NEWEST export -- so betw
 Tuesday's sync and that week's simulation, Home showed no odds while League showed last
 week's. `odds_now` is the newest export at or before the sync week, and says how far behind.
 
+UI-M8: the live chance to win is a Normal approximation; rounded, it reaches 0.0% or 100.0%
+long before a game is settled (Sleeper rebuilt its own for exactly this). The snapshot says
+whether the result is DECIDED -- nobody left to play on either side -- and until it is, the
+pages say "under 0.1%" / "over 99.9%" rather than a certainty.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -31,11 +36,11 @@ import unittest
 
 from webui.glance import (freshness_report, home_report, kickoff_report, odds_at, odds_now, odds_race, records,
                           sync_phrase)
+from fantasy_sim.config import MY_TEAM
 from webui.paths import Root
 
 try:
     import flask  # noqa: F401 -- availability probe
-    from fantasy_sim.config import MY_TEAM
     from webui.app import create_app
     from webui.live import LiveBoard
     from webui.settings import Settings
@@ -332,6 +337,42 @@ class TestOneSourceForTheOdds(unittest.TestCase):
         body = app.test_client().get("/").get_data(as_text=True)
         self.assertIn("from the week-3 forecast", body)
         self.assertNotIn("from this week's forecast", body)
+
+
+def final_fetch(url):
+    """The live tests' fake Sleeper and scoreboard, with every game over."""
+    from tests.test_webui_live import fake_fetch
+    out = fake_fetch(url)
+    if "scoreboard" in url:
+        for ev in out["events"]:
+            ev["competitions"][0]["status"] = {"type": {"state": "post", "completed": True}, "period": 4,
+                                               "displayClock": "0:00"}
+    return out
+
+
+class TestDecided(unittest.TestCase):
+    def setUp(self):
+        from tests.test_webui_live import plant as plant_live
+        self.td = tempfile.TemporaryDirectory()
+        plant_live(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def test_a_game_with_starters_still_to_play_is_not_decided(self):
+        from tests.test_webui_live import fake_fetch
+        from webui.live import snapshot
+        s = snapshot(self.root, 3, MY_TEAM, "L", fake_fetch)
+        self.assertGreater(s["theirs"]["to_play"], 0)
+        self.assertFalse(s["decided"])
+
+    def test_nobody_left_on_either_side_is_decided_and_certain(self):
+        from webui.live import snapshot
+        s = snapshot(self.root, 3, MY_TEAM, "L", final_fetch)
+        self.assertEqual((s["mine"]["to_play"], s["theirs"]["to_play"]), (0, 0))
+        self.assertTrue(s["decided"])
+        self.assertEqual(s["p_win"], 1.0, "31.5 banked against 0.0 with nobody left")
 
 
 if __name__ == "__main__":

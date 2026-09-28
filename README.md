@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1798%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1804%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -258,7 +258,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1798 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1804 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -283,9 +283,9 @@ platform lock working, not a broken build.
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Without
 Flask (`requirements-web.txt`) the web UI's route tests skip cleanly too, the same way
-the `espn_api` and `hypothesis` tests do -- `skipped=172`, not a failure. The ten
+the `espn_api` and `hypothesis` tests do -- `skipped=176`, not a failure. The fourteen
 browser tests also need Playwright and an Edge or Chrome to drive; without them they skip
-as well (`skipped=11`). Any engine
+as well (`skipped=15`). Any engine
 change either leaves the golden hashes byte-identical or regenerates them with the deltas
 explained in the commit.
 

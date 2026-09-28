@@ -282,5 +282,51 @@ class TestHomeLeavesLiveAloneBeforeKickoff(_HomeLive):
         self.assertEqual(self.live_requests(), [])
 
 
+def live_payload(decided, p):
+    """A real snapshot (the live tests' tree, every game over), then its certainty set by
+    hand: the pages must not care how the number was reached, only whether it is settled."""
+    from tests.test_webui_live import plant as plant_live
+    from tests.test_webui_twelfth import final_fetch
+    from webui.live import snapshot
+    with tempfile.TemporaryDirectory() as td:
+        plant_live(td)
+        snap = snapshot(Root(td), 3, MY_TEAM, "L", final_fetch)
+    snap.update(decided=decided, p_win=p, p_win_wide=p)
+    return {"enabled": True, "snapshot": snap, "error": None, "age_seconds": 5, "min_interval": 45,
+            "history": [], "updates": []}
+
+
+class TestNoCertaintyUntilItIsDecided(BrowserCase):
+    """UI-M8, on both pages that show the live number."""
+    live_enabled = True
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def shown_with(self, payload, path, selector):
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=payload))
+        self.open(path)
+        self.page.wait_for_function(f"document.querySelector({selector!r}) && /%/.test(document.querySelector({selector!r}).textContent)")
+        self.page.wait_for_timeout(900)                      # the hero counts up to its value
+        return self.page.inner_text(selector)
+
+    def test_home_says_over_99_9_while_players_are_left(self):
+        self.assertEqual(self.shown_with(live_payload(False, 1.0), "/", "#pw-val").strip(), ">99.9%")
+        self.page.unroute("**/api/live*")
+        self.assertEqual(self.shown_with(live_payload(False, 0.0), "/", "#pw-val").strip(), "<0.1%")
+
+    def test_a_fast_live_answer_is_not_overwritten_by_the_count_up(self):
+        """Found while writing the test above: the hero's count-up animates the pre-game
+        number for 400 ms, and a live answer arriving inside that window was written and
+        then painted over, frame by frame, back to the pre-game number."""
+        self.assertEqual(self.shown_with(live_payload(True, 0.9), "/", "#pw-val").strip(), "90.0%")
+
+    def test_home_shows_the_certainty_once_decided(self):
+        self.assertEqual(self.shown_with(live_payload(True, 1.0), "/", "#pw-val").strip(), "100%")
+
+    def test_game_day_says_over_99_while_players_are_left(self):
+        self.assertIn(">99%", self.shown_with(live_payload(False, 0.998), "/gameday", ".mid b"))
+        self.page.unroute("**/api/live*")
+        self.assertIn("100%", self.shown_with(live_payload(True, 1.0), "/gameday", ".mid b"))
+
+
 if __name__ == "__main__":
     unittest.main()
