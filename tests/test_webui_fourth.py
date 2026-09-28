@@ -135,7 +135,7 @@ class TestHelpers(unittest.TestCase):
 
     def test_line_chart_keeps_the_last_label_inside_the_drawing(self):
         svg = str(render.line_chart([{"name": "p", "values": [80.0, 90.0, 93.5], "cls": "me"}], ["wk 1", "wk 2", "wk 3"], unit="%", nd=1, y_min=0, y_max=100, height=200))
-        ys = [float(m) for m in re.findall(r'<text x="[\d.]+" y="([\d.-]+)" text-anchor="end" style="fill:var\(--ink\)', svg)]
+        ys = [float(m) for m in re.findall(r'<text class="vl" x="[\d.]+" y="([\d.-]+)" text-anchor="end"', svg)]
         self.assertTrue(ys and all(y >= 0 for y in ys), ys)
         self.assertIn("93.5%", svg)
         self.assertIn("<title>p · wk 3: 93.5%</title>", svg)

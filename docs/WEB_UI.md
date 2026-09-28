@@ -505,6 +505,27 @@ The `--json` tools (live matchup, luck ledger, odds history, data health, bid re
 run windows, decision scorecard) always run `--json` from the UI and their document
 renders as tables on the job page; the text form is one click away in the log.
 
+### W10 — Charts v2 (2026-09-28)
+
+One chart component, `render.line_chart`, draws every line chart in the UI, and the
+templates pass it series and labels only (the `linechart` macro that did its own maths
+is gone). It picks round ticks (`nice_ticks`), keeps x labels from colliding while
+always writing the first and last, writes a run of identical labels once, leaves
+headroom for the last value label, and emits the data (`data-labels`, `data-xs`, each
+polyline's `data-vals` and colour) that the hover script in `base.html` reads to draw a
+crosshair and a tooltip naming every series at the nearest point. A series may carry a
+team `hue` (from `glance.TEAM_HUES`) and then draws in that colour at a lightness token
+(`--line-l`) set per theme; end labels of a race dodge each other and wear the team's
+colour, with a surface-coloured halo so they read over a line. Pass the width the card
+will render at — a 640-wide drawing scaled into a 330 px card is the unreadable-text bug
+B14 named. `render.sparkline` is the table-cell version.
+
+The Forecasts page draws the playoff-odds and title-odds races from `glance.odds_race`
+(every team's odds across the season's forecast exports, ordered by the latest, mine
+marked), and the home standings show each team's odds sparkline and its move in odds
+rank since the previous week's forecast. Both views; nothing new is computed — the
+numbers are the exports' own.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

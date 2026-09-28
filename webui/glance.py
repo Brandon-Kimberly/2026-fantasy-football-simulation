@@ -211,17 +211,29 @@ def home_report(root, my_team, runner=None):
     outcomes = {o.get("Team"): o for o in (matrix.get("season_outcomes") or []) if isinstance(o, dict)}
     champ = (outcomes.get(my_team) or {}).get("Champ_Pct")
 
-    # ---- standings
+    # ---- standings, with each team's odds through the season and its move since the last forecast
     standings = root.read_json("current/league_standings.json", {}) or {}
+    race = odds_race(root, my_team)
+    sparks = {s["name"]: s["values"] for s in race["playoff"]}
+    prev_week = max((w for w in root.weeks() if wk and w < wk), default=None)
+    prev = (root.read_json(f"weeks/week_{prev_week:02d}/live_season_forecast_week_{prev_week}.json", {}) or {}) if prev_week else {}
+    prev_odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in prev.items() if isinstance(v, dict)}
     table = []
     for team, s in standings.items():
         fc = (forecast.get(team) or {}).get("forecast") or {}
         table.append({"team": team, "wins": s.get("h2h_wins"), "points": s.get("points_scored"),
                       "faab": s.get("remaining_faab"), "playoff": fc.get("playoff_probability_pct"),
-                      "champ": (outcomes.get(team) or {}).get("Champ_Pct"), "hue": team_hue(team)})
+                      "champ": (outcomes.get(team) or {}).get("Champ_Pct"), "hue": team_hue(team),
+                      "spark": sparks.get(team) or [], "rank_delta": None})
     table.sort(key=lambda r: (-(float(r["wins"] or 0)), -(float(r["points"] or 0))))
     for i, r in enumerate(table):
         r["rank"] = i + 1
+    if prev_odds:
+        now_rank = {r["team"]: i for i, r in enumerate(sorted(table, key=lambda r: -(float(r["playoff"] or 0))))}
+        then_rank = {t: i for i, (t, _v) in enumerate(sorted(prev_odds.items(), key=lambda kv: -(float(kv[1] or 0))))}
+        for r in table:
+            if r["team"] in then_rank and r["playoff"] is not None:
+                r["rank_delta"] = then_rank[r["team"]] - now_rank[r["team"]]       # positive = moved up
     my_row = next((r for r in table if r["team"] == my_team), None)
     losses = (2 * (wk - 1) - int(my_row["wins"] or 0)) if (my_row and wk) else None
     opp_row = next((r for r in table if r["team"] == opponent), None) if opponent else None
@@ -252,7 +264,36 @@ def home_report(root, my_team, runner=None):
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,
             "fresh": fr, "windows": win, "last_job": last_job, "git": git,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
-            "weeks": root.weeks()}
+            "weeks": root.weeks(), "prev_week": prev_week}
+
+
+def odds_race(root, my_team):
+    """Every team's playoff and title odds across the season's forecast exports (U1): one
+    series per team in its own hue, mine marked, ordered by the latest odds so a legend
+    reads like a table; `labels` are the weeks that ran. A team missing from a week's
+    export gets None there."""
+    labels, per_week = [], []
+    for n in root.weeks():
+        f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
+        if not f:
+            continue
+        m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
+        outcomes = {o.get("Team"): o for o in (m.get("season_outcomes") or []) if isinstance(o, dict)}
+        labels.append(f"wk {n}")
+        per_week.append({t: (((v or {}).get("forecast") or {}).get("playoff_probability_pct"), (outcomes.get(t) or {}).get("Champ_Pct"))
+                         for t, v in f.items() if isinstance(v, dict)})
+    teams = []
+    for wkd in per_week:
+        for t in wkd:
+            if t not in teams:
+                teams.append(t)
+
+    def build(idx):
+        out = [{"name": t, "values": [(wkd.get(t) or (None, None))[idx] for wkd in per_week],
+                "cls": "me" if t == my_team else "", "hue": team_hue(t)} for t in teams]
+        out.sort(key=lambda s: -(next((v for v in reversed(s["values"]) if v is not None), -1.0)))
+        return out
+    return {"labels": labels, "playoff": build(0), "champ": build(1)}
 
 
 # ------------------------------------------------------------------- decisions tab

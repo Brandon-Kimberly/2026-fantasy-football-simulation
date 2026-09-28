@@ -931,63 +931,228 @@ def status_abbr(status):
 
 
 # ------------------------------------------------------------------------------ charts
-def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, y_max=None, marker=None, value_labels=True):
-    """One SVG line chart, drawn to one scale: `series` is a list of {name, values, cls}
-    (cls 'me' | 'pos' | 'gold' | '' for the quiet grey), `labels` the x labels (one per
-    point). The y range gets 12% headroom so the last value label never clips; four
-    gridlines carry tick labels; every point has a <title> tooltip; `marker` is an x
-    index to draw a dashed 'now' line at. Returns markup (escape nothing but names)."""
+CHART_FONT_PX = 11.5      # .viz text in base.html (B14: 10.5 was unreadable); label_width() estimates from it
+
+
+def label_width(text):
+    """The room an axis label needs at the chart's font, with a gap: a conservative
+    0.56 em per character (digits and lower case are narrower, capitals wider)."""
+    return len(str(text)) * CHART_FONT_PX * 0.56 + 10
+
+
+def nice_step(span, n=4):
+    """A 1, 2, 2.5 or 5 times a power of ten that divides `span` into about n intervals."""
+    import math
+    if not span or span <= 0:
+        return 1.0
+    raw = span / n
+    mag = 10 ** math.floor(math.log10(raw))
+    for m in (1, 2, 2.5, 5, 10):
+        if m * mag >= raw - 1e-12:
+            return m * mag
+    return 10 * mag
+
+
+def nice_ticks(lo, hi, n=4, ceiling=None):
+    """Round tick values that cover lo..hi. Without a ceiling the range widens to the
+    ticks on either side (so the frame is 0 / 20 / 40 / 60, never 0 / 21 / 42 / 63).
+    With one -- a percentage's 100 -- the ticks stop there and it is the last tick."""
+    import math
+    if ceiling is not None:
+        hi = ceiling
+    step = nice_step(hi - lo, n)
+    first = math.floor(lo / step + 1e-9) * step
+    ticks = []
+    v = first
+    while v <= hi + step * (1e-9 if ceiling is not None else 0.999999):
+        ticks.append(round(v, 10))
+        v += step
+        if ceiling is None and ticks[-1] >= hi:
+            break
+    if ceiling is not None:
+        if ceiling - ticks[-1] > 0.3 * step:
+            ticks.append(float(ceiling))
+        else:
+            ticks[-1] = float(ceiling)
+    elif ticks[-1] < hi:
+        ticks.append(round(ticks[-1] + step, 10))
+    return ticks
+
+
+def _series_colour(sr):
+    """The CSS colour a series draws in: its team hue, else the class's token."""
+    hue = sr.get("hue")
+    if hue is not None:
+        return f"hsl({int(hue)} 62% var(--line-l))"
+    return {"me": "var(--turf)", "pos": "var(--pos)", "gold": "var(--gold)"}.get(sr.get("cls") or "", "var(--rule)")
+
+
+def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, y_max=None, marker=None,
+               value_labels=True, legend=False):
+    """The one SVG line chart, drawn to one scale. `series` is a list of {name, values,
+    cls, hue}: cls 'me' | 'pos' | 'gold' | '' (the quiet grey), and a team `hue` draws the
+    line in that team's colour (a race). `labels` are the x labels, one per point.
+
+    Ticks are round numbers (nice_ticks); x labels never collide (the last always
+    survives, an earlier one gives way) and a run of identical labels is written once;
+    the y range gets 12% headroom so the last value label never clips. `value_labels`
+    is True (every point when there are 16 or fewer, else the last), 'last', or False.
+    `marker` is an x index for a dashed 'now' line. The svg carries data-* the hover
+    layer in base.html reads (labels, x positions, every series' values and colour);
+    `legend=True` appends a <div class="legend"> naming every series in its colour.
+    Returns markup (escapes only names and labels)."""
+    import json
     from markupsafe import Markup, escape
     pts_all = [v for sr in series for v in (sr.get("values") or []) if v is not None]
     if not pts_all or not labels:
         return Markup("")
     top = max(pts_all)
-    lo = min(pts_all) if y_min is None else min(y_min, min(pts_all))
-    hi = y_max if y_max is not None else top + (top - lo) * 0.12 + (0.5 if top == lo else 0)
-    if hi <= lo:
-        hi = lo + 1
+    lo0 = min(pts_all) if y_min is None else min(y_min, min(pts_all))
+    hi0 = y_max if y_max is not None else top + (top - lo0) * 0.12 + (0.5 if top == lo0 else 0)
+    if hi0 <= lo0:
+        hi0 = lo0 + 1
+    ticks = nice_ticks(lo0, hi0, ceiling=y_max)
+    lo, hi = ticks[0], ticks[-1]
+    step = ticks[1] - ticks[0] if len(ticks) > 1 else 1
+    tnd = 0 if step >= 1 else (1 if step >= 0.1 else 2)
+    tick_text = [f"{fnum(t, tnd)}{unit}" for t in ticks]
     n = max(len(labels), max(len(sr.get("values") or []) for sr in series))
-    padl, padr, padt, padb = 40, 16, 14, 26
+    padl = int(max(label_width(t) for t in tick_text)) + 2
+    padr, padt, padb = 16, 14, 28
     W, H = width, height
+
     def x(i):
         return padl + (i * (W - padl - padr) / (n - 1) if n > 1 else (W - padl - padr) / 2)
+
     def y(v):
         return padt + (H - padt - padb) * (1 - (v - lo) / (hi - lo))
-    out = [f'<svg class="viz" viewBox="0 0 {W} {H}" role="img" aria-label="chart">']
-    for g in range(5):
-        v = lo + (hi - lo) * g / 4
-        yy = y(v)
+    xs = [x(i) for i in range(n)]
+    out = [f'<svg class="viz" viewBox="0 0 {W} {H}" role="img" aria-label="chart" data-labels=\'{json.dumps([str(l) for l in labels]).replace("&", "&amp;").replace("<", "&lt;").replace(chr(39), "&#39;")}\' '
+           f'data-xs="{",".join(f"{v:.1f}" for v in xs)}" data-unit="{escape(unit)}" data-nd="{nd}" data-top="{padt}" data-bottom="{H - padb}">']
+    for t, txt in zip(ticks, tick_text):
+        yy = y(t)
         out.append(f'<line class="ax" x1="{padl}" y1="{yy:.1f}" x2="{W - padr}" y2="{yy:.1f}"/>'
-                   f'<text x="{padl - 6}" y="{yy + 4:.1f}" text-anchor="end">{fnum(v, 0 if hi - lo >= 8 else 1)}{unit}</text>')
+                   f'<text class="yl" x="{padl - 6}" y="{yy + 4:.1f}" text-anchor="end">{txt}</text>')
     if marker is not None and 0 <= marker < n:
         out.append(f'<line class="ax2" x1="{x(marker):.1f}" y1="{padt}" x2="{x(marker):.1f}" y2="{H - padb}" stroke-dasharray="3 3"/>'
                    f'<text x="{x(marker) + 4:.1f}" y="{padt + 9}">now</text>')
-    step = 1 if n <= 10 else (2 if n <= 20 else max(1, n // 8))
-    for i, lab in enumerate(labels):
-        if i % step == 0 or i == n - 1:
-            anchor = "start" if i == 0 else ("end" if i == n - 1 else "middle")
-            out.append(f'<text x="{x(i):.1f}" y="{H - 8}" text-anchor="{anchor}">{escape(lab)}</text>')
-    quiet = [sr for sr in series if not sr.get("cls")]
-    loud = [sr for sr in series if sr.get("cls")]
+    # x labels: a stride that fits the widest label between neighbours, no repeats, no
+    # collisions; the last label always survives and so does the first
+    plot = W - padl - padr
+    widest = max(label_width(l) for l in labels)
+    per = plot / (n - 1) if n > 1 else plot
+    stride = max(1, math_ceil((widest + 4) / per)) if n > 1 else 1
+    cands = [i for i in range(len(labels)) if (i % stride == 0 or i == n - 1) and (i == 0 or labels[i] != labels[i - 1])]
+
+    def extent(i):
+        w = label_width(labels[i])
+        if i == 0:
+            return xs[i], xs[i] + w
+        if i == n - 1:
+            return xs[i] - w, xs[i]
+        return xs[i] - w / 2, xs[i] + w / 2
+
+    def clear(i, j):
+        return extent(i)[1] <= extent(j)[0] - 4
+    kept = []
+    for i in reversed(cands):
+        if not kept or clear(i, kept[-1]):
+            kept.append(i)
+    if cands and cands[0] == 0 and 0 not in kept:
+        kept = [i for i in kept if i == n - 1 or clear(0, i)] + [0]
+    for i in sorted(kept):
+        anchor = "start" if i == 0 else ("end" if i == n - 1 else "middle")
+        out.append(f'<text class="xl" x="{xs[i]:.1f}" y="{H - 9}" text-anchor="{anchor}">{escape(labels[i])}</text>')
+    quiet = [sr for sr in series if not sr.get("cls") and sr.get("hue") is None]
+    loud = [sr for sr in series if sr.get("cls") or sr.get("hue") is not None]
+    end_labels = []                             # (y, x, text, anchor, style) -- dodged below so they never overprint
     for sr in quiet + loud:
         vals = sr.get("values") or []
-        pts = [(x(i), y(v)) for i, v in enumerate(vals) if v is not None]
+        pts = [(xs[i], y(v)) for i, v in enumerate(vals) if v is not None]
         if not pts:
             continue
-        cls = sr.get("cls") or ""
-        if cls == "me" or cls == "pos":
+        cls = sr.get("cls") or ("hue" if sr.get("hue") is not None else "")
+        col = _series_colour(sr)
+        hued = sr.get("hue") is not None
+        style = f' style="stroke:{col}"' if hued else ""
+        name = escape(sr.get("name") or "")
+        if cls in ("me", "pos") and not hued:
             out.append(f'<polygon class="area {cls}" points="{pts[0][0]:.1f},{y(lo):.1f} ' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts) + f' {pts[-1][0]:.1f},{y(lo):.1f}"/>')
-        out.append(f'<polyline class="ln {cls}" points="' + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts) + f'"><title>{escape(sr.get("name") or "")}</title></polyline>')
-        if cls:
-            for i, v in enumerate(vals):
-                if v is None:
-                    continue
-                out.append(f'<circle class="dot {cls}" cx="{x(i):.1f}" cy="{y(v):.1f}" r="{3.6 if i == len(vals) - 1 else 2.6}"><title>{escape(sr.get("name") or "")} · {escape(labels[i] if i < len(labels) else "")}: {fnum(v, nd)}{unit}</title></circle>')
-                if value_labels and (n <= 16 or i == len(vals) - 1):
-                    anchor = "end" if i == len(vals) - 1 else "middle"
-                    out.append(f'<text x="{x(i) + (2 if i == len(vals) - 1 else 0):.1f}" y="{y(v) - 7:.1f}" text-anchor="{anchor}" style="fill:var(--ink);font-weight:600">{fnum(v, nd)}{unit}</text>')
+        vals_json = json.dumps([None if v is None else float(v) for v in vals])
+        out.append(f'<polyline class="ln {cls}"{style} data-name="{name}" data-vals="{vals_json}" data-col="{col}" points="'
+                   + " ".join(f"{a:.1f},{b:.1f}" for a, b in pts) + f'"><title>{name}</title></polyline>')
+        if not cls:
+            continue
+        last = max(i for i, v in enumerate(vals) if v is not None)
+        every = (value_labels is True and n <= 16)
+        for i, v in enumerate(vals):
+            if v is None:
+                continue
+            if hued and i != last and cls != "me":
+                continue                        # a race line: only its end is dotted
+            fill = f' style="fill:{col}"' if hued else ""
+            out.append(f'<circle class="dot {cls}"{fill} cx="{xs[i]:.1f}" cy="{y(v):.1f}" r="{3.6 if i == last else 2.6}"><title>{name} · {escape(labels[i] if i < len(labels) else "")}: {fnum(v, nd)}{unit}</title></circle>')
+            if value_labels and (every or i == last):
+                txt = f"{fnum(v, nd)}{unit}"
+                if i == last:
+                    end_labels.append([y(v) - 7, xs[i] + 2, txt, "end", f' style="fill:{col}"' if hued else ""])
+                else:
+                    out.append(f'<text class="vl" x="{xs[i]:.1f}" y="{y(v) - 7:.1f}" text-anchor="middle">{txt}</text>')
+    # the end labels: pushed apart from the top down, then the whole stack lifted if it ran off the bottom
+    end_labels.sort(key=lambda t: t[0])
+    gap = CHART_FONT_PX + 2
+    for k in range(1, len(end_labels)):
+        if end_labels[k][0] < end_labels[k - 1][0] + gap:
+            end_labels[k][0] = end_labels[k - 1][0] + gap
+    if end_labels and end_labels[-1][0] > H - padb - 2:
+        shift = end_labels[-1][0] - (H - padb - 2)
+        for t in end_labels:
+            t[0] -= shift
+    for yy, xx, txt, anchor, style in end_labels:
+        out.append(f'<text class="vl"{style} x="{xx:.1f}" y="{yy:.1f}" text-anchor="{anchor}">{txt}</text>')
     out.append("</svg>")
+    if legend:
+        out.append('<div class="legend">' + "".join(f'<span><i style="background:{_series_colour(sr)}"></i>{escape(sr.get("name") or "")}</span>' for sr in series) + "</div>")
     return Markup("".join(out))
+
+
+def math_ceil(v):
+    import math
+    return math.ceil(v)
+
+
+def sparkline(values, hue=None, width=64, height=18):
+    """A tiny inline line for a table cell: the values' shape, the last point dotted, no
+    axes. Nothing for fewer than two points. In a team's hue when given."""
+    from markupsafe import Markup
+    pts = [(i, float(v)) for i, v in enumerate(values or []) if v is not None]
+    if len(pts) < 2:
+        return Markup("")
+    n = len(values)
+    lo, hi = min(v for _i, v in pts), max(v for _i, v in pts)
+    if hi <= lo:
+        hi = lo + 1
+    def x(i):
+        return 2 + i * (width - 6) / (n - 1)
+    def y(v):
+        return 2 + (height - 4) * (1 - (v - lo) / (hi - lo))
+    style = f' style="stroke:hsl({int(hue)} 62% var(--line-l))"' if hue is not None else ""
+    fill = f' style="fill:hsl({int(hue)} 62% var(--line-l))"' if hue is not None else ""
+    i, v = pts[-1]
+    return Markup(f'<svg class="spark" viewBox="0 0 {width} {height}" aria-hidden="true"><polyline{style} points="'
+                  + " ".join(f"{x(i):.1f},{y(v):.1f}" for i, v in pts) + f'"/><circle{fill} cx="{x(i):.1f}" cy="{y(v):.1f}" r="2.2"/></svg>')
+
+
+def short_date(value, now=None):
+    """'Sep 24' (with the year when it is not this year) -- the axis label a move gets."""
+    import datetime as _dt
+    dt = parse_time(value)
+    if dt is None:
+        return str(value or "—")
+    local = dt.astimezone()
+    ref = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone()
+    year = f" {local.year}" if local.year != ref.year else ""
+    return f"{local:%b} {local.day}{year}"
 
 
 # What each season log under data/logs/ is, for the Logs page: (title, one line). Keyed by

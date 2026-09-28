@@ -8,12 +8,27 @@
 <div class="head"><p class="eyebrow">season forecasts · one per simulated week</p><h1>Forecasts</h1><p class="lede">How my season looked from each week the model ran. A later week never overwrites an earlier one, so this reads as the odds moving through the season; open a week for every team's numbers and the charts.</p></div>
 {% if rows %}
 {% if rows|length > 1 %}
-{% set labels = rows|map(attribute='week')|map('string')|list %}{% set labels = [] %}{% for r in rows %}{% set _ = labels.append("wk " ~ r.week) %}{% endfor %}
+{% set labels = [] %}{% for r in rows %}{% set _ = labels.append("wk " ~ r.week) %}{% endfor %}
+{% if race and race.labels|length > 1 %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-trend"/></svg> Playoff-odds race <span class="hint">every team, forecast by forecast · mine is the thick line · hover for every team's number</span></h2>
+{% set po = [] %}{% for s in race.playoff %}{% set _ = po.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
+<div class="vizbox">{{ line_chart(po, race.labels, unit="%", nd=1, y_min=0, y_max=100, height=280, value_labels="last", legend=True) }}</div>
+</section>
+<section>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Title-odds race <span class="hint">the same, for winning it all</span></h2>
+{% set ch = [] %}{% for s in race.champ %}{% set _ = ch.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
+<div class="vizbox">{{ line_chart(ch, race.labels, unit="%", nd=1, y_min=0, height=260, value_labels="last", legend=True) }}</div>
+</section>
+{% endif %}
+<section>
+<h2><svg class="i"><use href="#i-chart"/></svg> My season <span class="hint">by the week the forecast was made</span></h2>
 <div class="viz2">
-  <div class="vizbox"><div class="k">my playoff odds, by the week the forecast was made</div>{{ line_chart([{"name": "playoff %", "values": rows|map(attribute='playoff')|list, "cls": "me"}], labels, unit="%", nd=1, y_min=0, y_max=100, height=200) }}</div>
-  <div class="vizbox"><div class="k">my title odds</div>{{ line_chart([{"name": "title %", "values": rows|map(attribute='champ')|list, "cls": "gold"}], labels, unit="%", nd=1, y_min=0, height=200) }}</div>
-  <div class="vizbox"><div class="k">expected final wins <span class="muted">(of 28: two a week)</span></div>{{ line_chart([{"name": "expected final wins", "values": rows|map(attribute='exp_wins')|list, "cls": "pos"}, {"name": "wins banked so far", "values": rows|map(attribute='banked')|list, "cls": ""}], labels, unit="", nd=2, y_min=0, height=200) }}<div class="legend"><span><i style="background:var(--pos)"></i>expected final wins</span><span><i style="background:var(--rule)"></i>banked so far</span></div></div>
+  <div class="vizbox"><div class="k">my playoff odds</div>{{ line_chart([{"name": "playoff %", "values": rows|map(attribute='playoff')|list, "cls": "me"}], labels, unit="%", nd=1, y_min=0, y_max=100, width=340, height=200) }}</div>
+  <div class="vizbox"><div class="k">my title odds</div>{{ line_chart([{"name": "title %", "values": rows|map(attribute='champ')|list, "cls": "gold"}], labels, unit="%", nd=1, y_min=0, width=340, height=200) }}</div>
+  <div class="vizbox"><div class="k">expected final wins <span class="muted">(of 28: two a week)</span></div>{{ line_chart([{"name": "expected final wins", "values": rows|map(attribute='exp_wins')|list, "cls": "pos"}, {"name": "wins banked so far", "values": rows|map(attribute='banked')|list, "cls": ""}], labels, unit="", nd=2, y_min=0, width=340, height=200, legend=True) }}</div>
 </div>
+</section>
 {% endif %}
 <section>
 <h2>Every run <span class="hint">newest first</span></h2>

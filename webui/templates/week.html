@@ -50,7 +50,7 @@
 <h2><svg class="i c-gold"><use href="#i-chart"/></svg> Expected wins, week by week <span class="hint">every team · mine in green · hover a line for its name</span></h2>
 {% set n = series[0][1]|length %}{% set labels = [] %}{% for i in range(n) %}{% set _ = labels.append("wk " ~ (i + 1)) %}{% endfor %}
 {% set data = [] %}{% for t, v in series %}{% set _ = data.append({"name": t|real, "values": v, "cls": ("me" if t == my_team else "")}) %}{% endfor %}
-<div class="vizbox">{{ line_chart(data, labels, unit="", nd=1, y_min=0, height=260, marker=(week - 1) if week and week - 1 < n else None) }}
+<div class="vizbox">{{ line_chart(data, labels, unit="", nd=1, y_min=0, height=280, marker=(week - 1) if week and week - 1 < n else None) }}
 <div class="legend"><span><i style="background:var(--turf)"></i>{{ my_team|real }}</span><span><i style="background:var(--rule)"></i>every other team</span><span>y = expected cumulative wins (two games a week)</span></div>
 </div>
 </section>
