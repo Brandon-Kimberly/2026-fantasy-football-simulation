@@ -220,3 +220,13 @@
 {"injury_body_part": "Knee", "injury_status": "Questionable", "name": "De'Von Achane", "player_id": "9226", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Neon Walruses", "week": 3}
 {"injury_body_part": "Finger", "injury_status": "Out", "name": "Adonai Mitchell", "player_id": "11625", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Polar Yetis", "week": 3}
 {"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Nick Emmanwori", "player_id": "12597", "practice_participation": null, "recorded_at": "2026-09-27T18:33:03Z", "team": "Turbo Llamas", "week": 3}
+{"injury_body_part": "Hamstring", "injury_status": "Out", "name": "Travis Etienne", "player_id": "7543", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Cosmic Badgers", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Jihaad Campbell", "player_id": "12566", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": "Concussion", "injury_status": "Questionable", "name": "RJ Harvey", "player_id": "12489", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Zay Flowers", "player_id": "9997", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Iron Wombats", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Brock Bowers", "player_id": "11604", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": "Knee", "injury_status": "Out", "name": "De'Von Achane", "player_id": "9226", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": "Ankle", "injury_status": "Out", "name": "Justin Jefferson", "player_id": "6794", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Ribs", "injury_status": "Out", "name": "Mike Evans", "player_id": "2216", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Thigh", "injury_status": "Out", "name": "Breece Hall", "player_id": "8155", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Quantum Ferrets", "week": 3}
+{"injury_body_part": "Quadriceps", "injury_status": "Out", "name": "Jalen Coker", "player_id": "11646", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Quantum Ferrets", "week": 3}
