@@ -35,7 +35,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 - A result the standings contradict. Week 2's box scores give Quantum Ferrets the win over Cosmic Badgers (148.52 to 144.19), but the league's standings record a loss.
   - The standings' season points only add up at the scores before a later stat correction.
   - Pages now flag such a result instead of stating it.
-  - Open question for the owner: the Accuracy page still scores that game from the box score.
+  - **Owner ruling (2026-09-28): the league's record as played decides.** `scripts.as_played_record` rebuilt weeks 1–2 from the frozen snapshot. The rebuild matches every team's banked wins exactly. Every page, Accuracy included, now counts week 2 as the loss. Accuracy's weeks 1–2 *points* are still compared across the scoring change; F83 records that as not yet corrected.
 - Twenty web tests error instead of skipping on a bare install without Flask. They import fixtures inside a Flask probe.
   - This predates the roadmap. The README's no-Flask skip count is right, but its "not a failure" is not.
 
