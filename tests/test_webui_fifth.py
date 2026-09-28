@@ -166,7 +166,7 @@ class TestPages(unittest.TestCase):
             lede = re.search(r'<p class="lede">(.*?)</p>', body, re.S).group(1)
             self.assertLess(len(lede), 600, "the STALE lede is a sentence, not the degraded list")
             self.assertNotIn("x 29 fell back", lede)                                                # B8
-            self.assertIn("What fell back", body)
+            self.assertIn("Sync warnings", body)            # UI-F2: warnings, not sources
             form = self.get("/tools/weekly_report")
             self.assertNotIn("<li>WARNING | x 29", form)
             r = self.client().post("/tools/weekly_report", data={"_csrf": "tok", "team": MY_TEAM})
