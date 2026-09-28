@@ -1987,7 +1987,8 @@ The research reports cite more; these are the ones items above depend on.
 
 **Commercial**
 - ESPN 2025 features: https://www.espn.com/fantasy/football/story/_/id/45844949/2025-fantasy-football-where-play-new-features-espn
-- Sleeper's rebuilt win probability: https://x.com/SleeperHQ/status/1539650745812676609
+- Sleeper's rebuilt win probability: SleeperHQ's post on X, June 2022 (the status URL is
+  left out: its 19-digit id is Sleeper-shaped and trips the F37 identifier guard)
 - Sleeper's 2018 navigation reversal: https://sleeper.com/blog/upcoming-redesign/
 - Sleeper's median game: https://support.sleeper.com/en/articles/3971690-extra-game-each-week-against-league-median
 - Yahoo Assistant GM: https://sports.yahoo.com/fantasy/article/introducing-assistant-gm-a-smart-new-feature-exclusive-to-yahoo-fantasy-plus-subscribers-125543697.html
