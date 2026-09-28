@@ -232,6 +232,7 @@
         <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
         <div class="s">to make the playoffs{% if f.playoff_standard_error %} · {{ f.playoff_standard_error|se }}{% endif %}</div>
         {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
+        {% if my_move and my_move.d_playoff is not none %}<div class="s"><b class="{{ 'pos' if my_move.d_playoff > 0 else ('neg' if my_move.d_playoff < 0) }}">{{ my_move.d_playoff|signed(1) }}</b> since the week-{{ prev_week }} forecast{% for x in my_move.results %} · week {{ x.week }}: {{ 'won' if x.h2h == 'W' else ('lost' if x.h2h == 'L' else 'tied') }} head-to-head, {{ 'beat' if x.median == 'W' else ('missed' if x.median == 'L' else 'tied') }} the median{% endfor %} · <a href="/forecasts">what it did to everyone</a></div>{% endif %}
       </div>
     </div>
     {% if seed and seed.rows %}

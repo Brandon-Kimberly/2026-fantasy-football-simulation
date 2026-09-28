@@ -24,7 +24,7 @@ from webui import accuracy as accuracymod
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
-                          odds_at, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
+                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
 from webui.names import Overlay
@@ -435,7 +435,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                          "exp_wins": mine.get("exp_wins"), "champ": mine.get("champ"), "banked": mine.get("banked"),
                          "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
-        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM))
+        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM), moves=odds_moves(root))
 
     @app.route("/forecasts/week-<int:week>")
     @app.route("/weeks/<int:week>")

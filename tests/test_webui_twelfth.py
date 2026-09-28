@@ -517,8 +517,9 @@ class TestWhatEachResultDid(unittest.TestCase):
                 self.assertIn("−2.5", body.replace("-2.5", "−2.5"))
 
     def test_home_says_what_the_last_week_did_to_my_odds(self):
-        body = self.get("/", "simple")
-        self.assertIn("+13.5 since the week-2 forecast", body)
+        import re
+        text = re.sub(r"<[^>]+>", "", self.get("/", "simple"))          # what the reader sees
+        self.assertIn("+13.5 since the week-2 forecast", text)
 
 
 if __name__ == "__main__":

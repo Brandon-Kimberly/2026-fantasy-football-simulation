@@ -1,9 +1,17 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
 {% block title %}Forecasts · {{ brand }}{% endblock %}
 {% block body %}
 <style>
 .trend { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
 .trend .mini { width: 72px; flex: none; }
+.res { display: inline-flex; gap: 4px; } .res span { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--rule); color: var(--ink-2); }
+.res span.W { color: var(--turf); border-color: currentColor; } .res span.L { color: var(--neg); border-color: currentColor; }
+.div { position: relative; display: inline-block; width: 120px; height: 8px; background: var(--mid); border-radius: 4px; vertical-align: middle; margin-right: 8px; }
+.div::after { content: ""; position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--muted); }
+.div i { position: absolute; top: 0; bottom: 0; border-radius: 4px; }
+.div i.pos { left: 50%; background: var(--pos); } .div i.neg { right: 50%; background: var(--neg); }
+.dnum { display: inline-block; min-width: 44px; text-align: right; }
 </style>
 <div class="head"><p class="eyebrow">season forecasts · one per simulated week</p><h1>Forecasts</h1><p class="lede">How my season looked from each week the model ran. A later week never overwrites an earlier one, so this reads as the odds moving through the season; open a week for every team's numbers and the charts.</p></div>
 {% if rows %}
@@ -19,6 +27,19 @@
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Title-odds race <span class="hint">the same, for winning it all</span></h2>
 {% set ch = [] %}{% for s in race.champ %}{% set _ = ch.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
 <div class="vizbox">{{ line_chart(ch, race.labels, unit="%", nd=1, y_min=0, height=260, value_labels="last", legend=True) }}</div>
+</section>
+{% endif %}
+{% if moves and moves.rows %}
+<section>
+<h2><svg class="i c-warm"><use href="#i-trend"/></svg> What week{{ 's' if moves.week - moves.prev > 1 }} {{ moves.prev }}{% if moves.week - moves.prev > 1 %}–{{ moves.week - 1 }}{% endif %} did <span class="hint">each team's odds in the week-{{ moves.prev }} forecast against the week-{{ moves.week }} one · the change carries the results and every roster move in between</span></h2>
+{% set dmax = [moves.rows|map(attribute='d_playoff')|map('abs')|max, 1.0]|max %}
+<div class="scroller"><table><thead><tr><th>Team</th><th>Results</th><th class="num">Playoff odds</th><th class="num">Change</th><th class="num">Title change</th></tr></thead><tbody>
+{% for r in moves.rows %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td>
+<td>{% for x in r.results %}<span class="res" title="week {{ x.week }}: head-to-head {{ x.h2h or '?' }}, median {{ x.median or '?' }}"><span class="{{ x.h2h }}">{{ x.h2h or '?' }}</span><span class="{{ x.median }}">{{ x.median or '?' }} med</span></span>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+<td class="num">{{ r.playoff_was|num(1) }}% → <b>{{ r.playoff|num(1) }}%</b></td>
+<td class="num">{% if r.d_playoff is not none %}<span class="div"><i class="{{ 'pos' if r.d_playoff > 0 else 'neg' }}" style="width:{{ (50 * (r.d_playoff|abs) / dmax)|round(1) }}%"></i></span><b class="dnum {{ 'pos' if r.d_playoff > 0 else ('neg' if r.d_playoff < 0) }}">{{ r.d_playoff|signed(1) }}</b>{% else %}<span class="muted">—</span>{% endif %}</td>
+<td class="num">{% if r.d_champ is not none %}<span class="{{ 'pos' if r.d_champ > 0 else ('neg' if r.d_champ < 0) }}">{{ r.d_champ|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
 </section>
 {% endif %}
 <section>

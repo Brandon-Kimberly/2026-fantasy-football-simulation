@@ -408,7 +408,8 @@ def home_report(root, my_team, runner=None):
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,
             "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
-            "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"]}
+            "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"],
+            "my_move": (odds_moves(root, ow)["teams"].get(my_team) if ow else None)}
 
 
 def _seed_no(key):
