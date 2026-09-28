@@ -230,3 +230,4 @@
 {"injury_body_part": "Ribs", "injury_status": "Out", "name": "Mike Evans", "player_id": "2216", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Polar Yetis", "week": 3}
 {"injury_body_part": "Thigh", "injury_status": "Out", "name": "Breece Hall", "player_id": "8155", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Quantum Ferrets", "week": 3}
 {"injury_body_part": "Quadriceps", "injury_status": "Out", "name": "Jalen Coker", "player_id": "11646", "practice_participation": null, "recorded_at": "2026-09-28T20:14:38Z", "team": "Quantum Ferrets", "week": 3}
+{"injury_body_part": "Knee - ACL", "injury_status": "IR", "name": "De'Von Achane", "player_id": "9226", "practice_participation": null, "recorded_at": "2026-09-28T20:38:01Z", "team": "Neon Walruses", "week": 3}
