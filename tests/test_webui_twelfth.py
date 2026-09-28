@@ -2,6 +2,11 @@
 tests.test_webui_twelfth -- the web UI roadmap's first wave (docs/WEB_UI_ROADMAP.md),
 server side. The browser half lives in tests.test_webui_browser.
 
+UI-F4: "my record 2-2 · head-to-head plus the median game" -- in a median league those are two
+contests, and a combined record hides which one a team is winning. The split comes from the
+weekly actuals, and is shown only when it accounts for exactly the wins the league's
+standings report (F84: the standings are the authority; the actuals can lag a week).
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -15,7 +20,7 @@ import os
 import tempfile
 import unittest
 
-from webui.glance import freshness_report, kickoff_report, sync_phrase
+from webui.glance import freshness_report, kickoff_report, records, sync_phrase
 from webui.paths import Root
 
 try:
@@ -127,6 +132,94 @@ class TestSystemCountsSourcesAndWarningsApart(unittest.TestCase):
 
     def test_the_system_lede_says_what_happened(self):
         self.assertIn("1 source failed, and the sync raised 30 warnings", self.get("/system"))
+
+
+def _actuals(root, weeks, standings=None):
+    """weeks: [{team: (h2h_win, median_win)}]; standings: {team: combined wins}."""
+    d = os.path.join(root, "data", "current")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, "weekly_actuals.json"), "w", encoding="utf-8") as fh:
+        json.dump({f"week_{i + 1}": {"median_cutoff": 140.0, "team_results": {
+            t: {"points_scored": 150.0, "h2h_win": h, "median_win": m} for t, (h, m) in wk.items()}}
+            for i, wk in enumerate(weeks)}, fh)
+    if standings is not None:
+        with open(os.path.join(d, "league_standings.json"), "w", encoding="utf-8") as fh:
+            json.dump({t: {"h2h_wins": w, "points_scored": 300.0, "remaining_faab": 90} for t, w in standings.items()}, fh)
+
+
+A, B = "Quantum Ferrets", "Neon Walruses"
+
+
+class TestRecords(unittest.TestCase):
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def test_head_to_head_median_and_combined_are_counted_apart(self):
+        _actuals(self.td.name, [{A: (1.0, 0), B: (0.0, 1)}, {A: (1.0, 0), B: (0.0, 1)}, {A: (0.0, 1), B: (1.0, 0)}],
+                 {A: 3, B: 3})
+        r = records(self.root)
+        self.assertEqual((r[A]["h2h"]["text"], r[A]["median"]["text"], r[A]["combined"]["text"]), ("2–1", "1–2", "3–3"))
+        self.assertEqual((r[B]["h2h"]["text"], r[B]["median"]["text"]), ("1–2", "2–1"))
+        self.assertTrue(r[A]["agrees"])
+
+    def test_a_tie_is_a_tie(self):
+        _actuals(self.td.name, [{A: (0.5, 1), B: (0.5, 0)}], {A: 1, B: 0})
+        r = records(self.root)
+        self.assertEqual(r[A]["h2h"]["text"], "0–0–1")
+        self.assertEqual(r[A]["combined"]["text"], "1–0–1")
+
+    def test_actuals_that_lag_the_standings_do_not_agree(self):
+        _actuals(self.td.name, [{A: (1.0, 1)}], {A: 3})          # the standings already count a later week
+        self.assertFalse(records(self.root)[A]["agrees"])
+
+    def test_nothing_played(self):
+        self.assertEqual(records(self.root), {})
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestLeagueShowsTheSplit(unittest.TestCase):
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def get(self, path, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        r = app.test_client().get(path)
+        self.assertEqual(r.status_code, 200, path)
+        return r.get_data(as_text=True)
+
+    def test_my_record_tile_splits_head_to_head_from_the_median(self):
+        _actuals(self.td.name, [{A: (1.0, 0), B: (0.0, 1)}, {A: (1.0, 0), B: (0.0, 1)}], {A: 2, B: 2})
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                body = self.get("/league", mode)
+                self.assertIn("2–0 head-to-head · 0–2 against the median", body)
+                self.assertNotIn("head-to-head plus the median game", body)
+
+    def test_the_standings_carry_both_records(self):
+        _actuals(self.td.name, [{A: (1.0, 0), B: (0.0, 1)}, {A: (1.0, 0), B: (0.0, 1)}], {A: 2, B: 2})
+        body = self.get("/league")
+        self.assertIn(">Head-to-head</th>", body)
+        self.assertIn(">Median</th>", body)
+        self.assertIn('data-sort="2">2–0</td>', body)
+
+    def test_when_the_actuals_lag_the_tile_says_so_instead_of_splitting_wrongly(self):
+        _actuals(self.td.name, [{A: (1.0, 0), B: (0.0, 1)}], {A: 3, B: 1})
+        body = self.get("/league")
+        self.assertNotIn("1–0 head-to-head", body)
+        self.assertIn("combined; the split arrives with the next sync", body)
 
 
 if __name__ == "__main__":

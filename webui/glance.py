@@ -62,6 +62,43 @@ def freshness_report(root):
             "phrase": sync_phrase(n_bad, n_fell, len((manifest or {}).get("degraded") or []))}
 
 
+def _wlt(w, l, t):
+    return {"w": w, "l": l, "t": t, "text": f"{w}–{l}" + (f"–{t}" if t else "")}
+
+
+def records(root):
+    """UI-F4: each team's head-to-head, median and combined records from the weekly
+    actuals. In a median league those are two contests a week, and the standings' one
+    number (`h2h_wins`, which despite its name counts both) hides which one a team is
+    winning. The standings stay the authority on the total (F84); `agrees` says whether
+    the actuals account for exactly the wins the standings report, and a page shows the
+    split only when they do -- the actuals can lag a week behind."""
+    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    standings = root.read_json("current/league_standings.json", {}) or {}
+    tally = {}
+    for key, wk in actuals.items():
+        if not str(key).startswith("week_") or not isinstance(wk, dict):
+            continue
+        for team, r in (wk.get("team_results") or {}).items():
+            t = tally.setdefault(team, {"h2h": [0, 0, 0], "median": [0, 0, 0], "weeks": 0})
+            t["weeks"] += 1
+            for kind, field in (("h2h", "h2h_win"), ("median", "median_win")):
+                v = (r or {}).get(field)
+                if v is None:
+                    continue
+                v = float(v)
+                t[kind][0 if v >= 1 else (1 if v <= 0 else 2)] += 1
+    out = {}
+    for team, t in tally.items():
+        comb = [a + b for a, b in zip(t["h2h"], t["median"])]
+        row = standings.get(team) or {}
+        stated = row.get("h2h_wins")
+        agrees = stated is None or int(float(stated)) == comb[0]
+        out[team] = {"h2h": _wlt(*t["h2h"]), "median": _wlt(*t["median"]), "combined": _wlt(*comb),
+                     "weeks": t["weeks"], "agrees": agrees}
+    return out
+
+
 def sync_phrase(n_bad, n_fell, n_warn):
     """UI-F2: what the last sync did, with SOURCES and WARNINGS counted apart. The manifest's
     `degraded` list is warnings (name collisions, carried baselines, depth-chart
