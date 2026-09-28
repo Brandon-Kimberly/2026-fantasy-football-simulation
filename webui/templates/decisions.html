@@ -21,6 +21,10 @@
 .filters button { padding: 5px 11px; font-size: 11px; background: var(--surface); color: var(--ink-2); border: 1px solid var(--grid); }
 .filters button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
 .ledger .b i { background: var(--g-turf); } .ledger .b.neg i { background: var(--neg); }
+.awards .card.award { border-top: 3px solid var(--turf); } .awards .card.award.neg { border-top-color: var(--neg); }
+.awards .card .k { font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); }
+.awards .card .v { font-family: var(--display); font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin: 4px 0 6px; font-variant-numeric: tabular-nums; }
+.awards .card .s { font-size: 13px; line-height: 1.5; }
 @media (max-width: 720px) { .dec { grid-template-columns: 1fr; } .dec .fx { text-align: left; } }
 </style>
 <div class="head">
@@ -36,6 +40,20 @@
   {"k": "my title odds, net of my moves", "v": (my_row.champ|signed(1) ~ " pts") if my_row else "—", "s": ("± " ~ my_row.champ_se|num(1)) if my_row else "", "tone": ("pos" if my_row.champ > 0 else ("neg" if my_row.champ < 0 else "")) if my_row else ""}
 ]) }}
 
+{% if awards and awards.best %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-award"/></svg> Awards <span class="hint">the single move that moved a team's playoff chances most, either way</span></h2>
+<div class="cards wide awards">
+{% for key, title, tone in (("best", "Move of the season", "pos"), ("worst", "Ouch of the season", "neg"), ("best_week", "Move of week " ~ awards.week|string, "pos"), ("worst_week", "Ouch of week " ~ awards.week|string, "neg")) %}{% set p = awards[key] %}
+{% if p and not (key == 'best_week' and p.id == awards.best.id and p.team == awards.best.team) and not (key == 'worst_week' and p.id == awards.worst.id and p.team == awards.worst.team) %}
+<div class="card award {{ tone }}"><div class="k">{{ title }}</div><div class="v {{ tone }}">{{ p.playoff|signed(1) }} <span class="muted small">pts</span></div>
+<div class="s">{{ mark(p.team) }}{{ teamlink(p.team) }} · {{ p.label }}{% if p.week %} · week {{ p.week }}{% endif %}</div>
+<div class="s muted">{% if p.adds %}in: {{ p.adds|map(attribute='name')|join(', ') }}{% endif %}{% if p.drops %}{% if p.adds %} · {% endif %}out: {{ p.drops|map(attribute='name')|join(', ') }}{% endif %}{% if p.playoff_se %} · ± {{ p.playoff_se|num(1) }}{% endif %}</div></div>
+{% endif %}{% endfor %}
+</div>
+</section>
+{% endif %}
+
 {% if chart %}
 <section>
 <h2><svg class="i"><use href="#i-chart"/></svg> My moves, added up <span class="hint">cumulative change in my playoff probability, in percentage points, move by move</span></h2>
@@ -47,7 +65,8 @@
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Who has helped themselves <span class="hint">each team's own moves, summed · playoff percentage points</span></h2>
 {% set lmax = [(ledger|map(attribute='playoff')|map('abs')|max), 0.5]|max %}
-<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
+<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ sparkline(timelines.get(L.team), hue=L.team|hue) }} {{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
+<p class="small muted" style="margin-top:8px">The small line is the team's own moves added up in order, oldest to newest.</p>
 <p class="small muted" style="margin-top:8px">A trade counts for both sides. ± is the combined batch-to-batch spread of the evaluations; a team whose bar is inside its ± has not measurably moved.</p>
 </section>
 {% endif %}

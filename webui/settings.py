@@ -22,6 +22,7 @@ import threading
 
 MODES = ("dev", "simple")
 DEFAULT_MODE = "dev"
+THEMES = ("system", "light", "dark")      # U11: the theme is a choice, not only the OS preference
 
 
 class Settings:
@@ -56,3 +57,19 @@ class Settings:
 
     def toggle(self):
         return self.set_mode("simple" if self.mode == "dev" else "dev")
+
+    @property
+    def theme(self):
+        t = self._read().get("theme")
+        return t if t in THEMES else "system"
+
+    def set_theme(self, theme):
+        if theme not in THEMES:
+            raise ValueError(theme)
+        with self._lock:
+            d = self._read()
+            d["theme"] = theme
+            os.makedirs(os.path.dirname(self.path), exist_ok=True)
+            with open(self.path, "w", encoding="utf-8") as fh:
+                json.dump(d, fh, indent=1)
+        return theme

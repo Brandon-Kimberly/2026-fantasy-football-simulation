@@ -28,7 +28,7 @@ from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
-from webui.settings import MODES, Settings
+from webui.settings import MODES, THEMES, Settings
 from webui.players import PlayerIndex
 from webui.tools import (ENGINE, SIMPLE_TOOLS, TOOLS, FormError, get as get_tool, label_for, resolve_form,
                          simple_fields)
@@ -218,7 +218,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
                 "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc)),
-                "job_now": runner.current() if runner is not None else None}     # U3: the job bar on every page
+                "job_now": runner.current() if runner is not None else None,     # U3: the job bar on every page
+                "theme": settings.theme, "palette": _palette(mode)}              # U11 / U4
 
     @app.before_request
     def _host_check():
@@ -243,6 +244,79 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if path.startswith("/file/") and request.args.get("raw") == "1" and not path.endswith(".png"):
             return render_template("error.html", code=404, message="Raw files are part of the developer view."), 404
         return None
+
+    def _palette(mode):
+        """U4: what the command palette can jump to in THIS view -- its pages, its tools,
+        the teams. Pseudonyms in; the page applies the overlay before showing them."""
+        items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV if mode == "dev" else NAV_SIMPLE)]
+        items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
+        for name, t in TOOLS.items():
+            if mode == "dev" or name in SIMPLE_TOOLS:
+                items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}", "d": t.question})
+        if mode == "dev":
+            for name in ENGINE:
+                items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}"})
+        standings = root.read_json("current/league_standings.json", {}) or {}
+        for team in standings:
+            items.append({"k": "team", "t": overlay.text(team), "h": f"/league#t-{render.slug(team)}"})
+        return items
+
+    @app.route("/theme", methods=["POST"])
+    def set_theme():
+        """U11: system / light / dark, stored beside the mode; every page stamps it on <html>."""
+        require_csrf()
+        want = request.form.get("theme")
+        if want not in THEMES:
+            abort(400)
+        settings.set_theme(want)
+        back = request.form.get("back") or "/"
+        return redirect(back if back.startswith("/") and not back.startswith("//") else "/")
+
+    @app.route("/manifest.webmanifest")
+    def manifest():
+        """U12: installs as an app (its own window and icon) from the local name."""
+        body = json.dumps({"name": brand.NAME, "short_name": brand.NAME, "start_url": "/", "scope": "/",
+                           "display": "standalone", "background_color": "#f9f9f7", "theme_color": "#2e7d4f",
+                           "description": brand.TAGLINE,
+                           "icons": [{"src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any"}]})
+        return Response(body, mimetype="application/manifest+json")
+
+    @app.route("/icon.svg")
+    def icon():
+        svg = ("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'>"
+               "<defs><linearGradient id='g' x1='0' y1='0' x2='1' y2='1'><stop offset='0' stop-color='#2e7d4f'/>"
+               "<stop offset='.55' stop-color='#2a78d6'/><stop offset='1' stop-color='#6b5bd2'/></linearGradient></defs>"
+               "<rect width='64' height='64' rx='14' fill='url(#g)'/>"
+               "<ellipse cx='32' cy='32' rx='22' ry='14' transform='rotate(-35 32 32)' fill='#fff' fill-opacity='.95'/>"
+               "<path d='M22 38 L42 26 M27 32 l3 3 M31 29.5 l3 3 M35 27 l3 3' stroke='#2e7d4f' stroke-width='2.4' stroke-linecap='round' fill='none'/></svg>")
+        return Response(svg, mimetype="image/svg+xml")
+
+    @app.route("/api/player")
+    def api_player():
+        """U5: one player's card -- position, NFL team, owner, projection, bye, status, and
+        VORP when the newest roster_grades record carries him. 404 when unknown."""
+        name = (request.args.get("name") or "").strip()
+        if not name:
+            abort(404)
+        idx = PlayerIndex.for_root(root)
+        p = idx._by_fold.get(name.casefold())
+        if not p:
+            abort(404)
+        base = (root.read_json("current/player_baselines.json", {}) or {}).get(p["name"]) or {}
+        status = base.get("injury_status")
+        if not status and p.get("owner"):
+            for e in (root.read_json("current/live_rosters.json", {}) or {}).get(p["owner"]) or []:
+                if e.get("name") == p["name"]:
+                    status = e.get("injury_status")
+        vorp = tier = None
+        rv = roster_vorp(root)
+        if rv and p.get("owner"):
+            pr = (rv["players"].get(p["owner"]) or {}).get(p["name"]) or {}
+            vorp, tier = pr.get("vorp"), pr.get("tier")
+        return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+                "owner": overlay.text(p["owner"]) if p.get("owner") else None,
+                "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
+                "vorp": vorp, "tier": tier}
 
     @app.route("/mode", methods=["POST"])
     def set_mode():
@@ -592,7 +666,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/jobs")
     def jobs():
         jobs = [dict(m, seconds=_elapsed(m)) for m in runner.list()]
-        return render_template("jobs.html", jobs=jobs, current=runner.current())
+        durations = {}                                              # U13: per tool, oldest first, finished OK only
+        for m in sorted(jobs, key=lambda m: m.get("started_at") or ""):
+            if m.get("state") == "OK" and m.get("seconds") is not None:
+                durations.setdefault(m.get("tool"), []).append(m["seconds"])
+        durations = {t: v[-12:] for t, v in durations.items() if len(v) >= 2}
+        return render_template("jobs.html", jobs=jobs, current=runner.current(), durations=durations)
 
     @app.route("/jobs/<slug>/<stamp>")
     def job_pretty(slug, stamp):
