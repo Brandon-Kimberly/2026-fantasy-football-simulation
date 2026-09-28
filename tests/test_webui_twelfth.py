@@ -7,6 +7,10 @@ contests, and a combined record hides which one a team is winning. The split com
 weekly actuals, and is shown only when it accounts for exactly the wins the league's
 standings report (F84: the standings are the authority; the actuals can lag a week).
 
+UI-F6: the player card labelled the SEASON baseline "projection" -- the week-versus-season
+trap. It now says "season mean", and adds this week's price where a lineup or matchup
+record priced the player for the current week (webui.live.expectations' precedence).
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -220,6 +224,47 @@ class TestLeagueShowsTheSplit(unittest.TestCase):
         body = self.get("/league")
         self.assertNotIn("1–0 head-to-head", body)
         self.assertIn("combined; the split arrives with the next sync", body)
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestPlayerCardSeparatesWeekFromSeason(unittest.TestCase):
+    def setUp(self):
+        from tests.test_webui_live import plant as plant_live
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        plant_live(self.td.name)                 # baselines + a week-3 lineup record pricing one QB at 24.0
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def card(self, name):
+        st = Settings(self.root)
+        st.set_mode("dev")
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        r = app.test_client().get("/api/player", query_string={"name": name})
+        self.assertEqual(r.status_code, 200, name)
+        return r.get_json()
+
+    def test_a_player_priced_this_week_carries_both_numbers(self):
+        c = self.card("Patrick Mahomes")
+        self.assertEqual(c["mean"], 20.0, "the season baseline, unchanged")
+        self.assertEqual((c["week"], c["week_mean"], c["week_source"]), (3, 24.0, "lineup record"))
+        self.assertEqual(c["week_stamp"], "20260924T165331Z")
+
+    def test_a_player_priced_only_by_the_baseline_has_no_week_number(self):
+        c = self.card("Jalen Coker")
+        self.assertEqual(c["mean"], 10.0)
+        self.assertIsNone(c["week_mean"])
+
+    def test_the_card_script_never_calls_the_baseline_a_projection(self):
+        with open("webui/templates/base.html", encoding="utf-8") as fh:
+            js = fh.read().split("function pcShow", 1)[1].split("function ", 1)[0]
+        self.assertNotIn("<span>projection</span>", js)
+        self.assertIn("season mean", js)
+        self.assertIn("week_mean", js)
 
 
 if __name__ == "__main__":
