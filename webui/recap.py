@@ -18,7 +18,7 @@ A week with no results has no review. Reads only.
 from webui.accuracy import _first_kickoff
 from webui.glance import decisions_report, odds_moves
 from webui.objects import _jsonl_by_pid, week_games
-from webui.results import week_results
+from webui.results import rescaled_weeks, week_results
 
 EMPTY = {"awards": [], "surprises": [], "movers": [], "best_move": None, "league_surprise": None}
 
@@ -104,4 +104,5 @@ def week_recap(root, week, my_team):
         if d.get("week") == week and fx and fx.get("playoff") is not None and (best is None or fx["playoff"] > best["actor_effect"]["playoff"]):
             best = d
     surprises, mean = _surprises(root, week)
-    return {"awards": awards, "surprises": surprises, "movers": movers, "best_move": best, "league_surprise": mean}
+    return {"awards": awards, "surprises": surprises, "movers": movers, "best_move": best, "league_surprise": mean,
+            "rescaled": week in rescaled_weeks(root)}
