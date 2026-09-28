@@ -74,6 +74,35 @@ def quoted(rows, week, kickoff):
     return best
 
 
+def quoted_week(root, week):
+    """UI-Q2: THE forecast the model quoted for `week` -- the same row report() scores --
+    so a page showing "what the model said at the time" can never disagree with Accuracy."""
+    try:
+        wk = int(week)
+    except (TypeError, ValueError):
+        return None
+    return quoted(_prediction_rows(root), wk, _first_kickoff(root).get(wk))
+
+
+def chances_in(row, team):
+    """{h2h, median}: `team`'s quoted chance to win its game and to beat the median, from one
+    quoted row; None when there is no row."""
+    if not row:
+        return None
+    h2h = None
+    for m in row.get("matchups") or []:
+        if m.get("a") == team:
+            h2h = m.get("p_a")
+        elif m.get("b") == team:
+            h2h = m.get("p_b")
+    med = ((row.get("median") or {}).get(team) or {}).get("p_beat_median")
+    return {"h2h": h2h, "median": med}
+
+
+def quoted_chances(root, week, team):
+    return chances_in(quoted_week(root, week), team)
+
+
 def _sd(values):
     """Sample standard deviation; None below two values."""
     n = len(values)

@@ -30,6 +30,10 @@ UI-O3: what each result cost or bought -- every team's change in playoff and tit
 one forecast to the next, beside the week's results that sit between them. Never a zero
 where there is no earlier forecast to compare with.
 
+UI-Q2: beside a past result, what the model said at the time -- from the same quoted row the
+Accuracy page scores (the newest committed forecast logged before the week's first
+kickoff), through one shared helper, so the two can never disagree.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -492,12 +496,46 @@ class TestWhatEachResultDid(unittest.TestCase):
         self.assertEqual(r.status_code, 200, path)
         return r.get_data(as_text=True)
 
+    def plant_quote(self, logged_at="2026-09-16T10:00:00Z", canonical=True):
+        """Week 2 kicked off 2026-09-17T00:15Z; the model quoted A 62% against B, and A 45% to
+        beat the median."""
+        with open(os.path.join(self.td.name, "data", "current", "nfl_schedule.json"), "w", encoding="utf-8") as fh:
+            json.dump({"_meta": {"kickoffs": {"2": ["2026-09-17T00:15Z"], "3": ["2026-09-24T00:15Z"]}}}, fh)
+        os.makedirs(os.path.join(self.td.name, "data", "logs"), exist_ok=True)
+        row = {"record_type": "week_predictions", "week": 2, "logged_at": logged_at, "canonical": canonical,
+               "matchups": [{"a": A, "b": B, "p_a": 0.62, "p_b": 0.38, "se": 0.007}],
+               "median": {A: {"p_beat_median": 0.45}, B: {"p_beat_median": 0.55}}}
+        with open(os.path.join(self.td.name, "data", "logs", "predictions_2026.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write(json.dumps(row) + "\n")
+
+    def test_each_result_carries_what_the_model_said_before_kickoff(self):
+        from webui import accuracy
+        self.plant_quote()
+        root = Root(self.td.name)
+        self.assertEqual(accuracy.quoted_chances(root, 2, A), {"h2h": 0.62, "median": 0.45})
+        self.assertEqual(accuracy.quoted_chances(root, 2, B), {"h2h": 0.38, "median": 0.55})
+        r = odds_moves(root)["teams"][A]["results"][0]
+        self.assertEqual((r["p_h2h"], r["p_median"]), (0.62, 0.45))
+
+    def test_a_forecast_logged_after_kickoff_is_never_quoted(self):
+        from webui import accuracy
+        self.plant_quote(logged_at="2026-09-18T10:00:00Z")
+        self.assertIsNone(accuracy.quoted_chances(Root(self.td.name), 2, A))
+        self.assertIsNone(odds_moves(Root(self.td.name))["teams"][A]["results"][0]["p_h2h"])
+
+    def test_home_puts_the_quote_beside_the_result(self):
+        import re
+        self.plant_quote()
+        text = re.sub(r"<[^>]+>", "", self.get("/", "simple"))
+        self.assertIn("won head-to-head (the model had 62%)", text)
+        self.assertIn("missed the median (45%)", text)
+
     def test_the_move_between_two_forecasts_and_the_results_between_them(self):
         m = odds_moves(self.root)
         self.assertEqual((m["week"], m["prev"]), (3, 2))
         a = m["teams"][A]
         self.assertEqual((a["d_playoff"], a["d_champ"], a["playoff_was"], a["playoff"]), (13.5, 5.8, 80.0, 93.5))
-        self.assertEqual(a["results"], [{"week": 2, "h2h": "W", "median": "L"}])
+        self.assertEqual(a["results"], [{"week": 2, "h2h": "W", "median": "L", "p_h2h": None, "p_median": None}])
         self.assertEqual(m["teams"][B]["d_playoff"], -2.5)
         self.assertEqual([r["team"] for r in m["rows"]][:2], [A, B], "biggest gain first")
 
