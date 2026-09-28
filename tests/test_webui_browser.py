@@ -181,6 +181,20 @@ class TestDecisionsFilters(BrowserCase):
                 self.assertEqual(self.shown("#list .dec"), total, "Everyone must bring every row back")
 
 
+class TestLivePanelWithoutLiveScores(BrowserCase):
+    """Found 2026-09-28: with live scores not connected, the page script wrote the developer
+    message "set SLEEPER_LEAGUE_ID for this server" into the simple view -- invisible to the
+    vocabulary guard, which reads the server's HTML, not what the script writes."""
+
+    def test_the_simple_view_is_told_in_plain_words(self):
+        self.page.route("**/api/live*", lambda route: route.fulfill(json={"enabled": False, "snapshot": None, "error": None, "age_seconds": None}))
+        p = self.open("/", "simple")
+        p.evaluate("document.getElementById('live-refresh') && (document.getElementById('live-refresh').disabled = false)")
+        p.evaluate("fetch('/api/live').then(r => r.json())")
+        p.wait_for_timeout(300)
+        self.assertNotIn("SLEEPER_LEAGUE_ID", p.inner_text("#live-meta"))
+
+
 class TestSortableTables(BrowserCase):
     """League's standings said "click a column to sort", its headers had a pointer cursor and
     sort-arrow CSS -- and no script had ever sorted anything (the markup and styles arrived in
@@ -355,6 +369,27 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         text = self.page.inner_text(".plan")
         self.assertIn("+2.5 points of chance to win the game", text)
         self.assertIn("+3.0 to beat the median", text)
+
+    def test_a_pinned_bar_keeps_the_score_in_view(self):
+        """UI-M2: a slim bar -- both scores, the chance now, starters still to play -- stays
+        under the header while the long starter tables scroll."""
+        pay = live_payload(False, 0.62)
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/")
+        self.page.wait_for_selector("#livebar")
+        bar = self.page.inner_text("#livebar")
+        self.assertIn("31.5", bar)
+        self.assertIn("62.0%", bar)
+        self.assertIn("to play", bar)
+        self.assertEqual(self.page.eval_on_selector("#livebar", "e => getComputedStyle(e).position"), "sticky")
+
+    def test_old_live_data_is_flagged_during_the_games(self):
+        """UI-M7: live data more than five minutes old during the games says so."""
+        pay = dict(live_payload(False, 0.62), age_seconds=900)
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/")
+        self.page.wait_for_function("/15 min/.test(document.getElementById('live-meta').textContent)")
+        self.assertIn("older than five minutes", self.page.inner_text("#live-meta"))
 
     def test_home_states_the_result_once_decided(self):
         """UI-M1 supersedes UI-M8's "100%" here: a decided game shows its result, not a
