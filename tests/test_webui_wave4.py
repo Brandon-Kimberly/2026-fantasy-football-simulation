@@ -9,6 +9,13 @@ exact assignment to the league's 13 starting slots, byes respected), the bye wee
 leaves a slot empty, and the drop a two-for-one forces at the 19-man active limit. It says
 it is an estimate, and hands the deal to the paired simulation for the real answer.
 
+League, second pass. UI-O2 a power rating from the simulation itself: the mean of a team's
+row in the head-to-head matrix, its chance to beat an average league opponent (the matrix
+carries no standard errors, so no rank interval is invented). UI-O4 the schedule left: the
+average chance to win the games still to play, beside that rating. UI-O11 the playoff
+bracket, "if it ended today", with each seed's chance of that seed. UI-F5 a pending trade
+as its two sides, not a key/value dump.
+
 UI-M1, Home knows what day of the week it is. A fantasy week has phases and Home behaved
 the same through all of them. Before the first kickoff it previews the game and says how
 last week ended (as the league counted it -- F83); from the first kickoff the live number
@@ -172,6 +179,72 @@ class TestTradeEstimate(unittest.TestCase):
                 self.assertIn("+2.0", text)
                 self.assertIn("estimate", text)
                 self.assertIn("/tools/evaluate_trade?", body)
+                if mode == "simple":
+                    self.assertEqual([t for t in DEV_TERMS if t in text], [])
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestLeagueSecondPass(unittest.TestCase):
+    def setUp(self):
+        from tests.test_webui_objects import IW, NW, QF
+        self.QF, self.IW, self.NW = QF, IW, NW
+        self.td = tempfile.TemporaryDirectory()
+        plant(self.td.name)                 # week 3 current; QF plays IW in weeks 3-14
+        m = os.path.join(self.td.name, "data", "weeks", "week_03", "syndicate_comprehensive_matrix_week_3.json")
+        with open(m, encoding="utf-8") as fh:
+            mx = json.load(fh)
+        mx["h2h_win_probability_matrix"] = {QF: {QF: None, IW: 64.0, CB: 70.0, NW: 50.0},
+                                            IW: {QF: 36.0, IW: None, CB: 45.0, NW: 40.0}}
+        with open(m, "w", encoding="utf-8") as fh:
+            json.dump(mx, fh)
+        d = os.path.join(self.td.name, "data", "current")
+        with open(os.path.join(d, "playoff_bracket.json"), "w", encoding="utf-8") as fh:
+            json.dump({"playoff_week_start": 15, "playoff_teams": 4, "seeds": [QF, IW, CB, NW],
+                       "rounds": [{"round": 1, "match": 1, "t1": QF, "t2": NW, "winner": None},
+                                  {"round": 1, "match": 2, "t1": IW, "t2": CB, "winner": None},
+                                  {"round": 2, "match": 3, "t1": None, "t2": None, "winner": None, "place": 1}]}, fh)
+        with open(os.path.join(d, "pending_trades.json"), "w", encoding="utf-8") as fh:
+            json.dump({"_meta": {"week": 3, "n": 1}, "trades": [{"transaction_id": "p1", "week": 3, "status": "pending",
+                       "teams": [QF, IW], "players": [{"player_id": "100", "name": "Player 0 O'Neil", "to_team": IW, "from_team": QF},
+                                                      {"player_id": "106", "name": "Player 6 O'Neil", "to_team": QF, "from_team": IW}]}]}, fh)
+        self.root = Root(self.td.name)
+
+    def get(self, path, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        return app.test_client().get(path).get_data(as_text=True)
+
+    def test_power_is_the_mean_chance_to_beat_a_league_opponent(self):
+        from webui.objects import league_extras
+        p = {r["team"]: r for r in league_extras(self.root, MY_TEAM)["power"]}
+        self.assertAlmostEqual(p[self.QF]["rating"], (0.64 + 0.70 + 0.50) / 3, places=4)
+        self.assertEqual(p[self.QF]["rank"], 1)
+
+    def test_the_schedule_left_is_the_mean_chance_in_the_games_to_come(self):
+        from webui.objects import league_extras
+        p = {r["team"]: r for r in league_extras(self.root, MY_TEAM)["power"]}
+        self.assertAlmostEqual(p[self.QF]["remaining"], 0.64, places=4, msg="Iron Wombats every week from 3 to 14")
+        self.assertEqual(p[self.QF]["games_left"], 12)
+
+    def test_the_bracket_if_it_ended_today(self):
+        from webui.objects import league_extras
+        b = league_extras(self.root, MY_TEAM)["bracket"]
+        self.assertEqual([s["team"] for s in b["seeds"]], [self.QF, self.IW, CB, self.NW])
+        self.assertTrue(b["projected"])
+        self.assertAlmostEqual(b["seeds"][0]["p_seed"], 12.5, places=1, msg="the fixture's Seed 1 chance")
+
+    def test_league_shows_all_three_and_the_pending_trade_as_two_sides(self):
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                body = self.get("/league", mode)
+                text = visible_text(body)
+                for s in ("Power", "If the season ended today", "in review"):
+                    self.assertIn(s, text)
+                self.assertNotIn("transaction id", text)
+                self.assertIn("Player 6 O'Neil", body.replace("&#39;", "'"))
                 if mode == "simple":
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 

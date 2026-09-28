@@ -236,6 +236,58 @@ def player_report(root, pid, my_team):
             "range": rg, "odds_week": now["week"], "history": history, "moves": moves}
 
 
+def league_extras(root, my_team):
+    """League, second pass (UI-O2, O4, O11, F5):
+      power    each team's rating -- the mean of its row in the head-to-head matrix, its chance
+               to beat an average league opponent -- beside its record rank, and the mean chance
+               to win the games still to play (the schedule left). The matrix has no standard
+               errors, so no rank interval is claimed.
+      bracket  the playoff bracket as the sync wrote it ("if it ended today" before the
+               playoffs), each seed with the forecast's chance of finishing in that seed
+      pending  each pending trade as its sides: what each team would receive"""
+    now = odds_now(root)
+    matrix = _matrix(root, now["week"])
+    cur = _current_week(root) or 1
+    sched = _schedule(root)
+    standings = root.read_json("current/league_standings.json", {}) or {}
+    record_rank = {t: i + 1 for i, (t, _s) in enumerate(sorted(
+        standings.items(), key=lambda kv: (-float(kv[1].get("h2h_wins") or 0), -float(kv[1].get("points_scored") or 0))))}
+    power = []
+    for t in _teams(root):
+        vals = [v for v in (_chance(matrix, t, o) for o in (matrix.get(t) or {}) if o != t) if v is not None]
+        left = []
+        for i, pairs in enumerate(sched):
+            if i + 1 < cur:
+                continue
+            opp = _opponent(pairs, t)
+            c = _chance(matrix, t, opp) if opp else None
+            if c is not None:
+                left.append(c)
+        power.append({"team": t, "rating": round(sum(vals) / len(vals), 4) if vals else None,
+                      "remaining": round(sum(left) / len(left), 4) if left else None, "games_left": len(left),
+                      "record_rank": record_rank.get(t)})
+    power.sort(key=lambda r: -(r["rating"] if r["rating"] is not None else -1))
+    for i, r in enumerate(power):
+        r["rank"] = i + 1 if r["rating"] is not None else None
+    b = root.read_json("current/playoff_bracket.json", {}) or {}
+    mx = root.read_json(f"weeks/week_{int(now['week']):02d}/syndicate_comprehensive_matrix_week_{int(now['week'])}.json", {}) if now["week"] else {}
+    seeds_p = (mx or {}).get("finishing_seed_probabilities") or {}
+    bracket = None
+    if b.get("seeds"):
+        start = int(b.get("playoff_week_start") or 15)
+        bracket = {"projected": cur < start, "start": start,
+                   "seeds": [{"seed": i + 1, "team": t, "p_seed": (seeds_p.get(t) or {}).get(f"Seed {i + 1}"),
+                              "playoff": (now["teams"].get(t) or {}).get("playoff")} for i, t in enumerate(b["seeds"])],
+                   "rounds": [r for r in b.get("rounds") or [] if isinstance(r, dict)]}
+    pending = []
+    for tr in (root.read_json("current/pending_trades.json", {}) or {}).get("trades") or []:
+        if not isinstance(tr, dict):
+            continue
+        sides = [{"team": t, "gets": [p for p in tr.get("players") or [] if p.get("to_team") == t]} for t in tr.get("teams") or []]
+        pending.append({"week": tr.get("week"), "sides": sides, "mine": my_team in (tr.get("teams") or [])})
+    return {"power": power, "bracket": bracket, "pending": pending, "odds_week": now["week"], "current": cur}
+
+
 def week_games(root, week, my_team):
     """UI-A3: every game of `week` -- played ones as the league counted them, with the model's
     pre-game quote and an upset flag; the rest with the chance each side wins."""
