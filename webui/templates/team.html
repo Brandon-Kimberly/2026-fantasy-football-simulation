@@ -16,6 +16,7 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 <div class="head">
   <p class="eyebrow">team{% if rank %} · rank {{ rank }} of {{ of }}{% endif %}{% if is_mine %} · mine{% endif %}</p>
   <h1 class="thead">{{ mark(team, 'lg') }}<span>{{ team|real }}</span></h1>
+  {% if not is_mine %}<p style="margin:6px 0 0"><a class="btn ghost" href="/trade?with={{ team|slug }}"><svg class="i"><use href="#i-swap"/></svg> Propose a trade</a></p>{% endif %}
   <p class="lede">{% if standing.h2h_wins is not none %}{{ standing.h2h_wins|num(0) }} wins{% if rec and rec.agrees %} · {{ rec.h2h.text }} head-to-head · {{ rec.median.text }} against the median{% endif %} · {% endif %}{{ standing.points_scored|num(1) }} points for{% if standing.remaining_faab is not none %} · {{ standing.remaining_faab|num(0) }} of 100 budget left{% endif %}.</p>
 </div>
 

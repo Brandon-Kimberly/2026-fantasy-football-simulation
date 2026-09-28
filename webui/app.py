@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, compare as comparemod, objects, players_page as playersmod, render
+from webui import brand, compare as comparemod, objects, players_page as playersmod, render, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -347,6 +347,31 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                                positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
                                week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"])
 
+    @app.route("/trade")
+    def trade_page():
+        """UI-T1: pick a team and players; the estimate renders at once (webui.trade)."""
+        base = root.read_json("current/player_baselines.json", {}) or {}
+        rosters = root.read_json("current/live_rosters.json", {}) or {}
+        teams = [t for t in objects._teams(root) if t != MY_TEAM]
+        other = objects.team_for_slug(root, request.args.get("with", "")) if request.args.get("with") else None
+
+        def rows(team):
+            out = []
+            for e in rosters.get(team) or []:
+                b = base.get(e.get("name")) or {}
+                out.append({"name": e.get("name"), "key": str(b.get("player_id") or e.get("name")), "pos": b.get("pos") or e.get("pos"),
+                            "mean": b.get("mean"), "bye": b.get("bye"),
+                            "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or "")})
+            return sorted(out, key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
+
+        mine = rows(MY_TEAM)
+        theirs = rows(other) if other else []
+        pick = lambda vals, rs: [r["name"] for r in rs if r["key"] in vals or r["name"] in vals]   # noqa: E731
+        give, get = pick(request.args.getlist("give"), mine), pick(request.args.getlist("get"), theirs)
+        est = trademod.estimate(root, MY_TEAM, give, other, get) if other and (give or get) else None
+        return render_template("trade.html", teams=teams, other=other, mine=mine, theirs=theirs,
+                               give=give, get=get, est=est)
+
     @app.route("/players")
     def players_list():
         return _players(False)
@@ -581,7 +606,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/league")
     @app.route("/current")
     def current():
-        return render_template("current.html", vorp=roster_vorp(root), **current_report(root))
+        return render_template("current.html", vorp=roster_vorp(root), extras=objects.league_extras(root, MY_TEAM),
+                               **current_report(root))
 
     @app.route("/logs")
     def logs():

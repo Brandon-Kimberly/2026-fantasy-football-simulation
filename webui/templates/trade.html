@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink, playerlink with context %}
+{% block title %}Trade builder · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.tb { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 14px; }
+.tb .col { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 12px 14px; }
+.tb h3 { margin: 0 0 8px; display: flex; align-items: center; gap: 8px; }
+.tb label.p { display: grid; grid-template-columns: auto 1fr auto auto; gap: 10px; align-items: center; padding: 5px 4px; border-bottom: 1px solid var(--grid); cursor: pointer; font-size: 13px; }
+.tb label.p:has(input:checked) { background: color-mix(in srgb, var(--pos) 12%, transparent); }
+.tb label.p .m { color: var(--muted); font-size: 11.5px; } .tb label.p b { font-variant-numeric: tabular-nums; }
+.tsum { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 16px; }
+.tsum .card { padding: 14px 16px; } .tsum .big { font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.tsum ul { margin: 8px 0 0 1.1em; padding: 0; font-size: 13px; }
+@media (max-width: 760px) { .tb, .tsum { grid-template-columns: 1fr; } }
+</style>
+<div class="head">
+  <p class="eyebrow">trade builder</p>
+  <h1>Trade builder</h1>
+  <p class="lede">Pick a team, tick what you would give and what you would get, and see at once what the deal does to each side's best lineup for the rest of the regular season. For what it does to your playoff and title chances, send it to the full simulation.</p>
+</div>
+
+<form method="get" action="/trade" id="tform">
+  <div class="pfind" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px">
+    <label for="with">Trade with</label>
+    <select id="with" name="with">{% if not other %}<option value="">choose a team</option>{% endif %}{% for t in teams %}<option value="{{ t|slug }}"{% if t == other %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select>
+    <noscript><button type="submit">Estimate</button></noscript>
+  </div>
+  {% if other %}
+  <div class="tb">
+    <div class="col"><h3>{{ mark(my_team) }} You give</h3>
+      {% for p in mine %}<label class="p"><input type="checkbox" name="give" value="{{ p.key }}"{% if p.name in give %} checked{% endif %}><span>{{ p.name }} <span class="m">{{ p.pos }}{% if p.bye %} · bye {{ p.bye }}{% endif %}{% if p.status %} · {{ p.status }}{% endif %}</span></span><b>{{ p.mean|num(1) }}</b><span class="m">a week</span></label>{% endfor %}
+    </div>
+    <div class="col"><h3>{{ mark(other) }} You get from {{ other|real }}</h3>
+      {% for p in theirs %}<label class="p"><input type="checkbox" name="get" value="{{ p.key }}"{% if p.name in get %} checked{% endif %}><span>{{ p.name }} <span class="m">{{ p.pos }}{% if p.bye %} · bye {{ p.bye }}{% endif %}{% if p.status %} · {{ p.status }}{% endif %}</span></span><b>{{ p.mean|num(1) }}</b><span class="m">a week</span></label>{% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</form>
+
+{% if est %}{% set me = est.sides[my_team] %}{% set th = est.sides[other] %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-swap"/></svg> The quick estimate <span class="hint">best starting lineup, weeks {{ est.weeks[0] }}–{{ est.weeks[-1] }}, season averages</span></h2>
+<div class="tsum">
+  {% for s in (me, th) %}
+  <div class="card"><div class="k">{{ mark(s.team) }} {{ "Your lineup" if s.team == my_team else ("Their lineup (" ~ (s.team|real) ~ ")") }}</div>
+    <div class="big {{ 'pos' if s.per_week > 0 else ('neg' if s.per_week < 0) }}">{{ s.per_week|signed(1) }} <span class="small muted">points a week</span></div>
+    <ul>
+      <li>{{ s.total|signed(1) }} over the {{ est.weeks|length }} week{{ 's' if est.weeks|length != 1 }} left</li>
+      {% if s.new_holes %}<li class="neg">leaves a starting slot empty in week{{ 's' if s.new_holes|length != 1 }} {{ s.new_holes|join(", ") }}</li>{% endif %}
+      {% if s.over %}<li>ends at {{ s.active_after }} active players, over the limit of 19: must drop {{ s.over }}{% for d in s.drops %} -- likely {{ d.name }} ({{ d.mean|num(1) }} a week){% endfor %}</li>{% elif s.gets|length < s.gives|length %}<li>frees {{ s.gives|length - s.gets|length }} roster spot{{ 's' if s.gives|length - s.gets|length != 1 }}</li>{% endif %}
+    </ul>
+  </div>
+  {% endfor %}
+</div>
+<div class="scroller" style="margin-top:14px"><table><thead><tr><th>Week</th><th class="num">Your lineup</th><th class="num">Change</th><th class="num">{{ other|real }}</th><th class="num">Change</th></tr></thead><tbody>
+{% for i in range(est.weeks|length) %}{% set a = me.weeks[i] %}{% set b = th.weeks[i] %}<tr><td>Week {{ a.week }}</td>
+<td class="num">{{ a.before|num(1) }} → <b>{{ a.after|num(1) }}</b></td><td class="num {{ 'pos' if a.delta > 0 else ('neg' if a.delta < 0) }}">{{ a.delta|signed(1) }}</td>
+<td class="num">{{ b.before|num(1) }} → <b>{{ b.after|num(1) }}</b></td><td class="num {{ 'pos' if b.delta > 0 else ('neg' if b.delta < 0) }}">{{ b.delta|signed(1) }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:10px">A quick estimate: each side's best lineup from season averages, with byes and injured reserve left out. It knows nothing of injuries to come, matchups, or how the rest of the league moves, and it does not price playoff or title chances.</p>
+<p style="margin-top:12px"><a class="btn" href="{{ est.simulate }}"><svg class="i"><use href="#i-swap"/></svg> Run the full simulation</a> <span class="small muted">two paired runs, a few minutes</span></p>
+</section>
+{% elif other %}<p class="small muted" style="margin-top:14px">Tick at least one player on either side.</p>{% endif %}
+<script>
+(function () {   // re-estimate whenever a box or the team changes
+  var f = document.getElementById('tform');
+  if (!f) return;
+  f.addEventListener('change', function (e) {
+    if (e.target.id === 'with') { f.querySelectorAll('input[type=checkbox]').forEach(function (c) { c.checked = false; }); }
+    f.submit();
+  });
+})();
+</script>
+{% endblock %}

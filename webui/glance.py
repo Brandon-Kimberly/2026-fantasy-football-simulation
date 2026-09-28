@@ -364,6 +364,26 @@ def _week_prediction(root, week):
     return best
 
 
+def _last_result(root, team, wk):
+    """UI-M1: `team`'s most recent played week before `wk` -- opponent, the result and the
+    median result as the league counted them (webui.results), the box score (flagged when
+    re-scored), and the model's pre-kickoff quote. None before any game has been played."""
+    if not wk:
+        return None
+    res = week_results(root)
+    prev = max((w for w in res if w < wk and (res[w].get(team) or {}).get("h2h_win") is not None), default=None)
+    if prev is None:
+        return None
+    sched = root.read_json("current/league_schedule.json", []) or []
+    pairs = sched[prev - 1] if isinstance(sched, list) and 0 < prev <= len(sched) else []
+    opp = next((t for p in pairs or [] if isinstance(p, (list, tuple)) and team in p for t in p if t != team), None)
+    mine, theirs = res[prev].get(team) or {}, res[prev].get(opp) or {}
+    from webui.accuracy import chances_in, quoted_week
+    return {"week": prev, "opponent": opp, "result": _wl(mine.get("h2h_win")), "median": _wl(mine.get("median_win")),
+            "mine": mine.get("points_scored"), "theirs": theirs.get("points_scored"),
+            "rescored": bool(mine.get("rescored")), "quote": (chances_in(quoted_week(root, prev), team) or {}).get("h2h")}
+
+
 def home_report(root, my_team, runner=None):
     fr = freshness_report(root)
     week = fr["week"]
@@ -469,7 +489,10 @@ def home_report(root, my_team, runner=None):
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
             "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"],
             "my_move": (odds_moves(root, ow)["teams"].get(my_team) if ow else None),
-            "wins_range": (now["teams"].get(my_team) or {}).get("wins")}
+            "wins_range": (now["teams"].get(my_team) or {}).get("wins"),
+            # UI-M1: the week's phase, and how last week ended as the league counted it
+            "phase": "live" if (kick and kick.get("started")) else "before",
+            "last_result": _last_result(root, my_team, wk)}
 
 
 def _seed_no(key):

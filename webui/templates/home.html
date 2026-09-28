@@ -25,6 +25,7 @@
 .hero .h2h details { display: inline; } .hero .h2h summary { display: inline; cursor: pointer; color: var(--pos); } .hero .h2h ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
 
 /* the headline probability: whatever is TRUE NOW leads, and the pre-game number is a footnote */
+.lastwk { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }
 .pwin { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; gap: 18px; align-items: center; margin-top: 14px; }
 .pwin .big { font-family: var(--display); font-size: clamp(42px, 5vw, 62px); font-weight: 800; letter-spacing: -0.035em; line-height: .95; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pwin .big > span { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -50,6 +51,9 @@
 .live .lh .ctl button { padding: 6px 12px; font-size: 11px; }
 .live .lh .ctl label { font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
 .live .lh .ctl a.tv { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 6px; } .live .lh .ctl a.tv:hover { color: var(--pos); border-color: var(--pos); }
+.livebar { position: sticky; top: var(--head-h, 64px); z-index: 6; display: flex; justify-content: space-between; gap: 12px; align-items: center; margin: 12px -4px 0; padding: 6px 12px; border-radius: 10px; background: var(--surface); border: 1px solid var(--rule); box-shadow: var(--shadow); font-size: 13px; font-variant-numeric: tabular-nums; }
+.livebar i { font-style: normal; color: var(--muted); font-size: 11.5px; } .livebar .c { font-weight: 700; }
+#live-meta.stale { color: var(--warn); font-weight: 600; }
 .live .score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; margin-top: 14px; }
 .live .score .pts { font-family: var(--display); font-size: clamp(34px, 3.6vw, 46px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
 .live .score .pts.me { color: var(--turf); } .live .score .pts.them { color: var(--warm); }
@@ -203,6 +207,7 @@
     <div class="vs">vs</div>
     <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ teamlink(opponent) }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|num(1) }} pts{% endif %}</div></div></div>
   </div>
+  {% if last_result %}{% set lr = last_result %}<p class="lastwk">Last week (week {{ lr.week }}): <b class="{{ 'pos' if lr.result == 'W' else ('neg' if lr.result == 'L') }}">{{ {'W': 'won against', 'L': 'lost to', 'T': 'tied with'}.get(lr.result, 'played') }}</b> {{ teamlink(lr.opponent) }}{% if lr.mine is not none %} {{ lr.mine|num(1) }}–{{ lr.theirs|num(1) }}{% if lr.rescored %} <span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">(re-scored box score; the league's result stands)</span>{% endif %}{% endif %}{% if lr.median %} · {{ 'beat' if lr.median == 'W' else ('missed' if lr.median == 'L' else 'tied') }} the median{% endif %}{% if lr.quote is not none %} · the model had {{ (100 * lr.quote)|round(0)|int }}%{% endif %} · <a href="/matchups/week-{{ lr.week }}">every game</a></p>{% endif %}
   {% if m.p_win is not none %}
   {% set pre = (m.p_win * 100)|round(1) %}
   <div class="pwin" id="pwin" data-pre="{{ pre }}">
@@ -434,6 +439,18 @@
     var them = document.getElementById('pw-them'), bar = document.getElementById('pw-bar'), pre = document.getElementById('pw-pre');
     if (!val || s.p_win == null) { return; }
     var to = s.p_win;
+    // UI-M1: a decided game states its result; a probability is for games still being played
+    if (s.decided && s.mine && s.theirs) {
+      var a = s.mine.banked, b = s.theirs.banked;
+      val.removeAttribute('data-count');
+      val.textContent = a > b ? 'Won' : (a < b ? 'Lost' : 'Tied');
+      lab.textContent = 'final · ' + n1(a) + '–' + n1(b);
+      if (them) them.textContent = a > b ? 'Lost' : (a < b ? 'Won' : 'Tied');
+      if (bar) bar.style.width = (a > b ? 100 : (a < b ? 0 : 50)) + '%';
+      if (pre) pre.hidden = false;
+      lastP = to;
+      return;
+    }
     // the layout's count-up runs after this script and would animate the number back to the
     // pre-game one it was rendered with; dropping the attribute takes it out of that pass
     val.removeAttribute('data-count');
@@ -466,15 +483,23 @@
 
   function draw(p) {
     var s = p.snapshot;
-    if (!p.enabled) { meta.textContent = 'not connected — set SLEEPER_LEAGUE_ID for this server'; return; }
+    // the developer's instruction for the developer; everyone else gets the plain fact
+    if (!p.enabled) { meta.textContent = body.getAttribute('data-dev') === '1' ? 'not connected — set SLEEPER_LEAGUE_ID for this server' : 'live scores are not connected'; return; }
     if (!s) { meta.textContent = p.error ? 'could not fetch: ' + p.error : 'not fetched yet'; return; }
     if (!s.ok) { meta.textContent = s.error || 'no live data'; body.innerHTML = ''; return; }
-    meta.textContent = 'updated ' + ago(p.age_seconds) + (p.error ? ' · last refresh failed: ' + p.error : '');
+    // UI-M7: a read more than five minutes old while the game is undecided says so
+    var stale = !s.decided && p.age_seconds != null && p.age_seconds > 300;
+    meta.textContent = 'updated ' + ago(p.age_seconds) + (p.error ? ' · last refresh failed: ' + p.error : '') + (stale ? ' · older than five minutes; refresh for the latest' : '');
+    meta.classList.toggle('stale', stale);
     var me = s.mine, th = s.theirs || { banked: 0, left_mu: 0, projected: 0, to_play: 0, starters: 0, rows: [] };
     var scale = Math.max(me.projected, th.projected, 1), margin = me.banked - th.banked;
     var playing = me.rows.some(function (r) { return r.frac < 1; }) || th.rows.some(function (r) { return r.frac < 1; });
     var openStarters = wasOpen('allstarters', playing), openFeed = wasOpen('feed', (p.updates || []).length > 0);
-    var html = '<div class="score">' +
+    // UI-M2: a slim bar that stays in view while the starter tables scroll
+    var html = '<div id="livebar" class="livebar"><span><b>' + esc(s.team || '') + '</b> ' + n1(me.banked) + ' <i>' + me.to_play + ' to play</i></span>' +
+      '<span class="c">' + (s.decided ? 'final' : 'chance now ' + chance(s.p_win, false)) + '</span>' +
+      '<span><i>' + th.to_play + ' to play</i> ' + n1(th.banked) + ' <b>' + esc(s.opponent || 'opponent') + '</b></span></div>' +
+      '<div class="score">' +
       '<div class="l"><div class="pts me">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' still to play · projects <b>' + n1(me.projected) + '</b></div></div>' +
       '<div class="mid">live margin<b class="' + (margin >= 0 ? 'pos' : 'neg') + '">' + (margin > 0 ? '+' : '') + n1(margin) + '</b><span class="s">projected ' + n1(me.projected - th.projected) + '</span></div>' +
       '<div class="r"><div class="pts them">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' still to play · projects <b>' + n1(th.projected) + '</b></div></div></div>' +
