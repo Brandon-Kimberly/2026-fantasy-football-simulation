@@ -102,7 +102,7 @@ class TestHome(unittest.TestCase):
         self.assertIn('data-count="70.0"', body)                    # P(win) from the canonical row
         self.assertIn("above the league median", body)
         self.assertIn('class="viz"', body)
-        self.assertEqual(body.count("<polyline"), 1)                 # the expected-wins trajectory
+        self.assertEqual(body.count('<polyline class="ln'), 1)     # the expected-wins trajectory (the live script also spells the tag)
         self.assertIn(">now<", body)                                 # the current-week marker
         self.assertIn("1 ok", body)                                  # sources chip
         self.assertIn("fell back", body)
