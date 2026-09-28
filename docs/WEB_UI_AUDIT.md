@@ -5,8 +5,17 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
-**Status (2026-09-28): Phases 1, 2 and 3 landed** — every bug in §3 except B13 (the count-up,
-a judgement call for §6) and B14 (charts, Phase 4). Phase 3: the light-theme text tokens
+**Status (2026-09-28): Phases 1 to 4 landed** — every bug in §3 except B13 (the count-up,
+a judgement call for §6). Phase 4 (charts v2): `render.line_chart` is the one chart
+component — round ticks (`nice_ticks`: 1 / 2 / 2.5 / 5 × 10ⁿ, a percentage axis keeps
+its 100), x labels that never collide (the first and last always survive; a run of the
+same label is written once; Decisions is labelled by date), 11.5 px text with each card
+drawn at its rendered width, a hover crosshair with a tooltip naming every series at that
+point, team-hue lines with dodged end labels in the team's colour, an optional legend
+from the same series list, and `render.sparkline`. Forecasts carries the playoff-odds
+and title-odds races (U1, `glance.odds_race`, every team, mine thick) and the home
+standings carry each team's odds sparkline and its rank move since the previous forecast
+(U9). The `linechart` macro is gone. `tests.test_webui_seventh` pins it (15 tests). Phase 3: the light-theme text tokens
 now all pass 4.5:1 (`muted` #6f6e68, `pos` #1f66bd, `neg` #c93a39, `warn` #8f5d12, and
 `--warm-ink` / `--gold-ink` for the two accents when they carry text; the gold medal
 wears dark text) and `tests.test_webui_sixth` computes the ratios from `base.html` so
