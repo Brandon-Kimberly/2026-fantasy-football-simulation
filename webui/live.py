@@ -238,6 +238,7 @@ def expectations(root, week):
                 if r.get("p90") is not None and r.get("p10") is not None:
                     row["sd"] = max(0.0, (float(r["p90"]) - float(r["p10"])) / Z80)
                 row["source"] = "lineup record"
+                row["stamp"] = lineup_e["stamp"]
         matchup_e = _newest(entries, "matchup")
         matchup = root.read_json(matchup_e["rel"], {}) if matchup_e else {}
         for r in matchup.get("opponent_lineup") or []:
@@ -247,6 +248,7 @@ def expectations(root, week):
                 if r.get("sd") is not None:
                     row["sd"] = float(r["sd"])
                 row["source"] = "matchup record"
+                row["stamp"] = matchup_e["stamp"]
     return out
 
 

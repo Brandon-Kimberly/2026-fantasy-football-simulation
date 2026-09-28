@@ -26,7 +26,7 @@ from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
                           odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
-from webui.live import LiveBoard
+from webui.live import LiveBoard, expectations
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
 from webui.settings import MODES, THEMES, Settings
@@ -320,10 +320,18 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if rv and p.get("owner"):
             pr = (rv["players"].get(p["owner"]) or {}).get(p["name"]) or {}
             vorp, tier = pr.get("vorp"), pr.get("tier")
+        # UI-F6: `mean` is the SEASON baseline; a lineup or matchup record for the current
+        # week prices the player for this week, with live.expectations' precedence
+        wk = freshness_report(root)["week"]
+        priced = next((r for r in expectations(root, wk).values() if r["name"] == p["name"]), None) if wk else None
+        if priced and priced["source"] == "baseline":
+            priced = None
         return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
-                "vorp": vorp, "tier": tier}
+                "vorp": vorp, "tier": tier, "week": int(wk) if wk else None,
+                "week_mean": round(priced["mean"], 2) if priced else None,
+                "week_source": priced["source"] if priced else None, "week_stamp": priced.get("stamp") if priced else None}
 
     @app.route("/mode", methods=["POST"])
     def set_mode():
