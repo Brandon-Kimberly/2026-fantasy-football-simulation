@@ -13,6 +13,7 @@ sparkline, standings, the newest lineup and calendar records, and a health strip
 import datetime as _dt
 import hashlib
 import os
+import re
 import subprocess
 
 
@@ -208,6 +209,8 @@ def home_report(root, my_team, runner=None):
     matrix = root.read_json(f"{d}/syndicate_comprehensive_matrix_week_{wk}.json", {}) if d else {}
     matrix = matrix or {}
     traj = ((matrix.get("weekly_trajectories") or {}).get(my_team) or {}).get("expected_cumulative_wins_by_week") or []
+    seed = seed_report((matrix.get("finishing_seed_probabilities") or {}).get(my_team) or {},
+                       (((forecast.get(my_team) or {}).get("forecast")) or {}).get("playoff_probability_pct"))
     outcomes = {o.get("Team"): o for o in (matrix.get("season_outcomes") or []) if isinstance(o, dict)}
     champ = (outcomes.get(my_team) or {}).get("Champ_Pct")
 
@@ -261,7 +264,7 @@ def home_report(root, my_team, runner=None):
     last_job = (runner.list() or [None])[0] if runner is not None else None
     git = logs_git_report(root)
     return {"week": wk, "opponent": opponent, "matchup": matchup, "all_matchups": all_matchups,
-            "forecast": mine_fc, "current": mine_cs, "champ": champ, "trajectory": traj,
+            "forecast": mine_fc, "current": mine_cs, "champ": champ, "trajectory": traj, "seed": seed,
             "standings": table, "my_row": my_row, "losses": losses, "opp_row": opp_row, "opp_losses": opp_losses,
             "lineup": lineup, "lineup_link": lineup_e["link"] if lineup_e else None,
             "holes": holes, "calendar_link": cal_e["link"] if cal_e else None,
@@ -269,6 +272,46 @@ def home_report(root, my_team, runner=None):
             "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
             "weeks": root.weeks(), "prev_week": prev_week}
+
+
+def _seed_no(key):
+    m = re.search(r"(\d+)", str(key))
+    return int(m.group(1)) if m else None
+
+
+def seed_report(seeds, playoff_pct):
+    """My finishing-seed distribution, ready to draw: one row per seed with its share and
+    a shade that fades away from the top seed, and the playoff cut marked where the
+    running total meets the forecast's playoff probability.
+
+    The cut is READ OFF the two numbers, never assumed: the export decides how many teams
+    make it, and if the running total never lands within a point of the playoff figure
+    (a different league size, a changed format, a partial export) no cut is claimed and
+    the whole distribution is drawn in one neutral colour."""
+    rows = []
+    for key, val in sorted((seeds or {}).items(), key=lambda kv: (_seed_no(kv[0]) or 99)):
+        n = _seed_no(key)
+        if n is None or val is None:
+            continue
+        rows.append({"seed": n, "pct": float(val)})
+    if not rows:
+        return {"rows": [], "spots": 0, "make": 0.0, "miss": 0.0}
+    spots, best, run = 0, None, 0.0
+    if playoff_pct is not None:
+        for i, r in enumerate(rows, 1):
+            run += r["pct"]
+            gap = abs(run - float(playoff_pct))
+            if best is None or gap < best:
+                best, spots = gap, i
+        if best is None or best > 1.0:
+            spots = 0
+    for i, r in enumerate(rows, 1):
+        r["cls"] = ("in" if i <= spots else "out") if spots else "na"
+        r["cut"] = bool(spots) and i == spots
+        r["shade"] = round(max(0.30, 1.0 - 0.15 * (i - 1)), 2)
+    return {"rows": rows, "spots": spots,
+            "make": round(sum(r["pct"] for r in rows if r["cls"] == "in"), 2),
+            "miss": round(sum(r["pct"] for r in rows if r["cls"] == "out"), 2)}
 
 
 def kickoff_report(root, week, now=None):
