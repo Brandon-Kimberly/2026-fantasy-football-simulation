@@ -378,13 +378,18 @@
     var rows = p.start.map(function (x) { return planline('Start', x, 'in'); })
       .concat(p.bench.map(function (x) { return planline('Bench', x, 'out'); })).join('');
     var when = tstamp(p.stamp), made = when ? ' &middot; from the lineup run at ' + when : '';
+    // UI-L1: the swap in chance to win, from the game-plan record's margin (an estimate, and said so)
+    var st = p.stakes, pp = function (x) { return (x > 0 ? '+' : '') + (100 * x).toFixed(1); };
+    var stake = (st && st.d_h2h != null) ? '<div class="s stake">About <b>' + pp(st.d_h2h) + ' points of chance to win the game</b>' +
+      (st.d_median != null ? ' and <b>' + pp(st.d_median) + ' to beat the median</b>' : '') +
+      ' &middot; an estimate from the game-plan run at ' + tstamp(st.stamp) + ', not a fresh simulation.</div>' : '';
     var note = p.actionable
       ? 'Sleeper has the other man in your lineup right now' + made + '.'
       : 'Reported, not advised: the games have started, so this is too late to act on' + made + '.';
     return '<div class="plan ' + (p.actionable ? 'act' : 'late') + '">' +
       '<div class="k"><svg class="i"><use href="#i-lineup"/></svg>The model would field a different lineup' +
       '<span class="d ' + (p.delta >= 0 ? 'pos' : 'neg') + '">' + (p.delta > 0 ? '+' : '') + n1(p.delta) + '</span></div>' +
-      '<div class="rows">' + rows + '</div><div class="s">' + note + '</div></div>';
+      '<div class="rows">' + rows + '</div>' + stake + '<div class="s">' + note + '</div></div>';
   }
   function srow(r) {
     var started = r.frac < 1, pace = r.expected * (1 - r.frac), d = r.scored - pace;
