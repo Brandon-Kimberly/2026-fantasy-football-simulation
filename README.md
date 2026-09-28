@@ -41,10 +41,12 @@ on every finding, and the domain judgment are mine. The code is largely AI-gener
 The experiment is whether disciplined verification can make AI-generated code
 trustworthy. The audit trail above is the evidence either way.
 
-![Per-player simulated weekly-score distributions: one violin per starter, colored by position, with quartile lines and the bust tail visible](docs/sample_boom_bust.png)
-*From the sanitized sample report (fictional team names, real NFL players). Each violin
-is one starter's simulated week: the upside, the bust tail, and the quartiles in one
-look. Seeing the whole distribution is the point of simulating instead of projecting.*
+![The local web UI on a game-day evening: this week's matchup with the live chance to win leading and the pre-game figure as a footnote, both teams' banked points on one scale, and every starter against his projection](docs/webui_home.png)
+*The landing page of the local web UI, mid-game-day. The headline is whatever is true
+now — the live win probability — with the pre-game number demoted to a footnote beside
+it. Both teams' points are drawn to one scale so the bars compare, and every starter
+carries his pre-game projection and the gap to it, measured against the share of his game
+actually played. Team names are fictional; the players, projections and scores are real.*
 
 **Identity note:** manager and team identities in this repository are pseudonymized
 (F37): fictional team names, roster-id keys, league IDs in environment variables only.
@@ -57,6 +59,11 @@ Team names are fictional; players and projections are real. `scripts.make_sample
 builds it from live data on every renderer change (a Pages workflow -- the sample is a
 build product, never committed) and refuses to publish unless a leak check for every
 real team name, username and league ID comes back clean.
+
+![Per-player simulated weekly-score distributions: one violin per starter, colored by position, with quartile lines and the bust tail visible](docs/sample_boom_bust.png)
+*From that sample report. Each violin is one starter's simulated week: the upside, the
+bust tail, and the quartiles in one look. Seeing the whole distribution is the point of
+simulating instead of projecting.*
 
 ## Weekly use: one command
 
@@ -102,6 +109,12 @@ files, URLs and logs stay pseudonymous. It binds `127.0.0.1` with no `--host` op
 `Host` header. Syncing has its own page, behind a User-scope key probe and a backup of
 `data/current/` (docs/WEB_UI.md W4); the tools never sync. Two views share one codebase:
 the developer's, and a simple one anyone could use (W8), toggled from the footer.
+
+![Every team's playoff odds across the season's forecasts, one line each in the team's own colour, mine drawn thicker](docs/webui_odds_race.png)
+*The Forecasts page. One line per team across every forecast the model has run, so the
+season reads as odds moving rather than a single number — the chart every page's charts
+are drawn by, with round ticks, labels that cannot collide and a hover crosshair naming
+every team at that week.*
 
 **Tools and jobs.** The decision tools below can be launched from the UI as the exact
 command you would type -- one subprocess in the checkout, one at a time. Every launch
