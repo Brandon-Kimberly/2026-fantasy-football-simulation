@@ -407,15 +407,16 @@ class TestInstantCompare(BrowserCase):
 class TestInstantCompareSuggestions(BrowserCase):
     """The owner, 2026-09-28: the third and fourth boxes gave no dropdown, so a name had to be
     typed exactly. They are player fields like A and B now -- and picking from any dropdown
-    redraws the estimate (it set the value without an event, so only typing ever did)."""
+    redraws the estimate (it set the value without an event, so only typing ever did). The
+    tests wait for the list to answer what was typed, as a person does; Enter on a list still
+    answering an earlier query is ignored rather than picking the wrong player."""
     plant = staticmethod(_plant_players)
 
     def test_a_partial_name_offers_players_and_picking_one_redraws(self):
         p = self.open("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3", "simple")
         p.click("#inst_c")
         p.type("#inst_c", "Jord")
-        p.wait_for_selector("#s_inst_c div")
-        self.assertIn("Jordan Love", p.inner_text("#s_inst_c"))
+        p.wait_for_function("(document.querySelector('#s_inst_c div') || {}).textContent && document.querySelector('#s_inst_c div').textContent.indexOf('Jordan Love') === 0")
         p.keyboard.press("Enter")
         self.assertEqual(p.input_value("#inst_c"), "Jordan Love")
         p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 3")
@@ -424,7 +425,7 @@ class TestInstantCompareSuggestions(BrowserCase):
         p = self.open("/tools/compare_players?a=Jalen+Coker&week=3", "simple")
         p.click("#f_b")
         p.type("#f_b", "Xav")
-        p.wait_for_selector("#s_b div")
+        p.wait_for_function("(document.querySelector('#s_b div') || {}).textContent && document.querySelector('#s_b div').textContent.indexOf('Xavier Worthy') === 0")
         p.keyboard.press("Enter")
         p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 2")
 
