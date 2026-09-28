@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
+{% block title %}Week {{ week }} matchups · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.weeks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.weeks a { min-width: 2.4em; text-align: center; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--r-pill); font-size: 12px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.weeks a.on { background: var(--ink); color: var(--plane); border-color: var(--ink); } .weeks a.cur { border-color: var(--pos); }
+.mgames { display: grid; grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); gap: 14px; margin-top: 18px; }
+.mg { background: var(--surface); border: 1px solid var(--rule); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+.mg.me { border-color: var(--pos); }
+.mg .side { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 6px 0; }
+.mg .side .nm { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg .side .v { font-family: var(--display); font-size: 22px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.mg .side.lose .v, .mg .side.lose .nm { color: var(--muted); }
+.mg .foot { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--grid); font-size: 12px; color: var(--ink-2); }
+.mg .res { font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--rule); margin-left: 6px; }
+.mg .res.W { color: var(--turf); border-color: currentColor; } .mg .res.L { color: var(--neg); border-color: currentColor; }
+.mg .upset { color: var(--warn); font-weight: 700; letter-spacing: .06em; text-transform: uppercase; font-size: 11px; }
+.mg .lv { font-size: 12px; color: var(--ink-2); margin: -2px 0 4px 38px; font-variant-numeric: tabular-nums; }
+.mg .livechip { color: var(--neg); font-weight: 700; letter-spacing: .08em; font-size: 11px; text-transform: uppercase; }
+.split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; margin: 8px 0 2px; background: var(--mid); }
+.split i { display: block; height: 100%; }
+@media (max-width: 520px) { .mgames { grid-template-columns: 1fr; } }
+</style>
+<div class="head">
+  <p class="eyebrow">matchups · week {{ week }}{% if week == current %} · this week{% endif %}</p>
+  <h1>Week {{ week }}</h1>
+  <p class="lede">{% if played %}Every game as the league counted it, beside the chance the model gave each side before kickoff.{% elif week == current %}This week's games, with the chance the model gives each side.{% else %}The chance each side wins, from the latest forecast.{% endif %}</p>
+  <nav class="weeks" aria-label="weeks">{% for w in weeks %}<a href="/matchups/week-{{ w }}" class="{{ 'on' if w == week }}{{ ' cur' if w == current }}"{% if w == current %} title="this week"{% endif %}>{{ w }}</a>{% endfor %}</nav>
+</div>
+
+{% if games %}
+<div class="mgames">
+{% for g in games %}
+  <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}">
+    {% for side in ("a", "b") %}{% set t = g[side] %}{% set pts = g["pts_" ~ side] %}{% set med = g["med_" ~ side] %}{% set p = g["p_" ~ side] %}
+    <div class="side{{ ' lose' if g.winner and g.winner != t }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
+    {% endfor %}
+    {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
+    <div class="foot">
+      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% endif %}
+      {% elif g.p_a is not none %}<span>{{ 'the model, before kickoff' if g.quote_a is not none else 'from the latest forecast' }}</span>{% else %}<span class="muted">no forecast for this game yet</span>{% endif %}
+    </div>
+  </div>
+{% endfor %}
+</div>
+{% else %}<div class="note">No schedule on file for week {{ week }}.</div>{% endif %}
+
+{% if week == current and live_enabled %}
+<div id="mlive" data-started="{{ '1' if started else '0' }}" hidden></div>
+<script>
+(function () {   // UI-A3 live: every game's score as it happens, over its card (reads /api/live only)
+  var box = document.getElementById('mlive');
+  if (!box || box.getAttribute('data-started') !== '1') return;
+  function n1(x) { return x == null || isNaN(x) ? '—' : Number(x).toFixed(1); }
+  function chance(p, decided) {       // UI-M8: never certain until decided
+    if (p == null) return '—';
+    var r = Math.round(100 * p);
+    return decided ? r + '%' : (r >= 100 ? '>99%' : (r <= 0 ? '<1%' : r + '%'));
+  }
+  function card(a, b) {
+    var cs = document.querySelectorAll('.mg');
+    for (var i = 0; i < cs.length; i++) {
+      var x = cs[i].getAttribute('data-a'), y = cs[i].getAttribute('data-b');
+      if ((x === a && y === b) || (x === b && y === a)) return cs[i];
+    }
+    return null;
+  }
+  function paint(c, side, banked, proj, toPlay, starters) {
+    var s = c.querySelectorAll('.side')[side === 'a' ? 0 : 1];
+    if (!s) return;
+    s.querySelector('.v').textContent = n1(banked);
+    var lv = c.querySelector('.live-' + side);
+    if (!lv) { lv = document.createElement('div'); lv.className = 'lv live-' + side; s.parentNode.insertBefore(lv, s.nextSibling); }
+    lv.textContent = 'projects ' + n1(proj) + ' · ' + (toPlay ? toPlay + ' to play' : 'all ' + starters + ' played');
+  }
+  function draw(p) {
+    var s = p && p.snapshot;
+    if (!s || !s.ok || !s.league) return;
+    s.league.forEach(function (g) {
+      var c = card(g.a, g.b);
+      if (!c) return;
+      var flip = c.getAttribute('data-a') !== g.a, pa = flip ? 1 - g.p_a : g.p_a;
+      paint(c, flip ? 'b' : 'a', g.a_banked, g.a_proj, g.a_to_play, g.a_starters);
+      paint(c, flip ? 'a' : 'b', g.b_banked, g.b_proj, g.b_to_play, g.b_starters);
+      var bar = c.querySelector('.split');
+      if (bar && bar.children.length === 2) { bar.children[0].style.width = (100 * pa).toFixed(1) + '%'; bar.children[1].style.width = (100 * (1 - pa)).toFixed(1) + '%'; }
+      var foot = c.querySelector('.foot');
+      if (foot) foot.innerHTML = '<span class="livechip">' + (g.decided ? 'final' : 'live') + '</span><span>chance now: ' + chance(pa, g.decided) + ' · ' + chance(1 - pa, g.decided) + '</span>';
+    });
+  }
+  function load() { fetch('/api/live?refresh=1', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(draw).catch(function () {}); }
+  load();
+  setInterval(load, 180000);
+})();
+</script>
+{% endif %}
+{% endblock %}

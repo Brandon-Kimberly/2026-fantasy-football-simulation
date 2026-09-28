@@ -15,15 +15,16 @@ carry the per-launch CSRF token (require_csrf). No route in W1 accepts a POST.
 import datetime as _dt
 import json
 import os
+import re
 import secrets
 import sys
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, render
+from webui import brand, objects, render
 from webui import sync as syncmod
-from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
+from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
@@ -44,10 +45,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
@@ -260,7 +261,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}"})
         standings = root.read_json("current/league_standings.json", {}) or {}
         for team in standings:
-            items.append({"k": "team", "t": overlay.text(team), "h": f"/league#t-{render.slug(team)}"})
+            items.append({"k": "team", "t": overlay.text(team), "h": f"/team/{render.slug(team)}"})
         return items
 
     @app.route("/theme", methods=["POST"])
@@ -292,6 +293,33 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                "<ellipse cx='32' cy='32' rx='22' ry='14' transform='rotate(-35 32 32)' fill='#fff' fill-opacity='.95'/>"
                "<path d='M22 38 L42 26 M27 32 l3 3 M31 29.5 l3 3 M35 27 l3 3' stroke='#2e7d4f' stroke-width='2.4' stroke-linecap='round' fill='none'/></svg>")
         return Response(svg, mimetype="image/svg+xml")
+
+    # ---- UI-A1/A2/A3: the pages a manager thinks in
+    @app.route("/team/<slug>")
+    def team_page(slug):
+        team = objects.team_for_slug(root, slug)
+        if not team:
+            abort(404)
+        return render_template("team.html", **objects.team_report(root, team, MY_TEAM))
+
+    @app.route("/player/<pid>")
+    def player_page(pid):
+        if not re.fullmatch(r"[0-9A-Za-z]{1,12}", pid or ""):       # Sleeper ids; a defence is its team code
+            abort(404)
+        rep = objects.player_report(root, pid, MY_TEAM)
+        if not rep:
+            abort(404)
+        return render_template("player.html", **rep)
+
+    @app.route("/matchups")
+    @app.route("/matchups/week-<int:week>")
+    def matchups_page(week=None):
+        cur = objects._current_week(root)
+        rep = objects.week_games(root, week or cur or 1, MY_TEAM)
+        if week is not None and week not in rep["weeks"]:
+            abort(404)
+        started = bool(kickoff_report(root, rep["week"]).get("started")) if rep["week"] == cur else False
+        return render_template("matchups.html", live_enabled=live.enabled, started=started, **rep)
 
     @app.route("/favicon.ico")
     def favicon():
@@ -329,7 +357,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
-                "vorp": vorp, "tier": tier, "week": int(wk) if wk else None,
+                "vorp": vorp, "tier": tier, "week": int(wk) if wk else None, "pid": base.get("player_id"),
                 "week_mean": round(priced["mean"], 2) if priced else None,
                 "week_source": priced["source"] if priced else None, "week_stamp": priced.get("stamp") if priced else None}
 

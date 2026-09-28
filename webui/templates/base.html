@@ -386,7 +386,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 <div class="pal" id="pal" hidden><div class="box"><input type="search" id="pal-q" placeholder="Jump to a page, a tool, a team… or type: compare A vs B" autocomplete="off" aria-label="command palette"><ul id="pal-list"></ul><div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span><span><kbd>?</kbd> every shortcut</span></div></div></div>
 <div class="keys" id="keys" hidden><div class="box"><h3>Keyboard shortcuts</h3><dl>
 <dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>open the palette (pages, tools, teams; "compare A vs B")</dd>
-<dt><kbd>g</kbd> <kbd>h</kbd></dt><dd>home</dd><dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>league</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>forecasts</dd>
+<dt><kbd>g</kbd> <kbd>h</kbd></dt><dd>home</dd><dt><kbd>g</kbd> <kbd>m</kbd></dt><dd>matchups</dd><dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>league</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>forecasts</dd>
 <dt><kbd>g</kbd> <kbd>d</kbd></dt><dd>decisions</dd><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>tools</dd><dt><kbd>g</kbd> <kbd>g</kbd></dt><dd>game day</dd>
 <dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>Esc</kbd></dt><dd>close</dd></dl></div></div>
 <div class="pcard" id="pcard" hidden></div>
@@ -509,7 +509,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     pal.addEventListener('click', function (ev) { if (ev.target === pal) pal.hidden = true; });
     keys.addEventListener('click', function (ev) { if (ev.target === keys) keys.hidden = true; });
   }
-  var GO = { h: '/', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' }, pendingG = 0;
+  var GO = { h: '/', m: '/matchups', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' }, pendingG = 0;
   document.addEventListener('keydown', function (ev) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palOpen(); return; }
     if (ev.key === 'Escape') { if (pal) pal.hidden = true; if (keys) keys.hidden = true; return; }
@@ -521,6 +521,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   });
   // U5: a card for any player name (data-player) after a short hover
   var pcard = document.getElementById('pcard'), pcTimer = null, pcCache = {};
+  function playerHref(id) { return '/player/' + encodeURIComponent(id); }
   function pcShow(el, d) {
     var st = d.status ? d.status : (d.on_ir ? 'IR' : 'healthy');
     pcard.innerHTML = '<div class="n">' + escT(d.name) + '</div><div class="row"><span>' + escT(d.pos || '?') + ' · ' + escT(d.nfl || 'FA') + '</span><span>' + escT(d.owner || 'free agent') + '</span></div>' +
@@ -528,7 +529,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
       '<div class="row"><span>season mean</span><b>' + (d.mean == null ? '—' : Number(d.mean).toFixed(1)) + '</b></div>' +
       (d.vorp != null ? '<div class="row"><span>value over replacement</span><b>' + (d.vorp > 0 ? '+' : '') + Number(d.vorp).toFixed(1) + (d.tier ? ' · tier ' + escT(d.tier) : '') + '</b></div>' : '') +
       '<div class="row"><span>status</span><b>' + escT(st) + '</b></div>' + (d.bye ? '<div class="row"><span>bye</span><b>week ' + escT(d.bye) + '</b></div>' : '') +
-      '<a href="/tools/compare_players?a=' + encodeURIComponent(d.name) + '">Compare with…</a>';
+      (d.pid ? '<a href="' + playerHref(d.pid) + '">Player page</a> · ' : '') + '<a href="/tools/compare_players?a=' + encodeURIComponent(d.name) + '">Compare with…</a>';
     var r = el.getBoundingClientRect(), left = Math.min(r.left, window.innerWidth - 276), top = r.bottom + 8;
     if (top + 190 > window.innerHeight) top = Math.max(8, r.top - 198);
     pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.hidden = false;

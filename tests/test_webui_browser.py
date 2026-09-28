@@ -328,6 +328,28 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         self.assertIn("100%", self.shown_with(live_payload(True, 1.0), "/gameday", ".mid b"))
 
 
+class TestMatchupsLive(BrowserCase):
+    """UI-A3 live: once the week has kicked off, the Matchups page reads /api/live and draws
+    every game's score, projection and chance over its card."""
+    live_enabled = True
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def test_a_started_week_shows_each_games_live_score(self):
+        from tests.test_webui_routes import TEAMS
+        pay = live_payload(False, 0.9)
+        a, b = TEAMS[0], TEAMS[4]
+        pay["snapshot"]["league"] = [{"a": a, "b": b, "a_banked": 101.5, "b_banked": 88.25, "a_proj": 150.0,
+                                      "b_proj": 120.0, "a_to_play": 3, "b_to_play": 5, "a_starters": 13,
+                                      "b_starters": 13, "p_a": 0.83, "decided": False}]
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/matchups/week-3", "simple")
+        card = self.page.locator(f'.mg[data-a="{a}"]').first
+        card.locator(".live-a").wait_for()
+        self.assertIn("101.5", card.inner_text())
+        self.assertIn("83%", card.inner_text())
+        self.assertIn("3 to play", card.inner_text())
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

@@ -225,7 +225,7 @@ class TestPages(unittest.TestCase):
         listing = self.get("/records/week-3")
         self.assertIn('href="/records/week-3/optimal-lineup/2026-09-24-165331"', listing)
         self.assertNotIn('class="main" href="/file/', listing)
-        self.assertIn('href="/league#t-', self.get("/"))
+        self.assertIn('href="/team/', self.get("/"))                    # UI-A1: a team link opens the team page
         self.assertIn('href="/forecasts/week-3"', self.get("/forecasts"))
         self.assertEqual(self.root.tree_digest(), before)
 

@@ -730,6 +730,23 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### Team, player and matchup pages (2026-09-28, roadmap UI-A1, A2, A3)
+
+`/team/<slug>`, `/player/<id>` and `/matchups/week-<n>` are read-only views built in
+`webui/objects.py` on the helpers every other page uses. Odds come through odds_now, results
+through webui.results (as the league played them), the model's pre-kickoff quote through
+accuracy.quoted_week, and moves through decisions_report, so no number can disagree with the
+same number elsewhere. URLs are built from pseudonyms; every team link opens the team page, and
+the player card links to the player page. The ~20 MB players cache is trimmed and held in
+memory per file modification. For the current week, the live snapshot now carries every game
+(`league`), and Matchups draws them once play has started. Past weeks show team totals only:
+per-player box scores for completed weeks are not on disk.
+
+**Found while building them:** `decisions_report` did not de-duplicate union-merged
+decision-log rows, though the engine's readers always have. The Decisions page listed 133
+moves for 100 transactions and its ledger counted the repeats twice. It now keeps the first
+row per transaction, as the engine does.
+
 ### Three panes at 4K (2026-09-28, roadmap UI-V1; the owner chose three panes over a wider column)
 
 At 2200 CSS px and wider -- a 4K monitor at the usual 125-150% scaling gives a browser 2560

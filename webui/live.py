@@ -401,7 +401,23 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
     # UI-M8: settled only when nobody on either side has any game left (an unknown clock
     # counts as unplayed); until then the pages never print a rounded 0% or 100%
     decided = bool(theirs) and mine["to_play"] == 0 and theirs["to_play"] == 0
+    # UI-A3: every game, not only mine -- the same reads, the same estimate
+    league, done = [], set()
+    for t, (m, st) in by_team.items():
+        mid = m.get("matchup_id")
+        other = next((u for u, (mm, _s) in by_team.items() if u != t and mm.get("matchup_id") == mid), None)
+        if not other or mid is None or mid in done:
+            continue
+        done.add(mid)
+        so = by_team[other][1]
+        pa = win_probability(st["projected"], st["left_sd"], so["projected"], so["left_sd"])
+        league.append({"a": t, "b": other, "a_banked": round(st["banked"], 2), "b_banked": round(so["banked"], 2),
+                       "a_proj": round(st["projected"], 1), "b_proj": round(so["projected"], 1),
+                       "a_to_play": st["to_play"], "b_to_play": so["to_play"], "a_starters": st["starters"],
+                       "b_starters": so["starters"], "p_a": round(pa, 4),
+                       "decided": st["to_play"] == 0 and so["to_play"] == 0})
     return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent, "decided": decided,
+            "league": league,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
             "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats, "plan": plan_diff,
