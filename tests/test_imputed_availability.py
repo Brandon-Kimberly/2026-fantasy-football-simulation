@@ -80,6 +80,7 @@ def _fs(ghost_roster_entry):
 
 class _Case(unittest.TestCase):
     GHOST_ENTRY = {"name": GHOST, "pos": "WR", "team": "DET"}
+    WL = WHITELIST
 
     def setUp(self):
         self.fs = _fs(self.GHOST_ENTRY)
@@ -87,7 +88,7 @@ class _Case(unittest.TestCase):
         logging.getLogger().setLevel(logging.ERROR)
         self.p_exists = patch('os.path.exists', side_effect=lambda p: p in self.fs)
         self.p_load = patch('fantasy_sim.simulation.load_json', side_effect=lambda p: self.fs[p])
-        self.p_wl = patch.dict(SIM_CONFIG["KNOWN_MISSING_ASSETS"], WHITELIST, clear=True)
+        self.p_wl = patch.dict(SIM_CONFIG["KNOWN_MISSING_ASSETS"], self.WL, clear=True)
         self.p_exists.start(); self.p_load.start(); self.p_wl.start()
         self.engine = FantasySimulationEngine()
 
@@ -170,3 +171,36 @@ class TestTheRosterOutranksTheWhitelist(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+# A player who is on no NFL team at all. Sleeper lists him without one, publishes no
+# projection, and the engine would abort on him; the honest whitelist entry is zero,
+# because he cannot be in a game until somebody signs him.
+UNSIGNED = {GHOST: {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0,
+                    "pos": "WR", "team": "FA"}}
+
+
+class TestUnsignedPlayerIsWorthNothing(_Case):
+    """The live case (2026-09-28): a manager rostered a ten-year veteran who is out of the
+    league on the rumour of a return. This is NOT a regression test -- it patches its own
+    whitelist, so it would have passed before the entry existed. It is a forward guard on
+    the thing that entry relies on: an entry of zeros is accepted, imputed, and worth
+    nothing, and no arithmetic divides by the variance on the way through."""
+    GHOST_ENTRY = {"name": GHOST, "pos": "WR", "team": "FA"}
+    WL = UNSIGNED
+
+    def test_the_pre_flight_accepts_him_rather_than_aborting(self):
+        self.assertIn(GHOST, self.engine.baselines, "engine init raises if he is not imputed")
+
+    def test_he_is_valued_at_nothing_and_placed_on_no_team(self):
+        b = self.engine.baselines[GHOST]
+        self.assertEqual((b["mean"], b["std_aleatoric"], b["std_epistemic"]), (0.0, 0.0, 0.0))
+        self.assertEqual(b["team"], "FA")
+        self.assertEqual(b["pos"], "WR")
+
+    def test_he_still_takes_his_availability_from_the_roster(self):
+        """F60 holds for a zero entry too: the roster is the authority, not the constant."""
+        self.assertFalse(self.engine.baselines[GHOST].get("on_ir"))
+
+    def test_a_zero_epistemic_prior_cannot_divide_by_zero(self):
+        """prior_var is floored at 0.1 before the posterior divides by it."""
+        self.engine._apply_bayesian_updates()
+        self.assertEqual(self.engine.baselines[GHOST]["mean"], 0.0)
