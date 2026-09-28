@@ -80,7 +80,7 @@
 </section>
 
 {% if dev and manifest.degraded %}
-<section><details class="sec"><summary>Sources that fell back in the last sync<span class="n">{{ manifest.degraded|length }}</span></summary><pre>{{ manifest.degraded|join('\n')|real }}</pre></details></section>
+<section><details class="sec"><summary>Warnings from the last sync<span class="n">{{ manifest.degraded|length }}</span></summary><pre>{{ manifest.degraded|join('\n')|real }}</pre></details></section>
 {% endif %}
 
 {% if dev %}

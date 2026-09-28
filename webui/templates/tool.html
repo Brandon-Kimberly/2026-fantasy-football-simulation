@@ -30,9 +30,9 @@
 {% if tool.engine and fr and dev %}
 {% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
-<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy; the run goes ahead on slightly older inputs{% endif %}
+<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ fr.phrase }}; the run goes ahead{% if fr.n_bad or fr.n_fell %} on older inputs where a source failed or fell back{% endif %}{% endif %}
 {% if fr.status == "STALE" and fr.stale_reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.stale_reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
-{% if fr.status == "DEGRADED" and degraded %}<details class="sec" style="margin-top:6px"><summary>What fell back<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
+{% if fr.status == "DEGRADED" and degraded %}<details class="sec" style="margin-top:6px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
 {% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name|window_title }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
 </div>
 {% endif %}
