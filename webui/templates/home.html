@@ -67,10 +67,13 @@
 .game .a { text-align: right; } .game .p { font-variant-numeric: tabular-nums; font-weight: 600; } .game .p.a { text-align: right; } .game .vs { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
 .game { transition: transform .15s, box-shadow .2s; } .game:hover { transform: translateX(2px); box-shadow: var(--shadow); }
 .game.me { border-color: var(--pos); background: linear-gradient(90deg, var(--pos-bg), var(--surface)); }
+.game > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .games { min-width: 0; }
+.grid2 > * { min-width: 0; }
 .game .fav { color: var(--pos); }
 .watch td .small { display: block; }
 .qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .hero .pwin { grid-template-columns: 1fr 1fr; } .hero .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .pwin .big { font-size: 36px; } .hero .pwin .big:last-child { text-align: right; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .stat { grid-template-columns: 1fr; } .ring { width: 80px; height: 80px; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
@@ -137,7 +140,7 @@
 <div class="chips">
   <a class="chip {{ 'bad' if fresh.status == 'STALE' else ('warn' if fresh.status == 'DEGRADED') }}" href="/sync" title="sync the league's current state"><svg class="i"><use href="#i-pulse"/></svg><span class="k">data</span><span class="pill {{ fresh.status }}">{{ fresh.status }}</span><span class="v muted">{% if fresh.age_hours is not none %}synced {{ fresh.age_hours|ago }}{% endif %} · sync</span></a>
   <a class="chip {{ 'warn' if fresh.n_fell or fresh.n_bad }}" href="/system"><svg class="i"><use href="#i-cloud"/></svg><span class="k">sources</span><span class="v">{{ fresh.n_ok }} ok{% if fresh.n_fell %} · {{ fresh.n_fell }} fell back{% endif %}{% if fresh.n_bad %} · {{ fresh.n_bad }} failed{% endif %}</span></a>
-  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name }} · {{ windows.next.deadline|clock }}{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
+  <a class="chip {{ 'warn' if windows.next and windows.next.status == 'OPEN' }}" href="/system"><svg class="i"><use href="#i-whistle"/></svg><span class="k">next run</span><span class="v">{% if windows.next %}{{ windows.next.name|window_title }} · {{ windows.next.deadline|clock }}{% elif windows.result %}all covered{% else %}—{% endif %}</span></a>
   <a class="chip" href="{% if last_job %}{{ last_job|job_url }}{% else %}/jobs{% endif %}"><svg class="i"><use href="#i-lock"/></svg><span class="k">last job</span>{% if last_job %}<span class="pill {{ last_job.state }}">{{ last_job.state }}</span><span class="v muted">{{ last_job.tool|tool_title }}</span>{% else %}<span class="v muted">none yet</span>{% endif %}</a>
   <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
@@ -158,8 +161,8 @@
     <h2><svg class="i"><use href="#i-flag"/></svg> Watch list <span class="hint">from the newest records</span></h2>
     {% set q = lineup.questionable_starters if lineup else [] %}
     {% if q %}<h3>Questionable starters</h3>
-    <div class="scroller"><table class="watch"><thead><tr><th>Starter</th><th class="num">Proj.</th><th>If out</th><th class="num">Costs</th><th></th></tr></thead><tbody>
-    {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num neg">−{{ x.give_up|num(1) }}</td><td><a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a></td></tr>{% endfor %}
+    <div class="scroller"><table class="watch"><thead><tr><th>Starter</th><th class="num">Proj.</th><th>If out</th><th class="num">Change</th><th></th></tr></thead><tbody>
+    {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num {{ 'neg' if (x.give_up or 0) > 0 else 'pos' }}">{{ (0 - (x.give_up or 0))|signed(1) }}</td><td><a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a></td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
     {% if designations %}<h3>Injury designations</h3>
     <div class="scroller"><table class="watch"><thead><tr><th>Player</th><th>NFL</th><th class="num">Proj.</th><th>Status</th></tr></thead><tbody>

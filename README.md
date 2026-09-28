@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1650%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1667%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -97,8 +97,11 @@ push state -- served straight from `data/`, never copied. The design, its phases
 (importing it truncates `syndicate_warnings.log`; a subprocess test pins this), it never
 `chdir`s (one absolute root, one path chokepoint that refuses `data/local/` and anything
 outside `data/`), and real names are an in-memory overlay on response bodies only --
-files, URLs and logs stay pseudonymous. It binds `127.0.0.1` with no `--host` option,
-refuses any other `Host` header, and does not sync: that stays a terminal act (H5/C3).
+files, URLs and logs stay pseudonymous. It binds `127.0.0.1` with no `--host` option
+(`--hostname` adds a local name such as `syndicatefootball.local`) and refuses any other
+`Host` header. Syncing has its own page, behind a User-scope key probe and a backup of
+`data/current/` (docs/WEB_UI.md W4); the tools never sync. Two views share one codebase:
+the developer's, and a simple one anyone could use (W8), toggled from the footer.
 
 **Tools and jobs.** The decision tools below can be launched from the UI as the exact
 command you would type -- one subprocess in the checkout, one at a time. Every launch
@@ -107,9 +110,11 @@ process on the machine), every POST carries a per-launch CSRF token, and a job t
 non-zero or is cancelled is shown **VOID** with the R1 sentence, never "finished with
 errors". Job logs live under `data/local/webui/` and are never committed or served as files.
 The two engine entry points run the same way: `run_simulation`, and `weekly_report` --
-which the UI **always** launches with `--skip-sync`, after showing the freshness verdict and
-the run windows, and refuses outright on a STALE tree. Sync itself is never launched from
-the browser.
+which the Tools page **always** launches with `--skip-sync`, after showing the freshness
+verdict and the run windows, and refuses outright on a STALE tree. Sync runs only from the
+Sync page: the odds key is read from the Windows User scope and probed first, `data/current/`
+is backed up (with a restore button), and the verified key reaches the child process through
+its environment alone.
 
 ## Decision tools
 
@@ -240,7 +245,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1650 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1667 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -265,7 +270,7 @@ platform lock working, not a broken build.
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Without
 Flask (`requirements-web.txt`) the web UI's route tests skip cleanly too, the same way
-the `espn_api` and `hypothesis` tests do -- `skipped=87`, not a failure. Any engine
+the `espn_api` and `hypothesis` tests do -- `skipped=99`, not a failure. Any engine
 change either leaves the golden hashes byte-identical or regenerates them with the deltas
 explained in the commit.
 

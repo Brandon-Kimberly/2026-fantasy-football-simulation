@@ -31,9 +31,9 @@
 {% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
 <b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy; the run goes ahead on slightly older inputs{% endif %}
-{% if fr.status == "STALE" and fr.reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
+{% if fr.status == "STALE" and fr.stale_reasons %}<ul class="small" style="margin:6px 0 0 1.2em">{% for r in fr.stale_reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
 {% if fr.status == "DEGRADED" and degraded %}<details class="sec" style="margin-top:6px"><summary>What fell back<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
-{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
+{% if windows and windows.result %}<p class="small" style="margin:8px 0 0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name|window_title }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small" style="margin:8px 0 0">{{ windows.note }}</p>{% endif %}
 </div>
 {% endif %}
 
@@ -47,9 +47,9 @@
 
 {% macro field(f) -%}
 <div class="f{% if f.is_list or f.kind == 'text' and f.name == 'positions' %} wide{% endif %}">
-<label for="f_{{ f.name }}">{{ f.label|capitalize }}{% if f.required %}<span class="req" title="required">*</span>{% endif %}</label>
+<label for="f_{{ f.name }}">{{ f.label|sentence }}{% if f.required %}<span class="req" title="required">*</span>{% endif %}</label>
 {{ control(f) }}
-{% if f.help or f.kind in ('myplayer','myplayers','free_players','team_players') or f.default is not none %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %}{{ ' — ' if f.help }}from your roster{% elif f.kind == 'free_players' %}{{ ' — ' if f.help }}free agents only{% elif f.kind == 'team_players' %}{{ ' — ' if f.help }}from the selected team's roster{% endif %}{% if f.default is not none and f.kind not in ('flag',) %}{{ ' · ' if (f.help or f.kind in ('myplayer','myplayers','free_players','team_players')) }}default {{ f.default }}{% endif %}</div>{% endif %}
+{% if f.help or f.kind in ('myplayer','myplayers','free_players','team_players') or f.default is not none %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %}{{ ' — ' if f.help }}from your roster{% elif f.kind == 'free_players' %}{{ ' — ' if f.help }}free agents only{% elif f.kind == 'team_players' %}{{ ' — ' if f.help }}from the selected team's roster{% endif %}{% if f.default is not none and f.kind not in ('flag',) and 'default' not in (f.help or '') %}{{ ' · ' if (f.help or f.kind in ('myplayer','myplayers','free_players','team_players')) }}default {{ f.default }}{% endif %}</div>{% endif %}
 </div>
 {%- endmacro %}
 
@@ -61,7 +61,7 @@
 {% if when %}<div class="grp g-when"><h3><svg class="i c-gold"><use href="#i-cal"/></svg> When <span class="hint">blank = this week</span></h3><div class="fields">{% for f in when %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
 {% if how %}<div class="grp g-how"><h3><svg class="i c-pos"><use href="#i-engine"/></svg> How much <span class="hint">the defaults are the ones the terminal uses</span></h3><div class="fields">{% for f in how %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
 {% if opts %}<div class="grp g-opt"><h3><svg class="i c-violet"><use href="#i-flag"/></svg> Options</h3>
-{% for f in opts %}<div class="sw"><input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1" data-arg="--{{ f.name }}"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}><span class="tog" onclick="document.getElementById('f_{{ f.name }}').click()"></span><div><label for="f_{{ f.name }}">{{ f.label|capitalize }}</label>{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}</div></div>{% endfor %}
+{% for f in opts %}<div class="sw"><input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1" data-arg="--{{ f.name }}"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}><span class="tog" onclick="document.getElementById('f_{{ f.name }}').click()"></span><div><label for="f_{{ f.name }}">{{ f.label|sentence }}</label>{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}</div></div>{% endfor %}
 </div>{% endif %}
 {% if not shown %}<p class="small muted">This one takes no settings.</p>{% endif %}
 <div class="launch">

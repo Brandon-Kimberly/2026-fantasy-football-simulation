@@ -10,6 +10,7 @@ as the series, the health strip reflects the manifest, degraded inputs render ra
 """
 import json
 import os
+import re
 import tempfile
 import unittest
 
@@ -126,7 +127,8 @@ class TestHome(unittest.TestCase):
         self.assertIn("fell back", body)
         self.assertIn("run a sync to persist them", body)
         self.assertIn("from a terminal", body)
-        self.assertLess(len(body), 40000)
+        visible = re.sub(r'<[^>]+>', ' ', re.sub(r'<(script|style).*?</\1>', ' ', body, flags=re.S))
+        self.assertLess(len(visible.split()), 900, 'the trimmed status is a page of sentences, not a dump')
 
     def test_overlay_applies_on_the_landing_page_and_urls_stay_pseudonymous(self):
         body = self.client(overlay=Overlay({MY_TEAM: "Team Alpha", OPP: "Team Omega"})).get("/").get_data(as_text=True)

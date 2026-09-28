@@ -48,7 +48,13 @@ def freshness_report(root):
     n_ok = sum(1 for s in sources.values() if isinstance(s, dict) and s.get("ok") and not s.get("fallback"))
     n_fell = sum(1 for s in sources.values() if isinstance(s, dict) and s.get("fallback"))
     n_bad = sum(1 for s in sources.values() if isinstance(s, dict) and not s.get("ok"))
-    return {"status": status, "reasons": list(reasons), "manifest": manifest, "week": week,
+    reasons = list(reasons)
+    # B8: assess() returns one list that mixes the cause of a STALE verdict with every
+    # tolerated fallback ("degraded: ..."). Pages show the cause; the rest stays folded.
+    stale_reasons = [r for r in reasons if not str(r).startswith("degraded:")]
+    degraded_reasons = [str(r)[len("degraded:"):].strip() for r in reasons if str(r).startswith("degraded:")]
+    return {"status": status, "reasons": reasons, "stale_reasons": stale_reasons, "degraded_reasons": degraded_reasons,
+            "manifest": manifest, "week": week,
             "vegas_week": meta.get("week"), "vegas_stale_since": meta.get("stale_since"),
             "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad}
 
@@ -264,7 +270,7 @@ def _tx_teams(tx):
 
 def _pl(p):
     pr = p.get("projection") or {}
-    return {"name": p.get("name"), "pos": pr.get("pos"), "mean": pr.get("mean"), "to": p.get("to_team")}
+    return {"name": p.get("name"), "pos": pr.get("pos") or "", "mean": pr.get("mean"), "to": p.get("to_team")}
 
 
 def decisions_report(root, my_team):

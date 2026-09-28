@@ -72,7 +72,9 @@ svg.i { width: 1em; height: 1em; vertical-align: -0.15em; fill: none; stroke: cu
 .head { margin: 34px 0 22px; }
 .eyebrow { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
 h1 { font-family: var(--display); font-weight: 800; font-size: clamp(28px, 4.2vw, 40px); line-height: 1.05; letter-spacing: -0.024em; margin: 0; text-wrap: balance; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-h1 > :first-child:not(.pill) { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h1 { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+h1 .pill { -webkit-text-fill-color: initial; }
+h1 .pill.OK, h1 .pill.RUNNING, h1 .pill.OPEN, h1 .pill.COVERED { color: #fff; } h1 .pill.STALE, h1 .pill.VOID { color: var(--neg); } h1 .pill.DEGRADED { color: var(--warn); }
 .head { animation: rise .55s cubic-bezier(.2,.8,.2,1) both; }
 .lede { font-size: 16px; color: var(--ink-2); max-width: 70ch; margin: 12px 0 0; }
 .lede b { color: var(--ink); font-weight: 600; }
@@ -83,7 +85,8 @@ section:nth-of-type(2) { animation-delay: .06s; } section:nth-of-type(3) { anima
 h2 { font-family: var(--display); font-size: 13px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; margin: 0 0 14px; padding-bottom: 8px; border-bottom: 2px solid; border-image: linear-gradient(90deg, var(--turf) 0 56px, var(--grid) 56px) 1; display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; }
 h2 svg.i { color: var(--turf); margin-right: 2px; width: 1.25em; height: 1.25em; }
 h2 .hint { font-family: var(--sans); font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); margin-left: auto; }
-h3 { font-family: var(--display); font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 22px 0 8px; }
+h3 { font-family: var(--display); font-size: 12px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 22px 0 8px; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: baseline; }
+h3 .hint { font-family: var(--sans); font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
 p { margin: .4em 0; }
 .muted { color: var(--muted); } .small { font-size: 13px; } .tiny { font-size: 12px; }
 .num, .tnum { font-variant-numeric: tabular-nums; }
@@ -137,18 +140,23 @@ img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--gr
 
 /* ---- tables ---- */
 .scroller { margin-top: 4px; }
-@media (max-width: 720px) { .scroller { overflow-x: auto; } }
-.st { display: inline-block; min-width: 1.6em; text-align: center; font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 1px 5px; border-radius: 3px; background: var(--neg-bg); color: var(--neg); vertical-align: middle; }
+/* below tablet width a table scrolls inside its own box (and its header cannot stick, which is fine there);
+   above it the page never scrolls sideways and sticky headers sit below the app header */
+@media (max-width: 720px) { .scroller { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; } }
+.wrap { overflow-x: clip; }
+.st { display: inline-block; min-width: 1.6em; text-align: center; font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; line-height: 1; padding: 3px 5px; border-radius: 3px; background: var(--neg-bg); color: var(--neg); vertical-align: middle; }
 .st.ir, .st.pup, .st.sus { background: var(--mid); color: var(--ink-2); } .st.q { background: var(--warm-bg); color: var(--warm); } .st.bye { background: var(--violet-bg); color: var(--violet); }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-th { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 6px 8px 8px; border-bottom: 2px solid var(--turf-line); white-space: normal; line-height: 1.25; vertical-align: bottom; background: var(--plane); position: sticky; top: 0; }
+th { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 6px 8px 8px; border-bottom: 2px solid var(--turf-line); white-space: normal; line-height: 1.25; vertical-align: bottom; background: var(--plane); position: sticky; top: var(--head-h, 0px); }
+[id] { scroll-margin-top: calc(var(--head-h, 0px) + 12px); }
 th.num, td.num { text-align: right; }
 th[data-key] { cursor: pointer; user-select: none; }
 th[data-key]:hover { color: var(--ink); }
 th.sort-asc::after { content: " \25B2"; font-size: 9px; } th.sort-desc::after { content: " \25BC"; font-size: 9px; }
-td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; overflow-wrap: anywhere; }
+td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+td.num, th.num, .tnum, td.nm { white-space: nowrap; }
 td.tl, th.tl { text-align: left; }
-td.nm { font-weight: 500; }
+td.nm { font-weight: 500; } td.wrap { white-space: normal; overflow-wrap: anywhere; }
 tbody tr:hover td { background: var(--surface); }
 tr.me td { background: var(--pos-bg); }
 tr.me td.nm::after, .you { content: "you"; font-family: var(--display); font-size: 9px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--pos); margin-left: 8px; border: 1px solid var(--pos); padding: 1px 5px; border-radius: 2px; }
@@ -168,7 +176,7 @@ td.wrap { white-space: normal; max-width: 34ch; }
 /* ---- cards / lists ---- */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 4px; }
 .cards.wide { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
-@media (max-width: 500px) { .cards.wide { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .cards.wide { grid-template-columns: 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px 14px; transition: border-color .15s, transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
 .card:hover { border-color: var(--rule); transform: translateY(-2px); box-shadow: var(--shadow); }
 .card.s-turf { border-left: 3px solid var(--turf); } .card.s-pos { border-left: 3px solid var(--pos); } .card.s-gold { border-left: 3px solid var(--gold); } .card.s-warm { border-left: 3px solid var(--warm); } .card.s-violet { border-left: 3px solid var(--violet); }
@@ -207,7 +215,8 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .vizbox .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
 .viz2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; margin-top: 4px; }
 .hbar { display: grid; grid-template-columns: minmax(8rem, max-content) 1fr 4.5rem; gap: 6px 12px; align-items: center; font-size: 13.5px; }
-.hbar .b { height: 14px; background: var(--mid); border-radius: 999px; overflow: hidden; }
+.hbar .b { display: block; height: 14px; background: var(--mid); border-radius: 999px; overflow: hidden; }
+.hbar.ledger { grid-template-columns: minmax(8rem, max-content) 1fr 11rem; } .hbar .v { white-space: nowrap; }
 .hbar .b i { display: block; height: 100%; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); border-radius: 999px; background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28)); }
 .hbar .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 .hbar .me { font-weight: 600; }
@@ -266,7 +275,7 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
 .foot .modeform { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .foot button { padding: 5px 11px; font-size: 10.5px; }
 
-@media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } }
+@media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } th { position: static; } }   /* after the base th rule: below tablet width a table scrolls in its box, where sticky would sit mid-table */
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold { stroke-dashoffset: 0; } }
 </style>
 </head>
@@ -330,7 +339,28 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
     document.querySelectorAll('[data-width]').forEach(function (el) { el.style.width = el.getAttribute('data-width') + '%'; });
     document.querySelectorAll('[data-dash]').forEach(function (el) { el.style.strokeDashoffset = el.getAttribute('data-dash'); });
   });
+  // the sticky header's height, so sticky table headers and anchor targets sit below it
+  var top = document.querySelector('header.top');
+  function headH() { if (top) document.documentElement.style.setProperty('--head-h', top.offsetHeight + 'px'); }
+  headH(); window.addEventListener('resize', headH);
 })();
+{% if audit %}
+(function () {   // scripts.webui_audit's overflow probe: which elements reach past the viewport, and by how much
+  window.addEventListener('load', function () {
+    var w = window.innerWidth, over = [];
+    document.querySelectorAll('body *').forEach(function (el) {
+      var r = el.getBoundingClientRect();
+      if (r.width && r.right > w + 1 && !el.closest('.scroller') && el.tagName !== 'HTML') {
+        var id = el.tagName.toLowerCase() + (el.id ? '#' + el.id : '') + (el.className && typeof el.className === 'string' ? '.' + el.className.trim().split(/\s+/).slice(0, 2).join('.') : '');
+        over.push(id + ':' + Math.round(r.right - w));
+      }
+    });
+    document.documentElement.setAttribute('data-audit-scroll', String(document.documentElement.scrollWidth));
+    document.documentElement.setAttribute('data-audit-width', String(w));
+    document.documentElement.setAttribute('data-audit-over', over.slice(0, 12).join(' | '));
+  });
+})();
+{% endif %}
 </script>
 </body>
 </html>

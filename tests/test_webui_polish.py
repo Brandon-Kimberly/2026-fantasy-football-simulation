@@ -75,7 +75,7 @@ class TestHumanisers(unittest.TestCase):
         e = {"tool": "compare", "name": "compare_20260926T203839Z_C.J._Stroud_vs_Jordan_Love.json"}
         self.assertEqual(render.entry_title(e), "Compare players · C.J. Stroud vs Jordan Love")
         d = {"tool": "weekly_report", "name": "weekly_report_week3_run1_pre_kickoff_20260924T165337Z.html"}
-        self.assertEqual(render.entry_title(d), "Weekly digest · run1 pre kickoff")
+        self.assertEqual(render.entry_title(d), "Weekly digest · pre-kickoff run")
 
     def test_pair_digests_shows_the_html_once_with_the_markdown_attached(self):
         entries = [{"name": "weekly_report_x.html", "ext": "html", "link": "/file/h"},
@@ -138,7 +138,7 @@ class TestPages(unittest.TestCase):
 
     def test_records_page_uses_titles_and_pairs_the_digest(self):
         body = self.get("/decisions/3")
-        self.assertIn("Weekly digest · run1 pre kickoff", body)
+        self.assertIn("Weekly digest · pre-kickoff run", body)
         self.assertIn(">markdown</a>", body)
         self.assertEqual(body.count("weekly_report_week3_run1_pre_kickoff_20260924T165337Z.md"), 1)
         self.assertIn("Optimal lineup", body)

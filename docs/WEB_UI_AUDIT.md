@@ -5,6 +5,15 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
+**Status (2026-09-28): Phases 1 and 2 landed** — every bug in §3 except B13 (the count-up,
+a judgement call for §6) and B14/B19/B20/B21/B23 (Phases 3–4). Two things learned doing
+it: headless Chromium will not lay out narrower than ~504 px, so the harness's "phone"
+width is 520 and every breakpoint is judged there; and a table that scrolls inside its
+own box becomes the sticky containing block, so table headers can only stick above
+tablet width — below it they scroll with the table, which is fine. The `?audit=1`
+overflow hook and `--overflow WIDTH` probe are in, and every page reports nothing past
+the edge at 520.
+
 ## 1. How it was done
 
 - **Harness:** `scripts/webui_audit.py` (new, committed with this document). Against a
