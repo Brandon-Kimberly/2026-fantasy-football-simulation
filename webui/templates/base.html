@@ -554,6 +554,35 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     });
     pcard.addEventListener('mouseleave', function () { pcard.hidden = true; });
   }
+  // tables whose headers carry data-key sort on click: numbers high to low first, text A to Z,
+  // a second click reverses; a cell's data-sort wins over its text. The markup and the arrow
+  // styles shipped in c329cca with no script behind them -- found 2026-09-28.
+  document.addEventListener('click', function (ev) {
+    var th = ev.target.closest && ev.target.closest('th[data-key]');
+    if (!th || (ev.target.closest('a, button, input'))) return;
+    var table = th.closest('table'), body = table && table.tBodies[0];
+    if (!body) return;
+    var i = Array.prototype.indexOf.call(th.parentNode.children, th), num = th.getAttribute('data-type') === 'number';
+    var desc = th.classList.contains('sort-desc') ? false : (th.classList.contains('sort-asc') ? true : num);
+    Array.prototype.forEach.call(th.parentNode.children, function (h) { h.classList.remove('sort-asc', 'sort-desc'); h.removeAttribute('aria-sort'); });
+    th.classList.add(desc ? 'sort-desc' : 'sort-asc');
+    th.setAttribute('aria-sort', desc ? 'descending' : 'ascending');
+    function key(r) {
+      var c = r.cells[i];
+      var v = !c ? '' : (c.hasAttribute('data-sort') ? c.getAttribute('data-sort') : c.textContent.trim());
+      if (!num) return String(v).toLowerCase();
+      var f = parseFloat(v);
+      return isNaN(f) ? null : f;
+    }
+    var rows = Array.prototype.slice.call(body.rows);
+    rows.sort(function (a, b) {
+      var x = key(a), y = key(b);
+      if (num && (x === null || y === null)) return x === y ? 0 : (x === null ? 1 : -1);   // blanks last, both ways
+      var c = num ? x - y : (x < y ? -1 : (x > y ? 1 : 0));
+      return desc ? -c : c;
+    });
+    rows.forEach(function (r) { body.appendChild(r); });
+  });
   // the sticky header's height, so sticky table headers and anchor targets sit below it
   var top = document.querySelector('header.top');
   function headH() { if (top) document.documentElement.style.setProperty('--head-h', top.offsetHeight + 'px'); }
