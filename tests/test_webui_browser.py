@@ -319,6 +319,21 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         then painted over, frame by frame, back to the pre-game number."""
         self.assertEqual(self.shown_with(live_payload(False, 0.9), "/", "#pw-val").strip(), "90.0%")
 
+    def test_the_lineup_callout_prices_the_swap_in_chance_to_win(self):
+        """UI-L1: the callout says what the swap is worth in chance to win, not only points."""
+        pay = live_payload(False, 0.6)
+        pay["snapshot"]["plan"] = {"start": [{"name": "Jordan Love", "pos": "QB", "slot": "QB", "expected": 18.0, "flag": "", "locked": False}],
+                                   "bench": [{"name": "Patrick Mahomes", "pos": "QB", "slot": None, "expected": 14.8, "flag": "", "locked": False}],
+                                   "delta": 3.2, "stamp": "20260926T120000Z", "total": 186.4, "actionable": True, "locked": 0,
+                                   "stakes": {"d_h2h": 0.0247, "d_median": 0.0301, "p_h2h": 0.6946, "p_median": 0.7578,
+                                              "se": 0.0065, "stamp": "20260926T120000Z"}}
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/")
+        self.page.wait_for_selector(".plan")
+        text = self.page.inner_text(".plan")
+        self.assertIn("+2.5 points of chance to win the game", text)
+        self.assertIn("+3.0 to beat the median", text)
+
     def test_home_shows_the_certainty_once_decided(self):
         self.assertEqual(self.shown_with(live_payload(True, 1.0), "/", "#pw-val").strip(), "100%")
 

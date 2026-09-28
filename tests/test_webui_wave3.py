@@ -2,6 +2,13 @@
 tests.test_webui_wave3 -- the roadmap's third wave: answers without waiting
 (docs/WEB_UI_ROADMAP.md).
 
+UI-L1, lineup advice priced in the chance to win. The callout "the model would field a
+different lineup" priced a swap only in points. The game-plan record (matchup_lineup) holds
+the model lineup's margin against this opponent (mean and sd) and its chance to beat the
+median; shifting that margin by the points the swap is worth gives, approximately, what the
+lineup Sleeper has now costs in chance to win the game and to beat the median. Labelled as
+the estimate it is -- one record's Normal margin, not a fresh simulation.
+
 UI-P4, instant compare. "Start A or B?" was a job averaging 1.2 minutes, because it always
 runs the joint simulation. The exported distributions answer the common case at once: each
 player priced exactly as the live panel prices him (this week's lineup or matchup record,
@@ -124,6 +131,46 @@ class TestPages(Case):
         text = visible_text(self.client("simple").get("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3").get_data(as_text=True))
         self.assertIn("58.2%", text)
         self.assertIn("full comparison", text)
+
+
+MATCHUP = {"tool": "matchup_lineup", "team": MY_TEAM, "week": 3, "timestamp_utc": "20260926T120000Z",
+           "ranking_by_p_beat_opponent": ["max_mean", "safe"],
+           "constructions": {"max_mean": {"mean": 186.39, "sd": 37.63, "p_beat_opponent": 0.6946, "se": 0.0065,
+                                          "p_beat_median": 0.7578, "margin_mean": 25.18, "margin_sd": 49.94},
+                             "safe": {"mean": 180.0, "sd": 30.0, "p_beat_opponent": 0.6, "se": 0.007,
+                                      "p_beat_median": 0.7, "margin_mean": 12.0, "margin_sd": 45.0}}}
+
+
+class TestLineupStakes(Case):
+    def plant_record(self):
+        d = os.path.join(self.td.name, "data", "decisions", "week_03")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "matchup_20260926T120000Z_week3.json"), "w", encoding="utf-8") as fh:
+            json.dump(MATCHUP, fh)
+
+    def test_a_swap_is_priced_in_chance_to_win_from_the_record(self):
+        from statistics import NormalDist
+        from webui.live import lineup_stakes
+        self.plant_record()
+        s = lineup_stakes(self.root, 3, 3.2)
+        n = NormalDist()
+        self.assertAlmostEqual(s["d_h2h"], n.cdf(25.18 / 49.94) - n.cdf((25.18 - 3.2) / 49.94), places=4)
+        m = n.inv_cdf(0.7578) * 37.63
+        self.assertAlmostEqual(s["d_median"], n.cdf(m / 37.63) - n.cdf((m - 3.2) / 37.63), places=4)
+        self.assertEqual((s["p_h2h"], s["se"], s["stamp"]), (0.6946, 0.0065, "20260926T120000Z"))
+
+    def test_no_record_no_price(self):
+        from webui.live import lineup_stakes
+        self.assertIsNone(lineup_stakes(self.root, 3, 3.2))
+
+    def test_the_live_plan_carries_the_stakes(self):
+        from tests.test_webui_live import fake_fetch
+        from webui.live import snapshot
+        self.plant_record()
+        plan = snapshot(self.root, 3, MY_TEAM, "L", fake_fetch)["plan"]
+        self.assertTrue(plan["bench"], "Sleeper fields a man the lineup record does not start")
+        self.assertIsNotNone(plan["stakes"])
+        self.assertLess(plan["stakes"]["d_h2h"], 0, "benching a 10-point man for nothing costs chance")
 
 
 if __name__ == "__main__":
