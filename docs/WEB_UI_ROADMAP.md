@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–4 under way; 31 items built (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 36 items built (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -30,6 +30,8 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-O3 | "What week N did" on Forecasts, and a one-line version on Home. |
 | UI-Q2 | Past results carry the model's own pre-kickoff quote, taken from the same row the Accuracy page scores. |
 | UI-O12 | Final wins shown as a range: a strip on Home and a column on League. |
+| UI-H1 / H2 / H3 | History (record book, rivalries) and the draft board. Regular season only, re-scored weeks marked. |
+| UI-R1 / R2 | The week in review on each played week's Matchups page: awards, movers, the best move, and who had the week. |
 | UI-M1 / M2 / M7 | Home knows the week's phase and states a decided result. A pinned score bar. Stale-read warnings. |
 | UI-T1 | The trade builder with an instant lineup estimate. |
 | UI-O2 / O4 / O11 / F5 | League shows power, the schedule left, the bracket, and pending trades as their sides. |

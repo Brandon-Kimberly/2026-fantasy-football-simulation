@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink, playerlink with context %}
+{% block title %}Draft board {{ board.season if board else "" }} · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.weeks { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.weeks a { padding: 4px 10px; border: 1px solid var(--rule); border-radius: var(--r-pill); font-size: 12px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.weeks a.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
+table.db { table-layout: fixed; min-width: 1100px; } table.db th, table.db td { padding: 6px; vertical-align: top; }
+table.db td.pk { border-left: 3px solid var(--rule); font-size: 12px; line-height: 1.35; }
+table.db td.pk .n { font-weight: 600; display: block; } table.db td.pk .m { color: var(--muted); font-size: 11px; }
+table.db td.pk.gone .n { color: var(--ink-2); }
+.p-QB { border-left-color: var(--violet) !important; } .p-RB { border-left-color: var(--turf) !important; } .p-WR { border-left-color: var(--pos) !important; }
+.p-TE { border-left-color: var(--gold) !important; } .p-K { border-left-color: var(--muted) !important; }
+.p-DL, .p-LB, .p-DB { border-left-color: var(--warm) !important; }
+</style>
+<div class="head">
+  <p class="eyebrow">draft board{% if board %} · {{ board.season }}{% endif %}</p>
+  <h1>Draft board</h1>
+  <p class="lede">Every pick, round by round, with each player's season average now and whether the team that drafted them still has them. A season average now is hindsight, not the grade the pick deserved on the day. <a href="/history">History</a>.</p>
+  {% if seasons|length > 1 %}<nav class="weeks" aria-label="seasons">{% for s in seasons %}<a href="/draft?season={{ s }}" class="{{ 'on' if board and s == board.season }}">{{ s }}</a>{% endfor %}</nav>{% endif %}
+</div>
+{% if board %}
+<section>
+<div class="scroller"><table class="db"><thead><tr><th style="width:4.5em">Round</th>{% for t in board.teams %}<th>{% if t %}{{ mark(t) }}{{ teamlink(t) }}{% endif %}</th>{% endfor %}</tr></thead><tbody>
+{% for row in board.grid %}<tr><td class="muted">{{ loop.index }}</td>{% for c in row %}{% if c %}<td class="pk p-{{ c.pos }}{{ ' gone' if not c.kept }}"><span class="n">{{ playerlink(c.name, c.pid) }}</span><span class="m">{{ c.pos }} · #{{ c.pick }}{% if c.mean is not none %} · {{ c.mean|num(1) }} now{% endif %}</span>{% if not c.kept %}<span class="m" style="display:block">{% if c.now %}now with {{ c.now|real }}{% else %}not on a roster{% endif %}</span>{% endif %}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">Colour marks the position: quarterbacks, running backs, receivers, tight ends, kickers, and the defensive players.</p>
+</section>
+{% else %}<div class="note">No draft on file.</div>{% endif %}
+{% endblock %}

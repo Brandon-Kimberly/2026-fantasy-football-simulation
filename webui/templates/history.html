@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
+{% block title %}History · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.recs { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-top: 12px; }
+.recs .card { padding: 12px 16px; } .recs .v { font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+.recs .who { display: flex; align-items: center; gap: 6px; margin-top: 4px; } .recs .when { font-size: 12px; color: var(--muted); margin-top: 4px; }
+table.rv td, table.rv th { text-align: center; padding: 6px 8px; } table.rv td.nm, table.rv th.nm { text-align: left; }
+table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { color: var(--neg); font-weight: 600; } table.rv td.self { background: var(--mid); }
+</style>
+<div class="head">
+  <p class="eyebrow">history · {{ seasons|join(", ") }}</p>
+  <h1>History</h1>
+  <p class="lede">Every regular-season game on file. Playoff games are left out: the 2025 archive does not record which post-season games were for the title and which were consolation, so counting them would mix the two. This season's results are as the league counted them.{% if drafts %} <a href="/draft">The draft board</a>.{% endif %}</p>
+</div>
+
+{% if book %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Record book <span class="hint">regular season, {{ n_games }} games</span></h2>
+<div class="recs">
+{% for r in book %}<div class="card"><div class="k">{{ r.label }}</div><div class="v">{{ r.value|num(1) }}{% if r.key in ("margin", "close") %} <span class="small muted">points</span>{% endif %}</div>
+<div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }} <span class="muted">vs</span> {{ teamlink(r.opponent) }}</div>
+<div class="when">{{ r.season }} · {% if r.season == current_season %}<a href="/matchups/week-{{ r.week }}">week {{ r.week }}</a>{% else %}week {{ r.week }}{% endif %}{% if r.rescored or r.rescaled %} · <span title="Sleeper now re-scores this week under the league's later IDP settings; the league played it under the earlier ones">re-scored box score</span>{% endif %}</div></div>{% endfor %}
+</div>
+</section>
+{% endif %}
+
+{% if mine %}
+<section>
+<h2><svg class="i"><use href="#i-matchup"/></svg> {{ my_team|real }} against everyone <span class="hint">regular season, every season on file</span></h2>
+<div class="scroller"><table><thead><tr><th data-key="t" data-type="text">Opponent</th><th data-key="r" data-type="number" class="num">Record</th><th data-key="m" data-type="number" class="num">Average margin</th><th>Last meeting</th></tr></thead><tbody>
+{% for o in mine %}<tr><td class="nm" data-sort="{{ o.opponent|real }}">{{ mark(o.opponent) }}{{ teamlink(o.opponent) }}</td>
+<td class="num" data-sort="{{ o.w - o.l }}"><b>{{ o.w }}–{{ o.l }}{% if o.t %}–{{ o.t }}{% endif %}</b></td>
+<td class="num {{ 'pos' if o.margin > 0 else ('neg' if o.margin < 0) }}" data-sort="{{ o.margin }}">{{ o.margin|signed(1) }}</td>
+<td class="small">{% set g = o.last %}{{ g.season }} week {{ g.week }}: {{ 'won' if g.winner == my_team else ('tied' if not g.winner else 'lost') }} {{ (g.pa if g.a == my_team else g.pb)|num(1) }}–{{ (g.pb if g.a == my_team else g.pa)|num(1) }}{% if g.rescored or g.rescaled %} <span class="muted">(re-scored)</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+
+{% if teams %}
+<section>
+<h2><svg class="i"><use href="#i-users"/></svg> Rivalries <span class="hint">each row's record against each column, regular season</span></h2>
+<div class="scroller"><table class="rv"><thead><tr><th class="nm"></th>{% for c in teams %}<th title="{{ c|real }}">{{ mark(c) }}</th>{% endfor %}</tr></thead><tbody>
+{% for r in teams %}<tr{% if r == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r) }}{{ teamlink(r) }}</td>{% for c in teams %}{% if r == c %}<td class="self"></td>{% else %}{% set rv = pairs.get((r, c) if r < c else (c, r)) %}{% if rv %}{% set w = rv.wins[r] %}{% set l = rv.wins[c] %}<td class="{{ 'pos' if w > l else ('neg' if w < l) }}" title="{{ r|real }} vs {{ c|real }}: {{ rv.games }} game{{ 's' if rv.games != 1 }}, average margin {{ rv.avg_margin[r]|signed(1) }}">{{ w }}–{{ l }}{% if rv.ties %}–{{ rv.ties }}{% endif %}</td>{% else %}<td class="muted">—</td>{% endif %}{% endif %}{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+{% if not book %}<div class="note">No games on file yet.</div>{% endif %}
+{% endblock %}

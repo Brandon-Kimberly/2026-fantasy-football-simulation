@@ -39,13 +39,35 @@
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">
-      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% endif %}
+      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% elif g.rescaled %}<span class="muted" title="Sleeper now re-scores this week under the league's later IDP settings; the result stands">re-scored points</span>{% endif %}
       {% elif g.p_a is not none %}<span>{{ 'the model, before kickoff' if g.quote_a is not none else 'from the latest forecast' }}</span>{% else %}<span class="muted">no forecast for this game yet</span>{% endif %}
     </div>
   </div>
 {% endfor %}
 </div>
 {% else %}<div class="note">No schedule on file for week {{ week }}.</div>{% endif %}
+
+{% if review and review.awards %}{% set rv = review %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review <span class="hint">results as the league counted them{% if rv.rescaled %} · the award points are Sleeper's re-scored box scores, under the league's later IDP settings{% endif %}</span></h2>
+<div class="mgames" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+{% for a in rv.awards %}<div class="mg"><div class="k">{{ a.label }}</div>
+<div class="side" style="grid-template-columns:auto 1fr">{{ mark(a.team) }}<span class="nm">{{ teamlink(a.team) }}</span></div>
+<div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }}; the model gave them {{ (100 * a.quote)|round(0)|int }}% before kickoff{% elif a.key == "median_miss" %}{{ a.points|num(1) }} points{% if a.short is not none %}, {{ a.short|num(1) }} short of the {{ a.cut|num(1) }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|num(1) }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|num(1) }} points, still a loss to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
+</div>
+{% if rv.movers %}<h3 style="margin-top:18px">Whose odds the week moved most</h3>
+<div class="scroller"><table><thead><tr><th>Team</th><th class="num">Playoff odds</th><th class="num">Change</th></tr></thead><tbody>
+{% for m in rv.movers %}<tr{% if m.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(m.team) }}{{ teamlink(m.team) }}</td><td class="num">{{ m.playoff_was|num(1) }}% → <b>{{ m.playoff|num(1) }}%</b></td><td class="num {{ 'pos' if m.d_playoff > 0 else 'neg' }}">{{ m.d_playoff|signed(1) }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+{% if rv.best_move %}{% set d = rv.best_move %}{% set fx = d.actor_effect %}{% set v = fx.playoff|verdict(fx.playoff_se) %}
+<h3 style="margin-top:18px">The week's best move</h3>
+<p>{{ mark(d.actor) }}{{ teamlink(d.actor) }}: {{ d.label }}{% for p in d.adds %} <b>+ {{ p.name }}</b>{% endfor %}{% for p in d.drops %} <span class="muted">− {{ p.name }}</span>{% endfor %} · {{ fx.playoff|signed(1) }} playoff points {{ fx.playoff_se|se }}{% if v %} · {{ v.text }}{% endif %}</p>{% endif %}
+{% if rv.surprises %}<h3 style="margin-top:18px">Who had the week <span class="hint">points against their own last projection before kickoff, less the league's average surprise that week ({{ rv.league_surprise|signed(1) }})</span></h3>
+<div class="scroller"><table><thead><tr><th>Player</th><th class="num">Projected</th><th class="num">Scored</th><th class="num">Beat the league by</th></tr></thead><tbody>
+{% for p in rv.surprises %}<tr><td class="nm"><a href="/player/{{ p.pid }}">{{ p.name }}</a></td><td class="num">{{ p.projected|num(1) }}</td><td class="num"><b>{{ p.points|num(1) }}</b></td><td class="num pos">{{ p.over_league|signed(1) }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+</section>
+{% endif %}
 
 {% if week == current and live_enabled %}
 <div id="mlive" data-started="{{ '1' if started else '0' }}" hidden></div>

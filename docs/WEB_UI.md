@@ -730,6 +730,22 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### History, the draft board, and the week in review (2026-09-28, roadmap UI-H1/H2/H3, R1/R2)
+
+- **`/history` (`webui/history.py`).** A record book, my record against every team, and a
+  rivalry grid, all from **regular-season games only**: the 2025 archive cannot tell the
+  championship path from consolation games, and a median game is never a head-to-head result.
+  2026 results are as the league counted them. Every game in a week Sleeper now re-scores is
+  marked, not only games whose result flipped (`results.rescaled_weeks`); the team pages and
+  week cards say "re-scored points" too.
+- **`/draft`.** Each season's picks, round by team, coloured by position, with the player's
+  average now and whether the drafting team still has the player. It is labelled hindsight,
+  not a grade.
+- **The week in review (`webui/recap.py`) on a played week's Matchups page.** Awards, the odds
+  movers, the best-graded move, and "who had the week". The surprise is measured against the
+  league's average surprise that week, so the model's bias does not take the prize. It uses no
+  luck language and no combined score.
+
 ### Game day, the trade builder, and League's second pass (2026-09-28, roadmap wave 4 and more)
 
 - **Home knows what day it is (UI-M1).** `home_report` carries the week's phase and last week's

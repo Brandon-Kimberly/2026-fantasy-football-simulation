@@ -134,6 +134,7 @@ class TestTeam(ObjectCase):
         self.assertEqual(len(s), 14)
         self.assertEqual((s[0]["opponent"], s[0]["result"], s[0]["mine"], s[0]["theirs"]), (NW, "W", 180.0, 140.0))
         self.assertEqual((s[1]["opponent"], s[1]["result"], s[1]["rescored"]), (CB, "L", True))
+        self.assertEqual((s[0]["rescored"], s[0]["rescaled"]), (False, True), "week 1's points are re-scored too (F83)")
         self.assertEqual(s[1]["quote"], 0.71, "the model's pre-kickoff quote for the game")
         self.assertTrue(s[2]["current"])
         self.assertIsNone(s[2]["result"])
@@ -181,6 +182,7 @@ class TestWeekGames(ObjectCase):
         self.assertEqual(len(games["games"]), 4)
         g = next(g for g in games["games"] if QF in (g["a"], g["b"]))
         self.assertEqual((g["winner"], g["rescored"]), (CB, True))
+        self.assertTrue(g["rescaled"])
         self.assertTrue(g["upset"], "the model had Quantum Ferrets at 71%")
         self.assertTrue(g["mine"])
 
