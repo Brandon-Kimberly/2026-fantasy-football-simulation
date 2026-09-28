@@ -20,7 +20,7 @@ from webui.accuracy import _first_kickoff, chances_in, quoted_week
 from webui.glance import (decisions_report, freshness_report, h2h_report, odds_moves, odds_now, records,
                           roster_vorp, team_hue)
 from webui.live import expectations
-from webui.results import week_results
+from webui.results import rescaled_weeks, week_results
 
 CACHE_FIELDS = ("full_name", "position", "team", "number", "age", "college", "height", "weight", "years_exp",
                 "depth_chart_position", "depth_chart_order", "injury_status", "injury_body_part", "injury_notes",
@@ -142,6 +142,7 @@ def team_report(root, team, my_team):
     order = sorted(standings.items(), key=lambda kv: (-float(kv[1].get("h2h_wins") or 0), -float(kv[1].get("points_scored") or 0)))
     rank = next((i + 1 for i, (t, _s) in enumerate(order) if t == team), None)
     results = week_results(root)
+    scaled = rescaled_weeks(root)
     matrix = _matrix(root, now["week"])
     quotes = {}
     schedule = []
@@ -152,7 +153,7 @@ def team_report(root, team, my_team):
             continue
         mine, theirs = (results.get(wk) or {}).get(team), (results.get(wk) or {}).get(opp)
         row = {"week": wk, "opponent": opp, "current": wk == cur, "result": None, "mine": None, "theirs": None,
-               "median": None, "rescored": False, "quote": None, "p_win": None}
+               "median": None, "rescored": False, "rescaled": wk in scaled, "quote": None, "p_win": None}
         if mine and theirs and mine.get("h2h_win") is not None:
             if wk not in quotes:
                 quotes[wk] = quoted_week(root, wk)
@@ -305,7 +306,8 @@ def week_games(root, week, my_team):
         ra, rb = results.get(a), results.get(b)
         qa = (chances_in(quote, a) or {}).get("h2h")
         g = {"a": a, "b": b, "mine": my_team in (a, b), "hue_a": team_hue(a), "hue_b": team_hue(b),
-             "pts_a": None, "pts_b": None, "winner": None, "rescored": False, "med_a": None, "med_b": None,
+             "pts_a": None, "pts_b": None, "winner": None, "rescored": False, "rescaled": week in rescaled_weeks(root),
+             "med_a": None, "med_b": None,
              "quote_a": qa, "p_a": None, "p_b": None, "upset": False}
         if ra and rb and ra.get("h2h_win") is not None:
             wa = float(ra["h2h_win"])

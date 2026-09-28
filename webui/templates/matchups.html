@@ -39,7 +39,7 @@
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">
-      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% endif %}
+      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% elif g.rescaled %}<span class="muted" title="Sleeper now re-scores this week under the league's later IDP settings; the result stands">re-scored points</span>{% endif %}
       {% elif g.p_a is not none %}<span>{{ 'the model, before kickoff' if g.quote_a is not none else 'from the latest forecast' }}</span>{% else %}<span class="muted">no forecast for this game yet</span>{% endif %}
     </div>
   </div>
