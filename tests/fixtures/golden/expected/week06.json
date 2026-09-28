@@ -215,6 +215,17 @@
         "sum": 60.94
       }
     },
+    "sim_outcomes_week_6.json": {
+      "hash": "394f11bbc0f2ac347cdc708c14f4c74489a4685ad82883c34d0ac2473b1e139c",
+      "summary": {
+        "max": 30.0,
+        "mean": 10.0,
+        "min": 2.0,
+        "n": 13,
+        "std": 6.81627,
+        "sum": 130.0
+      }
+    },
     "simulation_audit_log_sim0_week_6.json": {
       "hash": "b08fc4ace2876686740b0c0db3492598fcf5ed811e53c2aaad4c0c75c9283049",
       "summary": {
