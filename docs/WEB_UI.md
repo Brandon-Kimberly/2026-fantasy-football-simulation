@@ -657,6 +657,24 @@ so the lineup I am ACTUALLY fielding is knowable from the live read and nowhere 
 that is why the panel needs the live scoreboard connected, and why it says nothing
 when the optimiser has not been run for the week.
 
+### W15 - What changed since the last sync (2026-09-28, U2)
+
+The Sync page already took a full copy of `data/current/` before every sync it
+launched. `sync.changes` reads one of those copies back and says what moved: who
+changed hands (added, dropped, or traded from one roster to another), who picked up or
+cleared a designation, whose projection moved by half a point or more, and what the
+standings did. Rostered players only for projections, biggest movers first, capped --
+the free-agent pool moves every sync and is noise.
+
+The backup is read straight off disk, because the path chokepoint refuses `data/local/`
+by design; the live side goes through the root like everything else. Nothing is
+written and nothing is recomputed -- a sync that changed nothing shows nothing, which
+is what it says against a tree whose week is already over.
+
+The newest backup is the default comparison point, and every row of the backups table
+offers itself as an alternative (`/sync?from=<name>`), so "what did I miss while I was
+away" can span several syncs rather than only the last one.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
