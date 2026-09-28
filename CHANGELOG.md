@@ -5,6 +5,42 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v10.3.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.3.0) — 2026-09-28 (MINOR)
+
+**The viewer gets audited, and then gets used.** A crawl-and-screenshot harness
+(`scripts/webui_audit.py`) walked every page in both views at three widths and produced a
+written audit; six phases then worked through it. Plus the features the owner asked for
+between phases, and one engine-side fix. The model is unchanged and the goldens
+byte-identical.
+
+**The audit and its six phases.** 24 bugs found and closed: a page that 500'd, contrast
+below 4.5:1 on six text tokens, tables that scrolled sideways on a phone, a header that
+wrapped to two rows, charts whose axes read 21 / 42 / 63 and whose labels collided. Phase
+by phase: the bug sweep and phone width; contrast, a keyboard focus ring, a one-row header
+and an icon per tool; charts v2 (one component, round ticks, a hover crosshair, the
+playoff- and title-odds races, sparklines); live and game day (a job bar on every page, a
+kickoff countdown, game-clock chips, head-to-head history, and `/gameday`, a full-screen
+scoreboard for a TV); and the power features (a manual light/dark theme, a web-app
+manifest, a Ctrl-K command palette, keyboard shortcuts, player hover cards, Decisions
+awards, per-tool job durations).
+
+**What the owner asked for along the way.** A live scoreboard that reads Sleeper and the
+NFL scoreboard and writes nothing (W6). Readable addresses, a Decisions tab that joins
+every logged move to its paired evaluation, and roster VORP on the League page (W7).
+Sync from the browser (W4, reopened and built behind a key preflight, a backup and an
+explicit User-scope injection). Two views — the owner's and one anyone could use — with a
+vocabulary guard that fails the suite if developer language reaches the plain one (W8). A
+local name, `syndicatefootball.local` (W9). And a home page rebuilt on six specific
+complaints (W13): the live win probability leads and the pre-game one is a footnote, the
+two matchup bars share one scale, every starter is shown against his projection, a scoring
+feed says what just happened in the league's own scoring weights, and the season card
+draws the finishing-seed distribution instead of a bar that did not render.
+
+**One engine-side fix.** A manager rostered a player who is on no NFL team, Sleeper
+published no projection, and the engine refused to invent one and aborted. The whitelist
+entry for him is zeros, which is the only sourced number available for a player who cannot
+be in a game, and it cancels itself the moment he signs.
+
 ## [v10.2.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.2.0) — 2026-09-27 (MINOR)
 
 **The web UI becomes something you read, not something you decode.** Two passes on
