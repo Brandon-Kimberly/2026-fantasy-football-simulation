@@ -104,6 +104,44 @@ def odds_now(root):
     return {"week": None, "teams": {}, "behind": None}
 
 
+def _wl(v):
+    if v is None:
+        return None
+    v = float(v)
+    return "W" if v >= 1 else ("L" if v <= 0 else "T")
+
+
+def odds_moves(root, n=None):
+    """UI-O3: what each result cost or bought. Every team's playoff and title odds in the
+    forecast for week `n` (default: THE current one, odds_now) against the forecast before
+    it, with the results of the weeks in between -- the head-to-head game and the median
+    game. The change also carries every roster move and projection update since, so a
+    page says "what week N did", never "what the win did". No earlier forecast: no rows,
+    never a zero."""
+    n = n if n is not None else odds_now(root)["week"]
+    prev = max((w for w in root.weeks() if n and w < n and odds_at(root, w)), default=None)
+    out = {"week": n, "prev": prev, "teams": {}, "rows": []}
+    if not n or prev is None:
+        return out
+    now, then = odds_at(root, n), odds_at(root, prev)
+    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    for team, v in now.items():
+        was = then.get(team)
+        if not was:
+            continue
+        d = lambda a, b: round(float(a) - float(b), 1) if a is not None and b is not None else None
+        results = []
+        for w in range(prev, n):
+            r = ((actuals.get(f"week_{w}") or {}).get("team_results") or {}).get(team)
+            if r:
+                results.append({"week": w, "h2h": _wl(r.get("h2h_win")), "median": _wl(r.get("median_win"))})
+        out["teams"][team] = {"team": team, "playoff": v["playoff"], "playoff_was": was["playoff"],
+                              "d_playoff": d(v["playoff"], was["playoff"]), "champ": v["champ"],
+                              "champ_was": was["champ"], "d_champ": d(v["champ"], was["champ"]), "results": results}
+    out["rows"] = sorted(out["teams"].values(), key=lambda r: -(r["d_playoff"] if r["d_playoff"] is not None else -999))
+    return out
+
+
 def _wlt(w, l, t):
     return {"w": w, "l": l, "t": t, "text": f"{w}–{l}" + (f"–{t}" if t else "")}
 

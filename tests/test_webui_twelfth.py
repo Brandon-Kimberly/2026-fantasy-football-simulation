@@ -26,6 +26,10 @@ prints through one filter; a score's spread is labelled sd. A paired result is s
 standard errors: under 2 "no measurable change", 2 to 4 "modest", above 4 "clear" -- the
 same line the Decisions "measurably moved" filter draws.
 
+UI-O3: what each result cost or bought -- every team's change in playoff and title odds from
+one forecast to the next, beside the week's results that sit between them. Never a zero
+where there is no earlier forecast to compare with.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -39,8 +43,8 @@ import os
 import tempfile
 import unittest
 
-from webui.glance import (freshness_report, home_report, kickoff_report, odds_at, odds_now, odds_race, records,
-                          sync_phrase)
+from webui.glance import (freshness_report, home_report, kickoff_report, odds_at, odds_moves, odds_now, odds_race,
+                          records, sync_phrase)
 from fantasy_sim.config import MY_TEAM
 from webui import render
 from webui.paths import Root
@@ -448,6 +452,73 @@ class TestPagesSpeakTheGrammar(unittest.TestCase):
                 self.assertTrue(judged, "the fixture's evaluated moves must carry a verdict")
                 for moved, tier in judged:
                     self.assertEqual(moved == "1", tier != "none")
+
+
+def _export(root, n, playoff, champ):
+    """A week-n forecast export: {team: playoff %} and {team: title %}."""
+    d = os.path.join(root, "data", "weeks", f"week_{n:02d}")
+    os.makedirs(d, exist_ok=True)
+    with open(os.path.join(d, f"live_season_forecast_week_{n}.json"), "w", encoding="utf-8") as fh:
+        json.dump({t: {"current_state": {"actual_wins_banked": 1.0}, "forecast": {"playoff_probability_pct": p,
+                   "playoff_standard_error": 0.3, "expected_final_wins": 15.0}} for t, p in playoff.items()}, fh)
+    with open(os.path.join(d, f"syndicate_comprehensive_matrix_week_{n}.json"), "w", encoding="utf-8") as fh:
+        json.dump({"metadata": {"week": n, "simulations": 100},
+                   "season_outcomes": [{"Team": t, "Champ_Pct": c} for t, c in champ.items()]}, fh)
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestWhatEachResultDid(unittest.TestCase):
+    """Week 2's export had Quantum Ferrets at 80.0% / 30.0%; week 3's has 93.5% / 35.8%. In
+    between, week 2: they won head-to-head and missed the median."""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        _export(self.td.name, 2, {A: 80.0, B: 95.0}, {A: 30.0, B: 40.0})
+        _export(self.td.name, 3, {A: 93.5, B: 92.5}, {A: 35.8, B: 35.8})
+        _actuals(self.td.name, [{A: (1.0, 1), B: (0.0, 0)}, {A: (1.0, 0), B: (0.0, 1)}], {A: 3, B: 1})
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def get(self, path, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        r = app.test_client().get(path)
+        self.assertEqual(r.status_code, 200, path)
+        return r.get_data(as_text=True)
+
+    def test_the_move_between_two_forecasts_and_the_results_between_them(self):
+        m = odds_moves(self.root)
+        self.assertEqual((m["week"], m["prev"]), (3, 2))
+        a = m["teams"][A]
+        self.assertEqual((a["d_playoff"], a["d_champ"], a["playoff_was"], a["playoff"]), (13.5, 5.8, 80.0, 93.5))
+        self.assertEqual(a["results"], [{"week": 2, "h2h": "W", "median": "L"}])
+        self.assertEqual(m["teams"][B]["d_playoff"], -2.5)
+        self.assertEqual([r["team"] for r in m["rows"]][:2], [A, B], "biggest gain first")
+
+    def test_no_earlier_forecast_means_no_move_not_a_zero(self):
+        import shutil
+        shutil.rmtree(os.path.join(self.td.name, "data", "weeks", "week_02"))
+        m = odds_moves(Root(self.td.name))
+        self.assertIsNone(m["prev"])
+        self.assertEqual(m["teams"], {})
+
+    def test_forecasts_page_shows_what_the_week_did(self):
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                body = self.get("/forecasts", mode)
+                self.assertIn("What week 2 did", body)
+                self.assertIn("+13.5", body)
+                self.assertIn("−2.5", body.replace("-2.5", "−2.5"))
+
+    def test_home_says_what_the_last_week_did_to_my_odds(self):
+        body = self.get("/", "simple")
+        self.assertIn("+13.5 since the week-2 forecast", body)
 
 
 if __name__ == "__main__":
