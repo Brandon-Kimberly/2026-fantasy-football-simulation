@@ -49,9 +49,25 @@
 </section>
 {% endif %}
 
-{% if pending and pending.trades %}
-<section><h2>Pending trades <span class="hint">not final — a vetoed trade returns the players</span></h2>
-{% for tr in pending.trades %}<div class="note">{% if tr is mapping %}{% for k, v in tr.items() %}<b>{{ k|replace("_"," ") }}</b> {{ v|string|real }}{% if not loop.last %} · {% endif %}{% endfor %}{% else %}{{ tr|string|real }}{% endif %}</div>{% endfor %}
+{% set lx = extras %}
+{% if lx and lx.pending %}
+<section><h2><svg class="i c-warm"><use href="#i-swap"/></svg> Pending trades <span class="hint">in review for a day; a vetoed trade returns the players</span></h2>
+{% for tr in lx.pending %}<div class="card" style="padding:12px 16px;margin-top:10px"><div class="k">week {{ tr.week }} · in review</div><div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:6px">{% for s in tr.sides %}<div>{{ mark(s.team) }}{{ teamlink(s.team) }} <span class="muted">gets</span><ul style="margin:6px 0 0 1.1em;padding:0">{% for p in s.gets %}<li>{{ p.name }}</li>{% else %}<li class="muted">nothing listed</li>{% endfor %}</ul></div>{% endfor %}</div>{% if tr.mine %}<p class="small" style="margin:8px 0 0"><a href="/trade?with={{ (tr.sides|rejectattr("team", "equalto", my_team)|first).team|slug }}">Open it in the trade builder</a></p>{% endif %}</div>{% endfor %}
+</section>
+{% endif %}
+
+{% if lx and lx.power %}
+<section><h2><svg class="i c-turf"><use href="#i-chart"/></svg> Power and the schedule left <span class="hint">from the week-{{ lx.odds_week or "?" }} forecast · click a column to sort</span></h2>
+<div class="scroller"><table><thead><tr><th data-key="r" data-type="number" class="num">Power</th><th data-key="t" data-type="text">Team</th><th data-key="p" data-type="number" class="num" title="the chance to beat an average league opponent, from the head-to-head matrix">Beats an average team</th><th data-key="k" data-type="number" class="num">Record rank</th><th data-key="s" data-type="number" class="num" title="the average chance to win the games still to play">Chance in the games left</th><th data-key="g" data-type="number" class="num">Games left</th></tr></thead><tbody>
+{% for r in lx.power %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num" data-sort="{{ r.rank or 99 }}">{{ r.rank or "—" }}</td><td class="nm" data-sort="{{ r.team|real }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num" data-sort="{{ r.rating or 0 }}">{% if r.rating is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (100 * r.rating)|round(0)|int }}"></i></span>{{ (100 * r.rating)|round(1) }}%</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num" data-sort="{{ r.record_rank or 99 }}">{{ r.record_rank or "—" }}{% if r.rank and r.record_rank and r.rank != r.record_rank %} <span class="muted tiny">{{ "better than" if r.rank < r.record_rank else "worse than" }} the record says</span>{% endif %}</td><td class="num" data-sort="{{ r.remaining or 0 }}">{% if r.remaining is not none %}{{ (100 * r.remaining)|round(1) }}%{% if r.rating is not none %} <span class="muted tiny">{{ "easier" if r.remaining > r.rating + 0.01 else ("harder" if r.remaining < r.rating - 0.01 else "about average") }}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td><td class="num">{{ r.games_left }}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">Power is each team's chance to beat an average opponent this season, from the simulation; "easier" or "harder" compares its chance in the games it has left with that.</p>
+</section>
+{% endif %}
+
+{% if lx and lx.bracket %}{% set bk = lx.bracket %}
+<section><h2><svg class="i c-gold"><use href="#i-trophy"/></svg> {{ "If the season ended today" if bk.projected else "The playoffs" }} <span class="hint">{% if bk.projected %}the bracket as the standings stand · each seed with its chance of finishing there{% else %}from week {{ bk.start }}{% endif %}</span></h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:10px">{% for r in bk.rounds if r.round == 1 %}<div class="card" style="padding:12px 16px"><div class="k">semifinal {{ loop.index }}</div>{% for t in (r.t1, r.t2) %}{% set sd = (bk.seeds|selectattr("team", "equalto", t)|first) %}<div style="display:flex;align-items:center;gap:8px;margin-top:8px">{{ mark(t) }}<span class="muted">#{{ sd.seed if sd else "?" }}</span>{{ teamlink(t) }}{% if r.winner == t %} <b class="pos">won</b>{% endif %}<span class="muted small" style="margin-left:auto">{% if bk.projected and sd and sd.p_seed is not none %}{{ sd.p_seed|round(0)|int }}% to finish #{{ sd.seed }}{% endif %}</span></div>{% endfor %}</div>{% endfor %}</div>
 </section>
 {% endif %}
 

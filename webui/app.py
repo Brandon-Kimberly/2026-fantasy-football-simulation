@@ -606,7 +606,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/league")
     @app.route("/current")
     def current():
-        return render_template("current.html", vorp=roster_vorp(root), **current_report(root))
+        return render_template("current.html", vorp=roster_vorp(root), extras=objects.league_extras(root, MY_TEAM),
+                               **current_report(root))
 
     @app.route("/logs")
     def logs():
