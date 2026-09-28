@@ -134,8 +134,8 @@ class TestTradeEstimate(unittest.TestCase):
                   ("LB", 5), ("DB", 4), ("WR", 2)]
         for team, spec, tag in ((MY_TEAM, mine, "m"), (CB, theirs, "t")):
             for i, (pos, mean) in enumerate(spec):
-                name = f"{tag}{pos}{i}"
-                base[name] = _player(pos, float(mean), None if name != "tTE5" else 6, pid=f"{tag}{i}")   # only their TE has a bye
+                name = f"{tag}-{pos}-p{i}"          # not "mRB11": that spells the audit codes R1 and B11
+                base[name] = _player(pos, float(mean), None if name != "t-TE-p5" else 6, pid=f"{tag}{i}")   # only their TE has a bye
                 rosters[team].append({"name": name, "pos": pos, "team": "GB", "on_ir": False})
         with open(os.path.join(self.td.name, "data", "current", "player_baselines.json"), "w", encoding="utf-8") as fh:
             json.dump(base, fh)
@@ -147,7 +147,7 @@ class TestTradeEstimate(unittest.TestCase):
 
     def test_each_side_week_by_week_and_the_forced_drop(self):
         from webui import trade
-        e = trade.estimate(self.root, MY_TEAM, ["mWR3"], CB, ["tWR3", "tTE5"])
+        e = trade.estimate(self.root, MY_TEAM, ["m-WR-p3"], CB, ["t-WR-p3", "t-TE-p5"])
         me, them = e["sides"][MY_TEAM], e["sides"][CB]
         self.assertEqual(me["per_week"], 2.0, "WR 12 out, WR 14 in; the 3-point TE sits")
         self.assertLess(them["per_week"], 0)
