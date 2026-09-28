@@ -20,7 +20,7 @@
 .filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 12px; }
 .filters button { padding: 5px 11px; font-size: 11px; background: var(--surface); color: var(--ink-2); border: 1px solid var(--grid); }
 .filters button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
-.ledger .b i { background: var(--turf); } .ledger .neg .b i { background: var(--neg); }
+.ledger .b i { background: var(--g-turf); } .ledger .b.neg i { background: var(--neg); }
 @media (max-width: 720px) { .dec { grid-template-columns: 1fr; } .dec .fx { text-align: left; } }
 </style>
 <div class="head">
@@ -47,7 +47,7 @@
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Who has helped themselves <span class="hint">each team's own moves, summed · playoff percentage points</span></h2>
 {% set lmax = [(ledger|map(attribute='playoff')|map('abs')|max), 0.5]|max %}
-<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="{{ 'neg' if L.playoff < 0 }}"><span class="b"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
+<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
 <p class="small muted" style="margin-top:8px">A trade counts for both sides. ± is the combined batch-to-batch spread of the evaluations; a team whose bar is inside its ± has not measurably moved.</p>
 </section>
 {% endif %}
@@ -69,11 +69,11 @@
   <div class="what">
     {% if d.type == 'trade' %}
       <span class="who">{% for t in d.teams %}{{ mark(t) }}{{ teamlink(t) }}{% if not loop.last %} <span class="muted">↔</span> {% endif %}{% endfor %}</span>
-      {% for t in d.teams %}<span class="mv"><b>{{ t|real }}</b> gets {% set got = d.adds|selectattr('to', 'equalto', t)|list %}{% if got %}{% for p in got %}<b>{{ p.name }}</b> <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}nothing{% endif %}</span>{% endfor %}
+      {% for t in d.teams %}<span class="mv"><b>{{ t|real }}</b> gets {% set got = d.adds|selectattr('to', 'equalto', t)|list %}{% if got %}{% for p in got %}<b>{{ p.name }}</b> <span class="muted">{{ p.pos }}{% if p.mean is not none %}{{ ' · ' if p.pos }}{{ p.mean|num(1) }}/wk{% endif %}</span>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}nothing listed{% endif %}</span>{% endfor %}
     {% else %}
       <span class="who">{{ mark(d.actor) }}{{ teamlink(d.actor) }}</span>
-      {% for p in d.adds %}<span class="mv"><span class="pos">+</span> <b>{{ p.name }}</b> <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span>{% if d.faab_bid %} <span class="muted">· bid {{ d.faab_bid|num(0) }}</span>{% endif %}</span>{% endfor %}
-      {% for p in d.drops %}<span class="mv"><span class="neg">−</span> {{ p.name }} <span class="muted">{{ p.pos }} · {{ p.mean|num(1) }}/wk</span></span>{% endfor %}
+      {% for p in d.adds %}<span class="mv"><span class="pos">+</span> <b>{{ p.name }}</b> <span class="muted">{{ p.pos }}{% if p.mean is not none %}{{ ' · ' if p.pos }}{{ p.mean|num(1) }}/wk{% endif %}</span>{% if d.faab_bid %} <span class="muted">· bid {{ d.faab_bid|num(0) }}</span>{% endif %}</span>{% endfor %}
+      {% for p in d.drops %}<span class="mv"><span class="neg">−</span> {{ p.name }} <span class="muted">{{ p.pos }}{% if p.mean is not none %}{{ ' · ' if p.pos }}{{ p.mean|num(1) }}/wk{% endif %}</span></span>{% endfor %}
     {% endif %}
   </div>
   <div class="fx">

@@ -62,8 +62,9 @@
 <h2><svg class="i c-violet"><use href="#i-flag"/></svg> Where each team finishes <span class="hint">probability of each seed · darker = likelier</span></h2>
 {% set names = rows|map(attribute='team')|list if rows else seeds.keys()|list %}
 {% set seedkeys = (seeds[names[0]] or {}).keys()|list %}
+{% set seedmax = [(seeds.values()|map('dictsort')|map('map', attribute=1)|map('max')|max if seeds else 100)|float, 1.0]|max %}
 <div class="scroller"><table class="heat"><thead><tr><th class="nm">Team</th>{% for k in seedkeys %}<th>{{ k|replace('Seed ', '#') }}</th>{% endfor %}</tr></thead><tbody>
-{% for t in names %}<tr{% if t == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for k in seedkeys %}{% set v = (seeds.get(t) or {}).get(k) %}<td><span style="background:rgba(107,91,210,{{ ((v or 0) / 100 * 0.85)|round(3) }});{% if (v or 0) > 45 %}color:#fff{% endif %}">{{ v|num(0) }}</span></td>{% endfor %}</tr>{% endfor %}
+{% for t in names %}<tr{% if t == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for k in seedkeys %}{% set v = (seeds.get(t) or {}).get(k) %}<td><span style="background:rgba(107,91,210,{{ ((v or 0) / seedmax * 0.85)|round(3) }});{% if (v or 0) > 0.55 * seedmax %}color:#fff{% endif %}">{{ v|num(0) }}</span></td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}

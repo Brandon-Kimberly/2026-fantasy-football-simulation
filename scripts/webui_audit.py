@@ -1,7 +1,7 @@
 """scripts.webui_audit -- crawl and photograph the web UI so an audit is measured, not eyeballed.
 
   py -3.10 -m scripts.webui_audit --base http://127.0.0.1:8766 --out <dir> [--modes dev,simple]
-                                  [--screens] [--edge "C:/.../msedge.exe"] [--max-pages 400]
+                                  [--screens] [--settled] [--overflow 400] [--edge "C:/.../msedge.exe"] [--max-pages 400]
 
 Point it at a server started with --no-real-names over a sandbox copy (docs/WEB_UI.md W5/W9):
 the report and the screenshots are files, and real names never go into a file (H1). For
@@ -164,7 +164,19 @@ def crawl(base, max_pages):
     return out
 
 
+def winpath(p):
+    """A path Edge can open on Windows. A Git-Bash style '/c/Users/...' handed to a native
+    process is not converted by MSYS when it sits inside a Python string, and Edge then
+    fails to create its profile directory with a modal dialog that outlives the timeout."""
+    p = str(p or "")
+    m = re.match(r"^/([A-Za-z])/(.*)$", p)
+    if m and sys.platform.startswith("win"):
+        p = f"{m.group(1).upper()}:/{m.group(2)}"
+    return os.path.abspath(p)
+
+
 def screenshot(edge, base, path, out_png, width, height, dark=False, profile=None, settled=False):
+    out_png, profile = winpath(out_png), winpath(profile or os.path.join(os.path.dirname(out_png), "edge-profile"))
     args = [edge, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
             f"--user-data-dir={profile}", "--hide-scrollbars", f"--window-size={width},{height}",
             "--virtual-time-budget=6000", "--enable-logging=stderr", "--v=0", f"--screenshot={out_png}"]
@@ -178,6 +190,22 @@ def screenshot(edge, base, path, out_png, width, height, dark=False, profile=Non
     return os.path.exists(out_png), console
 
 
+def overflow_probe(edge, base, path, width, profile):
+    """Load the page at `width` with the ?audit=1 hook and read back what reaches past the
+    viewport: (document scrollWidth, viewport width, 'tag#id.class:px | ...')."""
+    sep = "&" if "?" in path else "?"
+    profile = winpath(profile)
+    args = [edge, "--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check",
+            f"--user-data-dir={profile}", "--hide-scrollbars", f"--window-size={width},1400", "--virtual-time-budget=6000",
+            "--force-prefers-reduced-motion", "--dump-dom", base + path + sep + "audit=1"]
+    r = subprocess.run(args, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace")
+    dom = r.stdout or ""
+    m = re.search(r'data-audit-scroll="(\d+)" data-audit-width="(\d+)" data-audit-over="([^"]*)"', dom)
+    if not m:
+        return None, None, "no probe result (is the server's ?audit=1 hook present?)"
+    return int(m.group(1)), int(m.group(2)), m.group(3)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--base", default="http://127.0.0.1:8766")
@@ -187,7 +215,9 @@ def main(argv=None):
     ap.add_argument("--screens", action="store_true")
     ap.add_argument("--edge", default=EDGE_DEFAULT)
     ap.add_argument("--settled", action="store_true", help="screenshot with prefers-reduced-motion forced: the page at rest, no mid-animation captures")
+    ap.add_argument("--overflow", type=int, default=0, metavar="WIDTH", help="probe every screenshot page at WIDTH px (>= 520: the headless minimum) for elements past the viewport (needs the ?audit=1 hook)")
     args = ap.parse_args(argv)
+    args.out = winpath(args.out)
     os.makedirs(args.out, exist_ok=True)
     token = csrf_token(args.base)
     if not token:
@@ -211,11 +241,21 @@ def main(argv=None):
                     if mode == "simple" and any(path.startswith(p) for p in ("/records", "/jobs", "/logs", "/system", "/sync", "/results")):
                         continue
                     name = "root" if path == "/" else re.sub(r"[^a-z0-9]+", "-", path.strip("/").lower()).strip("-")
-                    for kind, w, h, dark in (("desktop", 1280, 2200, False), ("phone", 400, 2600, False), ("dark", 1280, 2200, True)):
+                    # headless Chromium will not lay out narrower than ~504 px, so "phone" is 520: a large phone, and
+                    # what every <=560/600 px breakpoint is judged against
+                    for kind, w, h, dark in (("desktop", 1280, 2200, False), ("phone", 520, 2600, False), ("dark", 1280, 2200, True)):
                         png = os.path.join(sdir, f"{mode}-{name}-{kind}.png")
                         ok, console = screenshot(args.edge, args.base, path, png, w, h, dark, profile, args.settled)
                         shots[f"{mode} {path} {kind}"] = {"png": png if ok else None, "console": console}
                     print(f"  shot {path}", flush=True)
+            if args.overflow and os.path.isfile(args.edge):
+                profile = os.path.join(args.out, "edge-profile")
+                for path in SHOT_PAGES:
+                    if mode == "simple" and any(path.startswith(p) for p in ("/records", "/jobs", "/logs", "/system", "/sync", "/results")):
+                        continue
+                    sw, vw, over = overflow_probe(args.edge, args.base, path, args.overflow, profile)
+                    shots[f"{mode} {path} overflow@{args.overflow}"] = {"scroll": sw, "viewport": vw, "over": over, "png": None, "console": []}
+                    print(f"  overflow {path}: scroll {sw} / viewport {vw}" + (f" -- {over}" if over else ""), flush=True)
     finally:
         set_mode(args.base, token, start_mode)
     with open(os.path.join(args.out, "pages.json"), "w", encoding="utf-8") as fh:
@@ -248,6 +288,13 @@ def main(argv=None):
                 issues.append(f"table {p['max_cols']} cols")
             if issues:
                 lines.append(f"- ISSUE `{p['path']}`: " + "; ".join(issues))
+        lines.append("")
+    probes = {k: v for k, v in shots.items() if "overflow@" in k}
+    if probes:
+        lines += ["## Overflow probe (elements reaching past the viewport)", ""]
+        for key, v in probes.items():
+            bad = v["scroll"] is None or (v["viewport"] and v["scroll"] > v["viewport"])
+            lines.append(f"- {'OVERFLOW' if bad else 'ok'} {key}: scroll {v['scroll']} / viewport {v['viewport']}" + (f" -- {v['over']}" if v["over"] else ""))
         lines.append("")
     if shots:
         lines += ["## Console messages from the screenshot runs", ""]

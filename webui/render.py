@@ -54,6 +54,35 @@ def tool_title(name):
     return TOOL_TITLES.get(name) or name.replace("_", " ").strip().capitalize()
 
 
+def sentence(s):
+    """First letter up, the rest untouched: 'player A' -> 'Player A' (capitalize() would give 'Player a')."""
+    s = "" if s is None else str(s)
+    return s[:1].upper() + s[1:]
+
+
+# The canonical-run windows, as a person names them (run_windows keeps its own ids).
+WINDOW_TITLES = {"run1_pre_kickoff": "Pre-kickoff run", "run2_sunday": "Sunday run", "run3_tuesday": "Tuesday run"}
+
+
+def window_title(name):
+    s = str(name or "")
+    if s in WINDOW_TITLES:
+        return WINDOW_TITLES[s]
+    return sentence(re.sub(r"^run\d_", "", s).replace("_", " ")) if s else ""
+
+
+def job_subtitle(meta):
+    """The label without the tool's own name in front: 'Luck ledger · 2026' -> '2026'."""
+    meta = meta or {}
+    label = str(meta.get("label") or "")
+    tool = str(meta.get("tool") or "")
+    for prefix in (tool_title(tool), tool.replace("_", " ").capitalize(), tool, tool.replace("_", " ")):
+        if prefix and label.lower().startswith(prefix.lower()):
+            label = label[len(prefix):]
+            break
+    return label.strip(" ·-")
+
+
 def entry_title(entry):
     """A record list row's human title: the tool, plus 'A vs B' for a compare record."""
     name = entry.get("name") or ""
@@ -65,7 +94,7 @@ def entry_title(entry):
     if entry.get("tool") == "weekly_report" and "run" in name:
         m = re.search(r"_(run\d_[a-z_]+?)_\d{8}T", name)
         if m:
-            return base + " · " + m.group(1).replace("_", " ")
+            return base + " · " + window_title(m.group(1)).lower()
     return base
 
 
@@ -399,11 +428,13 @@ def _waivers(d):
                       tile("holes this week", str(len(holes)), _join(holes) if holes else "every slot fillable", "neg" if holes else ""),
                       tile("holes next week", str(len(d.get("holes_next_week") or [])), _join(d.get("holes_next_week")) if d.get("holes_next_week") else "none"),
                       tile("targets", str(len(rows)), "ranked by value over replacement")],
-            "sections": [table("Targets", [col("name"), col("pos"), col("team", "NFL"), col("tier", kind="num", nd=0), col("mean", "season mean", "num"),
-                                           col("vorp", "VORP", "signed", 1), col("fills"), col("incumbent"), col("week_mean", "this week", "num"),
-                                           col("week_p90", "p90", "num", 0), col("week_p_zero", "P(0 pts)", "pct"), col("bid_point", "bid", "num", 0),
-                                           col("bid_band", "band"), col("bid_v1", "old bid", "num", 0), col("bye", kind="num", nd=0), col("injury_status", "status", "flag")],
-                               rows, note="bid = the margin over the fallback priced against actual competition; old bid = the earlier heuristic. Neither is validated (F61)"),
+            "sections": [table("Targets", [col("name"), col("pos"), col("team", "NFL"), col("vorp", "VORP", "signed", 1), col("week_mean", "this week", "num"),
+                                           col("bid_point", "bid", "num", 0), col("bid_band", "band"), col("fills"), col("injury_status", "status", "flag")],
+                               rows, note="bid = the margin over the fallback priced against actual competition (F61)"),
+                         table("More on each target", [col("name"), col("tier", kind="num", nd=0), col("mean", "season mean", "num"), col("incumbent"),
+                                                       col("week_p90", "p90", "num", 0), col("week_p_zero", "P(0 pts)", "pct"), col("bid_v1", "old bid", "num", 0),
+                                                       col("bye", kind="num", nd=0)],
+                               rows, collapsed=True, note="the earlier bid heuristic is kept for comparison; neither rule is validated (F61)"),
                          text("Caveat", d.get("caveat"))]}
 
 

@@ -34,6 +34,7 @@ from webui.tools import (ENGINE, SIMPLE_TOOLS, TOOLS, FormError, get as get_tool
                          simple_fields)
 
 ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
+LARGE_FILE_BYTES = 1_000_000          # above this a text file is offered as a download, never pretty-printed (B17)
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
                "Never run the test suite, the goldens, or a hand tool while a job is running.")
 WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS last imported "
@@ -200,12 +201,16 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
     app.jinja_env.filters["state_label"] = render.state_label
+    app.jinja_env.filters["sentence"] = render.sentence
+    app.jinja_env.filters["window_title"] = render.window_title
+    app.jinja_env.filters["job_subtitle"] = render.job_subtitle
     app.jinja_env.filters["plain"] = render.simplify
 
     @app.context_processor
     def _ctx():
         mode = settings.mode
         return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
+                "audit": request.args.get("audit") == "1",      # the harness's overflow probe (scripts.webui_audit)
                 "mode": mode, "dev": mode == "dev", "nav": NAV_DEV if mode == "dev" else NAV_SIMPLE,
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
@@ -418,11 +423,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 abort(404)
             name = match["name"]
         rel = "logs/" + name
-        n = request.args.get("n", "200")
+        n = request.args.get("n", "100")
         try:
             n = max(1, min(int(n), 5000))
         except ValueError:
-            n = 200
+            n = 100
         if not name.endswith(".jsonl"):
             return redirect(url_for("file_view", rel=rel))
         rows, total = root.tail_jsonl(rel, n)
@@ -441,8 +446,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 continue
             rest = {k: v for k, v in r.items() if k not in cols}
             table.append({"cells": [render._join(r.get(k)) if r.get(k) is not None else "" for k in cols],
-                          "rest": render._join(rest) if rest else "",
-                          "raw": json.dumps(r, ensure_ascii=False, sort_keys=True)})
+                          "rest": render._join(rest) if rest else ""})
         return render_template("log.html", name=name, cols=cols, rows=table, total=total, n=n, link=root.link(rel),
                                slug=render.slug(name.rsplit(".", 1)[0]))
 
@@ -453,6 +457,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         raw = request.args.get("raw") == "1"
         if ext == ".png":
             return send_file(full, mimetype="image/png", max_age=0)
+        if not raw and ext in (".json", ".jsonl", ".md", ".txt", ".log", ".csv") and os.path.getsize(full) > LARGE_FILE_BYTES:
+            # B17: a 24 MB players cache pretty-printed into a page is not a page anyone can open; offer the bytes instead
+            return render_template("file.html", rel=rel, body="", kind="large", link=root.link(rel),
+                                   size_mb=round(os.path.getsize(full) / 1048576, 1))
         if ext == ".html":
             return Response(overlay.html(root.read_text(rel)), mimetype="text/html")
         if ext == ".json":
@@ -508,7 +516,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             require_csrf()
             values.update({f.name: request.form.get(f.name, "") for f in t.fields})
             if fr is not None and fr["status"] == "STALE":
-                raise JobRefused("the data on disk is STALE -- " + "; ".join(fr["reasons"]) +
+                raise JobRefused("the data on disk is STALE -- " + "; ".join(fr["stale_reasons"] or fr["reasons"][:1]) +
                                  " -- sync first, from the Sync page")
             try:
                 form, notes = resolve_form(t, request.form, PlayerIndex.for_root(root), MY_TEAM)

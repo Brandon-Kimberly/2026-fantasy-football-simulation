@@ -22,7 +22,7 @@
 </div>
 
 <div class="steps">
-  <div class="step"><div class="n">1 · preflight</div><b>The odds key is proven live first</b><p>Read from the Windows User scope ({{ key_source }}{% if not key_present %} — <span class="neg">none found</span>{% endif %}), probed against the-odds-api. Anything but an accepted key stops here: a dead key would silently write the flat 21.5 line over the real ones (C3).</p></div>
+  <div class="step"><div class="n">1 · preflight</div><b>The odds key is proven live first</b><p>Read from {{ key_source }}{% if not key_present %} — <span class="neg">none found</span>{% endif %}, probed against the-odds-api. Anything but an accepted key stops here: a dead key would silently write the flat 21.5 line over the real ones (C3).</p></div>
   <div class="step"><div class="n">2 · backup</div><b>Everything in data/current/ is copied first</b><p>To a stamped folder under <code>data/local/</code> (never tracked), with a restore button below. The ten newest are kept.</p></div>
   <div class="step"><div class="n">3 · the run</div><b>The same command you would type</b><p>With the verified key injected into that process only — it never enters a job record, a log or this page. The sync checks the key again itself (H5).</p></div>
 </div>
