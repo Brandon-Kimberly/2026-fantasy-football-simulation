@@ -543,6 +543,22 @@ class TestWhatEachResultDid(unittest.TestCase):
         self.assertEqual(m["teams"][B]["d_playoff"], -2.5)
         self.assertEqual([r["team"] for r in m["rows"]][:2], [A, B], "biggest gain first")
 
+    def test_results_the_standings_contradict_are_flagged_not_stated(self):
+        """Found on the real data 2026-09-28: the week-2 box scores (which the weekly actuals
+        match exactly) give Quantum Ferrets a head-to-head W, while the league's standings --
+        whose season points only add up at the scores before a later stat correction -- record
+        it as an L. The standings are the authority (F84); a page must not print the W as fact."""
+        import re
+        _actuals(self.td.name, [{A: (1.0, 1), B: (0.0, 0)}, {A: (1.0, 0), B: (0.0, 1)}], {A: 2, B: 2})
+        m = odds_moves(Root(self.td.name))
+        self.assertFalse(m["teams"][A]["reconciled"])
+        text = re.sub(r"<[^>]+>", "", self.get("/", "simple"))
+        self.assertNotIn("won head-to-head", text)
+        self.assertIn("does not match the league's standings", text)
+        body = self.get("/forecasts")
+        self.assertIn("stat correction", body)
+
+
     def test_no_earlier_forecast_means_no_move_not_a_zero(self):
         import shutil
         shutil.rmtree(os.path.join(self.td.name, "data", "weeks", "week_02"))
