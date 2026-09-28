@@ -62,6 +62,12 @@ class TestStylesheet(unittest.TestCase):
         self.assertIn("@view-transition { navigation: auto; }", s)
         self.assertIn("@view-transition { navigation: none; }", s.split("prefers-reduced-motion", 1)[1])
 
+    def test_the_hidden_attribute_beats_any_display_a_class_gives(self):
+        """Scripts here hide rows by setting `hidden`, and the browser's own rule for that
+        is weaker than any class that sets a display -- so a filtered row stayed on screen.
+        One global rule instead of the four per-component patches that preceded it."""
+        self.assertIn("[hidden] { display: none !important; }", css())
+
     def test_count_up_starts_near_its_target(self):                                  # B13
         js = script()
         self.assertIn("0.9 * target", js)
@@ -188,6 +194,22 @@ class TestPages(unittest.TestCase):
             self.assertIn('class="spark"', body)                                    # the ledger's timelines
 
     # ---- U13 durations
+    def test_every_decisions_filter_matches_something_it_can_filter_on(self):
+        """A filter button whose key names no row is a dead control. Each button is either
+        one of the three computed keys or a transaction type the rows actually carry."""
+        import re as _re
+        body = self.get("/decisions")
+        keys = _re.findall(r'<button type="button" data-f="([a-z_]+)"', body)
+        types = set(_re.findall(r'class="dec[^"]*" data-type="([a-z_]+)"', body))
+        self.assertGreaterEqual(len(keys), 4)
+        self.assertTrue(types, "the fixture must render some moves for this to mean anything")
+        for k in keys:
+            with self.subTest(filter=k):
+                self.assertTrue(k in ("all", "mine", "moved") or k in types,
+                                f"the {k!r} filter matches no row's data-type ({sorted(types)})")
+        self.assertIn('data-mine="1"', body)
+        self.assertIn('data-moved="1"', body)
+
     def test_jobs_page_charts_durations_per_tool(self):
         runner = FakeRunner()
         for i, secs in enumerate((60, 90, 75)):

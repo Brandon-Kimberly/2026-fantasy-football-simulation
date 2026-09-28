@@ -44,7 +44,7 @@ DEV_TERMS = ("data/", ".json", ".jsonl", "canonical", "VOID", "DEGRADED", "STALE
              "backup", "sync", "Sync", "py -3.10", "scripts.", "F84", "F51", "F50", "F61", "H5", "C3", "R1", "B11",
              "job id", "raw", "the record on disk", "LOCAL VIEW", "run windows", "digest", "provenance", "roster_grades",
              "optimize_lineup", "evaluate_move", "weekly_report", "audit")
-SIMPLE_PAGES = ("/", "/gameday", "/league", "/forecasts", "/accuracy", "/forecasts/week-3", "/decisions", "/tools", "/tools/compare_players",
+SIMPLE_PAGES = ("/", "/gameday", "/league", "/forecasts", "/forecasts/week-3", "/decisions", "/tools", "/tools/compare_players",
                 "/tools/optimize_lineup", "/tools/live_matchup",
                 "/records/week-3/optimal-lineup/2026-09-24-165331", "/file/decisions/week_03/lineup_20260924T165331Z_week3.json")
 
@@ -116,7 +116,7 @@ class TestSimpleView(unittest.TestCase):
 
     def test_the_simple_view_serves_no_dev_only_page_and_no_dev_only_tool(self):
         c = self.client("simple")
-        for path in ("/system", "/logs", "/logs/decision-log", "/sync", "/records", "/records/week-3", "/results", "/jobs", "/health"):
+        for path in ("/system", "/logs", "/logs/decision-log", "/sync", "/records", "/records/week-3", "/results", "/jobs", "/health", "/accuracy"):
             with self.subTest(page=path):
                 r = c.get(path)
                 self.assertEqual(r.status_code, 404, path)
@@ -128,7 +128,7 @@ class TestSimpleView(unittest.TestCase):
         self.assertEqual(c.get("/file/weeks/week_03/Power_Rankings.png").status_code, 200, "charts still serve")
         self.assertEqual(c.get("/api/live").status_code, 200, "the live panel still works")
         for pfx in DEV_ONLY_PREFIXES:
-            self.assertIn(pfx, ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs"))
+            self.assertIn(pfx, ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs", "/accuracy"))
 
     def test_the_simple_nav_and_footer_toggle(self):
         body = self.client("simple").get("/").get_data(as_text=True)
