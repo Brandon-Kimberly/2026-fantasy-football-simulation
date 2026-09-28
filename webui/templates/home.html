@@ -172,7 +172,7 @@
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
 <div class="hero">
   <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
-    {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.at_next }} game{{ 's' if kick.at_next != 1 }}{% if kick.remaining > kick.at_next %} · {{ kick.remaining }} still to start this week{% endif %}{% endif %}</span>{% endif %}
+    {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}" data-q="{{ (lineup.questionable_starters|length) if (lineup and lineup.questionable_starters) else 0 }}" data-week="{{ week or '' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.at_next }} game{{ 's' if kick.at_next != 1 }}{% if kick.remaining > kick.at_next %} · {{ kick.remaining }} still to start this week{% endif %}{% endif %}</span>{% endif %}
     {% if m.logged_at %}<span class="tiny muted">prediction made {{ m.logged_at|when }}{% if m.canonical and dev %} · canonical run{% endif %}</span>{% endif %}</div>
   {% if opponent %}
   <div class="who">
@@ -210,6 +210,7 @@
       <span class="meta" id="live-meta">{% if not live.enabled %}{% if dev %}not connected — set SLEEPER_LEAGUE_ID for this server{% else %}live scores are not connected{% endif %}{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
       <span class="ctl">
         <label title="re-read the scores every 3 minutes"><input type="checkbox" id="live-auto"> auto-refresh</label>
+        <label title="a browser notification 30 minutes before the next kickoff, while this page is open"><input type="checkbox" id="live-alert"> alert me before kickoff</label>
         <button type="button" class="ghost" id="live-refresh"{% if not live.enabled %} disabled{% endif %}><svg class="i"><use href="#i-refresh"/></svg> Refresh</button>
         <a class="tv" href="/gameday" title="a full-screen scoreboard for a TV"><svg class="i"><use href="#i-eye"/></svg> TV view</a>
       </span>
@@ -383,6 +384,7 @@
     return '<div class="pl"><svg viewBox="0 0 ' + W + ' ' + H + '" aria-label="chance to win through the day"><line x1="0" y1="' + (H / 2) + '" x2="' + W + '" y2="' + (H / 2) + '"/><polyline points="' + path + '"/><circle cx="' + xs[xs.length - 1].toFixed(1) + '" cy="' + (2 + (H - 4) * (1 - last.p)).toFixed(1) + '" r="3"/></svg><span>chance to win through the day · ' + pct(first.p) + ' → ' + pct(last.p) + ' over ' + pts.length + ' reads</span></div>';
   }
 
+  var lastPlan = null;
   var lastP = null, celebrated = false, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // the live number takes the headline; the pre-game one becomes the footnote it now is
   function lead(s) {
@@ -443,9 +445,41 @@
       '<div class="starters">' + starters(me, s.team, 'me') + (s.theirs ? starters(th, s.opponent || 'opponent', 'them') : '') + '</div></details>' +
       feed(p.updates, openFeed);
     body.innerHTML = html;
+    lastPlan = s.plan || null;
     lead(s);
     // team-colour confetti on a FINAL win, once: every starter on both sides has played and I am ahead
     if (!celebrated && s.theirs && me.to_play === 0 && th.to_play === 0 && me.starters > 0 && me.banked > th.banked) { celebrated = true; confetti(body.getAttribute('data-hue') || 272); }
+  }
+  // W16: the one thing here that speaks first. Opt-in, browser-only, and only while this
+  // page is open -- there is no server-side push and the label says so.
+  var ALERT_AT = 30 * 60;
+  var alerts = document.getElementById('live-alert');
+  function alertMessage() {
+    var bits = [], q = parseInt((kick && kick.getAttribute('data-q')) || '0', 10);
+    if (q > 0) bits.push(q + ' questionable starter' + (q === 1 ? '' : 's'));
+    if (lastPlan && lastPlan.actionable) bits.push('the model would field a different lineup (' + (lastPlan.delta > 0 ? '+' : '') + n1(lastPlan.delta) + ')');
+    return bits.length ? bits.join(' · ') : 'Nothing flagged: your lineup matches the model.';
+  }
+  function alertCheck(secs) {
+    if (!alerts || !alerts.checked || !window.Notification || Notification.permission !== 'granted') return;
+    if (!(secs > 0 && secs <= ALERT_AT) || !kick) return;
+    var tag = 'alerted:' + kick.getAttribute('data-at');
+    try { if (localStorage.getItem(tag)) return; localStorage.setItem(tag, '1'); } catch (e) {}
+    var note = new Notification('Kickoff in ' + Math.max(1, Math.round(secs / 60)) + ' min', { body: alertMessage(), tag: tag });
+    note.onclick = function () { window.focus(); note.close(); };
+  }
+  function alertOn() {
+    try { new Notification('Alerts on', { body: 'You will be warned 30 minutes before the next kickoff, while this page is open.' }); } catch (e) {}
+  }
+  if (alerts) {
+    try { alerts.checked = localStorage.getItem('live-alert') === '1'; } catch (e) {}
+    if (!window.Notification) { alerts.checked = false; alerts.disabled = true; }
+    alerts.addEventListener('change', function () {
+      try { localStorage.setItem('live-alert', alerts.checked ? '1' : '0'); } catch (e) {}
+      if (!alerts.checked || !window.Notification) return;
+      if (Notification.permission === 'granted') { alertOn(); return; }
+      Notification.requestPermission().then(function (p) { if (p === 'granted') { alertOn(); } else { alerts.checked = false; } });
+    });
   }
   // U6: the countdown to the next kickoff ticks in the browser
   var kick = document.getElementById('kick');
@@ -457,6 +491,7 @@
       if (s <= 0) { inEl.textContent = 'under way'; return; }
       var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
       inEl.textContent = 'in ' + (h > 0 ? h + 'h ' : '') + (h > 0 || m > 0 ? m + 'm' : s + 's');
+      alertCheck(s);
     }
     tick(); setInterval(tick, 15000);
   }
