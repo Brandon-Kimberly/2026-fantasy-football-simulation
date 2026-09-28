@@ -198,6 +198,13 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 13.5px; margin-top: 6px; }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 4px; }
+/* U3: the job bar while a job runs, and the toast when it ends */
+.jobbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80; background: var(--pos-bg); overflow: hidden; }
+.jobbar i { display: block; height: 100%; width: 40%; background: var(--g-brand); border-radius: 999px; animation: jobslide 1.4s ease-in-out infinite; }
+@keyframes jobslide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
+.toast { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--turf); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 12px 12px 14px; font-size: 13.5px; color: var(--ink-2); max-width: min(380px, calc(100vw - 32px)); animation: rise .35s ease both; }
+.toast[hidden] { display: none; } .toast b { color: var(--ink); } .toast a { font-weight: 700; color: var(--pos); white-space: nowrap; text-decoration: none; } .toast a:hover { text-decoration: underline; }
+.toast button { padding: 2px 8px; font-size: 14px; line-height: 1; box-shadow: none; }
 .charts figure { margin: 0; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 8px; overflow: hidden; }
 /* inline SVG charts drawn by the templates */
 .viz { width: 100%; height: auto; display: block; }
@@ -331,6 +338,8 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 20h6"/></symbol>
 </svg>
+{% if job_now and job_now.state == 'RUNNING' %}<div class="jobbar" id="jobbar" data-id="{{ job_now.id }}" data-url="{{ job_now|job_url }}" data-label="{{ job_now.label or (job_now.tool|tool_title) }}" title="{{ job_now.label or (job_now.tool|tool_title) }} is running"><i></i></div>{% endif %}
+<div class="toast" id="toast" hidden role="status"></div>
 <div class="wrap">
 {% set path = request.path %}
 <header class="top">
@@ -399,6 +408,29 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     });
     svg.addEventListener('pointerleave', function () { tip.style.display = 'none'; xh.style.display = 'none'; });
   });
+  // U3: while a job runs, poll it from any page; when it ends, a toast with "Open the answer"
+  var bar = document.getElementById('jobbar'), toast = document.getElementById('toast');
+  function escT(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function showToast(html, ms) {
+    if (!toast) return;
+    toast.innerHTML = html + ' <button type="button" class="ghost" aria-label="dismiss">×</button>';
+    toast.hidden = false;
+    toast.querySelector('button').addEventListener('click', function () { toast.hidden = true; });
+    if (ms) setTimeout(function () { toast.hidden = true; }, ms);
+  }
+  if (bar) {
+    var jid = bar.getAttribute('data-id'), jurl = bar.getAttribute('data-url'), jlabel = bar.getAttribute('data-label') || 'The job';
+    var poll = setInterval(function () {
+      fetch('/jobs/' + encodeURIComponent(jid) + '.json', { headers: { 'Accept': 'application/json' } })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || j.state === 'RUNNING') return;
+          clearInterval(poll); bar.remove();
+          if (j.state === 'OK') showToast('<span><b>' + escT(jlabel) + '</b> finished.</span> <a href="' + escT(jurl) + '">Open the answer</a>', 30000);
+          else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
+        }).catch(function () {});
+    }, 3000);
+  }
   // the sticky header's height, so sticky table headers and anchor targets sit below it
   var top = document.querySelector('header.top');
   function headH() { if (top) document.documentElement.style.setProperty('--head-h', top.offsetHeight + 'px'); }
