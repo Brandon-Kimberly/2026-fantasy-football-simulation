@@ -5,8 +5,15 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
-**Status (2026-09-28): Phases 1 and 2 landed** — every bug in §3 except B13 (the count-up,
-a judgement call for §6) and B14/B19/B20/B21/B23 (Phases 3–4). Two things learned doing
+**Status (2026-09-28): Phases 1, 2 and 3 landed** — every bug in §3 except B13 (the count-up,
+a judgement call for §6) and B14 (charts, Phase 4). Phase 3: the light-theme text tokens
+now all pass 4.5:1 (`muted` #6f6e68, `pos` #1f66bd, `neg` #c93a39, `warn` #8f5d12, and
+`--warm-ink` / `--gold-ink` for the two accents when they carry text; the gold medal
+wears dark text) and `tests.test_webui_sixth` computes the ratios from `base.html` so
+they cannot drift; one `:focus-visible` ring for every focusable element; the header is
+brand and tabs only, with the clock and view badge in the footer; the status chips and
+the League team chips are even grids; and fifteen new sprite symbols give every tool,
+record and job its own icon. Two things learned doing
 it: headless Chromium will not lay out narrower than ~504 px, so the harness's "phone"
 width is 520 and every breakpoint is judged there; and a table that scrolls inside its
 own box becomes the sticky containing block, so table headers can only stick above
