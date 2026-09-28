@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-1819%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-1832%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -182,6 +182,7 @@ py -3.10 -m scripts.data_health                 # B12: every source PASS/DEGRADE
 py -3.10 -m scripts.market_sweep                 # B12: every starting slot vs the best free agent, on engine values -- upgrades, the drop (a different man), dead weight
 py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync provenance for rows written before it existed (idempotent; --write)
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
+py -3.10 -m scripts.as_played_record           # F83: weeks 1-2 results as the league played them (old IDP scoring), verified vs banked wins; --write
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
@@ -258,7 +259,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 1819 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 1832 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
