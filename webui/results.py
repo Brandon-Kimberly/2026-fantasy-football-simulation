@@ -26,6 +26,17 @@ def as_played(root):
     return out
 
 
+def rescaled_weeks(root):
+    """The weeks whose box scores Sleeper now re-scores under later settings -- the weeks the
+    as-played record covers (its _meta.weeks, else its week keys). Their POINTS are on the new
+    scale even where the result stands, so a page showing them says so."""
+    doc = root.read_json(AS_PLAYED, {}) or {}
+    weeks = (doc.get("_meta") or {}).get("weeks")
+    if weeks:
+        return {int(w) for w in weeks}
+    return set(as_played(root))
+
+
 def week_results(root):
     """{week: {team: row}}: each weekly_actuals row, with h2h_win and median_win taken from the
     as-played record where it covers the week, plus `as_played` (the record decided it) and

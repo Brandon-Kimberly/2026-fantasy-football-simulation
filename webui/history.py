@@ -15,7 +15,7 @@ points, and `rescored` marks a game whose box score now names the other winner. 
 """
 import re
 
-from webui.results import week_results
+from webui.results import rescaled_weeks, week_results
 
 
 def _archives(root):
@@ -52,12 +52,13 @@ def games(root):
                     continue
                 out.append({"season": season, "week": week, "a": a, "b": b, "pa": pa, "pb": pb,
                             "winner": a if pa > pb else (b if pb > pa else None), "margin": round(abs(pa - pb), 2),
-                            "rescored": False})
+                            "rescored": False, "rescaled": False})
     seasons = {g["season"] for g in out}
     state = root.read_json("current/league_state.json", {}) or {}
     cur_season = str(state.get("season") or (root.read_json("current/sync_manifest.json", {}) or {}).get("season") or "")
     if cur_season and cur_season not in seasons:
         sched = root.read_json("current/league_schedule.json", []) or []
+        scaled = rescaled_weeks(root)
         for week, res in sorted(week_results(root).items()):
             pairs = sched[week - 1] if isinstance(sched, list) and 0 < week <= len(sched) else []
             for p in pairs or []:
@@ -71,7 +72,7 @@ def games(root):
                 w = float(ra["h2h_win"])
                 out.append({"season": cur_season, "week": week, "a": a, "b": b, "pa": pa, "pb": pb,
                             "winner": a if w >= 1 else (b if w <= 0 else None), "margin": round(abs(pa - pb), 2),
-                            "rescored": bool(ra.get("rescored") or rb.get("rescored"))})
+                            "rescored": bool(ra.get("rescored") or rb.get("rescored")), "rescaled": week in scaled})
     return out
 
 
@@ -87,7 +88,7 @@ def record_book(gs):
 
     def row(key, label, t, value, g, opp):
         return {"key": key, "label": label, "team": t, "value": round(value, 2), "season": g["season"],
-                "week": g["week"], "opponent": opp, "rescored": g["rescored"]}
+                "week": g["week"], "opponent": opp, "rescored": g["rescored"], "rescaled": g.get("rescaled", False)}
     hi = max(scores, key=lambda s: s[1])
     lo = min(scores, key=lambda s: s[1])
     decided = [g for g in gs if g["winner"]]
