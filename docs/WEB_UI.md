@@ -675,6 +675,40 @@ The newest backup is the default comparison point, and every row of the backups 
 offers itself as an alternative (`/sync?from=<name>`), so "what did I miss while I was
 away" can span several syncs rather than only the last one.
 
+### W16 - The kickoff alert (2026-09-28)
+
+The one place this UI speaks first. A checkbox beside auto-refresh asks for the
+browser's notification permission (localhost is a secure context, so it is available
+over plain HTTP), and from then on the countdown that already ticks in the page fires
+one notification thirty minutes before the next kickoff: how many starters are
+questionable, and whether the model would field a different lineup and by how much.
+
+It is opt-in, it is remembered in `localStorage`, and a fired alert is recorded against
+its own kickoff so a reload cannot repeat it. It only works while a page is open --
+there is no service worker and no server-side push -- and the control's own tooltip
+says so rather than letting the owner assume otherwise.
+
+### W17 - Accuracy: the model's own track record (2026-09-28)
+
+The project's claim is that every probability is a count and the success criteria were
+hashed before a game was played. Nothing in the UI ever showed whether the
+probabilities came true. `/accuracy` does, from two files already on disk: the
+predictions log and the weekly actuals.
+
+Two rules keep it honest rather than flattering. Only the QUOTED forecast is scored --
+the newest canonical `week_predictions` row logged BEFORE the week's first kickoff,
+because a row logged after the games began knows too much; a week whose only canonical
+row came later is skipped and SAID to be skipped, never quietly replaced. And a week
+with no result yet is not scored at all.
+
+What it counts: Brier and hit rate on the matchup calls (a true 50/50 is not counted as
+a call); bias, mean absolute error and z on the points, where z divides each miss by the
+spread the record itself stated (`sd_total`), so the dispersion figure is the model's
+own claim being checked rather than one invented here; and the same treatment for the
+beat-the-median calls. `ENOUGH_WEEKS` is 5 (F25: first measurable at weeks 5-6) and
+until then the page leads with how thin the sample is and calls the numbers counts
+rather than conclusions.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

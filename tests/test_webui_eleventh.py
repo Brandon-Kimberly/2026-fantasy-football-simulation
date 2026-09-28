@@ -173,5 +173,66 @@ class TestOnThePage(unittest.TestCase):
                 self.assertIn(".plan", css)
 
 
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestKickoffAlert(unittest.TestCase):
+    """W16: the UI's one piece of speech. Everything else waits to be opened; this asks the
+    browser to interrupt you before your lineup locks. Opt-in, and only while a page is
+    open -- there is no server-side push and the page says so."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.td = tempfile.TemporaryDirectory()
+        build_tree(cls.td.name)
+        enrich(cls.td.name)
+        plant_live(cls.td.name)
+        plant_plan(cls.td.name)
+        cls.root = Root(cls.td.name)
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.td.cleanup()
+
+    def page(self, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        body = app.test_client().get("/").get_data(as_text=True)
+        return body, next(s for s in body.split("<script>") if "getElementById('live-body')" in s)
+
+    def test_the_control_is_offered_in_both_views(self):
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                body, _script = self.page(mode)
+                self.assertIn('id="live-alert"', body)
+                self.assertIn('type="checkbox"', body.split('id="live-alert"', 1)[0].rsplit("<input", 1)[-1] + "<input")
+                self.assertIn("before kickoff", body)
+
+    def test_permission_is_asked_for_only_when_the_box_is_ticked(self):
+        _body, script = self.page()
+        self.assertEqual(script.count("requestPermission"), 1)
+        asked = script.index("requestPermission")
+        handler = script.index("alerts.addEventListener('change'")
+        self.assertLess(handler, asked, "the request must sit inside the change handler, not run on load")
+
+    def test_it_fires_once_per_kickoff_thirty_minutes_out(self):
+        _body, script = self.page()
+        self.assertIn("var ALERT_AT = 30 * 60", script)
+        self.assertIn("function alertCheck(", script)
+        self.assertIn("localStorage.setItem('live-alert'", script)
+        self.assertIn("'alerted:'", script, "a fired alert is remembered against its own kickoff")
+
+    def test_the_message_says_what_to_do_about_it(self):
+        _body, script = self.page()
+        self.assertIn("questionable", script)
+        self.assertIn("would field a different lineup", script)
+
+    def test_the_page_admits_it_only_works_while_open(self):
+        for mode in ("dev", "simple"):
+            body, _script = self.page(mode)
+            self.assertIn("while this page is open", body)
+
+
 if __name__ == "__main__":
     unittest.main()
