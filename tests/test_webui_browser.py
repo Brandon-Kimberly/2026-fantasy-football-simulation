@@ -350,6 +350,23 @@ class TestMatchupsLive(BrowserCase):
         self.assertIn("3 to play", card.inner_text())
 
 
+def _plant_players(root):
+    from tests.test_webui_live import plant as plant_live
+    plant_live(root)
+
+
+class TestInstantCompare(BrowserCase):
+    """UI-P4: the compare page answers at once, and redraws as names change."""
+    plant = staticmethod(_plant_players)
+
+    def test_a_third_name_redraws_the_estimate_for_three(self):
+        p = self.open("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3", "simple")
+        self.assertIn("outscores", p.inner_text("#instant-body"))
+        p.fill("#inst_c", "Jordan Love")
+        p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 3")
+        self.assertIn("Who scores the most", p.inner_text("#instant-body"))
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

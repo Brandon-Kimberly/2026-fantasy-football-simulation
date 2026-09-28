@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, objects, render
+from webui import brand, compare as comparemod, objects, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
@@ -154,6 +154,13 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
+def _int_or_none(v):
+    try:
+        return int(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
                settings=None, default_mode=None, hostnames=()):
     if not isinstance(root, Root):
@@ -242,7 +249,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             return None
         if path in DEV_ONLY_EXACT or any(path == pfx or path.startswith(pfx + "/") for pfx in DEV_ONLY_PREFIXES if pfx != "/jobs"):
             return render_template("error.html", code=404, message="That page is part of the developer view. Switch to it from the footer to see it."), 404
-        if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0] not in SIMPLE_TOOLS:
+        if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0].split("/")[0] not in SIMPLE_TOOLS:
             return render_template("error.html", code=404, message="That tool is part of the developer view."), 404
         if path.startswith("/file/") and request.args.get("raw") == "1" and not path.endswith(".png"):
             return render_template("error.html", code=404, message="Raw files are part of the developer view."), 404
@@ -626,6 +633,24 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return render_template("tools.html", tools=tools, engine=list(ENGINE.values()) if settings.mode == "dev" else [],
                                current=runner.current(), avg=avg)
 
+    def _compare_args():
+        names = [n for n in request.args.getlist("p") if n.strip()]
+        if not 2 <= len(names) <= 4:
+            abort(400)
+        return names, _int_or_none(request.args.get("week"))
+
+    @app.route("/api/compare")
+    def api_compare():
+        """UI-P4: the quick estimate for two to four players, as JSON. Reads only."""
+        names, week = _compare_args()
+        return comparemod.estimate(root, names, week)
+
+    @app.route("/tools/compare_players/instant")
+    def compare_instant():
+        """The same estimate as the compare page's panel body, for the page to swap in."""
+        names, week = _compare_args()
+        return render_template("_instant.html", inst=comparemod.estimate(root, names, week))
+
     @app.route("/tools/<name>", methods=["GET", "POST"])
     def tool(name):
         try:
@@ -656,7 +681,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 return redirect(url_for("job", job_id=job_id))
             except FormError as ex:
                 error = str(ex)
-        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
+        inst = None                                    # UI-P4: the quick estimate, at once
+        if name == "compare_players" and values.get("a") and values.get("b"):
+            inst = comparemod.estimate(root, [values["a"], values["b"]], _int_or_none(values.get("week")))
+        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(), inst=inst,
                                fr=fr, windows=win, avg=runner.average_seconds(t.name),
                                shown=(t.fields if settings.mode == "dev" else simple_fields(t)))
 

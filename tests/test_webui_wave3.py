@@ -120,7 +120,7 @@ class TestPages(Case):
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
     def test_the_joint_answer_replaces_the_estimate_when_on_file(self):
-        self.record("Jalen Coker", "Xavier Worthy", 3, 0.5815)
+        self.record("Jalen Coker", "Xavier Worthy", 3, 0.5824)      # not a half-way digit: 0.5815 * 100 is 58.1499...
         text = visible_text(self.client("simple").get("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3").get_data(as_text=True))
         self.assertIn("58.2%", text)
         self.assertIn("full comparison", text)

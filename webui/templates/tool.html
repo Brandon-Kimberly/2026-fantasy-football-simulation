@@ -53,6 +53,34 @@
 </div>
 {%- endmacro %}
 
+{% if tool.name == "compare_players" %}
+<style>
+#instant .inst-head { font-size: 16px; margin: 4px 0 10px; } #instant .inst-head .big { font-family: var(--display); font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+#instant table.inst td, #instant table.inst th { padding: 6px 8px; } #instant .more { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+#instant .more input { width: 220px; } .warn-t { color: var(--warn); }
+</style>
+<section id="instant">
+<h2><svg class="i c-turf"><use href="#i-compare"/></svg> Quick estimate <span class="hint">ready as soon as two names are in · up to four players</span></h2>
+<div id="instant-body" aria-live="polite">{% include "_instant.html" %}</div>
+<div class="more"><input type="text" id="inst_c" placeholder="add a third player (optional)" aria-label="third player"><input type="text" id="inst_d" placeholder="and a fourth" aria-label="fourth player"></div>
+</section>
+<script>
+(function () {   // UI-P4: redraw the quick estimate whenever a name or the week changes
+  var body = document.getElementById('instant-body'), timer = null;
+  function val(id) { var e = document.getElementById(id); return e ? e.value.trim() : ''; }
+  function redraw() {
+    var names = [val('f_a'), val('f_b'), val('inst_c'), val('inst_d')].filter(function (n) { return n; });
+    if (names.length < 2) return;
+    var q = names.map(function (n) { return 'p=' + encodeURIComponent(n); }).join('&') + (val('f_week') ? '&week=' + encodeURIComponent(val('f_week')) : '');
+    fetch('/tools/compare_players/instant?' + q).then(function (r) { return r.ok ? r.text() : null; }).then(function (h) { if (h != null) body.innerHTML = h; }).catch(function () {});
+  }
+  ['f_a', 'f_b', 'inst_c', 'inst_d', 'f_week'].forEach(function (id) {
+    var e = document.getElementById(id);
+    if (e) { e.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(redraw, 350); }); e.addEventListener('change', redraw); }
+  });
+})();
+</script>
+{% endif %}
 <section>
 <h2>Set it up <span class="hint">blank = the usual default{% if who|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
 <form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off" id="toolform">
