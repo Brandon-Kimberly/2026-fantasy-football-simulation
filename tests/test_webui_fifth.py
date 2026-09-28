@@ -218,7 +218,7 @@ class TestPages(unittest.TestCase):
         try:
             r = self.client().get("/file/current/sleeper_players_cache.json")
             self.assertEqual(r.status_code, 200)
-            self.assertLess(len(r.data), 60_000, "not pretty-printed")                              # B17
+            self.assertLess(len(r.data), os.path.getsize(p) / 10, "not pretty-printed")             # B17: a page, not the file
             self.assertIn("Download it", r.get_data(as_text=True))
             raw = self.client().get("/file/current/sleeper_players_cache.json?raw=1")
             self.assertGreater(len(raw.data), 1_000_000)

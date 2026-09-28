@@ -5,8 +5,22 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
-**Status (2026-09-28): Phases 1 to 5 landed** — every bug in §3 except B13 (the count-up,
-a judgement call for §6). Phase 5 (live and game day): U3 a job bar on every page while a
+**Status (2026-09-28): Phases 1 to 6 landed** — every bug in §3, B13 included (the
+count-up now settles from 90 % of its target over 400 ms, so no wrong-looking number and
+the two hero shares stay near 100 throughout). Phase 6 (power features): U11 a manual
+theme (system / light / dark) in the settings file, one POST route, stamped on `<html>`,
+the dark tokens written once for the OS preference (guarded so an explicit light wins)
+and once for the explicit choice and pinned identical; U12 a web-app manifest and an
+SVG icon so `syndicatefootball.local` installs as an app; U4 the command palette
+(Ctrl/⌘-K: this view's pages, tools and teams, and "compare A vs B" typed straight into
+the compare tool) and U14 the `g h` / `g l` / `g f` / `g d` / `g t` / `g g` shortcuts with
+`?` for the list; U5 player hover cards on every player cell (`data-player`, one
+`/api/player` read, cached per page); U10 Decisions awards (move and ouch of the season
+and of the latest week) and per-team timelines in the ledger; U13 a durations line per
+tool on Jobs; and page transitions (`@view-transition`, off under reduced motion).
+NOT done, deliberately: U2 (what changed since the last sync) and the rest of U13 (SSE log
+streaming, record diff) — each is its own session. `tests.test_webui_ninth` pins the
+phase (9 tests); scripts by presence only. Phase 5 (live and game day): U3 a job bar on every page while a
 job runs and a toast with "Open the answer" when it ends (the page polls the job's JSON
 every 3 s only while the bar is up); U6 the next kickoff in the hero from the synced
 kickoffs (`glance.kickoff_report`), ticking in the browser; U7 live v2 — game-clock chips
