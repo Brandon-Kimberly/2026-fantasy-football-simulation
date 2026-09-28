@@ -730,6 +730,24 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### Accessibility, export, and small fixes (2026-09-28, roadmap UI-V7, R4, F3, F9, F11, W2, T5, P7)
+
+- **Keyboard and screen readers (UI-V7).** Sortable headers take focus and sort on Enter. The
+  player card opens on keyboard focus and Escape closes it. Every line chart carries a "view as
+  table". League's roster names are player-page links.
+- **CSV (UI-R4).** Every sortable table downloads its rows as shown.
+- **Small fixes.**
+  - A lines fetch after most of the week's kickoffs reads "few left … expected", not "failed" (F3).
+  - "No NFL team" replaces a bare dash (F9).
+  - Compare's week is a pick-list (F11).
+  - Home shows the next waiver run (W2) and, in weeks 9–11, the trade-deadline countdown (T5).
+  - An injury and practice report comes straight from Sleeper's cache, on Home and every team
+    page (P7).
+- **Deferred on purpose.**
+  - Cacheable static assets (E2): moving the shared CSS and script out of base.html would break
+    the many tests that read them in place, for a gain a local server does not feel.
+  - Lighter long pages (E9): League and Players are about 190 KB and render in under 0.1 s.
+
 ### History, the draft board, and the week in review (2026-09-28, roadmap UI-H1/H2/H3, R1/R2)
 
 - **`/history` (`webui/history.py`).** A record book, my record against every team, and a
