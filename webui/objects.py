@@ -134,6 +134,33 @@ def _ranges(root, week, team):
     return {p.get("name"): p for p in (pv.get(team) or []) if isinstance(p, dict)}
 
 
+SEVERITY = {"IR": 0, "Out": 1, "Sus": 1, "PUP": 1, "DNR": 1, "Doubtful": 2, "Questionable": 3, "NA": 4}
+
+
+def injury_report(root, team):
+    """UI-P7: every player on `team`'s roster with an injury designation, most serious first:
+    status (IR where on injured reserve), body part, practice participation and its note,
+    Sleeper's notes, and when Sleeper last updated the player -- read from the current roster,
+    the baselines and Sleeper's players cache, not from a tool record that may be stale."""
+    base = root.read_json("current/player_baselines.json", {}) or {}
+    cache = _players_cache(root)
+    rows = []
+    for e in (root.read_json("current/live_rosters.json", {}) or {}).get(team) or []:
+        name = e.get("name")
+        b = base.get(name) or {}
+        pid = str(b.get("player_id")) if b.get("player_id") is not None else None
+        c = cache.get(pid) or {} if pid else {}
+        status = "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or c.get("injury_status"))
+        if not status:
+            continue
+        rows.append({"name": name, "pid": pid, "pos": b.get("pos") or e.get("pos"), "nfl": b.get("team") or e.get("team"),
+                     "status": status, "body_part": c.get("injury_body_part"), "practice": c.get("practice_participation"),
+                     "practice_note": c.get("practice_description"), "notes": c.get("injury_notes"),
+                     "updated": _epoch_iso(c.get("news_updated")), "mean": b.get("mean")})
+    rows.sort(key=lambda r: (SEVERITY.get(r["status"], 5), r["name"] or ""))
+    return rows
+
+
 def team_report(root, team, my_team):
     """UI-A1: one team -- where it stands, its season week by week, its roster, its moves."""
     now = odds_now(root)
@@ -184,7 +211,7 @@ def team_report(root, team, my_team):
     return {"team": team, "hue": team_hue(team), "is_mine": team == my_team, "rank": rank, "of": len(order),
             "standing": standings.get(team) or {}, "record": records(root).get(team), "odds": now["teams"].get(team) or {},
             "odds_week": now["week"], "move": odds_moves(root)["teams"].get(team), "prev_week": odds_moves(root)["prev"],
-            "schedule": schedule, "roster": roster, "moves": moves, "week": cur,
+            "schedule": schedule, "roster": roster, "moves": moves, "week": cur, "injuries": injury_report(root, team),
             "h2h": h2h_report(root, my_team, team) if team != my_team else None}
 
 

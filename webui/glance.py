@@ -377,6 +377,11 @@ def _week_prediction(root, week):
     return best
 
 
+def _injuries(root, team):
+    from webui.objects import injury_report                 # UI-P7 (objects imports this module)
+    return injury_report(root, team)
+
+
 def _next_waiver():
     from webui.players_page import next_waiver_run          # UI-W2
     return next_waiver_run()
@@ -510,6 +515,7 @@ def home_report(root, my_team, runner=None):
             "wins_range": (now["teams"].get(my_team) or {}).get("wins"),
             # UI-M1: the week's phase, and how last week ended as the league counted it
             "phase": "live" if (kick and kick.get("started")) else "before",
+            "injuries": _injuries(root, my_team),
             "next_waiver": _next_waiver(),
             # UI-T5: trades close after week 11 (docs/WAIVER_MECHANICS.md, trade_deadline 11)
             "deadline_left": (11 - wk + 1) if (wk and 9 <= wk <= 11) else None,

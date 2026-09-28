@@ -324,7 +324,11 @@
     <div class="scroller"><table class="watch"><thead><tr><th>Starter</th><th class="num">Proj.</th><th>If out</th><th class="num">Change</th><th></th></tr></thead><tbody>
     {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num {{ 'neg' if (x.give_up or 0) > 0 else 'pos' }}">{{ (0 - (x.give_up or 0))|signed(1) }}</td><td><a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a></td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
-    {% if designations %}<h3>Injury designations</h3>
+    {% if injuries %}<h3>Injuries and practice</h3>
+    <div class="scroller"><table class="watch"><thead><tr><th>Player</th><th>Status</th><th>Injury</th><th>Practice</th><th>Updated</th></tr></thead><tbody>
+    {% for x in injuries %}<tr><td class="nm">{% if x.pid %}<a href="/player/{{ x.pid }}" class="pl" data-player="{{ x.name }}">{{ x.name }}</a>{% else %}{{ x.name }}{% endif %}<span class="small muted">{{ x.pos }}{{ ' · ' ~ x.nfl if x.nfl }}</span></td><td><span class="flag">{{ x.status }}</span></td><td>{{ x.body_part or "—" }}</td><td>{{ x.practice or "—" }}{% if x.practice_note %}<span class="small muted">{{ x.practice_note }}</span>{% endif %}</td><td class="small muted">{{ x.updated|when if x.updated else "—" }}</td></tr>{% endfor %}
+    </tbody></table></div>
+    {% elif designations %}<h3>Injury designations</h3>
     <div class="scroller"><table class="watch"><thead><tr><th>Player</th><th>NFL</th><th class="num">Proj.</th><th>Status</th></tr></thead><tbody>
     {% for x in designations %}<tr><td class="nm">{{ x.name }}</td><td class="muted">{{ x.nfl_team }}</td><td class="num">{{ x.expected|num(1) }}</td><td><span class="flag">{{ x.flag }}</span></td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
@@ -332,7 +336,7 @@
     <div class="scroller"><table class="watch"><thead><tr><th>Week</th><th>Slot</th><th></th></tr></thead><tbody>
     {% for w, slots in holes.items() %}<tr><td class="nm">week {{ w }}</td><td><span class="flag">{{ slots|join(", ") }}</span></td><td class="small muted">no eligible player on the roster{% if calendar_link %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
-    {% if not q and not designations and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">Set my lineup</a> and <a href="/tools/roster_calendar">Bye weeks ahead</a> to fill this in.{% endif %}</p>{% endif %}
+    {% if not q and not designations and not injuries and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">Set my lineup</a> and <a href="/tools/roster_calendar">Bye weeks ahead</a> to fill this in.{% endif %}</p>{% endif %}
     <div class="qa">
       <a class="btn" href="/tools/optimize_lineup"><svg class="i"><use href="#i-clip"/></svg> Set my lineup</a>
       <a class="btn ghost" href="/tools/matchup_lineup"><svg class="i"><use href="#i-matchup"/></svg> Game-plan the matchup</a>

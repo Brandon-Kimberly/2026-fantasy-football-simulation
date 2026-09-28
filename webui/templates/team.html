@@ -39,6 +39,15 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 </tbody></table></div>
 </section>
 
+{% if injuries %}
+<section>
+<h2><svg class="i c-warm"><use href="#i-health"/></svg> Injuries and practice <span class="hint">Sleeper's report, most serious first</span></h2>
+<div class="scroller"><table><thead><tr><th>Player</th><th>Status</th><th>Injury</th><th>Practice</th><th>Notes</th><th>Updated</th></tr></thead><tbody>
+{% for x in injuries %}<tr><td class="nm">{{ playerlink(x.name, x.pid) }} <span class="muted small">{{ x.pos }}</span></td><td><span class="flag">{{ x.status }}</span></td><td>{{ x.body_part or "—" }}</td><td>{{ x.practice or "—" }}{% if x.practice_note %} <span class="muted small">· {{ x.practice_note }}</span>{% endif %}</td><td class="small">{{ x.notes or "" }}</td><td class="small muted">{{ x.updated|when if x.updated else "—" }}</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+
 <section>
 <h2><svg class="i"><use href="#i-clip"/></svg> Roster <span class="hint">season mean · the likely range of one week's points, 10th to 90th percentile, from the week-{{ odds_week or "?" }} forecast</span></h2>
 {% set pmax = [(roster|map(attribute='p90')|select|max) if roster|map(attribute='p90')|select|list else 1, 1]|max %}
