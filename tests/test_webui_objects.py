@@ -258,7 +258,13 @@ class TestPages(ObjectCase):
         self.assertIn("re-scored", text)
 
     def test_the_current_week_is_ready_for_live_scores(self):
-        body = self.get("/matchups/week-3")
+        st = Settings(self.root)
+        st.set_mode("simple")
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id="L", fetch=lambda url: {}))
+        app.testing = True
+        body = app.test_client().get("/matchups/week-3").get_data(as_text=True)
+        self.assertNotIn('id="mlive"', self.get("/matchups/week-3"), "no live board configured, no live read")
         self.assertIn('data-a="Quantum Ferrets"', body)
         self.assertIn('id="mlive"', body)
         self.assertIn("/api/live", body)

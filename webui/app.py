@@ -24,7 +24,7 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 from webui import accuracy as accuracymod
 from webui import brand, objects, render
 from webui import sync as syncmod
-from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
+from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
@@ -318,7 +318,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         rep = objects.week_games(root, week or cur or 1, MY_TEAM)
         if week is not None and week not in rep["weeks"]:
             abort(404)
-        return render_template("matchups.html", **rep)
+        started = bool(kickoff_report(root, rep["week"]).get("started")) if rep["week"] == cur else False
+        return render_template("matchups.html", live_enabled=live.enabled, started=started, **rep)
 
     @app.route("/favicon.ico")
     def favicon():
