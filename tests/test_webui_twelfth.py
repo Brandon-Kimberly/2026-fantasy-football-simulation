@@ -21,6 +21,11 @@ long before a game is settled (Sleeper rebuilt its own for exactly this). The sn
 whether the result is DECIDED -- nobody left to play on either side -- and until it is, the
 pages say "under 0.1%" / "over 99.9%" rather than a certainty.
 
+UI-V6 / UI-T2: one grammar for uncertainty. "±" means one standard error, everywhere, and
+prints through one filter; a score's spread is labelled sd. A paired result is stated in
+standard errors: under 2 "no measurable change", 2 to 4 "modest", above 4 "clear" -- the
+same line the Decisions "measurably moved" filter draws.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -37,6 +42,7 @@ import unittest
 from webui.glance import (freshness_report, home_report, kickoff_report, odds_at, odds_now, odds_race, records,
                           sync_phrase)
 from fantasy_sim.config import MY_TEAM
+from webui import render
 from webui.paths import Root
 
 try:
@@ -373,6 +379,75 @@ class TestDecided(unittest.TestCase):
         self.assertEqual((s["mine"]["to_play"], s["theirs"]["to_play"]), (0, 0))
         self.assertTrue(s["decided"])
         self.assertEqual(s["p_win"], 1.0, "31.5 banked against 0.0 with nobody left")
+
+
+class TestUncertaintyGrammar(unittest.TestCase):
+    def test_se_prints_one_way(self):
+        self.assertEqual(render.fse(0.25), "± 0.25")
+        self.assertEqual(render.fse(0.479), "± 0.48")
+        self.assertEqual(render.fse(1.234), "± 1.2")
+        self.assertEqual(render.fse(None), "")
+
+    def test_verdict_tiers_at_their_boundaries(self):
+        tier = lambda d, se: (render.verdict(d, se) or {}).get("tier")
+        self.assertEqual([tier(1.99, 1), tier(2.0, 1), tier(4.0, 1), tier(4.01, 1)], ["none", "modest", "modest", "clear"])
+        self.assertEqual(render.verdict(-3.0, 1.0)["text"], "a modest loss")
+        self.assertEqual(render.verdict(5.0, 1.0)["text"], "a clear gain")
+        self.assertEqual(render.verdict(0.5, 1.0)["text"], "no measurable change")
+        self.assertIsNone(render.verdict(3.0, None))
+        self.assertIsNone(render.verdict(None, 1.0))
+
+    def test_every_plus_minus_in_a_template_goes_through_the_filter(self):
+        import glob
+        import re
+        for path in glob.glob("webui/templates/*.html") + ["webui/render.py"]:
+            with open(path, encoding="utf-8") as fh:
+                src = fh.read()
+            if path.endswith("render.py"):                          # the one place allowed to print it
+                src = re.sub(r"def fse\(.*?\n\n\n", "", src, flags=re.S)
+            with self.subTest(path=path):
+                self.assertIsNone(re.search(r"±\s*(\{\{|\" ~|\{f)", src),
+                                  "print a standard error with |se (render.fse), never a literal ±")
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestPagesSpeakTheGrammar(unittest.TestCase):
+    def setUp(self):
+        from tests.test_webui_fourth import plant as plant_fourth
+        from tests.test_webui_home import enrich
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        enrich(self.td.name)
+        plant_fourth(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def get(self, path, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        r = app.test_client().get(path)
+        self.assertEqual(r.status_code, 200, path)
+        return r.get_data(as_text=True)
+
+    def test_each_evaluated_move_states_its_verdict_and_the_filter_agrees(self):
+        import re
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                body = self.get("/decisions", mode)
+                judged = []
+                for chunk in body.split('<div class="dec')[1:]:
+                    moved = re.search(r'data-moved="([01])"', chunk)
+                    tier = re.search(r'class="verdict (none|modest|clear)[ "]', chunk)
+                    if moved and tier:
+                        judged.append((moved.group(1), tier.group(1)))
+                self.assertTrue(judged, "the fixture's evaluated moves must carry a verdict")
+                for moved, tier in judged:
+                    self.assertEqual(moved == "1", tier != "none")
 
 
 if __name__ == "__main__":

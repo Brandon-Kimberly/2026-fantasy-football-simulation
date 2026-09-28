@@ -149,6 +149,39 @@ def fnum(v, nd=1):
         return str(v) if isinstance(v, str) else "—"
 
 
+def fse(v, unit=""):
+    """UI-V6: "±" means ONE STANDARD ERROR on every page, and prints only through here -- two
+    decimals below 1 (0.25 stays 0.25, not 0.3), one above. '' when there is none. A score's
+    spread is not a standard error and is labelled sd instead."""
+    try:
+        if v is None:
+            return ""
+        f = abs(float(v))
+    except Exception:
+        return ""
+    if f != f:
+        return ""
+    return f"± {f:.2f}{unit}" if f < 1 else f"± {f:.1f}{unit}"
+
+
+def verdict(delta, se):
+    """UI-T2: a paired result stated in standard errors, so a gain inside the noise never
+    reads as a gain. Under 2 SE: no measurable change; 2 to 4: modest; above 4: clear. The
+    tiers are a DISPLAY convention (docs/WEB_UI.md), not a significance test. None when
+    either number is missing or the standard error is zero."""
+    try:
+        d, s = float(delta), float(se)
+    except (TypeError, ValueError):
+        return None
+    if s <= 0 or d != d or s != s:
+        return None
+    z = abs(d) / s
+    tier = "none" if z < 2 else ("modest" if z <= 4 else "clear")
+    word = "gain" if d > 0 else "loss"
+    text = "no measurable change" if tier == "none" else f"a {tier} {word}"
+    return {"tier": tier, "text": text, "z": round(z, 1), "sign": "pos" if d > 0 else "neg"}
+
+
 def fpct(v, nd=1):
     """0.7624 -> 76.2%; 76.24 (already a percentage) -> 76.2%."""
     try:
