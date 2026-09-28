@@ -6173,6 +6173,22 @@ from `fpts`.
 
 Suite unchanged (no code changed). RECORDED, not fixed.
 
+**OWNER RULING, 2026-09-28: a result is decided by the league's record AS PLAYED.** The web
+UI had begun stating results from `weekly_actuals.json` (the re-scored `/matchups`), and one
+week-2 game -- Quantum Ferrets v Cosmic Badgers, 148.52-144.19 re-scored, 149.02-150.41 as
+played -- came out the other way from the league's standings. `scripts.as_played_record`
+rebuilds weeks 1-2 from the frozen snapshot and each week's starters and writes
+`data/logs/as_played_results_2026.json` (results only) only after every team's wins equal the
+banked wins; on the real data all eight do, and QF reproduces this entry's to-the-cent
+187.36 + 149.02. `webui.results` lays it over the actuals for records, what-each-week-did,
+the head-to-head history and Accuracy. **Scope: the web UI only.** The engine's inputs are
+unchanged (it already takes banked wins from the standings, F84), and forecasting keeps the
+NEW scale, as this entry says it should. Accuracy's POINTS for weeks 1-2 remain the re-scored
+box scores against forecasts made under the old scale -- the cross-scale comparison this
+entry's transferable rule warns about -- and are not yet corrected: the reconstructed
+as-played points match today's banked totals only to within 0-7.5 points per team over two
+weeks (the league's totals moved again after 2026-09-24), so they are not claimed.
+
 ### F84 — The engine banked a record the league does not recognise — RESOLVED (2026-09-24)
 
 **Origin.** F70's recorded follow-up, made live by F83. `actual_wins_banked` and

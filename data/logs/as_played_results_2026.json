@@ -1,0 +1,82 @@
+{
+ "_meta": {
+  "basis": "as played (OLD IDP scoring), F83",
+  "note": "results only; reconstructed points are not claimed",
+  "snapshot": "data/logs/first_recorded_scores.jsonl",
+  "source": "scripts.as_played_record",
+  "verified_against": "league_standings.json h2h_wins, every team exactly",
+  "weeks": [
+   1,
+   2
+  ],
+  "written_at": "2026-09-28T19:42:31Z"
+ },
+ "week_1": {
+  "Cosmic Badgers": {
+   "h2h_win": 1.0,
+   "median_win": 0
+  },
+  "Crimson Marmots": {
+   "h2h_win": 0.0,
+   "median_win": 1
+  },
+  "Iron Wombats": {
+   "h2h_win": 0.0,
+   "median_win": 0
+  },
+  "Neon Walruses": {
+   "h2h_win": 0.0,
+   "median_win": 0
+  },
+  "Polar Yetis": {
+   "h2h_win": 1.0,
+   "median_win": 0
+  },
+  "Quantum Ferrets": {
+   "h2h_win": 1.0,
+   "median_win": 1
+  },
+  "Rocket Pandas": {
+   "h2h_win": 0.0,
+   "median_win": 1
+  },
+  "Turbo Llamas": {
+   "h2h_win": 1.0,
+   "median_win": 1
+  }
+ },
+ "week_2": {
+  "Cosmic Badgers": {
+   "h2h_win": 1.0,
+   "median_win": 0
+  },
+  "Crimson Marmots": {
+   "h2h_win": 0.0,
+   "median_win": 0
+  },
+  "Iron Wombats": {
+   "h2h_win": 0.0,
+   "median_win": 0
+  },
+  "Neon Walruses": {
+   "h2h_win": 1.0,
+   "median_win": 1
+  },
+  "Polar Yetis": {
+   "h2h_win": 0.0,
+   "median_win": 1
+  },
+  "Quantum Ferrets": {
+   "h2h_win": 0.0,
+   "median_win": 0
+  },
+  "Rocket Pandas": {
+   "h2h_win": 1.0,
+   "median_win": 1
+  },
+  "Turbo Llamas": {
+   "h2h_win": 1.0,
+   "median_win": 1
+  }
+ }
+}

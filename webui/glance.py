@@ -16,6 +16,8 @@ import os
 import re
 import subprocess
 
+from webui.results import week_results   # a result as the league counts it (F83)
+
 
 def _parse_iso(t):
     return _dt.datetime.fromisoformat(str(t).replace("Z", "+00:00")).astimezone(_dt.timezone.utc)
@@ -137,11 +139,11 @@ def odds_moves(root, n=None):
         return out
     from webui.accuracy import chances_in, quoted_week
     now, then = odds_at(root, n), odds_at(root, prev)
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    results_by_week = week_results(root)                              # as the league counts them (F83)
     quotes = {w: quoted_week(root, w) for w in range(prev, n)}        # UI-Q2: what it said at the time
-    # the box scores can disagree with the league's own record after a stat correction (seen
-    # on week 2 of 2026); the standings are the authority (F84), so a result they do not
-    # reconcile with is flagged, never stated
+    # the box scores can still disagree with the league's own record (a stat correction or a
+    # scoring change after a result was recorded); the standings are the authority (F84), so a
+    # result they do not reconcile with is flagged, never stated
     rec = records(root)
     for team, v in now.items():
         was = then.get(team)
@@ -150,7 +152,7 @@ def odds_moves(root, n=None):
         d = lambda a, b: round(float(a) - float(b), 1) if a is not None and b is not None else None
         results = []
         for w in range(prev, n):
-            r = ((actuals.get(f"week_{w}") or {}).get("team_results") or {}).get(team)
+            r = (results_by_week.get(w) or {}).get(team)
             if r:
                 q = chances_in(quotes.get(w), team) or {}
                 results.append({"week": w, "h2h": _wl(r.get("h2h_win")), "median": _wl(r.get("median_win")),
@@ -173,14 +175,13 @@ def records(root):
     number (`h2h_wins`, which despite its name counts both) hides which one a team is
     winning. The standings stay the authority on the total (F84); `agrees` says whether
     the actuals account for exactly the wins the standings report, and a page shows the
-    split only when they do -- the actuals can lag a week behind."""
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    split only when they do -- the actuals can lag a week behind. Results come through
+    webui.results, so a week the league scored differently from today's box score (F83)
+    counts the way the league counts it."""
     standings = root.read_json("current/league_standings.json", {}) or {}
     tally = {}
-    for key, wk in actuals.items():
-        if not str(key).startswith("week_") or not isinstance(wk, dict):
-            continue
-        for team, r in (wk.get("team_results") or {}).items():
+    for _n, teams in sorted(week_results(root).items()):
+        for team, r in teams.items():
             t = tally.setdefault(team, {"h2h": [0, 0, 0], "median": [0, 0, 0], "weeks": 0})
             t["weeks"] += 1
             for kind, field in (("h2h", "h2h_win"), ("median", "median_win")):
@@ -499,7 +500,7 @@ def kickoff_report(root, week, now=None):
 
 def _h2h_row(season, week, mine, theirs):
     return {"season": season, "week": week, "mine": mine, "theirs": theirs,
-            "won": mine > theirs, "tied": mine == theirs}
+            "won": mine > theirs, "tied": mine == theirs, "rescored": False}
 
 
 def h2h_report(root, my_team, opponent):
@@ -513,16 +514,21 @@ def h2h_report(root, my_team, opponent):
     state = root.read_json("current/league_state.json", {}) or {}
     season = str(state.get("season") or "this season")
     sched = root.read_json("current/league_schedule.json", []) or []
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    results = week_results(root)
     for i, pairs in enumerate(sched if isinstance(sched, list) else []):
         wk = i + 1
         if not any(my_team in p and opponent in p for p in (pairs or []) if isinstance(p, (list, tuple))):
             continue
-        tr = (actuals.get(f"week_{wk}") or {}).get("team_results") or {}
+        tr = results.get(wk) or {}
         a, b = (tr.get(my_team) or {}).get("points_scored"), (tr.get(opponent) or {}).get("points_scored")
         if a is None or b is None:
             continue
-        rows.append(_h2h_row(season, wk, float(a), float(b)))
+        row = _h2h_row(season, wk, float(a), float(b))
+        mine = tr.get(my_team) or {}
+        if mine.get("as_played") and mine.get("h2h_win") is not None:     # the league's result, F83
+            row.update(won=float(mine["h2h_win"]) >= 1, tied=float(mine["h2h_win"]) == 0.5,
+                       rescored=bool(mine.get("rescored")))
+        rows.append(row)
     for e in root.logs():
         name = e.get("name") or ""
         if not (name.startswith("season_") and name.endswith(".json")):

@@ -117,13 +117,14 @@ def report(root):
     rules; everything here is counting, and nothing is written."""
     rows = _prediction_rows(root)
     kicks = _first_kickoff(root)
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    from webui.results import week_results
+    by_week = week_results(root)          # results as the league counts them (F83): as played
     weeks, skipped = [], []
     calls, hits, briers = 0, 0, []
     errors, zs, med_calls, med_hits, med_briers = [], [], 0, 0, []
 
     for week in sorted({int(r["week"]) for r in rows if str(r.get("week", "")).isdigit()}):
-        results = (actuals.get(f"week_{week}") or {}).get("team_results") or {}
+        results = by_week.get(week) or {}
         if not results:
             skipped.append({"week": week, "why": "no result on file yet"})
             continue
