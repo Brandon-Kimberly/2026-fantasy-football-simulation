@@ -317,18 +317,20 @@ def seed_report(seeds, playoff_pct):
 def kickoff_report(root, week, now=None):
     """U6: the synced kickoffs for `week` against the clock -- the next one (ISO, and
     seconds away), how many games start then, how many are still ahead, whether the
-    first has yet to kick off or every game is under way. Kickoffs come from the sync
+    first has yet to kick off or every game is under way, and whether ANY has (UI-F1: Home
+    reads live scores on load from then on). Kickoffs come from the sync
     (nfl_schedule._meta.kickoffs); this never reaches the network."""
     sched = root.read_json("current/nfl_schedule.json", {}) or {}
     raw = ((sched.get("_meta") or {}).get("kickoffs") or {}).get(str(int(week))) if week else None
     out = {"week": week, "next": None, "in_seconds": None, "games": 0, "remaining": 0, "at_next": 0,
-           "done": False, "first": False, "last": None}
+           "done": False, "first": False, "started": False, "last": None}
     if not raw:
         return out
     now = now or _dt.datetime.now(_dt.timezone.utc)
     kicks = sorted((_parse_iso(t), t) for t in raw)
     ahead = [(d, t) for d, t in kicks if d > now]
-    out.update(games=len(kicks), remaining=len(ahead), done=not ahead, first=len(ahead) == len(kicks), last=kicks[-1][1])
+    out.update(games=len(kicks), remaining=len(ahead), done=not ahead, first=len(ahead) == len(kicks),
+               started=len(ahead) < len(kicks), last=kicks[-1][1])
     if ahead:
         d, t = ahead[0]
         out.update(next=t, in_seconds=int((d - now).total_seconds()), at_next=sum(1 for dd, _t in ahead if dd == d))

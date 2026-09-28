@@ -204,7 +204,7 @@
   {% endif %}
 
   {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
-  <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}">
+  <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}" data-started="{{ '1' if kick and kick.started else '0' }}">
     <div class="lh">
       <span class="k" id="live-k"><svg class="i"><use href="#i-live"/></svg> Live</span>
       <span class="meta" id="live-meta">{% if not live.enabled %}{% if dev %}not connected — set SLEEPER_LEAGUE_ID for this server{% else %}live scores are not connected{% endif %}{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
@@ -309,7 +309,7 @@
 <script>
 (function () {
   var box = document.getElementById('live'); if (!box) return;
-  var enabled = box.getAttribute('data-enabled') === '1';
+  var enabled = box.getAttribute('data-enabled') === '1', started = box.getAttribute('data-started') === '1';
   var body = document.getElementById('live-body'), meta = document.getElementById('live-meta'), k = document.getElementById('live-k');
   var auto = document.getElementById('live-auto'), btn = document.getElementById('live-refresh'), timer = null;
   var initial = {{ live|tojson }};
@@ -508,7 +508,9 @@
   auto.addEventListener('change', function () { try { localStorage.setItem('live-auto', auto.checked ? '1' : '0'); } catch (e) {} schedule(); if (auto.checked) fetchLive(true); });
   btn.addEventListener('click', function () { fetchLive(true); });
   draw(initial);
-  if (enabled && (auto.checked || (initial.snapshot && initial.snapshot.ok))) fetchLive(!initial.snapshot);
+  // UI-F1: once any game of the week has kicked off, the pre-game number is the wrong thing to
+  // lead with, so read the scores on load (the board's minimum interval still guards Sleeper)
+  if (enabled && (auto.checked || started || (initial.snapshot && initial.snapshot.ok))) fetchLive(started || !initial.snapshot);
   schedule();
 })();
 </script>
