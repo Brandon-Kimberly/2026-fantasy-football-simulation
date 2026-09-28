@@ -181,6 +181,28 @@ class TestDecisionsFilters(BrowserCase):
                 self.assertEqual(self.shown("#list .dec"), total, "Everyone must bring every row back")
 
 
+class TestSortableTables(BrowserCase):
+    """League's standings said "click a column to sort", its headers had a pointer cursor and
+    sort-arrow CSS -- and no script had ever sorted anything (the markup and styles arrived in
+    c329cca; the script never did). Found 2026-09-28 while building the Players page."""
+
+    def column(self, table, i):
+        return self.page.eval_on_selector(table, f"t => Array.from(t.tBodies[0].rows).map(r => r.cells[{i}].getAttribute('data-sort'))")
+
+    def test_clicking_a_numeric_header_sorts_and_clicking_again_reverses(self):
+        p = self.open("/league", "simple")
+        table = "section:has(h2:has-text('Standings')) table"
+        heads = p.eval_on_selector_all(table + " thead th", "ths => ths.map(t => t.getAttribute('data-key'))")
+        i = heads.index("p")                                               # Points
+        p.click(f"{table} thead th[data-key='p']")
+        first = [float(x) for x in self.column(table, i)]
+        self.assertEqual(first, sorted(first, reverse=True), "a number sorts high to low first")
+        p.click(f"{table} thead th[data-key='p']")
+        again = [float(x) for x in self.column(table, i)]
+        self.assertEqual(again, sorted(again))
+        self.assertEqual(p.get_attribute(f"{table} thead th[data-key='p']", "aria-sort"), "ascending")
+
+
 class TestPaletteAndShortcuts(BrowserCase):
     def test_the_palette_opens_filters_and_goes(self):
         for mode in ("dev", "simple"):
