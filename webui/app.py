@@ -217,7 +217,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
-                "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc))}
+                "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc)),
+                "job_now": runner.current() if runner is not None else None}     # U3: the job bar on every page
 
     @app.before_request
     def _host_check():
@@ -299,6 +300,13 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                     snap[k] = overlay.text(snap[k])
             p = dict(p, snapshot=snap)
         return p
+
+    @app.route("/gameday")
+    def gameday():
+        """The TV view: a full-screen live scoreboard, both views, from the cached
+        snapshot (the page's own script refreshes it through /api/live)."""
+        rep = home_report(root, MY_TEAM, runner)
+        return render_template("gameday.html", live=_live_payload(live.peek()), **rep)
 
     @app.route("/api/live")
     def api_live():

@@ -526,6 +526,36 @@ marked), and the home standings show each team's odds sparkline and its move in 
 rank since the previous week's forecast. Both views; nothing new is computed — the
 numbers are the exports' own.
 
+### W11 — Live and game day (2026-09-28)
+
+**The job bar.** Every page checks `runner.current()` at render; while a job runs, a
+thin animated bar sits at the top and the page polls `/jobs/<id>.json` every three
+seconds until the state changes, then shows a toast — "Open the answer" for OK, "See
+what happened" for VOID. No job, no polling. Both views.
+
+**The next kickoff.** `glance.kickoff_report` reads the kickoffs the sync persisted
+(`nfl_schedule._meta.kickoffs`) and the hero says when the next one is, how many games
+start then and how many are still ahead; the browser ticks the countdown. Never a
+network read — no kickoffs on disk means no countdown.
+
+**Head-to-head.** `glance.h2h_report` finds every meeting with this week's opponent:
+this season from `league_schedule.json` paired with `weekly_actuals.json`, earlier
+seasons from `data/logs/season_<year>.json` (roster map + matchups). The record, the
+last result and the full list; nothing is computed that those files do not hold.
+
+**Live v2.** The snapshot now carries `games` (every NFL game's teams, scores, clock and
+state) beside the two rosters, and `LiveBoard` keeps a bounded in-memory `history` of
+the win probability, projections and time of each read, reset when the week changes.
+It is still memory only: W6's guarantee that a refresh writes nothing under `data/`
+holds (tests.test_webui_eighth digests the tree around a run of refreshes). The panel
+draws game-clock chips, the day's line, a swing when the number moves, and confetti in
+the team's colour only on a final win — every starter on both sides played, and ahead.
+
+**`/gameday`.** A standalone dark page for a TV: the two banked scores large, the chance
+to win, every starter with a chip, every game with its score and clock, refreshed each
+minute through `/api/live?refresh=1` (the board's 45 s floor still applies). It is a page
+in both views, not a third view; the toggle and the mode gate are unchanged.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

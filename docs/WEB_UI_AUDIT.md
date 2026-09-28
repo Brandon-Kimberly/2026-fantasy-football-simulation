@@ -5,8 +5,20 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
-**Status (2026-09-28): Phases 1 to 4 landed** — every bug in §3 except B13 (the count-up,
-a judgement call for §6). Phase 4 (charts v2): `render.line_chart` is the one chart
+**Status (2026-09-28): Phases 1 to 5 landed** — every bug in §3 except B13 (the count-up,
+a judgement call for §6). Phase 5 (live and game day): U3 a job bar on every page while a
+job runs and a toast with "Open the answer" when it ends (the page polls the job's JSON
+every 3 s only while the bar is up); U6 the next kickoff in the hero from the synced
+kickoffs (`glance.kickoff_report`), ticking in the browser; U7 live v2 — game-clock chips
+on every starter, the win probability through the day from the board's in-memory
+history (`LiveBoard.max_history`, reset each week, never written), every NFL game's
+clock and score in the snapshot, a swing animation when the number moves, and
+team-colour confetti only when every starter on both sides has played and I am ahead;
+U8 head-to-head history with this week's opponent from this season's actuals and the
+season archives (`glance.h2h_report`); the hero's avatars clash in; and `/gameday`, a
+full-screen dark scoreboard for a TV served in both views (a page, not a fourth view:
+the two-view toggle stays as it is). `tests.test_webui_eighth` pins it (11 tests); the
+page scripts are pinned by presence only. Phase 4 (charts v2): `render.line_chart` is the one chart
 component — round ticks (`nice_ticks`: 1 / 2 / 2.5 / 5 × 10ⁿ, a percentage axis keeps
 its 100), x labels that never collide (the first and last always survive; a run of the
 same label is written once; Decisions is labelled by date), 11.5 px text with each card

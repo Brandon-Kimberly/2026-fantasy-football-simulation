@@ -252,6 +252,10 @@ def home_report(root, my_team, runner=None):
     watch = root.read_json(watch_e["rel"], {}) if watch_e else {}
     designations = [x for x in (watch.get("designations") or []) if x.get("side") == "mine"] if watch else []
 
+    # ---- game day: the next kickoff and the history with this opponent
+    kick = kickoff_report(root, wk) if wk else None
+    h2h = h2h_report(root, my_team, opponent)
+
     # ---- health
     win = windows_report(root, week)
     last_job = (runner.list() or [None])[0] if runner is not None else None
@@ -262,9 +266,82 @@ def home_report(root, my_team, runner=None):
             "lineup": lineup, "lineup_link": lineup_e["link"] if lineup_e else None,
             "holes": holes, "calendar_link": cal_e["link"] if cal_e else None,
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,
-            "fresh": fr, "windows": win, "last_job": last_job, "git": git,
+            "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
             "weeks": root.weeks(), "prev_week": prev_week}
+
+
+def kickoff_report(root, week, now=None):
+    """U6: the synced kickoffs for `week` against the clock -- the next one (ISO, and
+    seconds away), how many games start then, how many are still ahead, whether the
+    first has yet to kick off or every game is under way. Kickoffs come from the sync
+    (nfl_schedule._meta.kickoffs); this never reaches the network."""
+    sched = root.read_json("current/nfl_schedule.json", {}) or {}
+    raw = ((sched.get("_meta") or {}).get("kickoffs") or {}).get(str(int(week))) if week else None
+    out = {"week": week, "next": None, "in_seconds": None, "games": 0, "remaining": 0, "at_next": 0,
+           "done": False, "first": False, "last": None}
+    if not raw:
+        return out
+    now = now or _dt.datetime.now(_dt.timezone.utc)
+    kicks = sorted((_parse_iso(t), t) for t in raw)
+    ahead = [(d, t) for d, t in kicks if d > now]
+    out.update(games=len(kicks), remaining=len(ahead), done=not ahead, first=len(ahead) == len(kicks), last=kicks[-1][1])
+    if ahead:
+        d, t = ahead[0]
+        out.update(next=t, in_seconds=int((d - now).total_seconds()), at_next=sum(1 for dd, _t in ahead if dd == d))
+    return out
+
+
+def _h2h_row(season, week, mine, theirs):
+    return {"season": season, "week": week, "mine": mine, "theirs": theirs,
+            "won": mine > theirs, "tied": mine == theirs}
+
+
+def h2h_report(root, my_team, opponent):
+    """U8: every meeting with `opponent` -- this season from the schedule and the weekly
+    actuals, earlier seasons from the season archives under data/logs -- newest first,
+    with the record and the last result. Nothing is computed that the logs do not hold."""
+    empty = {"rows": [], "wins": 0, "losses": 0, "ties": 0, "last": None, "since": None}
+    if not opponent:
+        return empty
+    rows = []
+    state = root.read_json("current/league_state.json", {}) or {}
+    season = str(state.get("season") or "this season")
+    sched = root.read_json("current/league_schedule.json", []) or []
+    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    for i, pairs in enumerate(sched if isinstance(sched, list) else []):
+        wk = i + 1
+        if not any(my_team in p and opponent in p for p in (pairs or []) if isinstance(p, (list, tuple))):
+            continue
+        tr = (actuals.get(f"week_{wk}") or {}).get("team_results") or {}
+        a, b = (tr.get(my_team) or {}).get("points_scored"), (tr.get(opponent) or {}).get("points_scored")
+        if a is None or b is None:
+            continue
+        rows.append(_h2h_row(season, wk, float(a), float(b)))
+    for e in root.logs():
+        name = e.get("name") or ""
+        if not (name.startswith("season_") and name.endswith(".json")):
+            continue
+        arc = root.read_json(e["rel"], {}) or {}
+        rmap = {str(k): v for k, v in (arc.get("roster_map") or {}).items()}
+        by_name = {v: k for k, v in rmap.items()}
+        mine_rid, opp_rid = by_name.get(my_team), by_name.get(opponent)
+        if mine_rid is None or opp_rid is None:
+            continue
+        arc_season = str(arc.get("season") or name[len("season_"):-len(".json")])
+        for wk, entries in (arc.get("matchups") or {}).items():
+            by_rid = {str(m.get("roster_id")): m for m in (entries or []) if isinstance(m, dict)}
+            a, b = by_rid.get(mine_rid), by_rid.get(opp_rid)
+            if a and b and a.get("matchup_id") is not None and a.get("matchup_id") == b.get("matchup_id"):
+                try:
+                    rows.append(_h2h_row(arc_season, int(wk), float(a.get("points") or 0.0), float(b.get("points") or 0.0)))
+                except (TypeError, ValueError):
+                    continue
+    rows.sort(key=lambda r: (r["season"], r["week"]), reverse=True)
+    if not rows:
+        return empty
+    return {"rows": rows, "wins": sum(1 for r in rows if r["won"]), "losses": sum(1 for r in rows if not r["won"] and not r["tied"]),
+            "ties": sum(1 for r in rows if r["tied"]), "last": rows[0], "since": rows[-1]["season"]}
 
 
 def odds_race(root, my_team):

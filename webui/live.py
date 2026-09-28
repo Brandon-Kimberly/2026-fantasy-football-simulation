@@ -72,10 +72,12 @@ def _fetch_json(url, timeout=15):
     return r.json()
 
 
-def game_clocks(week, fetch):
-    """{nfl abbr: (fraction remaining, human status)} for every team this week."""
+def scoreboard(week, fetch):
+    """(clocks, games): {nfl abbr: (fraction remaining, human status)} for every team this
+    week, and one row per game -- home, away, both scores, the clock label and its state
+    ('pre' / 'in' / 'post') -- for the gameday board."""
     payload = fetch(SCOREBOARD.format(week=int(week)))
-    out = {}
+    clocks, games = {}, []
     for ev in (payload or {}).get("events", []):
         comp = (ev.get("competitions") or [{}])[0]
         status = comp.get("status") or {}
@@ -83,18 +85,35 @@ def game_clocks(week, fetch):
         frac = clock_fraction(status.get("period"), status.get("displayClock"),
                               kind.get("state"), kind.get("completed"))
         if kind.get("completed"):
-            label = "final"
+            label, state = "final", "post"
         elif kind.get("state") == "in":
-            label = f"Q{status.get('period')} {status.get('displayClock')}"
+            label, state = f"Q{status.get('period')} {status.get('displayClock')}", "in"
         else:
-            label = "pregame"
+            label, state = "pregame", "pre"
+        home = away = home_score = away_score = None
         for c in comp.get("competitors", []):
             abbr = (c.get("team") or {}).get("abbreviation")
             if not abbr:
                 continue
             for key in {abbr, ABBR_ALIASES.get(abbr, abbr)}:
-                out[key] = (frac, label)
-    return out
+                clocks[key] = (frac, label)
+            try:
+                score = int(float(c.get("score"))) if c.get("score") not in (None, "") else None
+            except (TypeError, ValueError):
+                score = None
+            if c.get("homeAway") == "away":
+                away, away_score = abbr, score
+            else:
+                home, home_score = abbr, score
+        if home or away:
+            games.append({"home": home, "away": away, "home_score": home_score, "away_score": away_score,
+                          "label": label, "state": state, "frac": round(frac, 3)})
+    return clocks, games
+
+
+def game_clocks(week, fetch):
+    """{nfl abbr: (fraction remaining, human status)} for every team this week."""
+    return scoreboard(week, fetch)[0]
 
 
 # ------------------------------------------------------------------- expectations
@@ -166,10 +185,10 @@ def snapshot(root, week, my_team, league_id, fetch, base_url="https://api.sleepe
     wk = int(week)
     matchups = fetch(f"{base_url}/league/{league_id}/matchups/{wk}") or []
     try:
-        clocks = game_clocks(wk, fetch)
+        clocks, games = scoreboard(wk, fetch)
         clocks_ok = bool(clocks)
     except Exception:                       # the scoreboard is a second source; its loss is a caveat, not a failure
-        clocks, clocks_ok = {}, False
+        clocks, games, clocks_ok = {}, [], False
     exp = expectations(root, wk)
     by_team = {}
     for m in matchups:
@@ -191,7 +210,7 @@ def snapshot(root, week, my_team, league_id, fetch, base_url="https://api.sleepe
     return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
-            "clocks_ok": clocks_ok, "statuses": labels,
+            "clocks_ok": clocks_ok, "statuses": labels, "games": games,
             "sources": sorted({e.get("source") for e in exp.values() if e.get("source") != "baseline"} - {None})}
 
 
@@ -200,11 +219,12 @@ class LiveBoard:
     and never more often than `min_interval` seconds; a failed refresh keeps the last
     good snapshot and reports the error beside it. Nothing here touches the disk."""
 
-    def __init__(self, root, my_team, league_id=None, fetch=None, min_interval=45, clock=time.monotonic):
+    def __init__(self, root, my_team, league_id=None, fetch=None, min_interval=45, clock=time.monotonic, max_history=300):
         self.root, self.my_team, self.league_id, self.fetch = root, my_team, league_id, fetch
-        self.min_interval, self._clock = min_interval, clock
+        self.min_interval, self._clock, self.max_history = min_interval, clock, max_history
         self._lock = threading.Lock()
         self._snap, self._error, self._at = None, None, None
+        self._history, self._week = [], None      # the win probability through the day (U7): memory only
 
     @classmethod
     def default(cls, root, my_team):
@@ -232,6 +252,13 @@ class LiveBoard:
                 try:
                     self._snap = snapshot(self.root, week, self.my_team, self.league_id, self.fetch)
                     self._error = None if self._snap.get("ok") else self._snap.get("error")
+                    if self._snap.get("ok"):
+                        if self._snap.get("week") != self._week:
+                            self._history, self._week = [], self._snap.get("week")
+                        self._history.append({"at": self._snap.get("fetched_at"), "p": self._snap.get("p_win"),
+                                              "mine": self._snap["mine"]["projected"],
+                                              "theirs": (self._snap.get("theirs") or {}).get("projected")})
+                        del self._history[:-self.max_history]
                 except Exception as ex:
                     self._error = f"{type(ex).__name__}: {ex}"
                 self._at = self._clock()
@@ -240,4 +267,4 @@ class LiveBoard:
     def _payload(self):
         age = None if self._at is None else int(self._clock() - self._at)
         return {"enabled": self.enabled, "snapshot": self._snap, "error": self._error, "age_seconds": age,
-                "min_interval": self.min_interval}
+                "min_interval": self.min_interval, "history": list(self._history)}

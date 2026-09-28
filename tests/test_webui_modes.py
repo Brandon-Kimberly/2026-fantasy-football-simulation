@@ -44,7 +44,7 @@ DEV_TERMS = ("data/", ".json", ".jsonl", "canonical", "VOID", "DEGRADED", "STALE
              "backup", "sync", "Sync", "py -3.10", "scripts.", "F84", "F51", "F50", "F61", "H5", "C3", "R1", "B11",
              "job id", "raw", "the record on disk", "LOCAL VIEW", "run windows", "digest", "provenance", "roster_grades",
              "optimize_lineup", "evaluate_move", "weekly_report", "audit")
-SIMPLE_PAGES = ("/", "/league", "/forecasts", "/forecasts/week-3", "/decisions", "/tools", "/tools/compare_players",
+SIMPLE_PAGES = ("/", "/gameday", "/league", "/forecasts", "/forecasts/week-3", "/decisions", "/tools", "/tools/compare_players",
                 "/tools/optimize_lineup", "/tools/live_matchup",
                 "/records/week-3/optimal-lineup/2026-09-24-165331", "/file/decisions/week_03/lineup_20260924T165331Z_week3.json")
 
