@@ -451,6 +451,33 @@ def decisions_report(root, my_team):
         L["playoff_se"] = L.pop("var_p") ** 0.5
         L["champ_se"] = L.pop("var_c") ** 0.5
     mine = [d for d in out if d["is_mine"] or my_team in d["teams"]]
+    # U10: the awards -- best and worst (move, team) of the season and of the latest week
+    # with an evaluated move -- and each team's own cumulative line, oldest first
+    pairs = []
+    for d in out:
+        for t in d["teams"]:
+            if t != d["actor"] and d["type"] != "trade":
+                continue
+            fx = d["effect"].get(t)
+            if fx and fx.get("playoff") is not None:
+                pairs.append({"id": d["id"], "team": t, "playoff": fx["playoff"], "playoff_se": fx.get("playoff_se"),
+                              "champ": fx.get("champ"), "week": d["week"], "label": d["label"], "type": d["type"],
+                              # a trade: what came to this team, and what left it (the other side's arrivals)
+                              "adds": [p for p in d["adds"] if p.get("to") == t] if d["type"] == "trade" else d["adds"],
+                              "drops": [p for p in d["adds"] if p.get("to") not in (t, None)] if d["type"] == "trade" else d["drops"],
+                              "created": d["created"], "is_mine": t == my_team})
+    latest_week = max((p["week"] for p in pairs if p.get("week") is not None), default=None)
+    week_pairs = [p for p in pairs if p.get("week") == latest_week] if latest_week is not None else []
+    awards = {"best": max(pairs, key=lambda p: p["playoff"]) if pairs else None,
+              "worst": min(pairs, key=lambda p: p["playoff"]) if pairs else None,
+              "week": latest_week,
+              "best_week": max(week_pairs, key=lambda p: p["playoff"]) if week_pairs else None,
+              "worst_week": min(week_pairs, key=lambda p: p["playoff"]) if week_pairs else None}
+    timelines = {}
+    for p in reversed(pairs):                   # the log is newest first; a line runs oldest first
+        prev = timelines.get(p["team"], [0.0])[-1] if p["team"] in timelines else 0.0
+        timelines.setdefault(p["team"], []).append(round(prev + p["playoff"], 2))
+
     series, run = [], 0.0                       # my cumulative playoff delta, oldest first
     for d in reversed(mine):
         fx = d["effect"].get(my_team)
@@ -458,7 +485,7 @@ def decisions_report(root, my_team):
             run += fx["playoff"]
             series.append({"at": d["created"], "week": d["week"], "value": round(run, 2), "label": d["label"]})
     return {"decisions": out, "mine": mine, "ledger": table, "my_row": next((L for L in table if L["team"] == my_team), None),
-            "series": series, "n": len(out),
+            "series": series, "n": len(out), "awards": awards, "timelines": timelines,
             "n_evaluated": sum(1 for d in out if d["evaluated"] and not d["skipped"]),
             "n_skipped": sum(1 for d in out if d["skipped"]), "n_pending": sum(1 for d in out if not d["evaluated"])}
 

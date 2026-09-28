@@ -1,10 +1,13 @@
 <!doctype html>
-<html lang="en">
+<html lang="en"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ brand }}{% endblock %}</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='16' rx='14' ry='9' transform='rotate(-35 16 16)' fill='%238a4b1f'/%3E%3Cpath d='M10 20 L22 12 M13 15 l2 2 M15.5 13.5 l2 2 M18 12 l2 2' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2e7d4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;800&display=swap">
 <style>
@@ -32,7 +35,7 @@
   --mono: ui-monospace, "Cascadia Code", Consolas, "SF Mono", Menlo, monospace;
   /* one shape system: surfaces are soft, controls a touch softer, pills tight, tables square */
   --r-card: 8px; --r-ctl: 5px; --r-pill: 3px; }
-@media (prefers-color-scheme: dark) { :root {
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#9a9891;
   --grid:#2c2c2a; --rule:#383835; --ring:rgba(255,255,255,0.10);
   --pos:#3987e5; --neg:#e66767; --mid:#383835; --chip:#222221; --warn:#d9a441;
@@ -42,6 +45,18 @@
   --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45; --line-l:62%;
   --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
   --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); } }
+:root[data-theme="dark"] {
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#9a9891;
+  --grid:#2c2c2a; --rule:#383835; --ring:rgba(255,255,255,0.10);
+  --pos:#3987e5; --neg:#e66767; --mid:#383835; --chip:#222221; --warn:#d9a441;
+  --pos-bg:rgba(57,135,229,0.16); --neg-bg:rgba(230,103,103,0.16); --warn-bg:rgba(217,164,65,0.16);
+  --turf:#4fae7b; --turf-bg:rgba(79,174,123,0.14); --turf-line:rgba(79,174,123,0.18);
+  --warm:#eb8d45; --warm-bg:rgba(235,141,69,0.16); --gold:#dcae45; --gold-bg:rgba(220,174,69,0.16);
+  --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45; --line-l:62%;
+  --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
+  --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); }
+:root[data-theme="dark"] { color-scheme: dark; } :root[data-theme="light"] { color-scheme: light; }
+@view-transition { navigation: auto; }
 
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -198,6 +213,29 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .kv { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; font-size: 13.5px; margin-top: 6px; }
 .kv dt { color: var(--muted); } .kv dd { margin: 0; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 4px; }
+/* U4 / U14: the command palette and the shortcut help; U5: the player card */
+.pal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px; backdrop-filter: blur(4px); }
+.pal[hidden] { display: none; }
+.pal .box { width: min(640px, 100%); background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; animation: rise .2s ease both; }
+.pal input { width: 100%; border: 0; border-bottom: 1px solid var(--grid); background: transparent; color: var(--ink); font: 17px var(--sans); padding: 16px 18px; outline: none; }
+.pal ul { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow: auto; }
+.pal li { display: flex; align-items: center; gap: 12px; padding: 9px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; }
+.pal li .k { font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); min-width: 3.4em; }
+.pal li .d { color: var(--muted); font-size: 12px; margin-left: auto; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 45%; }
+.pal li.on, .pal li:hover { background: var(--mid); } .pal li.on .k { color: var(--pos); }
+.pal .foot { display: flex; gap: 16px; padding: 8px 14px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--grid); }
+.keys { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.keys[hidden] { display: none; }
+.keys .box { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 22px; width: min(460px, 100%); animation: rise .2s ease both; }
+.keys h3 { margin: 0 0 10px; } .keys dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 13.5px; } .keys dt { color: var(--ink); } .keys dd { margin: 0; color: var(--ink-2); }
+kbd { font-family: var(--display); font-size: 11px; font-weight: 700; background: var(--mid); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; color: var(--ink); }
+.pcard { position: fixed; z-index: 70; width: 260px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; animation: rise .15s ease both; }
+.pcard[hidden] { display: none; } .pcard .n { font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
+.pcard .row { display: flex; justify-content: space-between; gap: 10px; } .pcard .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.pcard a { display: inline-block; margin-top: 6px; font-weight: 600; }
+[data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
+.themeform { display: inline-flex; gap: 0; margin-left: 12px; vertical-align: middle; } .themeform button { padding: 3px 9px; font-size: 10px; border-radius: 0; box-shadow: none; letter-spacing: .08em; }
+.themeform button:first-of-type { border-radius: 999px 0 0 999px; } .themeform button:last-of-type { border-radius: 0 999px 999px 0; } .themeform button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
 /* U3: the job bar while a job runs, and the toast when it ends */
 .jobbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80; background: var(--pos-bg); overflow: hidden; }
 .jobbar i { display: block; height: 100%; width: 40%; background: var(--g-brand); border-radius: 999px; animation: jobslide 1.4s ease-in-out infinite; }
@@ -233,6 +271,7 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .hbar { display: grid; grid-template-columns: minmax(8rem, max-content) 1fr 4.5rem; gap: 6px 12px; align-items: center; font-size: 13.5px; }
 .hbar .b { display: block; height: 14px; background: var(--mid); border-radius: 999px; overflow: hidden; }
 .hbar.ledger { grid-template-columns: minmax(8rem, max-content) 1fr 11rem; } .hbar .v { white-space: nowrap; }
+.hbar.durs { grid-template-columns: minmax(8rem, max-content) 1fr 13rem; } .hbar.durs .spark { width: 100%; max-width: 360px; height: 26px; }
 .hbar .b i { display: block; height: 100%; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); border-radius: 999px; background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28)); }
 .hbar .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 .hbar .me { font-weight: 600; }
@@ -295,7 +334,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 .foot button { padding: 5px 11px; font-size: 10.5px; }
 
 @media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } th { position: static; } }   /* after the base th rule: below tablet width a table scrolls in its box, where sticky would sit mid-table */
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold, .viz .ln.hue { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold, .viz .ln.hue { stroke-dashoffset: 0; } }
 </style>
 </head>
 <body>
@@ -340,6 +379,13 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 </svg>
 {% if job_now and job_now.state == 'RUNNING' %}<div class="jobbar" id="jobbar" data-id="{{ job_now.id }}" data-url="{{ job_now|job_url }}" data-label="{{ job_now.label or (job_now.tool|tool_title) }}" title="{{ job_now.label or (job_now.tool|tool_title) }} is running"><i></i></div>{% endif %}
 <div class="toast" id="toast" hidden role="status"></div>
+<div class="pal" id="pal" hidden><div class="box"><input type="search" id="pal-q" placeholder="Jump to a page, a tool, a team… or type: compare A vs B" autocomplete="off" aria-label="command palette"><ul id="pal-list"></ul><div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span><span><kbd>?</kbd> every shortcut</span></div></div></div>
+<div class="keys" id="keys" hidden><div class="box"><h3>Keyboard shortcuts</h3><dl>
+<dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>open the palette (pages, tools, teams; "compare A vs B")</dd>
+<dt><kbd>g</kbd> <kbd>h</kbd></dt><dd>home</dd><dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>league</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>forecasts</dd>
+<dt><kbd>g</kbd> <kbd>d</kbd></dt><dd>decisions</dd><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>tools</dd><dt><kbd>g</kbd> <kbd>g</kbd></dt><dd>game day</dd>
+<dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>Esc</kbd></dt><dd>close</dd></dl></div></div>
+<div class="pcard" id="pcard" hidden></div>
 <div class="wrap">
 {% set path = request.path %}
 <header class="top">
@@ -354,6 +400,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 {% block body %}{% endblock %}
 <footer class="foot">
   <form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
+  <form method="post" action="/theme" class="themeform" title="light, dark, or follow the system"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}">{% for t in ("system", "light", "dark") %}<button type="submit" name="theme" value="{{ t }}" class="ghost{{ ' on' if theme == t }}">{{ t }}</button>{% endfor %}</form>
   {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </footer>
 </div>
@@ -361,14 +408,14 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 {{ table_js|safe }}
 (function () {
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  // numbers count up from zero on load; bars and rings grow to their value
+  // numbers settle onto their value from just below it (B13: never a wrong-looking number); bars and rings grow to their value
   document.querySelectorAll('[data-count]').forEach(function (el) {
     var target = parseFloat(el.getAttribute('data-count')), nd = parseInt(el.getAttribute('data-nd') || '0', 10);
     var suffix = el.getAttribute('data-suffix') || '', prefix = el.getAttribute('data-prefix') || '';
     if (isNaN(target)) return;
     if (reduce) { el.textContent = prefix + target.toFixed(nd) + suffix; return; }
-    var t0 = null, dur = 700;
-    function step(t) { if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (target * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
+    var t0 = null, dur = 400, from = 0.9 * target;
+    function step(t) { if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (from + (target - from) * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
     requestAnimationFrame(step);
   });
   requestAnimationFrame(function () {
@@ -430,6 +477,75 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
           else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
         }).catch(function () {});
     }, 3000);
+  }
+  // U4 / U14: the command palette and the shortcuts
+  var PALETTE = {{ palette|tojson }};
+  var pal = document.getElementById('pal'), palQ = document.getElementById('pal-q'), palList = document.getElementById('pal-list'), keys = document.getElementById('keys');
+  var palItems = [], palIdx = 0;
+  function typing(ev) { var t = ev.target; return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable); }
+  function palRender() {
+    var q = palQ.value.trim(), ql = q.toLowerCase();
+    var vs = q.match(/^compare\s+(.+?)\s+(?:vs\.?|v|versus)\s+(.+)$/i);
+    palItems = [];
+    if (vs) palItems.push({ k: 'do', t: 'Compare ' + vs[1] + ' vs ' + vs[2], h: '/tools/compare_players?a=' + encodeURIComponent(vs[1].trim()) + '&b=' + encodeURIComponent(vs[2].trim()) });
+    PALETTE.forEach(function (it) { if (!ql || (it.t + ' ' + (it.d || '')).toLowerCase().indexOf(ql) >= 0) palItems.push(it); });
+    palItems = palItems.slice(0, 12); palIdx = 0;
+    palList.innerHTML = palItems.map(function (it, i) { return '<li class="' + (i === 0 ? 'on' : '') + '" data-i="' + i + '"><span class="k">' + escT(it.k) + '</span><span>' + escT(it.t) + '</span>' + (it.d ? '<span class="d">' + escT(it.d) + '</span>' : '') + '</li>'; }).join('');
+  }
+  function palOpen() { if (!pal) return; keys.hidden = true; pal.hidden = false; palQ.value = ''; palRender(); palQ.focus(); }
+  function palGo() { var it = palItems[palIdx]; if (it) window.location.href = it.h; }
+  if (pal) {
+    palQ.addEventListener('input', palRender);
+    palQ.addEventListener('keydown', function (ev) {
+      if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); palIdx = (palIdx + (ev.key === 'ArrowDown' ? 1 : palItems.length - 1)) % Math.max(1, palItems.length); Array.prototype.forEach.call(palList.children, function (li, i) { li.classList.toggle('on', i === palIdx); }); }
+      else if (ev.key === 'Enter') { ev.preventDefault(); palGo(); }
+    });
+    palList.addEventListener('click', function (ev) { var li = ev.target.closest('li'); if (li) { palIdx = parseInt(li.getAttribute('data-i'), 10); palGo(); } });
+    pal.addEventListener('click', function (ev) { if (ev.target === pal) pal.hidden = true; });
+    keys.addEventListener('click', function (ev) { if (ev.target === keys) keys.hidden = true; });
+  }
+  var GO = { h: '/', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' }, pendingG = 0;
+  document.addEventListener('keydown', function (ev) {
+    if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palOpen(); return; }
+    if (ev.key === 'Escape') { if (pal) pal.hidden = true; if (keys) keys.hidden = true; return; }
+    if (typing(ev) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+    if (ev.key === '?') { ev.preventDefault(); if (keys) { keys.hidden = !keys.hidden; if (pal) pal.hidden = true; } return; }
+    if (ev.key === 'g') { pendingG = Date.now(); return; }
+    if (pendingG && Date.now() - pendingG < 1500 && GO[ev.key]) { pendingG = 0; window.location.href = GO[ev.key]; return; }
+    pendingG = 0;
+  });
+  // U5: a card for any player name (data-player) after a short hover
+  var pcard = document.getElementById('pcard'), pcTimer = null, pcCache = {};
+  function pcShow(el, d) {
+    var st = d.status ? d.status : (d.on_ir ? 'IR' : 'healthy');
+    pcard.innerHTML = '<div class="n">' + escT(d.name) + '</div><div class="row"><span>' + escT(d.pos || '?') + ' · ' + escT(d.nfl || 'FA') + '</span><span>' + escT(d.owner || 'free agent') + '</span></div>' +
+      '<div class="row"><span>projection</span><b>' + (d.mean == null ? '—' : Number(d.mean).toFixed(1)) + '</b></div>' +
+      (d.vorp != null ? '<div class="row"><span>value over replacement</span><b>' + (d.vorp > 0 ? '+' : '') + Number(d.vorp).toFixed(1) + (d.tier ? ' · tier ' + escT(d.tier) : '') + '</b></div>' : '') +
+      '<div class="row"><span>status</span><b>' + escT(st) + '</b></div>' + (d.bye ? '<div class="row"><span>bye</span><b>week ' + escT(d.bye) + '</b></div>' : '') +
+      '<a href="/tools/compare_players?a=' + encodeURIComponent(d.name) + '">Compare with…</a>';
+    var r = el.getBoundingClientRect(), left = Math.min(r.left, window.innerWidth - 276), top = r.bottom + 8;
+    if (top + 190 > window.innerHeight) top = Math.max(8, r.top - 198);
+    pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.hidden = false;
+  }
+  if (pcard) {
+    document.addEventListener('mouseover', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-player]');
+      if (!el) return;
+      clearTimeout(pcTimer);
+      pcTimer = setTimeout(function () {
+        var name = el.getAttribute('data-player');
+        if (pcCache[name]) { pcShow(el, pcCache[name]); return; }
+        fetch('/api/player?name=' + encodeURIComponent(name), { headers: { 'Accept': 'application/json' } })
+          .then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d) { pcCache[name] = d; if (el.matches(':hover')) pcShow(el, d); } }).catch(function () {});
+      }, 260);
+    });
+    document.addEventListener('mouseout', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-player]');
+      if (!el) return;
+      clearTimeout(pcTimer);
+      setTimeout(function () { if (!pcard.matches(':hover') && !el.matches(':hover')) pcard.hidden = true; }, 200);
+    });
+    pcard.addEventListener('mouseleave', function () { pcard.hidden = true; });
   }
   // the sticky header's height, so sticky table headers and anchor targets sit below it
   var top = document.querySelector('header.top');

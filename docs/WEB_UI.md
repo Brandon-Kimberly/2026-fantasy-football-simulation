@@ -556,6 +556,35 @@ to win, every starter with a chip, every game with its score and clock, refreshe
 minute through `/api/live?refresh=1` (the board's 45 s floor still applies). It is a page
 in both views, not a third view; the toggle and the mode gate are unchanged.
 
+### W12 — The power features (2026-09-28)
+
+**Theme.** `settings.json` carries `theme` (system / light / dark) beside `mode`; `/theme`
+is the one POST route and every page stamps the choice on `<html data-theme>`. The dark
+tokens live twice in `base.html` — under the OS media query, guarded with
+`:root:not([data-theme="light"])`, and under `:root[data-theme="dark"]` — and
+tests.test_webui_ninth parses both blocks and fails if they differ. Style through the
+tokens, never inside either block.
+
+**Install as an app.** `/manifest.webmanifest` and `/icon.svg`; the browser's install
+prompt gives the local name its own window and icon. Both views.
+
+**Palette and shortcuts.** The context processor hands every page `palette`: the pages
+of THIS view's nav, the tools this view may launch, the teams — so the simple view's
+palette cannot reach a developer page. Ctrl/⌘-K opens it; `compare A vs B` typed there
+opens the compare tool pre-filled (its fields are `a` and `b`). `g` then a letter jumps
+between pages; `?` lists them. Keys are ignored while typing in a field.
+
+**Player cards.** Any cell with `data-player` (the datatable macro's player column, the
+League rosters) shows a card after a short hover, from one `/api/player` read: position,
+NFL team, owner, projection, bye, status, and VORP when the newest roster_grades record
+carries the player; "Compare with…" opens the compare tool with A filled.
+
+**Awards and timelines.** `decisions_report` adds `awards` (the (move, team) pair with the
+largest and smallest playoff effect, season and latest week) and `timelines` (each
+team's own moves added up in order). Sums of the tools' numbers, nothing new.
+
+**Durations.** The Jobs page draws the last twelve finished runs per tool as a line.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
