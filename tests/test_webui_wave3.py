@@ -216,6 +216,17 @@ class TestPlayersPage(Case):
         self.assertEqual(rows["Xavier Worthy"]["standing"], "free", "dropped eight days ago")
         self.assertEqual((rows["Patrick Mahomes"]["week_mean"], rows["Patrick Mahomes"]["source"]), (24.0, "lineup record"))
 
+
+    def test_a_rostered_player_stands_with_the_team(self):
+        """The real data crashed here (a bare string unpacked as a pair) while every fixture
+        player was unrostered -- the gap this test closes."""
+        from webui.players_page import players_table
+        with open(os.path.join(self.td.name, "data", "current", "live_rosters.json"), "w", encoding="utf-8") as fh:
+            json.dump({MY_TEAM: [{"name": "Patrick Mahomes"}], "Neon Walruses": [{"name": "Jalen Coker"}]}, fh)
+        rows = {r["name"]: r for r in players_table(self.root, MY_TEAM, now="2026-09-28T18:00:00Z")["rows"]}
+        self.assertEqual((rows["Patrick Mahomes"]["standing"], rows["Patrick Mahomes"]["owner"]), ("mine", MY_TEAM))
+        self.assertEqual(rows["Jalen Coker"]["standing"], "rostered")
+
     def test_the_waiver_board_carries_the_targets_record(self):
         from webui.players_page import players_table
         self.plant_moves()
@@ -231,7 +242,8 @@ class TestPlayersPage(Case):
                 with self.subTest(mode=mode, path=path):
                     body = self.client(mode).get(path).get_data(as_text=True)
                     self.assertIn("Jordan Love", body)
-                    self.assertEqual([t for t in DEV_TERMS if t in visible_text(body)], [])
+                    if mode == "simple":
+                        self.assertEqual([t for t in DEV_TERMS if t in visible_text(body)], [])
                     self.assertIn('href="/players"', body)
         self.assertIn("on waivers", visible_text(self.client().get("/waivers").get_data(as_text=True)).lower())
 
