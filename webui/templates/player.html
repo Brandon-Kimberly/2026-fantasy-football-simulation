@@ -10,7 +10,7 @@
 </style>
 {% set hin = (height|int) if (height and height|string|trim|int(-1) > 0) else None %}
 <div class="head">
-  <p class="eyebrow">player · {{ pos or "?" }} · {{ nfl or "no NFL team" }}{% if number is not none %} · #{{ number }}{% endif %}{% if depth %} · {{ depth }} on the depth chart{% endif %}</p>
+  <p class="eyebrow">player · {{ pos or "?" }} · {{ nfl|nflteam }}{% if number is not none %} · #{{ number }}{% endif %}{% if depth %} · {{ depth }} on the depth chart{% endif %}</p>
   <h1>{{ name }}</h1>
   <p class="lede">{% if owner %}{{ mark(owner) }}On {{ teamlink(owner) }}{% if is_mine %} (mine){% endif %}{% else %}A free agent in this league{% endif %}{% if bye %} · bye week {{ bye }}{% endif %}. <a href="/tools/compare_players?a={{ name|urlencode }}">Compare with…</a></p>
 </div>

@@ -144,7 +144,7 @@ def current_report(root):
         rows = []
         for e in entries or []:
             b = base.get(e.get("name")) or {}
-            rows.append({"name": e.get("name"), "pos": b.get("pos") or e.get("pos"),
+            rows.append({"name": e.get("name"), "pid": b.get("player_id"), "pos": b.get("pos") or e.get("pos"),
                          "nfl": b.get("team") or e.get("team"), "mean": b.get("mean"),
                          "bye": b.get("bye"),
                          "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or "")})
@@ -193,6 +193,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["signed"] = render.fsigned
     app.jinja_env.filters["se"] = render.fse                   # UI-V6: the only way a ± is printed
+    app.jinja_env.filters["nflteam"] = lambda v: "no NFL team" if (not v or str(v).upper() == "FA") else v   # UI-F9
     app.jinja_env.filters["verdict"] = lambda d, se: render.verdict(d, se)
     app.jinja_env.filters["ago"] = render.ago
     app.jinja_env.filters["dur"] = render.duration
@@ -774,7 +775,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         inst = None                                    # UI-P4: the quick estimate, at once
         if name == "compare_players" and values.get("a") and values.get("b"):
             inst = comparemod.estimate(root, [values["a"], values["b"]], _int_or_none(values.get("week")))
+        sched = root.read_json("current/league_schedule.json", []) or []
         return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(), inst=inst,
+                               season_weeks=len(sched) if isinstance(sched, list) else 0,
+                               sync_week=freshness_report(root)["week"],
                                fr=fr, windows=win, avg=runner.average_seconds(t.name),
                                shown=(t.fields if settings.mode == "dev" else simple_fields(t)))
 

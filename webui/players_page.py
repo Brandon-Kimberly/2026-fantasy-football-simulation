@@ -60,6 +60,17 @@ def clears_at(dropped):
     return _iso(run)
 
 
+def next_waiver_run(now=None):
+    """UI-W2: the next daily waiver run -- WAIVER_HOUR_PT, Pacific -- strictly after `now`
+    (a datetime; default the clock), as ISO UTC."""
+    pt = _pt()
+    now = (now or _dt.datetime.now(_dt.timezone.utc)).astimezone(pt)
+    run = now.replace(hour=WAIVER_HOUR_PT, minute=0, second=0, microsecond=0)
+    if run <= now:
+        run = (run + _dt.timedelta(days=1)).replace(hour=WAIVER_HOUR_PT)
+    return _iso(run)
+
+
 def _targets(root, week):
     """{name: target row} and the stamp, from the newest waiver-targets record for `week`."""
     if not week or int(week) not in root.decision_weeks():

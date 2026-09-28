@@ -1146,6 +1146,13 @@ def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, 
     out.append("</svg>")
     if legend:
         out.append('<div class="legend">' + "".join(f'<span><i style="background:{_series_colour(sr)}"></i>{escape(sr.get("name") or "")}</span>' for sr in series) + "</div>")
+    # UI-V7: every chart's numbers as a table, for a screen reader and for anyone who wants them
+    fmt = lambda v: "—" if v is None else f"{float(v):.{nd}f}{unit}"  # noqa: E731
+    out.append('<details class="tview"><summary>view as table</summary><div class="scroller"><table><thead><tr><th></th>'
+               + "".join(f"<th>{escape(str(lb))}</th>" for lb in labels) + "</tr></thead><tbody>"
+               + "".join(f'<tr><td class="nm">{escape(sr.get("name") or "")}</td>'
+                         + "".join(f'<td class="num">{fmt(v)}</td>' for v in (sr.get("values") or [])) + "</tr>" for sr in series)
+               + "</tbody></table></div></details>")
     return Markup("".join(out))
 
 
