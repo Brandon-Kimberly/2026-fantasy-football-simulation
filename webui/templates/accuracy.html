@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink, tiles with context %}
+{% block title %}Accuracy · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.acc .note-first { border-left: 3px solid var(--warn); background: var(--warn-bg); border-radius: 0 var(--r-card) var(--r-card) 0; padding: 13px 16px; margin: 16px 0 0; font-size: 14px; color: var(--ink-2); line-height: 1.55; }
+.acc .note-first b { color: var(--ink); }
+.acc .wk { margin-top: 10px; }
+.acc .wk summary { cursor: pointer; font-family: var(--display); font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.acc .wk summary .s { font-family: var(--sans); font-size: 12px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); margin-left: 8px; }
+.acc .call { display: inline-flex; align-items: center; gap: 6px; }
+.acc .hit { color: var(--turf); font-weight: 700; } .acc .miss { color: var(--neg); font-weight: 700; }
+.acc .push { color: var(--muted); font-weight: 600; }
+.acc .z { font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="acc">
+<div class="head">
+  <p class="eyebrow">accuracy · what was said before the games, against what happened</p>
+  <h1>Accuracy</h1>
+  <p class="lede">Every probability here is a count of simulated seasons, and this is the page that checks them. Only the forecast that was committed <b>before a week's first kickoff</b> is scored: anything logged after the games began knows too much, and a week whose only committed forecast came later is skipped and said to be skipped rather than quietly replaced.{% if dev %} The quoted row is the newest canonical <code>week_predictions</code> row logged before the week's earliest kickoff (F25/B5).{% endif %}</p>
+  <div class="note-first"><b>{{ note }}</b>{% if skipped %} Skipped: {% for s in skipped %}week {{ s.week }} ({{ s.why }}){{ ", " if not loop.last }}{% endfor %}.{% endif %}</div>
+</div>
+
+{% if n_weeks %}
+{{ tiles([
+  {"k": "matchup calls", "v": (matchups.hits|string ~ " of " ~ matchups.calls|string) if matchups.calls else "—",
+   "s": ("hit rate " ~ (matchups.rate * 100)|round(0)|int|string ~ "% · Brier " ~ matchups.brier|num(3)) if matchups.calls else "none yet", "tone": ""},
+  {"k": "points, average miss", "v": (points.mae|num(1)) if points.n else "—",
+   "s": ("bias " ~ points.bias|signed(1) ~ " per team-week over " ~ points.n|string ~ " forecasts") if points.n else "", "tone": ""},
+  {"k": "spread of the misses", "v": (points.sd_z|num(2)) if points.sd_z is not none else "—",
+   "s": "1.00 would mean the stated uncertainty was exactly right", "tone": ("warn" if points.sd_z and (points.sd_z < 0.8 or points.sd_z > 1.25) else "")},
+  {"k": "inside the stated range", "v": ((points.within80 * 100)|round(0)|int|string ~ "%") if points.within80 is not none else "—",
+   "s": "80% is the target: four in five weeks should land inside", "tone": ""}
+]) }}
+
+<section>
+<h2><svg class="i c-turf"><use href="#i-matchup"/></svg> Who would win <span class="hint">one call per matchup, from the committed forecast</span></h2>
+<p class="small">The model called <b>{{ matchups.hits }}</b> of <b>{{ matchups.calls }}</b> matchups correctly{% if matchups.n > matchups.calls %} ({{ matchups.n - matchups.calls }} were true coin-flips and are not counted as calls){% endif %}. Its Brier score is <b>{{ matchups.brier|num(3) }}</b> — lower is better, 0.25 is what you get by saying 50% to everything, and it is measured over all {{ matchups.n }} matchups.</p>
+</section>
+
+<section>
+<h2><svg class="i c-pos"><use href="#i-chart"/></svg> How many points <span class="hint">each team's forecast total against what it scored</span></h2>
+<p class="small">Over {{ points.n }} team-weeks the forecast was off by <b>{{ points.mae|num(1) }}</b> points on average, and ran <b>{{ (points.bias|abs)|num(2) }}</b> points {{ "high" if points.bias and points.bias < 0 else "low" }} overall.{% if points.sd_z is not none %} Dividing each miss by the spread the model stated for it gives <b>{{ points.sd_z|num(2) }}</b>; at 1.00 the stated uncertainty would be exactly right, {% if points.sd_z < 1 %}and below it the model is claiming more uncertainty than it needs{% else %}and above it the model is more confident than it should be{% endif %}.{% endif %}{% if dev %} This is the quoted-vs-realised read M1's interval-shape work waits on.{% endif %}</p>
+</section>
+
+<section>
+<h2><svg class="i c-gold"><use href="#i-score"/></svg> Beat the median <span class="hint">the league's second decision each week</span></h2>
+<p class="small">The model called <b>{{ median.hits }}</b> of <b>{{ median.calls }}</b> beat-the-median outcomes correctly, Brier <b>{{ median.brier|num(3) }}</b>.</p>
+</section>
+
+<section>
+<h2><svg class="i c-violet"><use href="#i-cal"/></svg> Week by week</h2>
+{% for w in weeks %}
+<details class="wk"{% if loop.first %} open{% endif %}>
+  <summary>Week {{ w.week }} <span class="s">forecast committed {{ w.at|when }}</span></summary>
+  <div class="scroller"><table><thead><tr><th>Matchup</th><th class="num">Said</th><th>Won</th><th>Call</th></tr></thead><tbody>
+  {% for m in w.matchups %}<tr><td class="nm">{{ mark(m.a) }}{{ teamlink(m.a) }} <span class="muted">v</span> {{ teamlink(m.b) }}</td><td class="num">{{ (m.p * 100)|round(1) }}%</td><td>{{ teamlink(m.a if m.won else m.b) }}</td><td>{% if m.hit is none %}<span class="push">coin-flip</span>{% elif m.hit %}<span class="hit">hit</span>{% else %}<span class="miss">miss</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+  <div class="scroller" style="margin-top:10px"><table><thead><tr><th>Team</th><th class="num">Forecast</th><th class="num">Scored</th><th class="num">Miss</th><th class="num">Miss, in its own spread</th><th>Beat the median</th></tr></thead><tbody>
+  {% for t in w.teams %}<tr{% if t.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t.team) }}{{ teamlink(t.team) }}</td><td class="num muted">{{ t.expected|num(1) }}</td><td class="num">{{ t.actual|num(1) }}</td><td class="num {{ 'pos' if t.error > 0 else 'neg' }}">{{ t.error|signed(1) }}</td><td class="num z">{{ t.z|signed(2) }}</td><td>{% if t.beat is not none %}<span class="{{ 'hit' if (t.p_median > 0.5) == t.beat else 'miss' }}">{{ (t.p_median * 100)|round(0)|int }}% said, {{ "beat it" if t.beat else "did not" }}</span>{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div>
+</details>
+{% endfor %}
+</section>
+
+<p class="small muted" style="margin-top:18px">Nothing on this page is a verdict. It counts what was said against what happened; with this many weeks the counts are still mostly noise, and they are shown so the record builds in the open rather than being assembled later.</p>
+{% else %}
+<div class="note" style="margin-top:16px">Nothing to score yet. A week is scored once it has a result on file and a forecast that was committed before its first kickoff.</div>
+{% endif %}
+</div>
+{% endblock %}
