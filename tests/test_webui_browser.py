@@ -328,5 +328,54 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         self.assertIn("100%", self.shown_with(live_payload(True, 1.0), "/gameday", ".mid b"))
 
 
+class TestThreePaneHome(BrowserCase):
+    """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
+    the week's games on the left, the matchup and live panel in the centre, the season and
+    the watch list on the right. Below the breakpoint nothing moves: the same markup, the
+    layout it has always had."""
+
+    PARTS = {"hero": ".hero", "standings": "section:has(h2:has-text('Standings'))",
+             "watch": "section:has(h2:has-text('Watch list'))", "season": ".card.outlook"}
+
+    def boxes(self, width):
+        self.ctx.close()
+        self.ctx = self.browser.new_context(viewport={"width": width, "height": 1400}, reduced_motion="reduce")
+        self.page = self.ctx.new_page()
+        self.open("/", "simple")
+        return {k: self.page.locator(sel).first.bounding_box() for k, sel in self.PARTS.items()}
+
+    def test_at_2560_the_three_panes_sit_side_by_side(self):
+        b = self.boxes(2560)
+        self.assertLess(b["standings"]["x"] + b["standings"]["width"], b["hero"]["x"] + 1, "standings left of the matchup")
+        self.assertLess(b["hero"]["x"] + b["hero"]["width"], b["season"]["x"] + 1, "season right of the matchup")
+        self.assertAlmostEqual(b["watch"]["x"], b["season"]["x"], delta=2, msg="watch list under the season, same pane")
+        for k in ("standings", "season"):
+            self.assertLess(abs(b[k]["y"] - b["hero"]["y"]), 4, f"{k} starts level with the matchup")
+        self.assertGreater(b["hero"]["width"], 800, "the centre pane is the widest")
+
+    def test_the_left_pane_stays_in_view_while_the_centre_scrolls(self):
+        self.boxes(2560)
+        self.page.set_viewport_size({"width": 2560, "height": 700})
+        self.page.evaluate("window.scrollTo(0, 600)")
+        self.page.wait_for_timeout(100)
+        top = self.page.locator(self.PARTS["standings"]).first.bounding_box()["y"]
+        self.assertGreaterEqual(top, 0, "the standings pane must not scroll off with the page")
+
+    def test_below_the_breakpoint_the_layout_is_unchanged(self):
+        for width in (1280, 1920):
+            with self.subTest(width=width):
+                b = self.boxes(width)
+                self.assertGreater(b["season"]["y"], b["hero"]["y"] + b["hero"]["height"] - 1, "season below the matchup")
+                self.assertGreater(b["standings"]["y"], b["season"]["y"], "standings below the season")
+                self.assertAlmostEqual(b["standings"]["y"], b["watch"]["y"], delta=2, msg="standings and watch list share a row")
+
+    def test_no_horizontal_scroll_at_any_width(self):
+        for width in (520, 1280, 2560, 3840):
+            with self.subTest(width=width):
+                self.boxes(width)
+                over = self.page.evaluate("document.documentElement.scrollWidth - window.innerWidth")
+                self.assertLessEqual(over, 0)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): wave 1 under way; 12 items built (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): wave 1 under way; 13 items built (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -30,6 +30,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-O3 | "What week N did" on Forecasts, and a one-line version on Home. |
 | UI-Q2 | Past results carry the model's own pre-kickoff quote, taken from the same row the Accuracy page scores. |
 | UI-O12 | Final wins shown as a range: a strip on Home and a column on League. |
+| UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |
 
 **Found while building, not on the original list.**
 - A result the standings contradict. Week 2's box scores give Quantum Ferrets the win over Cosmic Badgers (148.52 to 144.19), but the league's standings record a loss.

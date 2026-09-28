@@ -174,9 +174,25 @@
 @media (max-width: 1100px) { .season { grid-template-columns: 1fr; } .starters { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } .feed li { grid-template-columns: 4.4rem 3.4rem 1fr; } .feed li .parts { grid-column: 1 / -1; } }
 @media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .pwin { grid-template-columns: 1fr 1fr; } .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .ofacts { grid-template-columns: 1fr 1fr; } .ring { width: 76px; height: 76px; } }
+/* UI-V1: three panes at 4K widths (owner's choice, 2026-09-28). CSS only: below 2200px the
+   wrapper is a plain block and every section lays out exactly as it always has. */
+@media (min-width: 2200px) {
+  .wrap:has(.home3) { max-width: 2640px; padding-inline: 36px; }
+  .home3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr) minmax(0, 1fr); grid-template-rows: auto auto 1fr; column-gap: 26px; row-gap: 18px; align-items: start; }
+  .home3 > .season, .home3 > .grid2 { display: contents; }
+  .home3 > .hero { grid-column: 2; grid-row: 1 / span 3; }
+  .home3 > .grid2 > section:first-child { grid-column: 1; grid-row: 1 / span 3; margin-top: 0 !important;
+    position: sticky; top: var(--head-h, 64px); align-self: start; }   /* standings stay in view beside a long live panel */
+  .home3 > .season > .outlook { grid-column: 3; grid-row: 1; }
+  .home3 > .grid2 > section:last-child { grid-column: 3; grid-row: 2; margin-top: 0 !important; }
+  .home3 > .season > .chartc { grid-column: 3; grid-row: 3; }
+  .home3 > .chips, .home3 > p { grid-column: 1 / -1; grid-row: 4; }
+  .home3 > .grid2 > section h2:first-child, .home3 > .hero { margin-top: 0; }
+}
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
+<div class="home3">
 <div class="hero">
   <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
     {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}" data-q="{{ (lineup.questionable_starters|length) if (lineup and lineup.questionable_starters) else 0 }}" data-week="{{ week or '' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.at_next }} game{{ 's' if kick.at_next != 1 }}{% if kick.remaining > kick.at_next %} · {{ kick.remaining }} still to start this week{% endif %}{% endif %}</span>{% endif %}
@@ -317,6 +333,7 @@
       {% if dev %}<a class="btn ghost" href="/tools/weekly_report"><svg class="i"><use href="#i-book"/></svg> Weekly digest</a>{% endif %}
     </div>
   </section>
+</div>
 </div>
 
 <script>
