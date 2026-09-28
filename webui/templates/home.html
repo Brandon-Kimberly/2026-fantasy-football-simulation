@@ -25,6 +25,7 @@
 .hero .h2h details { display: inline; } .hero .h2h summary { display: inline; cursor: pointer; color: var(--pos); } .hero .h2h ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
 
 /* the headline probability: whatever is TRUE NOW leads, and the pre-game number is a footnote */
+.lastwk { font-size: 13px; color: var(--ink-2); margin: 10px 0 0; }
 .pwin { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; gap: 18px; align-items: center; margin-top: 14px; }
 .pwin .big { font-family: var(--display); font-size: clamp(42px, 5vw, 62px); font-weight: 800; letter-spacing: -0.035em; line-height: .95; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .pwin .big > span { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
@@ -203,6 +204,7 @@
     <div class="vs">vs</div>
     <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ teamlink(opponent) }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|num(1) }} pts{% endif %}</div></div></div>
   </div>
+  {% if last_result %}{% set lr = last_result %}<p class="lastwk">Last week (week {{ lr.week }}): <b class="{{ 'pos' if lr.result == 'W' else ('neg' if lr.result == 'L') }}">{{ {'W': 'won against', 'L': 'lost to', 'T': 'tied with'}.get(lr.result, 'played') }}</b> {{ teamlink(lr.opponent) }}{% if lr.mine is not none %} {{ lr.mine|num(1) }}–{{ lr.theirs|num(1) }}{% if lr.rescored %} <span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">(re-scored box score; the league's result stands)</span>{% endif %}{% endif %}{% if lr.median %} · {{ 'beat' if lr.median == 'W' else ('missed' if lr.median == 'L' else 'tied') }} the median{% endif %}{% if lr.quote is not none %} · the model had {{ (100 * lr.quote)|round(0)|int }}%{% endif %} · <a href="/matchups/week-{{ lr.week }}">every game</a></p>{% endif %}
   {% if m.p_win is not none %}
   {% set pre = (m.p_win * 100)|round(1) %}
   <div class="pwin" id="pwin" data-pre="{{ pre }}">
@@ -434,6 +436,18 @@
     var them = document.getElementById('pw-them'), bar = document.getElementById('pw-bar'), pre = document.getElementById('pw-pre');
     if (!val || s.p_win == null) { return; }
     var to = s.p_win;
+    // UI-M1: a decided game states its result; a probability is for games still being played
+    if (s.decided && s.mine && s.theirs) {
+      var a = s.mine.banked, b = s.theirs.banked;
+      val.removeAttribute('data-count');
+      val.textContent = a > b ? 'Won' : (a < b ? 'Lost' : 'Tied');
+      lab.textContent = 'final · ' + n1(a) + '–' + n1(b);
+      if (them) them.textContent = a > b ? 'Lost' : (a < b ? 'Won' : 'Tied');
+      if (bar) bar.style.width = (a > b ? 100 : (a < b ? 0 : 50)) + '%';
+      if (pre) pre.hidden = false;
+      lastP = to;
+      return;
+    }
     // the layout's count-up runs after this script and would animate the number back to the
     // pre-game one it was rendered with; dropping the attribute takes it out of that pass
     val.removeAttribute('data-count');
