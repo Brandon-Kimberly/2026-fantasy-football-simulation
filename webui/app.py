@@ -293,6 +293,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                "<path d='M22 38 L42 26 M27 32 l3 3 M31 29.5 l3 3 M35 27 l3 3' stroke='#2e7d4f' stroke-width='2.4' stroke-linecap='round' fill='none'/></svg>")
         return Response(svg, mimetype="image/svg+xml")
 
+    @app.route("/favicon.ico")
+    def favicon():
+        # a page with no icon link (or a browser probing anyway) gets the app icon, not a 404
+        return redirect("/icon.svg", code=301)
+
     @app.route("/api/player")
     def api_player():
         """U5: one player's card -- position, NFL team, owner, projection, bye, status, and
