@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, compare as comparemod, history as historymod, objects, players_page as playersmod, recap as recapmod, render, trade as trademod
+from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, objects, players_page as playersmod, recap as recapmod, render, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -568,7 +568,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def week(week):
         if week not in root.weeks():
             abort(404)
-        return render_template("week.html", **week_report(root, week))
+        sos = chartsmod.sos_grid(root, week, request.args.get("sos", "rest"))          # UI-O5
+        return render_template("week.html", sos=sos, **week_report(root, week))
 
     @app.route("/records")
     def records_index():
