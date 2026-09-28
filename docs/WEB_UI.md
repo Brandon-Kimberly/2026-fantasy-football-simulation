@@ -615,9 +615,22 @@ each refresh (`/stats/nfl/regular/<season>/<week>`, the season from the sync man
 and the league object once per process for the weights; either failing costs the
 breakdown, never the feed or the snapshot. Still memory only -- nothing under `data/`.
 
-**The season card.** The ring sat alone in a box as tall as the chart beside it. It now
-carries the ring, the rank and record, and four tiles (title odds, expected wins, to
-clinch, banked), so the card is full and says more.
+**The season card.** The ring sat alone in a box as tall as the chart beside it, and the
+first fill -- bars under two of the numbers -- was worse than the gap: `.mini` is a bar
+component that had no `display` of its own, so outside a flex parent it laid out as an
+inline box with no height and its fill escaped the track. It is a block now, wherever it
+is used.
+
+What the card carries instead is the one graphic it was missing: **where I finish**, the
+finishing-seed distribution from the week's export as a single stacked bar, shading away
+from the top seed, with the playoff cut marked and a legend giving each seed its share
+and the chance of missing. `glance.seed_report` READS the cut off the numbers rather
+than assuming a league size: the running total of the seeds meets the forecast's own
+playoff probability at the number of spots (45.34 + 26.19 + 15.50 + 7.05 = 94.08 against
+a stated 94.1, so four). If the two never agree to within a point -- a different format,
+a partial export -- no cut is claimed and the whole distribution is drawn in one neutral
+colour. Under it sit four plain figures with no bars at all: title odds, expected wins,
+to clinch, banked.
 
 **Width.** The column widens to 1440 px at viewports of 1500 px and up. This is read on a
 4K monitor; the narrow breakpoints are untouched, so the phone layout is still there for

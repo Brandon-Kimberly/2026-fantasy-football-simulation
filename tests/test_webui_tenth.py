@@ -16,7 +16,7 @@ the board's updates live in memory beside its history, and the test digests the 
 import tempfile
 import unittest
 
-from webui import live
+from webui import glance, live
 
 try:
     import flask  # noqa: F401 -- availability probe
@@ -91,6 +91,35 @@ class TestStatText(unittest.TestCase):
         self.assertEqual(live.stat_parts(None, None, SCORING), [])
         self.assertEqual(len(live.stat_parts({}, {"rec": 9, "rec_yd": 90, "rec_td": 2, "rush_yd": 30}, SCORING)), 3,
                          "at most three, so a line stays readable")
+
+
+class TestSeedReport(unittest.TestCase):
+    """The season card's one graphic: where I finish, and where the playoff cut falls."""
+    REAL = {"Seed 1": 45.34, "Seed 2": 26.19, "Seed 3": 15.5, "Seed 4": 7.05,
+            "Seed 5": 3.25, "Seed 6": 1.78, "Seed 7": 0.72, "Seed 8": 0.17}
+
+    def test_the_cut_is_read_off_where_the_seeds_meet_the_playoff_number(self):
+        r = glance.seed_report(self.REAL, 94.1)
+        self.assertEqual(r["spots"], 4)
+        self.assertEqual([x["seed"] for x in r["rows"]], [1, 2, 3, 4, 5, 6, 7, 8])
+        self.assertEqual([x["cls"] for x in r["rows"]], ["in"] * 4 + ["out"] * 4)
+        self.assertEqual([x["cut"] for x in r["rows"]], [False, False, False, True, False, False, False, False])
+        self.assertAlmostEqual(r["make"], 94.08, places=2)
+        self.assertAlmostEqual(r["miss"], 5.92, places=2)
+        self.assertGreater(r["rows"][0]["shade"], r["rows"][3]["shade"], "the ramp fades away from the top seed")
+        self.assertGreaterEqual(min(x["shade"] for x in r["rows"]), 0.3, "never so faint it disappears")
+
+    def test_no_cut_is_claimed_when_the_two_numbers_do_not_agree(self):
+        r = glance.seed_report(self.REAL, 50.0)
+        self.assertEqual(r["spots"], 0)
+        self.assertEqual({x["cls"] for x in r["rows"]}, {"na"})
+        self.assertFalse(any(x["cut"] for x in r["rows"]))
+        self.assertEqual((r["make"], r["miss"]), (0.0, 0.0))
+
+    def test_nothing_to_draw(self):
+        self.assertEqual(glance.seed_report({}, 94.1)["rows"], [])
+        self.assertEqual(glance.seed_report(None, None)["rows"], [])
+        self.assertEqual(glance.seed_report(self.REAL, None)["spots"], 0)
 
 
 class TestDiff(unittest.TestCase):
@@ -269,6 +298,17 @@ class TestHomePage(unittest.TestCase):
                 self.assertIn("to clinch", head)
                 self.assertIn('class="ring"', head)
                 self.assertNotIn('class="stat a"', head, "the half-empty ring card is gone")
+
+    def test_the_season_card_shows_where_i_finish_and_no_broken_bars(self):
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                base_css, home_css, markup, _script = self.parts(mode)
+                card = markup.split('class="card outlook"', 1)[1].split('class="card chartc"', 1)[0]
+                self.assertIn('class="sbar"', card)
+                self.assertIn("where I finish", card)
+                self.assertNotIn("mini", card, "the season card draws no inline bar components")
+                self.assertIn(".sbar i", home_css)
+                self.assertIn(".mini { display: block;", base_css, "the bar component is a block wherever it is used")
 
     def test_the_page_is_laid_out_for_a_wide_screen(self):
         base_css, home_css, _markup, _script = self.parts()
