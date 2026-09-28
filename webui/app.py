@@ -136,6 +136,7 @@ def current_report(root):
     now = odds_now(root)                        # playoff odds from THE current forecast (UI-E4), so the
     odds_week = now["week"]                     # standings page answers "and where is that going?"
     odds = {t: v["playoff"] for t, v in now["teams"].items()}
+    wins = {t: v.get("wins") for t, v in now["teams"].items()}              # UI-O12
     roster_rows = {}
     for team, entries in rosters.items():
         rows = []
@@ -148,7 +149,7 @@ def current_report(root):
         rows.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
-            "manifest": manifest, "files": root.current(), "records": records(root)}
+            "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins}
 
 
 # ------------------------------------------------------------------------- factory

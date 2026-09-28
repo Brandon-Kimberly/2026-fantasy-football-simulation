@@ -150,6 +150,13 @@
 .of { background: var(--plane); border: 1px solid var(--grid); border-radius: var(--r-ctl); padding: 9px 11px; }
 .of .k { margin-bottom: 4px; } .of b { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
 .of .s { font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
+.wrange { grid-column: 1 / -1; } .wrange .k { margin-bottom: 8px; }
+.wbar { position: relative; height: 14px; background: var(--mid); border-radius: 7px; }
+.wbar .r80 { position: absolute; top: 3px; bottom: 3px; background: color-mix(in srgb, var(--pos) 30%, transparent); border-radius: 4px; }
+.wbar .r50 { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--pos) 60%, transparent); border-radius: 4px; }
+.wbar .med { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.wbar .bk { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--muted); }
+.wscale { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .season .chartc .s { font-size: 12px; color: var(--ink-2); }
 
 .mini-standings td { padding: 6px 8px; }
@@ -250,6 +257,11 @@
       <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="s">of 28</span></div>
       <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins{% else %}not yet{% endif %}</span></div>
       <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">{% if c.actual_points_banked %}{{ c.actual_points_banked|num(0) }} pts{% else %}wins{% endif %}</span></div>
+      {% if wins_range %}{% set W = 28 %}{% set wr = wins_range %}
+      <div class="of wrange"><span class="k">final wins · likely {{ wr.p10|num(0) }}–{{ wr.p90|num(0) }}, 8 seasons in 10</span>
+        <div class="wbar" role="img" aria-label="final wins: 80% of simulated seasons between {{ wr.p10|num(0) }} and {{ wr.p90|num(0) }}, half between {{ wr.p25|num(0) }} and {{ wr.p75|num(0) }}, median {{ wr.p50|num(0) }}; {{ c.actual_wins_banked|num(0) }} banked"><i class="r80" style="left:{{ (100 * wr.p10 / W)|round(1) }}%;width:{{ (100 * (wr.p90 - wr.p10) / W)|round(1) }}%"></i><i class="r50" style="left:{{ (100 * (wr.p25 or wr.p10) / W)|round(1) }}%;width:{{ (100 * ((wr.p75 or wr.p90) - (wr.p25 or wr.p10)) / W)|round(1) }}%"></i><b class="med" style="left:{{ (100 * wr.p50 / W)|round(1) }}%" title="median {{ wr.p50|num(0) }}"></b>{% if c.actual_wins_banked is not none %}<em class="bk" style="left:{{ (100 * c.actual_wins_banked / W)|round(1) }}%" title="{{ c.actual_wins_banked|num(0) }} banked"></em>{% endif %}</div>
+        <div class="wscale"><span>0</span><span>median {{ wr.p50|num(0) }} · dashed line: {{ c.actual_wins_banked|num(0) }} banked</span><span>{{ W }}</span></div>
+      </div>{% endif %}
     </div>
   </div>
   <div class="card chartc" style="animation-delay:.1s">
