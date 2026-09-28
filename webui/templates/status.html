@@ -18,7 +18,7 @@
 {% if fr.vegas_stale_since %}<div class="note warn"><b>Betting lines kept from {{ fr.vegas_stale_since|when }}.</b> The odds fetch failed and the last real lines were preserved rather than overwritten.</div>{% endif %}
 {% if fr.sources %}
 <div class="scroller"><table><thead><tr><th>Source</th><th>State</th><th class="num">Rows</th><th>Fell back to</th></tr></thead><tbody>
-{% for name, s in fr.sources.items()|sort %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td><span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span></td><td class="num">{{ s.rows }}</td><td class="small muted">{{ s.fallback or "" }}</td></tr>{% endfor %}
+{% for name, s in fr.sources.items()|sort %}{% set ln = fr.lines_note if name == "vegas_odds" else None %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td>{% if ln %}<span class="pill">few left</span>{% else %}<span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span>{% endif %}</td><td class="num">{{ s.rows }}</td><td class="small muted">{% if ln %}{{ ln.before }} of {{ ln.total }} week-{{ ln.week }} games had kicked off before this sync, so few lines were left -- expected, not an outage{% if s.fallback %} · the rest use {{ s.fallback }}{% endif %}{% else %}{{ s.fallback or "" }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
 {% if degraded %}<details class="sec" style="margin-top:10px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}

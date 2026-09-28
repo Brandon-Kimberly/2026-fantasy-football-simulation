@@ -200,6 +200,8 @@
 <div class="hero">
   <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
     {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}" data-q="{{ (lineup.questionable_starters|length) if (lineup and lineup.questionable_starters) else 0 }}" data-week="{{ week or '' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.at_next }} game{{ 's' if kick.at_next != 1 }}{% if kick.remaining > kick.at_next %} · {{ kick.remaining }} still to start this week{% endif %}{% endif %}</span>{% endif %}
+    {% if next_waiver %}<span class="kick"><svg class="i"><use href="#i-waiver"/></svg> next waiver run <b>{{ next_waiver|when }}</b></span>{% endif %}
+    {% if deadline_left %}<span class="kick"><svg class="i c-warm"><use href="#i-swap"/></svg> trade deadline: trades close after week 11 · <b>{{ deadline_left }} week{{ 's' if deadline_left != 1 }} left</b> · <a href="/trade">trade builder</a></span>{% endif %}
     {% if m.logged_at %}<span class="tiny muted">prediction made {{ m.logged_at|when }}{% if m.canonical and dev %} · canonical run{% endif %}</span>{% endif %}</div>
   {% if opponent %}
   <div class="who">

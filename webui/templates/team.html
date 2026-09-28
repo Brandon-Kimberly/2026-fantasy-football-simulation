@@ -43,7 +43,7 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 <h2><svg class="i"><use href="#i-clip"/></svg> Roster <span class="hint">season mean · the likely range of one week's points, 10th to 90th percentile, from the week-{{ odds_week or "?" }} forecast</span></h2>
 {% set pmax = [(roster|map(attribute='p90')|select|max) if roster|map(attribute='p90')|select|list else 1, 1]|max %}
 <div class="scroller"><table><thead><tr><th>Player</th><th>Pos</th><th>NFL</th><th class="num">Season mean</th><th>Likely range</th><th class="num">Bye</th><th>Status</th><th class="num">Value over replacement</th></tr></thead><tbody>
-{% for p in roster %}<tr><td class="nm">{{ playerlink(p.name, p.pid) }}</td><td>{{ p.pos }}</td><td class="muted">{{ p.nfl or "—" }}</td><td class="num">{{ p.mean|num(1) }}</td>
+{% for p in roster %}<tr><td class="nm">{{ playerlink(p.name, p.pid) }}</td><td>{{ p.pos }}</td><td class="muted">{{ p.nfl|nflteam }}</td><td class="num">{{ p.mean|num(1) }}</td>
 <td>{{ rangebar({"lo": p.p10, "mid": p.p50, "hi": p.p90, "max": pmax}, 0) if p.p10 is not none else '<span class="muted">—</span>'|safe }}</td>
 <td class="num">{{ p.bye or "—" }}</td><td>{% if p.status %}<span class="flag">{{ p.status }}</span>{% endif %}</td><td class="num">{% if p.vorp is not none %}{{ p.vorp|signed(1) }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>

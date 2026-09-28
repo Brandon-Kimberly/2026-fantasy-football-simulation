@@ -51,6 +51,19 @@ def freshness_report(root):
     n_ok = sum(1 for s in sources.values() if isinstance(s, dict) and s.get("ok") and not s.get("fallback"))
     n_fell = sum(1 for s in sources.values() if isinstance(s, dict) and s.get("fallback"))
     n_bad = sum(1 for s in sources.values() if isinstance(s, dict) and not s.get("ok"))
+    # UI-F3: a lines fetch that ran after most of the week's games had kicked off finds few
+    # lines left -- expected, not an outage; say so rather than count it failed
+    lines_note = None
+    vo = sources.get("vegas_odds") if isinstance(sources.get("vegas_odds"), dict) else None
+    started = _stamp((manifest or {}).get("started_at") or "")
+    if vo and (not vo.get("ok") or vo.get("fallback")) and started and week:
+        ks = [_parse_iso(k) for k in (((root.read_json("current/nfl_schedule.json", {}) or {}).get("_meta") or {}).get("kickoffs") or {}).get(str(week)) or []]
+        ks = [k for k in ks if k]
+        before = sum(1 for k in ks if k < started)
+        if ks and 2 * before >= len(ks):
+            lines_note = {"before": before, "total": len(ks), "week": week}
+            if not vo.get("ok"):
+                n_bad -= 1
     reasons = list(reasons)
     # B8: assess() returns one list that mixes the cause of a STALE verdict with every
     # tolerated fallback ("degraded: ..."). Pages show the cause; the rest stays folded.
@@ -59,7 +72,7 @@ def freshness_report(root):
     return {"status": status, "reasons": reasons, "stale_reasons": stale_reasons, "degraded_reasons": degraded_reasons,
             "manifest": manifest, "week": week,
             "vegas_week": meta.get("week"), "vegas_stale_since": meta.get("stale_since"),
-            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad,
+            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad, "lines_note": lines_note,
             "n_warn": len((manifest or {}).get("degraded") or []),
             "phrase": sync_phrase(n_bad, n_fell, len((manifest or {}).get("degraded") or []))}
 
@@ -364,6 +377,11 @@ def _week_prediction(root, week):
     return best
 
 
+def _next_waiver():
+    from webui.players_page import next_waiver_run          # UI-W2
+    return next_waiver_run()
+
+
 def _last_result(root, team, wk):
     """UI-M1: `team`'s most recent played week before `wk` -- opponent, the result and the
     median result as the league counted them (webui.results), the box score (flagged when
@@ -492,6 +510,9 @@ def home_report(root, my_team, runner=None):
             "wins_range": (now["teams"].get(my_team) or {}).get("wins"),
             # UI-M1: the week's phase, and how last week ended as the league counted it
             "phase": "live" if (kick and kick.get("started")) else "before",
+            "next_waiver": _next_waiver(),
+            # UI-T5: trades close after week 11 (docs/WAIVER_MECHANICS.md, trade_deadline 11)
+            "deadline_left": (11 - wk + 1) if (wk and 9 <= wk <= 11) else None,
             "last_result": _last_result(root, my_team, wk)}
 
 
