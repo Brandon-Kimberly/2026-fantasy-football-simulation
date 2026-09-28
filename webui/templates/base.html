@@ -237,6 +237,9 @@ kbd { font-family: var(--display); font-size: 11px; font-weight: 700; background
 .pcard .n { font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
 .pcard .row { display: flex; justify-content: space-between; gap: 10px; } .pcard .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pcard a { display: inline-block; margin-top: 6px; font-weight: 600; }
+button.csv { margin-top: 6px; padding: 2px 10px; font-size: 11px; }
+th[data-key]:focus-visible { outline: 2px solid var(--pos); outline-offset: -2px; }
+details.tview { margin-top: 6px; font-size: 12px; } details.tview summary { cursor: pointer; color: var(--muted); }
 [data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
 .themeform { display: inline-flex; gap: 0; margin-left: 12px; vertical-align: middle; } .themeform button { padding: 3px 9px; font-size: 10px; border-radius: 0; box-shadow: none; letter-spacing: .08em; }
 .themeform button:first-of-type { border-radius: 999px 0 0 999px; } .themeform button:last-of-type { border-radius: 0 999px 999px 0; } .themeform button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
@@ -512,14 +515,15 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   var GO = { h: '/', m: '/matchups', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' }, pendingG = 0;
   document.addEventListener('keydown', function (ev) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palOpen(); return; }
-    if (ev.key === 'Escape') { if (pal) pal.hidden = true; if (keys) keys.hidden = true; return; }
+    if (ev.key === 'Escape') { if (pal) pal.hidden = true; if (keys) keys.hidden = true; if (pcard) pcard.hidden = true; return; }
     if (typing(ev) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
     if (ev.key === '?') { ev.preventDefault(); if (keys) { keys.hidden = !keys.hidden; if (pal) pal.hidden = true; } return; }
     if (ev.key === 'g') { pendingG = Date.now(); return; }
     if (pendingG && Date.now() - pendingG < 1500 && GO[ev.key]) { pendingG = 0; window.location.href = GO[ev.key]; return; }
     pendingG = 0;
   });
-  // U5: a card for any player name (data-player) after a short hover
+  // U5: a card for any player name (data-player) after a short hover -- or, UI-V7, when a
+  // player link takes keyboard focus; Escape closes it
   var pcard = document.getElementById('pcard'), pcTimer = null, pcCache = {};
   function playerHref(id) { return '/player/' + encodeURIComponent(id); }
   function pcShow(el, d) {
@@ -535,16 +539,26 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.hidden = false;
   }
   if (pcard) {
-    document.addEventListener('mouseover', function (ev) {
-      var el = ev.target.closest && ev.target.closest('[data-player]');
-      if (!el) return;
+    function pcFor(el) {
       clearTimeout(pcTimer);
       pcTimer = setTimeout(function () {
         var name = el.getAttribute('data-player');
-        if (pcCache[name]) { pcShow(el, pcCache[name]); return; }
+        var still = function () { return el.matches(':hover') || document.activeElement === el; };
+        if (pcCache[name]) { if (still()) pcShow(el, pcCache[name]); return; }
         fetch('/api/player?name=' + encodeURIComponent(name), { headers: { 'Accept': 'application/json' } })
-          .then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d) { pcCache[name] = d; if (el.matches(':hover')) pcShow(el, d); } }).catch(function () {});
+          .then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d) { pcCache[name] = d; if (still()) pcShow(el, d); } }).catch(function () {});
       }, 260);
+    }
+    document.addEventListener('mouseover', function (ev) {
+      var el = ev.target.closest && ev.target.closest('[data-player]');
+      if (el) pcFor(el);
+    });
+    document.addEventListener('focusin', function (ev) {
+      var el = ev.target.closest && ev.target.closest('a[data-player]');
+      if (el) pcFor(el);
+    });
+    document.addEventListener('focusout', function (ev) {
+      if (ev.target.closest && ev.target.closest('a[data-player]')) setTimeout(function () { if (!pcard.contains(document.activeElement)) pcard.hidden = true; }, 150);
     });
     document.addEventListener('mouseout', function (ev) {
       var el = ev.target.closest && ev.target.closest('[data-player]');
@@ -554,6 +568,28 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     });
     pcard.addEventListener('mouseleave', function () { pcard.hidden = true; });
   }
+  // UI-V7: a sortable header is a keyboard control too -- Tab to it, Enter or Space sorts
+  document.querySelectorAll('th[data-key]').forEach(function (th) { th.setAttribute('tabindex', '0'); });
+  document.addEventListener('keydown', function (ev) {
+    if ((ev.key === 'Enter' || ev.key === ' ') && ev.target.matches && ev.target.matches('th[data-key]')) { ev.preventDefault(); ev.target.click(); }
+  });
+  // UI-R4: any sortable table downloads as CSV, the rows as shown (sorted, filtered)
+  document.querySelectorAll('table').forEach(function (t) {
+    if (!t.querySelector('th[data-key]') || !t.tBodies[0]) return;
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'ghost csv'; b.textContent = 'Download CSV';
+    b.addEventListener('click', function () {
+      function cell(c) { var s = c.textContent.replace(/\s+/g, ' ').trim(); return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
+      var rows = [Array.prototype.map.call(t.tHead.rows[0].cells, cell).join(',')];
+      Array.prototype.forEach.call(t.tBodies[0].rows, function (r) { if (!r.hidden) rows.push(Array.prototype.map.call(r.cells, cell).join(',')); });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+      a.download = (document.title.split('·')[0].trim().toLowerCase().replace(/[^a-z0-9]+/g, '-') || 'table') + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    var host = t.closest('.scroller') || t;
+    host.parentNode.insertBefore(b, host.nextSibling);
+  });
   // tables whose headers carry data-key sort on click: numbers high to low first, text A to Z,
   // a second click reverses; a cell's data-sort wins over its text. The markup and the arrow
   // styles shipped in c329cca with no script behind them -- found 2026-09-28.

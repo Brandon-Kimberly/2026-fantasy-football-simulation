@@ -144,7 +144,7 @@ def current_report(root):
         rows = []
         for e in entries or []:
             b = base.get(e.get("name")) or {}
-            rows.append({"name": e.get("name"), "pos": b.get("pos") or e.get("pos"),
+            rows.append({"name": e.get("name"), "pid": b.get("player_id"), "pos": b.get("pos") or e.get("pos"),
                          "nfl": b.get("team") or e.get("team"), "mean": b.get("mean"),
                          "bye": b.get("bye"),
                          "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or "")})
