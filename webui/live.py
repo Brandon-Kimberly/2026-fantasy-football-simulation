@@ -28,6 +28,98 @@ SCOREBOARD = ("http://site.api.espn.com/apis/site/v2/sports/football/nfl/"
               "scoreboard?week={week}&seasontype=2")
 ABBR_ALIASES = {"WSH": "WAS", "LV": "OAK"}
 Z80 = 2.5631          # p90 - p10 of a Normal, in sd units: the record's band -> an sd
+BASE_URL = "https://api.sleeper.app/v1"
+STATS_URL = BASE_URL + "/stats/nfl/regular/{season}/{week}"   # one week's stat lines, every player
+
+# How a stat change reads in the scoring feed. The key is Sleeper's; the label is what a
+# person says. Anything not listed falls back to the key with its underscores opened out,
+# so an unfamiliar category still reads rather than disappearing.
+STAT_LABELS = {
+    "pass_yd": "pass yds", "pass_td": "pass TD", "pass_int": "INT", "pass_2pt": "2-pt pass",
+    "pass_cmp": "completion", "pass_att": "attempt", "pass_sack": "sack taken",
+    "rush_yd": "rush yds", "rush_td": "rush TD", "rush_att": "carry", "rush_2pt": "2-pt rush",
+    "rec": "catch", "rec_yd": "rec yds", "rec_td": "rec TD", "rec_2pt": "2-pt catch", "rec_tgt": "target",
+    "fum": "fumble", "fum_lost": "fumble lost", "fum_rec_td": "fumble return TD",
+    "bonus_rec_te": "TE bonus", "bonus_rush_yd_100": "100-yard game", "bonus_rec_yd_100": "100-yard game",
+    "idp_tkl": "tackle", "idp_tkl_solo": "solo tackle", "idp_tkl_ast": "assist", "idp_tkl_loss": "TFL",
+    "idp_sack": "sack", "idp_sack_yd": "sack yds", "idp_qb_hit": "QB hit", "idp_int": "INT",
+    "idp_int_ret_yd": "INT return yds", "idp_pass_def": "pass defended", "idp_ff": "forced fumble",
+    "idp_fum_rec": "fumble recovery", "idp_fum_ret_yd": "fumble return yds", "idp_safe": "safety",
+    "idp_blk_kick": "blocked kick", "idp_def_td": "defensive TD",
+    "fgm": "field goal", "fgmiss": "missed FG", "xpm": "extra point", "xpmiss": "missed XP",
+    "def_td": "defensive TD", "sack": "sack", "int": "INT", "ff": "forced fumble", "safe": "safety",
+}
+
+
+def _plural(label, n):
+    if abs(n) == 1:
+        return label
+    if label.endswith(("s", "x", "ch", "sh")):
+        return label + "es"
+    if label.endswith("y") and not label.endswith(("ay", "ey", "oy", "uy")):
+        return label[:-1] + "ies"
+    return label + "s"
+
+
+def stat_text(key, n):
+    """One stat change as a person says it: 'catch', '3 catches', '29 rec yds', 'rush TD'.
+    A yardage always carries its number; a count carries one only when it is not one."""
+    label = STAT_LABELS.get(key) or str(key).replace("_", " ")
+    n_i = int(round(float(n)))
+    if str(key).endswith("_yd") or str(key).endswith("_yds"):
+        return f"{n_i} {label}"
+    if abs(n_i) == 1:
+        return label
+    return f"{n_i} {_plural(label, n_i)}"
+
+
+def stat_parts(before, after, scoring, limit=3):
+    """What a player's points moved ON: the change in each scored stat between two reads,
+    priced with the LEAGUE'S OWN weights (never a guess of ours), biggest first and capped
+    so one line stays readable. No stat lines or no scoring settings -> no breakdown, and
+    the feed still carries the points themselves."""
+    if not after or not scoring:
+        return []
+    before = before or {}
+    parts = []
+    for key, val in after.items():
+        weight = scoring.get(key)
+        if not weight:
+            continue
+        moved = float(val or 0.0) - float(before.get(key) or 0.0)
+        if abs(moved) < 1e-9:
+            continue
+        pts = round(moved * float(weight), 2)
+        if abs(pts) < 0.01:
+            continue
+        parts.append({"pts": pts, "text": stat_text(key, moved), "key": key, "n": moved})
+    parts.sort(key=lambda p: -abs(p["pts"]))
+    return parts[:limit]
+
+
+def diff_updates(before, after, scoring=None):
+    """Two consecutive snapshots of the same week -> one entry per starter whose points
+    moved, biggest first. A player the earlier read did not carry is not an update (there
+    is nothing to compare him against), and a failed read on either side yields nothing."""
+    if not before or not after or not before.get("ok") or not after.get("ok"):
+        return []
+    was_stats, now_stats = before.get("stats") or {}, after.get("stats") or {}
+    out = []
+    for side in ("mine", "theirs"):
+        was_rows = {r.get("pid"): r for r in ((before.get(side) or {}).get("rows") or [])}
+        for r in ((after.get(side) or {}).get("rows") or []):
+            was = was_rows.get(r.get("pid"))
+            if was is None or was.get("scored") is None or r.get("scored") is None:
+                continue
+            moved = round(float(r["scored"]) - float(was["scored"]), 2)
+            if abs(moved) < 0.01:
+                continue
+            out.append({"at": after.get("fetched_at"), "pid": r.get("pid"), "name": r.get("name"),
+                        "pos": r.get("pos"), "nfl": r.get("nfl"), "status": r.get("status"), "side": side,
+                        "delta": moved, "total": r["scored"],
+                        "parts": stat_parts(was_stats.get(r.get("pid")), now_stats.get(r.get("pid")), scoring)})
+    out.sort(key=lambda u: -abs(u["delta"]))
+    return out
 
 
 def clock_fraction(period, display_clock, state, completed):
@@ -171,7 +263,7 @@ def team_state(m, clocks, exp):
         r_mu, r_sd = remaining(float(e.get("mean") or 0.0), float(e.get("sd") or 0.0), frac)
         mu += r_mu
         var += r_sd ** 2
-        rows.append({"name": e.get("name") or f"player {pid}", "pos": e.get("pos") or "?", "nfl": nfl,
+        rows.append({"pid": pid, "name": e.get("name") or f"player {pid}", "pos": e.get("pos") or "?", "nfl": nfl,
                      "status": label, "scored": round(scored.get(pid, 0.0), 2), "left": round(r_mu, 2),
                      "frac": round(frac, 3), "expected": round(float(e.get("mean") or 0.0), 2)})
     banked = float(m.get("points") or 0.0)
@@ -179,7 +271,24 @@ def team_state(m, clocks, exp):
             "to_play": sum(1 for r in rows if r["frac"] > 0), "starters": len(rows)}
 
 
-def snapshot(root, week, my_team, league_id, fetch, base_url="https://api.sleeper.app/v1", now=None):
+def week_stats(root, week, pids, fetch):
+    """{pid: {stat: value}} for these players this week, from Sleeper's stat lines -- what
+    the scoring feed breaks a player's points down by. The season comes from the sync
+    manifest on disk; no season, or a read that fails, is a caveat (no breakdown), never a
+    failed snapshot. Read-only, like everything else here."""
+    season = (root.read_json("current/sync_manifest.json", {}) or {}).get("season")
+    if not season or not pids:
+        return {}
+    try:
+        raw = fetch(STATS_URL.format(season=season, week=int(week))) or {}
+    except Exception:
+        return {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(p): raw[str(p)] for p in pids if isinstance(raw.get(str(p)), dict) and raw[str(p)]}
+
+
+def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None):
     """The live picture of my matchup, from two public reads and the data on disk."""
     from fantasy_sim.config import TEAM_NAME_MAP
     wk = int(week)
@@ -206,11 +315,13 @@ def snapshot(root, week, my_team, league_id, fetch, base_url="https://api.sleepe
         p = win_probability(mine["projected"], mine["left_sd"], theirs["projected"], theirs["left_sd"])
         p_wide = win_probability(mine["projected"], mine["left_sd"], theirs["projected"], theirs["left_sd"], inflate=1.5)
     labels = sorted({r["status"] for r in mine["rows"]} | {r["status"] for r in (theirs or {"rows": []})["rows"]})
+    pids = [r["pid"] for r in mine["rows"]] + [r["pid"] for r in (theirs or {"rows": []})["rows"]]
+    stats = week_stats(root, wk, pids, fetch)
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
-            "clocks_ok": clocks_ok, "statuses": labels, "games": games,
+            "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats,
             "sources": sorted({e.get("source") for e in exp.values() if e.get("source") != "baseline"} - {None})}
 
 
@@ -219,12 +330,15 @@ class LiveBoard:
     and never more often than `min_interval` seconds; a failed refresh keeps the last
     good snapshot and reports the error beside it. Nothing here touches the disk."""
 
-    def __init__(self, root, my_team, league_id=None, fetch=None, min_interval=45, clock=time.monotonic, max_history=300):
+    def __init__(self, root, my_team, league_id=None, fetch=None, min_interval=45, clock=time.monotonic,
+                 max_history=300, max_updates=60, base_url=BASE_URL):
         self.root, self.my_team, self.league_id, self.fetch = root, my_team, league_id, fetch
         self.min_interval, self._clock, self.max_history = min_interval, clock, max_history
+        self.max_updates, self.base_url = max_updates, base_url
         self._lock = threading.Lock()
         self._snap, self._error, self._at = None, None, None
         self._history, self._week = [], None      # the win probability through the day (U7): memory only
+        self._updates, self._scoring = [], None   # the scoring feed (W13), and the league's weights once
 
     @classmethod
     def default(cls, root, my_team):
@@ -243,6 +357,19 @@ class LiveBoard:
         """What is cached, without any network -- what a page render uses."""
         return self._payload()
 
+    def scoring(self):
+        """The league's own scoring weights, read once per process and then remembered.
+        Unavailable -> {}, and the feed carries points without their breakdown."""
+        if self._scoring is None:
+            self._scoring = {}
+            if self.enabled:
+                try:
+                    league = self.fetch(f"{self.base_url}/league/{self.league_id}") or {}
+                    self._scoring = league.get("scoring_settings") or {}
+                except Exception:
+                    self._scoring = {}
+        return self._scoring
+
     def get(self, week, refresh=False):
         if not self.enabled:
             return self._payload()
@@ -250,11 +377,16 @@ class LiveBoard:
             age = None if self._at is None else self._clock() - self._at
             if self._snap is None or (refresh and (age is None or age >= self.min_interval)) or (age is not None and age > 600):
                 try:
+                    previous = self._snap
                     self._snap = snapshot(self.root, week, self.my_team, self.league_id, self.fetch)
                     self._error = None if self._snap.get("ok") else self._snap.get("error")
                     if self._snap.get("ok"):
                         if self._snap.get("week") != self._week:
-                            self._history, self._week = [], self._snap.get("week")
+                            self._history, self._updates, self._week = [], [], self._snap.get("week")
+                        else:
+                            fresh = diff_updates(previous, self._snap, self.scoring())
+                            if fresh:
+                                self._updates = (fresh + self._updates)[:self.max_updates]
                         self._history.append({"at": self._snap.get("fetched_at"), "p": self._snap.get("p_win"),
                                               "mine": self._snap["mine"]["projected"],
                                               "theirs": (self._snap.get("theirs") or {}).get("projected")})
@@ -267,4 +399,4 @@ class LiveBoard:
     def _payload(self):
         age = None if self._at is None else int(self._clock() - self._at)
         return {"enabled": self.enabled, "snapshot": self._snap, "error": self._error, "age_seconds": age,
-                "min_interval": self.min_interval, "history": list(self._history)}
+                "min_interval": self.min_interval, "history": list(self._history), "updates": list(self._updates)}

@@ -3,91 +3,144 @@
 {% block title %}{{ brand }}{% endblock %}
 {% block body %}
 <style>
-.hero { position: relative; margin-top: 26px; padding: 26px 26px 22px; background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 55%, var(--turf-bg) 100%); border: 1px solid var(--grid); border-top: 3px solid transparent; border-image: var(--g-brand) 1; border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; box-shadow: var(--shadow); }
+.hero { position: relative; margin-top: 26px; padding: 26px 28px 24px; background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 55%, var(--turf-bg) 100%); border: 1px solid var(--grid); border-top: 3px solid transparent; border-image: var(--g-brand) 1; border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; box-shadow: var(--shadow); }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
 .hero::after { content: ""; position: absolute; top: -40%; right: -10%; width: 45%; height: 180%; background: radial-gradient(closest-side, var(--violet-bg), transparent); pointer-events: none; animation: drift 12s ease-in-out infinite alternate; }
 @keyframes drift { from { transform: translate(0, 0); } to { transform: translate(-6%, 8%); } }
 .hero > * { position: relative; z-index: 1; }
 .hero .top-line { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 18px; }
-.hero .who { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin: 14px 0 8px; }
-.hero .side { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.hero .side.r { justify-content: flex-end; text-align: right; flex-direction: row-reverse; }
-.hero .side .nm { font-family: var(--display); font-weight: 800; font-size: clamp(18px, 2.6vw, 26px); letter-spacing: -0.02em; line-height: 1.1; }
+.hero .who { display: grid; grid-template-columns: 1fr auto 1fr; gap: 16px; align-items: center; margin: 16px 0 10px; }
+.hero .side { display: flex; align-items: center; gap: 12px; min-width: 0; animation: clash .6s cubic-bezier(.2,.8,.2,1) both; }
+.hero .side.r { justify-content: flex-end; text-align: right; flex-direction: row-reverse; animation-name: clash-r; }
+.hero .side .nm { font-family: var(--display); font-weight: 800; font-size: clamp(18px, 2.2vw, 28px); letter-spacing: -0.02em; line-height: 1.1; }
 .hero .side .nm a { color: inherit; text-decoration: none; }
 .hero .side .nm a:hover { color: var(--pos); }
-.hero .side .sub { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
+.hero .side .sub { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; margin-top: 3px; }
 .hero .vs { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); animation: vspop .5s .3s cubic-bezier(.2,.8,.2,1) both; }
-.hero .side { animation: clash .6s cubic-bezier(.2,.8,.2,1) both; } .hero .side.r { animation-name: clash-r; }
 @keyframes clash { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
 @keyframes clash-r { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
 @keyframes vspop { from { opacity: 0; transform: scale(.5); } to { opacity: 1; transform: none; } }
 .kick { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; } .kick b { color: var(--ink); font-weight: 600; } .kick .in { color: var(--warm-ink); font-weight: 700; }
 .hero .h2h { margin-top: 10px; font-size: 13px; color: var(--ink-2); } .hero .h2h b { color: var(--ink); font-weight: 600; } .hero .h2h .w { color: var(--turf); font-weight: 700; } .hero .h2h .l { color: var(--neg); font-weight: 700; }
 .hero .h2h details { display: inline; } .hero .h2h summary { display: inline; cursor: pointer; color: var(--pos); } .hero .h2h ul { margin: 6px 0 0; padding-left: 18px; font-size: 12.5px; }
-.hero .pwin { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: center; margin-top: 12px; }
-.hero .pwin .big { font-family: var(--display); font-size: 48px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
-.hero .pwin .big:first-child > span { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
-.hero .pwin .big small { font-size: 16px; font-weight: 600; letter-spacing: 0; color: var(--muted); margin-left: 6px; }
-.split { height: 12px; background: var(--neg-bg); border-radius: 999px; overflow: hidden; position: relative; }
+
+/* the headline probability: whatever is TRUE NOW leads, and the pre-game number is a footnote */
+.pwin { display: grid; grid-template-columns: auto minmax(120px, 1fr) auto; gap: 18px; align-items: center; margin-top: 14px; }
+.pwin .big { font-family: var(--display); font-size: clamp(42px, 5vw, 62px); font-weight: 800; letter-spacing: -0.035em; line-height: .95; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pwin .big > span { background: var(--g-brand); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.pwin .big.them { text-align: right; } .pwin .big.them > span { background: none; color: var(--muted); -webkit-text-fill-color: currentColor; }
+.pwin .lab { display: block; font-family: var(--sans); font-size: 13px; font-weight: 600; letter-spacing: 0; color: var(--muted); margin-top: 6px; }
+.pwin .big > span.swing { animation: swing .7s cubic-bezier(.2,.8,.2,1); }
+@keyframes swing { 0% { transform: scale(1); } 40% { transform: scale(1.1); } 100% { transform: scale(1); } }
+.split { height: 14px; background: var(--neg-bg); border-radius: 999px; overflow: hidden; position: relative; }
 .split i { display: block; height: 100%; background: var(--g-brand); width: 0; transition: width 1s cubic-bezier(.2,.8,.2,1); box-shadow: 0 0 12px rgba(42,120,214,.35); }
 .split::after { content: ""; position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: var(--rule); }
-.hero .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.hero .facts { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 14px; font-size: 13px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .hero .facts b { color: var(--ink); font-weight: 600; }
+.hero .facts .pre { color: var(--muted); } .hero .facts .pre b { color: var(--ink-2); }
+
 /* the live scoreboard */
-.live { margin-top: 18px; padding-top: 16px; border-top: 1px dashed var(--rule); }
+.live { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--rule); }
 .live .lh { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
 .live .lh .k { font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: #fff; background: linear-gradient(135deg, var(--neg), #ff7a59); padding: 4px 10px 4px 8px; border-radius: 999px; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 3px 10px rgba(227,73,72,.3); }
 .live .lh .k svg.i { color: #fff !important; }
-.live .lh .k svg.i { color: var(--neg); }
 .live .lh .k.on svg.i { animation: blink 1.4s ease-in-out infinite; }
 .live .lh .meta { font-size: 12px; color: var(--muted); }
 .live .lh .ctl { margin-left: auto; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .live .lh .ctl button { padding: 6px 12px; font-size: 11px; }
 .live .lh .ctl label { font-size: 12px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
-.live .score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 12px; align-items: center; margin-top: 12px; }
-.live .score .pts { font-family: var(--display); font-size: 40px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.live .lh .ctl a.tv { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 6px; } .live .lh .ctl a.tv:hover { color: var(--pos); border-color: var(--pos); }
+.live .score { display: grid; grid-template-columns: 1fr auto 1fr; gap: 18px; align-items: center; margin-top: 14px; }
+.live .score .pts { font-family: var(--display); font-size: clamp(34px, 3.6vw, 46px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.live .score .pts.me { color: var(--turf); } .live .score .pts.them { color: var(--warm); }
 .live .score .r { text-align: right; }
-.live .score .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
-.live .score .mid { text-align: center; font-size: 12px; color: var(--muted); }
-.live .score .mid b { display: block; font-family: var(--display); font-size: 22px; font-weight: 800; color: var(--ink); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
-.live .bars { margin-top: 10px; display: grid; gap: 6px; }
-.live .bars .bar { display: grid; grid-template-columns: 6.5rem 1fr 6rem; gap: 10px; align-items: center; font-size: 12px; color: var(--muted); }
-.live .bars .bar .b { height: 10px; background: var(--mid); border-radius: 999px; overflow: hidden; display: flex; }
+.live .score .sub { font-size: 12.5px; color: var(--muted); margin-top: 6px; } .live .score .sub b { color: var(--ink-2); font-weight: 600; }
+.live .score .mid { text-align: center; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-family: var(--display); }
+.live .score .mid b { display: block; font-size: 28px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; margin: 3px 0; text-transform: none; }
+.live .score .mid b.pos { color: var(--turf); } .live .score .mid b.neg { color: var(--neg); }
+.live .score .mid .s { font-size: 11px; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.live .bars { margin-top: 12px; display: grid; gap: 8px; }
+.live .bars .bar { display: grid; grid-template-columns: 9rem 1fr 10.5rem; gap: 12px; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+.live .bars .bar > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.live .bars .bar .b { height: 14px; background: var(--mid); border-radius: 999px; overflow: hidden; display: flex; }
 .live .bars .bar .b i { display: block; height: 100%; transition: width .8s cubic-bezier(.2,.8,.2,1); } .live .bars .bar .b i.done { background: var(--g-turf); } .live .bars .bar .b i.left { background: var(--turf-bg); border-left: 1px solid var(--turf); }
 .live .bars .bar.them .b i.done { background: var(--g-warm); } .live .bars .bar.them .b i.left { background: var(--warm-bg); border-left-color: var(--warm); }
-.live .bars .bar .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--ink-2); }
-.live .note-l { font-size: 12px; color: var(--muted); margin-top: 10px; }
-.live details { margin-top: 8px; } .live details table { font-size: 12.5px; }
+.live .bars .bar .v { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; } .live .bars .bar .v b { font-weight: 600; color: var(--ink); }
+.live .note-l { font-size: 12px; color: var(--muted); margin-top: 12px; }
+.live details { margin-top: 12px; } .live summary { cursor: pointer; font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-2); }
+.live summary .n { font-family: var(--sans); letter-spacing: 0; text-transform: none; color: var(--muted); font-weight: 500; margin-left: 6px; }
 .live .gc { display: inline-block; font-size: 10.5px; font-weight: 700; letter-spacing: .04em; padding: 2px 7px; border-radius: 999px; background: var(--mid); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .live .gc.on { background: var(--neg-bg); color: var(--neg); } .live .gc.final { color: var(--muted); } .live .gc.pre { background: var(--pos-bg); color: var(--pos); }
-.live .pl { margin-top: 10px; display: grid; grid-template-columns: minmax(120px, 220px) 1fr; gap: 12px; align-items: center; font-size: 12px; color: var(--muted); }
+.live .pl { margin-top: 12px; display: grid; grid-template-columns: minmax(120px, 240px) 1fr; gap: 14px; align-items: center; font-size: 12px; color: var(--muted); }
 .live .pl svg { width: 100%; height: 44px; display: block; } .live .pl polyline { fill: none; stroke: var(--turf); stroke-width: 2; stroke-linejoin: round; } .live .pl line { stroke: var(--rule); stroke-dasharray: 3 3; } .live .pl circle { fill: var(--turf); }
-.live .score .mid b.swing { animation: swing .7s cubic-bezier(.2,.8,.2,1); } .live .score .mid b.up { color: var(--turf); } .live .score .mid b.down { color: var(--neg); }
-@keyframes swing { 0% { transform: scale(1); } 40% { transform: scale(1.18); } 100% { transform: scale(1); } }
-.live .lh .ctl a.tv { font-family: var(--display); font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); text-decoration: none; border: 1px solid var(--rule); border-radius: 999px; padding: 5px 10px; display: inline-flex; align-items: center; gap: 6px; } .live .lh .ctl a.tv:hover { color: var(--pos); border-color: var(--pos); }
-.grid2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 14px; margin-top: 14px; }
-.ring { width: 96px; height: 96px; }
+
+/* every starter, both rosters side by side */
+.starters { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 10px; }
+/* one fixed column set, so the two rosters line up with each other and not just inside themselves */
+.starters table { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.starters th:nth-child(1) { width: 42%; } .starters th:nth-child(2) { width: 15%; }
+.starters th:nth-child(3), .starters th:nth-child(4) { width: 12%; } .starters th:nth-child(5) { width: 19%; }
+.starters td.nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.starters th { text-align: left; font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 4px 8px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+.starters th.num, .starters td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.starters td { padding: 6px 8px; border-bottom: 1px solid var(--grid); }
+.starters td.nm { font-weight: 600; color: var(--ink); } .starters td.nm i { display: block; font-style: normal; font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: .02em; }
+.starters td.now { font-weight: 700; color: var(--ink); }
+.starters td.proj { color: var(--muted); }
+.starters tr.up { background: linear-gradient(90deg, var(--turf-bg), transparent 65%); }
+.starters tr.dn { background: linear-gradient(90deg, var(--neg-bg), transparent 65%); }
+.starters tr.pre td { color: var(--muted); } .starters tr.pre td.nm { color: var(--ink-2); }
+.starters .d { display: inline-block; min-width: 3.4em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: var(--muted); }
+.starters .d.pos { background: var(--turf-bg); color: var(--turf); } .starters .d.neg { background: var(--neg-bg); color: var(--neg); }
+.starters .cap { font-family: var(--display); font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+.starters .cap .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--turf); flex: none; } .starters .them .cap .dot { background: var(--warm); }
+
+/* what just happened */
+.feed ul { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 2px; max-height: 320px; overflow-y: auto; }
+.feed li { display: grid; grid-template-columns: 4.6rem 3.8rem minmax(8rem, 15rem) 1fr; gap: 12px; align-items: baseline; padding: 5px 10px; border-radius: var(--r-ctl); font-size: 13px; border-left: 3px solid var(--turf); background: linear-gradient(90deg, var(--turf-bg), transparent 55%); }
+.feed li.them { border-left-color: var(--warm); background: linear-gradient(90deg, var(--warm-bg), transparent 55%); }
+.feed li .t { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.feed li b { font-family: var(--display); font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.feed li b.pos { color: var(--turf); } .feed li b.neg { color: var(--neg); }
+.feed li .who { font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .feed li .who i { font-style: normal; font-weight: 400; color: var(--muted); font-size: 11.5px; margin-left: 5px; }
+.feed li .parts { color: var(--ink-2); font-size: 12px; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed li .parts em { font-style: normal; color: var(--muted); }
+
+/* the season, in one card that is actually full */
+.season { display: grid; grid-template-columns: minmax(300px, .82fr) 1.18fr; gap: 16px; margin-top: 16px; align-items: stretch; }
+.season > * { min-width: 0; }
+.season .card { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 18px 20px; animation: rise .5s ease both; display: flex; flex-direction: column; gap: 14px; }
+.season .card.outlook { border-left: 3px solid var(--pos); } .season .card.chartc { border-left: 3px solid var(--gold); }
+.season .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.season .ohead { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; }
+.season .ohead .big { font-family: var(--display); font-size: 40px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums; }
+.season .ohead .s { font-size: 12.5px; color: var(--ink-2); margin-top: 6px; }
+.ring { width: 92px; height: 92px; flex: none; }
 .ring circle { fill: none; stroke-width: 9; }
 .ring .bg { stroke: var(--mid); }
 .ring .fg { stroke: url(#ringg); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; filter: drop-shadow(0 0 4px rgba(42,120,214,.35)); }
-.stat { display: grid; grid-template-columns: auto 1fr; gap: 16px; align-items: center; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px; animation: rise .5s ease both; }
-.stat.a { border-left: 3px solid var(--pos); } .stat.b { border-left: 3px solid var(--gold); }
-.stat .big { font-family: var(--display); font-size: 34px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
-.stat .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
-.stat .s { font-size: 12px; color: var(--ink-2); margin-top: 6px; }
+.ofacts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: auto; }
+.of { background: var(--plane); border: 1px solid var(--grid); border-radius: var(--r-ctl); padding: 9px 11px; }
+.of .k { margin-bottom: 4px; } .of b { font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
+.of .s { font-size: 11px; color: var(--muted); margin-top: 3px; display: block; }
+.of .mini { margin-top: 6px; }
+.season .chartc .s { font-size: 12px; color: var(--ink-2); }
+
 .mini-standings td { padding: 6px 8px; }
+.grid2 { display: grid; grid-template-columns: 1.15fr .85fr; gap: 18px; margin-top: 14px; }
+.grid2 > * { min-width: 0; }
 .games { margin-top: 12px; display: grid; gap: 4px; }
-.game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 5px 8px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; }
+.game { display: grid; grid-template-columns: 1fr 3rem 2.4rem 3rem 1fr; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--grid); border-radius: var(--r-ctl); background: var(--surface); font-size: 13px; transition: transform .15s, box-shadow .2s; }
+.game:hover { transform: translateX(2px); box-shadow: var(--shadow); }
 .game .a { text-align: right; } .game .p { font-variant-numeric: tabular-nums; font-weight: 600; } .game .p.a { text-align: right; } .game .vs { text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; }
-.game { transition: transform .15s, box-shadow .2s; } .game:hover { transform: translateX(2px); box-shadow: var(--shadow); }
 .game.me { border-color: var(--pos); background: linear-gradient(90deg, var(--pos-bg), var(--surface)); }
 .game > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .games { min-width: 0; }
-.grid2 > * { min-width: 0; }
 .game .fav { color: var(--pos); }
 .watch td .small { display: block; }
-.qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } }
-@media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .hero .pwin { grid-template-columns: 1fr 1fr; } .hero .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .pwin .big { font-size: 36px; } .hero .pwin .big:last-child { text-align: right; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .stat { grid-template-columns: 1fr; } .ring { width: 80px; height: 80px; } }
+.qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+@media (max-width: 1100px) { .season { grid-template-columns: 1fr; } .starters { grid-template-columns: 1fr; } }
+@media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } .feed li { grid-template-columns: 4.4rem 3.4rem 1fr; } .feed li .parts { grid-column: 1 / -1; } }
+@media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .pwin { grid-template-columns: 1fr 1fr; } .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .ofacts { grid-template-columns: 1fr; } .ring { width: 76px; height: 76px; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
@@ -102,12 +155,14 @@
     <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ teamlink(opponent) }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|num(1) }} pts{% endif %}</div></div></div>
   </div>
   {% if m.p_win is not none %}
-  <div class="pwin">
-    <div class="big"><span data-count="{{ (m.p_win * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ (m.p_win * 100)|round(1) }}%</span><small>to win, pre-game</small></div>
-    <div class="split" title="your share vs theirs"><i data-width="{{ (m.p_win * 100)|round(1) }}"></i></div>
-    <div class="big" style="color:var(--muted)"><span data-count="{{ ((1 - m.p_win) * 100)|round(1) }}" data-nd="1" data-suffix="%">{{ ((1 - m.p_win) * 100)|round(1) }}%</span></div>
+  {% set pre = (m.p_win * 100)|round(1) %}
+  <div class="pwin" id="pwin" data-pre="{{ pre }}">
+    <div class="big"><span id="pw-val" data-count="{{ pre }}" data-nd="1" data-suffix="%">{{ pre }}%</span><small class="lab" id="pw-lab">to win, pre-game</small></div>
+    <div class="split" title="my share of the win probability"><i id="pw-bar" data-width="{{ pre }}"></i></div>
+    <div class="big them"><span id="pw-them">{{ (100 - pre)|round(1) }}%</span><small class="lab">{{ opponent|real }}</small></div>
   </div>
-  <div class="facts">
+  <div class="facts" id="pw-note">
+    <span class="pre" id="pw-pre" hidden>pre-game <b>{{ pre }}%</b></span>
     <span>expected <b>{{ m.mine|num(1) }}</b> vs <b>{{ m.theirs|num(1) }}</b> points</span>
     {% if m.p_median is not none %}<span>above the league median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
     {% if m.se %}<span class="muted">± {{ (m.se * 100)|round(1) }} points of win probability (simulation noise)</span>{% endif %}
@@ -122,7 +177,7 @@
   <div class="note" style="margin-top:12px">No prediction for week {{ week }} yet{% if dev %} — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup{% endif %}.</div>
   {% endif %}
 
-  {# ---- live scoreboard (W6): read-only, off-disk; see webui/live.py ---- #}
+  {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
   <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}">
     <div class="lh">
       <span class="k" id="live-k"><svg class="i"><use href="#i-live"/></svg> Live</span>
@@ -140,19 +195,30 @@
   {% endif %}
 </div>
 
-<div class="grid2">
-  <div class="stat a" style="animation-delay:.05s">
+<div class="season">
+  <div class="card outlook" style="animation-delay:.05s">
     {% set po = f.playoff_probability_pct or 0 %}{% set circ = 2 * 3.14159 * 40 %}
-    <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
-    <div><div class="k"><svg class="i c-pos"><use href="#i-trophy"/></svg> playoff probability</div>
-      <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
-      <div class="s">± {{ f.playoff_standard_error|num(2) }} · title {{ champ|num(1) }}% · {{ f.expected_final_wins|num(1) }} expected wins{% if f.approximate_magic_number %} · {{ f.approximate_magic_number|num(0) }} more to clinch{% endif %}</div></div>
+    <div class="k"><svg class="i c-pos"><use href="#i-trophy"/></svg> season outlook</div>
+    <div class="ohead">
+      <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
+      <div>
+        <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
+        <div class="s">to make the playoffs{% if f.playoff_standard_error %} · ± {{ f.playoff_standard_error|num(2) }}{% endif %}</div>
+        {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
+      </div>
+    </div>
+    <div class="ofacts">
+      <div class="of"><span class="k">title odds</span><b>{{ champ|num(1) }}%</b><span class="mini gold"><i data-width="{{ (champ or 0)|round(0)|int }}"></i></span></div>
+      <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="mini turf"><i data-width="{{ (100 * (f.expected_final_wins or 0) / 28)|round(0)|int }}"></i></span></div>
+      <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins needed{% else %}not yet estimated{% endif %}</span></div>
+      <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">wins so far{% if c.actual_points_banked %} · {{ c.actual_points_banked|num(0) }} pts{% endif %}</span></div>
+    </div>
   </div>
-  <div class="stat b" style="grid-template-columns:1fr;animation-delay:.1s">
+  <div class="card chartc" style="animation-delay:.1s">
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
-    {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, width=440, height=190, value_labels="last", marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
-    <div class="s">expected wins by week, from this week's forecast · {{ c.actual_wins_banked|num(0) }} so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, width=620, height=230, value_labels="last", marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
+    <div class="s" style="margin-top:auto">from this week's forecast · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
     {% else %}<div class="s">No forecast yet{% if dev %} — <a href="/tools/run_simulation">run one</a>{% endif %}.</div>{% endif %}
   </div>
 </div>
@@ -214,13 +280,39 @@
   function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
   function pct(p) { return p == null ? '—' : (100 * p).toFixed(1) + '%'; }
   function ago(s) { if (s == null) return ''; if (s < 60) return s + ' s ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; return (s / 3600).toFixed(1) + ' h ago'; }
-  function side(st, cls, name) {
-    var tot = Math.max(1, st.projected, 1);
-    return '<div class="bar ' + cls + '"><span>' + esc(name) + '</span><span class="b"><i class="done" style="width:' + (100 * st.banked / tot).toFixed(1) + '%"></i><i class="left" style="width:' + (100 * st.left_mu / tot).toFixed(1) + '%"></i></span><span class="v">' + n1(st.banked) + ' + ' + n1(st.left_mu) + ' to come</span></div>';
-  }
+  function clock(at) { var t = Date.parse(at); if (isNaN(t)) return ''; var d = new Date(t), h = d.getHours() % 12 || 12; return h + ':' + ('0' + d.getMinutes()).slice(-2) + (d.getHours() < 12 ? ' am' : ' pm'); }
   function chip(status) { var c = status === 'final' ? 'final' : (/^(Q|OT)/.test(status || '') ? 'on' : 'pre'); return '<span class="gc ' + c + '">' + esc(status) + '</span>'; }
-  function rows(st) {
-    return st.rows.map(function (r) { return '<tr><td class="nm">' + esc(r.name) + ' <span class="muted">' + esc(r.pos) + '</span></td><td class="muted">' + esc(r.nfl) + '</td><td>' + chip(r.status) + '</td><td class="num">' + n1(r.scored) + '</td><td class="num muted">' + n1(r.left) + '</td></tr>'; }).join('');
+
+  // both bars are drawn to ONE scale, so their lengths compare (the taller projection sets it)
+  function side(st, cls, name, scale) {
+    return '<div class="bar ' + cls + '"><span>' + esc(name) + '</span><span class="b"><i class="done" style="width:' + (100 * st.banked / scale).toFixed(1) + '%"></i><i class="left" style="width:' + (100 * st.left_mu / scale).toFixed(1) + '%"></i></span>' +
+      '<span class="v"><b>' + n1(st.banked) + '</b> + ' + n1(st.left_mu) + ' to come</span></div>';
+  }
+  function srow(r) {
+    var started = r.frac < 1, pace = r.expected * (1 - r.frac), d = r.scored - pace;
+    var mark = !started ? '<span class="d">—</span>'
+      : (d >= 0 ? '<span class="d pos">+' + d.toFixed(1) + '</span>' : '<span class="d neg">' + d.toFixed(1) + '</span>');
+    var tone = !started ? 'pre' : (d >= 0.75 ? 'up' : (d <= -0.75 ? 'dn' : ''));
+    return '<tr class="' + tone + '"><td class="nm">' + esc(r.name) + '<i>' + esc(r.pos) + ' · ' + esc(r.nfl) + '</i></td>' +
+      '<td>' + chip(r.status) + '</td><td class="num proj">' + n1(r.expected) + '</td>' +
+      '<td class="num now">' + n1(r.scored) + '</td><td class="num">' + mark + '</td></tr>';
+  }
+  function starters(st, name, cls) {
+    return '<div class="' + cls + '"><div class="cap"><span class="dot"></span>' + esc(name) + '</div><table>' +
+      '<thead><tr><th>Player</th><th>Game</th><th class="num">Proj</th><th class="num">Now</th><th class="num">+/−</th></tr></thead>' +
+      '<tbody>' + st.rows.map(srow).join('') + '</tbody></table></div>';
+  }
+  // what just happened: one line per scoring change, biggest first, with what it came from
+  function feed(ups, open) {
+    if (!ups || !ups.length) return '';
+    var items = ups.slice(0, 30).map(function (u) {
+      var parts = (u.parts || []).map(function (p) { return '<em>' + (p.pts > 0 ? '+' : '') + p.pts.toFixed(1) + '</em> ' + esc(p.text); }).join(' · ');
+      return '<li class="' + (u.side === 'mine' ? 'me' : 'them') + '"><span class="t">' + clock(u.at) + '</span>' +
+        '<b class="' + (u.delta >= 0 ? 'pos' : 'neg') + '">' + (u.delta > 0 ? '+' : '') + u.delta.toFixed(1) + '</b>' +
+        '<span class="who">' + esc(u.name) + '<i>' + esc(u.pos) + ' · ' + esc(u.nfl) + '</i></span>' +
+        '<span class="parts">' + (parts || '') + '</span></li>';
+    }).join('');
+    return '<details class="feed"' + (open ? ' open' : '') + '><summary>Scoring updates<span class="n">' + ups.length + ' since this page opened</span></summary><ul>' + items + '</ul></details>';
   }
   function dayline(hist) {
     var pts = (hist || []).filter(function (x) { return x.p != null; });
@@ -230,16 +322,29 @@
     var last = pts[pts.length - 1], first = pts[0];
     return '<div class="pl"><svg viewBox="0 0 ' + W + ' ' + H + '" aria-label="chance to win through the day"><line x1="0" y1="' + (H / 2) + '" x2="' + W + '" y2="' + (H / 2) + '"/><polyline points="' + path + '"/><circle cx="' + xs[xs.length - 1].toFixed(1) + '" cy="' + (2 + (H - 4) * (1 - last.p)).toFixed(1) + '" r="3"/></svg><span>chance to win through the day · ' + pct(first.p) + ' → ' + pct(last.p) + ' over ' + pts.length + ' reads</span></div>';
   }
+
   var lastP = null, celebrated = false, reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function swing(s) {
-    var el = body.querySelector('.score .mid b');
-    if (!el || s.p_win == null) { lastP = s.p_win; return; }
-    if (lastP != null && lastP !== s.p_win && !reduce) {
-      var from = lastP, to = s.p_win, t0 = null;
-      el.classList.add('swing', to > from ? 'up' : 'down');
-      (function step(t) { if (!t0) t0 = t; var k = Math.min(1, (t - t0) / 700); k = 1 - Math.pow(1 - k, 3); el.textContent = pct(from + (to - from) * k); if (k < 1) requestAnimationFrame(step); else setTimeout(function () { el.classList.remove('swing'); }, 300); })(performance.now());
+  // the live number takes the headline; the pre-game one becomes the footnote it now is
+  function lead(s) {
+    var val = document.getElementById('pw-val'), lab = document.getElementById('pw-lab');
+    var them = document.getElementById('pw-them'), bar = document.getElementById('pw-bar'), pre = document.getElementById('pw-pre');
+    if (!val || s.p_win == null) { return; }
+    var to = s.p_win;
+    // the layout's count-up runs after this script and would animate the number back to the
+    // pre-game one it was rendered with; dropping the attribute takes it out of that pass
+    val.removeAttribute('data-count');
+    lab.textContent = 'to win, now';
+    if (them) them.textContent = pct(1 - to);
+    if (bar) bar.style.width = (100 * to).toFixed(1) + '%';
+    if (pre) pre.hidden = false;
+    if (lastP != null && lastP !== to && !reduce) {
+      var from = lastP, t0 = null;
+      val.classList.add('swing');
+      (function step(t) { if (!t0) t0 = t; var f = Math.min(1, (t - t0) / 700); f = 1 - Math.pow(1 - f, 3); val.textContent = pct(from + (to - from) * f); if (f < 1) requestAnimationFrame(step); else setTimeout(function () { val.classList.remove('swing'); }, 300); })(performance.now());
+    } else {
+      val.textContent = pct(to);
     }
-    lastP = s.p_win;
+    lastP = to;
   }
   function confetti(hue) {
     if (reduce) return;
@@ -248,11 +353,13 @@
     var cols = ['hsl(' + hue + ' 70% 55%)', 'hsl(' + hue + ' 70% 70%)', '#c9962a', '#fff'];
     var ps = []; for (var i = 0; i < 140; i++) ps.push({ x: Math.random() * W, y: -20 - Math.random() * H * 0.4, vx: (Math.random() - .5) * 2.2, vy: 2 + Math.random() * 3, r: 4 + Math.random() * 5, a: Math.random() * 6.28, s: (Math.random() - .5) * .3, col: cols[i % cols.length] });
     (function frame(t) {
-      var k = (t - t0) / 1000; ctx.clearRect(0, 0, W, H);
-      ps.forEach(function (p) { p.x += p.vx; p.y += p.vy; p.a += p.s; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.col; ctx.globalAlpha = Math.max(0, 1 - Math.max(0, k - 2.2)); ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.restore(); });
-      if (k < 3.2) requestAnimationFrame(frame); else c.remove();
+      var kk = (t - t0) / 1000; ctx.clearRect(0, 0, W, H);
+      ps.forEach(function (p) { p.x += p.vx; p.y += p.vy; p.a += p.s; ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.a); ctx.fillStyle = p.col; ctx.globalAlpha = Math.max(0, 1 - Math.max(0, kk - 2.2)); ctx.fillRect(-p.r / 2, -p.r / 4, p.r, p.r / 2); ctx.restore(); });
+      if (kk < 3.2) requestAnimationFrame(frame); else c.remove();
     })(t0);
   }
+  function wasOpen(cls, fallback) { var el = body.querySelector('details.' + cls); return el ? el.open : fallback; }
+
   function draw(p) {
     var s = p.snapshot;
     if (!p.enabled) { meta.textContent = 'not connected — set SLEEPER_LEAGUE_ID for this server'; return; }
@@ -260,17 +367,23 @@
     if (!s.ok) { meta.textContent = s.error || 'no live data'; body.innerHTML = ''; return; }
     meta.textContent = 'updated ' + ago(p.age_seconds) + (p.error ? ' · last refresh failed: ' + p.error : '');
     var me = s.mine, th = s.theirs || { banked: 0, left_mu: 0, projected: 0, to_play: 0, starters: 0, rows: [] };
-    var html = '<div class="score"><div><div class="pts" style="color:var(--turf)">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' starters still to play</div></div>' +
-      '<div class="mid">chance to win now<b>' + pct(s.p_win) + '</b>' + (s.p_win_wide != null ? '<span>' + pct(s.p_win_wide) + ' if same-game swings are wider</span>' : '') + '</div>' +
-      '<div class="r"><div class="pts" style="color:var(--warm)">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' starters still to play</div></div></div>' +
-      '<div class="bars">' + side(me, 'me', s.team) + side(th, 'them', s.opponent || 'opponent') + '</div>' +
+    var scale = Math.max(me.projected, th.projected, 1), margin = me.banked - th.banked;
+    var playing = me.rows.some(function (r) { return r.frac < 1; }) || th.rows.some(function (r) { return r.frac < 1; });
+    var openStarters = wasOpen('allstarters', playing), openFeed = wasOpen('feed', (p.updates || []).length > 0);
+    var html = '<div class="score">' +
+      '<div class="l"><div class="pts me">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' still to play · projects <b>' + n1(me.projected) + '</b></div></div>' +
+      '<div class="mid">live margin<b class="' + (margin >= 0 ? 'pos' : 'neg') + '">' + (margin > 0 ? '+' : '') + n1(margin) + '</b><span class="s">projected ' + n1(me.projected - th.projected) + '</span></div>' +
+      '<div class="r"><div class="pts them">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' still to play · projects <b>' + n1(th.projected) + '</b></div></div></div>' +
+      dayline(p.history) +
+      '<div class="bars">' + side(me, 'me', s.team, scale) + side(th, 'them', s.opponent || 'opponent', scale) + '</div>' +
       (body.getAttribute('data-dev') === '1'
         ? '<div class="note-l">Quick estimate: points banked plus the unplayed share of each starter\'s pre-game expectation' + (s.sources && s.sources.length ? ' (from this week\'s ' + esc(s.sources.join(' and ')) + ')' : ' (baseline means)') + ', Normal-approximated.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as pregame.') + ' For the engine\'s own number run <a href="/tools/live_matchup">Live matchup</a>. Nothing here is written to disk.</div>'
         : '<div class="note-l">An estimate from the points so far and each starter\'s pre-game projection.' + (s.clocks_ok ? '' : ' Game clocks were unavailable, so every starter counts as not yet played.') + ' <a href="/tools/live_matchup">Run the full live matchup</a> for the model\'s own number.</div>') +
-      '<details><summary>every starter</summary><div class="scroller"><table><thead><tr><th>' + esc(s.team) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(me) + '</tbody>' +
-      (s.theirs ? '<thead><tr><th>' + esc(s.opponent) + '</th><th>NFL</th><th>Game</th><th class="num">Scored</th><th class="num">To come</th></tr></thead><tbody>' + rows(th) + '</tbody>' : '') + '</table></div></details>';
-    body.innerHTML = html.replace('</div><div class="bars">', '</div>' + dayline(p.history) + '<div class="bars">');
-    swing(s);
+      '<details class="allstarters"' + (openStarters ? ' open' : '') + '><summary>Every starter<span class="n">projection, points now, and the gap</span></summary>' +
+      '<div class="starters">' + starters(me, s.team, 'me') + (s.theirs ? starters(th, s.opponent || 'opponent', 'them') : '') + '</div></details>' +
+      feed(p.updates, openFeed);
+    body.innerHTML = html;
+    lead(s);
     // team-colour confetti on a FINAL win, once: every starter on both sides has played and I am ahead
     if (!celebrated && s.theirs && me.to_play === 0 && th.to_play === 0 && me.starters > 0 && me.banked > th.banked) { celebrated = true; confetti(body.getAttribute('data-hue') || 272); }
   }

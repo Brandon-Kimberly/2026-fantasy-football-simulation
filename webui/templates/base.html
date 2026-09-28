@@ -69,6 +69,8 @@ a:hover { text-decoration: underline; }
 .c-turf { color: var(--turf) !important; } .c-pos { color: var(--pos) !important; } .c-warm { color: var(--warm) !important; } .c-gold { color: var(--gold) !important; } .c-neg { color: var(--neg) !important; } .c-violet { color: var(--violet) !important; }
 code { font-family: var(--mono); font-size: .88em; background: var(--mid); padding: .05em .35em; border-radius: 3px; }
 .wrap { max-width: 1180px; margin: 0 auto; padding-inline: 20px; padding-block: 0 72px; }
+/* a big monitor is the room this is actually read in: give the column the width back */
+@media (min-width: 1500px) { .wrap { max-width: 1440px; padding-inline: 28px; } }
 svg.i { width: 1em; height: 1em; vertical-align: -0.15em; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 
 /* ---- top bar ---- */
