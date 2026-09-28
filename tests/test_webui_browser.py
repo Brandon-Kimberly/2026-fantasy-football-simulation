@@ -48,6 +48,24 @@ def launch(pw):
     return None
 
 
+def _never(url):
+    raise AssertionError(f"the board fetched {url}: page renders must not, and the tests intercept /api/live")
+
+
+def kickoffs(when):
+    """A planter: week 3's synced kickoffs all at `when` (ISO)."""
+    def plant(root):
+        import json
+        import os
+        p = os.path.join(root, "data", "current", "nfl_schedule.json")
+        with open(p, encoding="utf-8") as fh:
+            sched = json.load(fh)
+        sched.setdefault("_meta", {})["kickoffs"] = {"3": [when, when]}
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(sched, fh)
+    return plant
+
+
 class Quiet(WSGIRequestHandler if HAS_DEPS else object):
     def log(self, *a, **k):                                  # no per-request lines in the test output
         pass
@@ -56,7 +74,7 @@ class Quiet(WSGIRequestHandler if HAS_DEPS else object):
 class Served:
     """The fixture tree behind a real HTTP server on an ephemeral loopback port."""
 
-    def __init__(self, plant=None):
+    def __init__(self, plant=None, live_enabled=False):
         self.td = tempfile.TemporaryDirectory()
         build_tree(self.td.name)
         enrich(self.td.name)
@@ -67,7 +85,8 @@ class Served:
         self.settings = Settings(self.root)
         self.settings.set_theme("system")
         app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=self.settings,
-                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+                         live=LiveBoard(self.root, MY_TEAM, league_id="L" if live_enabled else None,
+                                        fetch=_never if live_enabled else None))
         self.srv = make_server("127.0.0.1", 0, app, threaded=True, request_handler=Quiet)
         self.base = f"http://127.0.0.1:{self.srv.server_port}"
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
@@ -84,6 +103,7 @@ class Served:
 class BrowserCase(unittest.TestCase):
     """One server and one browser per class; a fresh page per test."""
     plant = None
+    live_enabled = False
 
     @classmethod
     def setUpClass(cls):
@@ -92,7 +112,7 @@ class BrowserCase(unittest.TestCase):
         if cls.browser is None:
             cls.pw.stop()
             raise unittest.SkipTest("no browser Playwright can launch (Edge, Chrome, or its own)")
-        cls.served = Served(cls.plant)
+        cls.served = Served(cls.plant, cls.live_enabled)
 
     @classmethod
     def tearDownClass(cls):
@@ -228,6 +248,38 @@ class TestTheme(BrowserCase):
         with p.expect_navigation():
             p.click('.themeform button[value="system"]')
         self.assertIsNone(p.get_attribute("html", "data-theme"))
+
+
+class _HomeLive(BrowserCase):
+    live_enabled = True
+
+    def live_requests(self):
+        """Load Home with /api/live intercepted; return the query strings it asked with."""
+        seen = []
+
+        def answer(route):
+            seen.append(route.request.url.split("/api/live", 1)[1])
+            route.fulfill(json={"enabled": True, "snapshot": None, "error": None, "age_seconds": None})
+        self.page.route("**/api/live*", answer)
+        self.open("/")
+        self.page.wait_for_timeout(400)
+        return seen
+
+
+class TestHomeReadsLiveOnceTheWeekHasStarted(_HomeLive):
+    """UI-F1: on Monday 2026-09-28 Home led with 76.7% pre-game while the game stood at
+    164.0-188.8 -- live data loaded only on Refresh or with auto-refresh ticked."""
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def test_home_asks_for_fresh_scores_on_load(self):
+        self.assertIn("?refresh=1", self.live_requests())
+
+
+class TestHomeLeavesLiveAloneBeforeKickoff(_HomeLive):
+    plant = staticmethod(kickoffs("2099-01-01T17:00:00Z"))
+
+    def test_nothing_is_fetched_before_the_first_kickoff(self):
+        self.assertEqual(self.live_requests(), [])
 
 
 if __name__ == "__main__":
