@@ -148,6 +148,7 @@ py -3.10 -m scripts.season_retrospective        # a completed season in four mea
 py -3.10 -m scripts.odds_history                # R1: how champ%/playoff% have moved across CANONICAL runs, with what landed in each window
 py -3.10 -m scripts.check_test_isolation        # does the suite modify data/current/? run when adding a boundary test (H2: one did, once)
 py -3.10 -m scripts.scan_real_names             # H1: tokenising real-identity scan of every tracked file before a push (LOCAL ONLY; refuses on a runner, writes nothing)
+py -3.10 -m scripts.webui_audit --out DIR       # crawl + screenshot the web UI in both views against a --no-real-names sandbox server (docs/WEB_UI_AUDIT.md)
 py -3.10 -m scripts.matchup_watch               # T5: what to watch this week -- both lineups by NFL game with the line and forecast, stacks, designations on BOTH rosters, shared games, their losing script
 py -3.10 -m scripts.streamer_study             # C5: is the engine's streamer worth what the free-agent pool is worth? measurement only -- changing BASE_STREAMER_MEANS is MAJOR (docs/audit/STREAMER_LEVELS.md)
 py -3.10 -m scripts.roster_calendar             # T6: bye exposure per remaining week (which slots stay fillable, who covers whose bye) + the roster crunch when an IR player returns
