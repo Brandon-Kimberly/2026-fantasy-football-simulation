@@ -215,3 +215,8 @@
 {"injury_body_part": "Knee", "injury_status": "Doubtful", "name": "Chamarri Conner", "player_id": "10949", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Rocket Pandas", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Jadarian Price", "player_id": "13286", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Turbo Llamas", "week": 3}
 {"injury_body_part": null, "injury_status": null, "name": "Saquon Barkley", "player_id": "4866", "practice_participation": null, "recorded_at": "2026-09-26T17:23:43Z", "team": "Turbo Llamas", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "DJ Moore", "player_id": "4983", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": null, "injury_status": null, "name": "Nate Landman", "player_id": "8659", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Crimson Marmots", "week": 3}
+{"injury_body_part": "Knee", "injury_status": "Questionable", "name": "De'Von Achane", "player_id": "9226", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Neon Walruses", "week": 3}
+{"injury_body_part": "Finger", "injury_status": "Out", "name": "Adonai Mitchell", "player_id": "11625", "practice_participation": null, "recorded_at": "2026-09-27T17:56:49Z", "team": "Polar Yetis", "week": 3}
+{"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Nick Emmanwori", "player_id": "12597", "practice_participation": null, "recorded_at": "2026-09-27T18:33:03Z", "team": "Turbo Llamas", "week": 3}
