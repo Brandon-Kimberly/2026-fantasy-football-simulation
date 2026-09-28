@@ -585,6 +585,44 @@ team's own moves added up in order). Sums of the tools' numbers, nothing new.
 
 **Durations.** The Jobs page draws the last twelve finished runs per tool as a line.
 
+### W13 - The home page, in the owner's own words (2026-09-28)
+
+Six things the owner asked for, and what each turned into.
+
+**What is true NOW leads.** The hero's big number is the pre-game probability only until
+the first live read lands; then it becomes the live one, its label reads "to win, now",
+and the pre-game figure moves into the footnote line beside the expected totals. One
+trap worth knowing: the layout's count-up animation runs AFTER a page's own script, so
+anything that rewrites a `data-count` element on load must drop the attribute first or
+the animation walks the number back to what the server rendered.
+
+**Both bars, one scale.** The two matchup bars are drawn against the larger of the two
+projected totals rather than each against its own, so their lengths compare. Two bars of
+identical length for different point totals was the bug.
+
+**Every starter, against his projection.** Each row carries the pre-game projection, the
+points so far, and the gap between them -- measured against the share of his game that
+has actually been played (`expected x (1 - frac)`), so a man at half-time is judged on
+half a game. Above, below and not yet started are three different colours, and the two
+rosters sit side by side on one fixed column set.
+
+**A scoring feed.** `LiveBoard` keeps the previous snapshot; `live.diff_updates` turns
+two consecutive reads into one entry per starter whose points moved, and
+`live.stat_parts` prices the change in his stat line with the LEAGUE'S OWN scoring
+weights -- "Jalen Coker +3.4 (+2.9 29 rec yds, +0.5 catch)". Two reads are needed, so the
+feed starts empty and fills as the day goes. Its sources are one more Sleeper endpoint
+each refresh (`/stats/nfl/regular/<season>/<week>`, the season from the sync manifest)
+and the league object once per process for the weights; either failing costs the
+breakdown, never the feed or the snapshot. Still memory only -- nothing under `data/`.
+
+**The season card.** The ring sat alone in a box as tall as the chart beside it. It now
+carries the ring, the rank and record, and four tiles (title odds, expected wins, to
+clinch, banked), so the card is full and says more.
+
+**Width.** The column widens to 1440 px at viewports of 1500 px and up. This is read on a
+4K monitor; the narrow breakpoints are untouched, so the phone layout is still there for
+when it matters.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

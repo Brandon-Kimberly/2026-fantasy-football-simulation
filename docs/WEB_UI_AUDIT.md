@@ -5,7 +5,13 @@ places the layout or organisation falls short, and the things worth adding — e
 to a change, an effort, and a test. **No UI change was made for this document.** Team
 names throughout are the repository's pseudonyms (H1).
 
-**Status (2026-09-28): Phases 1 to 6 landed** — every bug in §3, B13 included (the
+**Status (2026-09-28): Phases 1 to 6 landed, plus a home-page pass on the owner's own
+six points (docs/WEB_UI.md W13): the live probability leads and the pre-game one is a
+footnote, the two matchup bars share one scale, every starter is shown against his
+projection, a scoring feed says what just happened, the season card is full, and the
+column widens on a big monitor.**
+
+**Phases 1 to 6** — every bug in §3, B13 included (the
 count-up now settles from 90 % of its target over 400 ms, so no wrong-looking number and
 the two hero shares stay near 100 throughout). Phase 6 (power features): U11 a manual
 theme (system / light / dark) in the settings file, one POST route, stamped on `<html>`,
