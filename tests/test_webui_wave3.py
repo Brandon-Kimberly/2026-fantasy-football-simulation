@@ -9,6 +9,10 @@ another team's, ON WAIVERS until the daily 09:00 PT run two days after the drop
 (docs/WAIVER_MECHANICS.md), or a free agent ($0, instant). /waivers is the same table cut to
 the available, ranked by the newest waiver-targets record with its value and suggested bid.
 
+UI-A6, tool cards that show their latest answer. The Tools page was a menu of questions
+while the answers sat on disk as records; each card now leads with its newest record's
+headline and age, and a tool with no record yet says so.
+
 UI-L1, lineup advice priced in the chance to win. The callout "the model would field a
 different lineup" priced a swap only in points. The game-plan record (matchup_lineup) holds
 the model lineup's margin against this opponent (mean and sd) and its chance to beat the
@@ -246,6 +250,37 @@ class TestPlayersPage(Case):
                         self.assertEqual([t for t in DEV_TERMS if t in visible_text(body)], [])
                     self.assertIn('href="/players"', body)
         self.assertIn("on waivers", visible_text(self.client().get("/waivers").get_data(as_text=True)).lower())
+
+
+class TestToolCards(Case):
+    def plant_compare(self):
+        d = os.path.join(self.td.name, "data", "decisions", "adhoc")
+        os.makedirs(d, exist_ok=True)
+        with open(os.path.join(d, "compare_20260928T040643Z_a_vs_b.json"), "w", encoding="utf-8") as fh:
+            json.dump({"timestamp_utc": "20260928T040643Z", "tool": "compare_players", "a_name": "Jalen Coker",
+                       "b_name": "Xavier Worthy", "week": 3, "p_a": 0.58, "p_b": 0.4, "p_tie": 0.02, "n": 2000,
+                       "path": "joint", "a": {"mean": 10.9}, "b": {"mean": 8.8}}, fh)
+
+    def test_the_newest_record_per_tool(self):
+        from webui.glance import latest_answers
+        self.plant_compare()
+        la = latest_answers(self.root)
+        self.assertEqual(la["compare_players"]["stamp"], "20260928T040643Z")
+        self.assertTrue(la["compare_players"]["head"])
+        self.assertTrue(la["compare_players"]["link"].startswith("/"))
+        self.assertEqual(la["optimize_lineup"]["stamp"], "20260924T165331Z", "the fixture's lineup record")
+        self.assertNotIn("waiver_targets", la, "no record, no entry")
+        self.assertNotIn("live_matchup", la, "a tool that writes no record is never 'not run'")
+
+    def test_the_cards_say_it_in_both_views(self):
+        self.plant_compare()
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                text = visible_text(self.client(mode).get("/tools").get_data(as_text=True))
+                self.assertIn("Not run yet", text)
+                self.assertIn("latest", text)
+                if mode == "simple":
+                    self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
 
 if __name__ == "__main__":

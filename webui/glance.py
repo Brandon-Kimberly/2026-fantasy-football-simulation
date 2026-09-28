@@ -311,6 +311,43 @@ def _newest(entries, tool, ext="json"):
     return None
 
 
+# UI-A6: the record kind (webui.paths.KNOWN_TOOLS) each tool writes. A tool that writes no
+# record (live matchup, the status tools) is absent, so its card never claims "not run yet".
+TOOL_RECORD = {"optimize_lineup": "lineup", "matchup_lineup": "matchup", "waiver_targets": "waivers",
+               "roster_grades": "roster_grades", "find_trades": "trade_targets", "compare_players": "compare",
+               "evaluate_trade": "trade", "evaluate_move": "move", "matchup_watch": "matchup_watch",
+               "roster_calendar": "roster_calendar"}
+
+
+def latest_answers(root):
+    """UI-A6: {tool: {head, stamp, link}} -- each record-writing tool's newest record, its
+    headline taken from the record's own first tile (render.record_view, the view its record
+    page shows), else the view's subtitle."""
+    from webui import render
+    entries = list(root.adhoc())
+    for wk in root.decision_weeks():
+        d = root.decisions(wk)
+        entries += d["canonical"] + d["archive"]
+    entries.sort(key=lambda e: e["stamp"] or "", reverse=True)
+    out = {}
+    for tool, kind in TOOL_RECORD.items():
+        e = _newest(entries, kind)
+        if not e:
+            continue
+        data = root.read_json(e["rel"], {}) or {}
+        view = render.record_view(data, tool) or {}
+        tiles = view.get("tiles") or []
+        head = f"{tiles[0].get('k')}: {tiles[0].get('v')}" if tiles else (view.get("subtitle") or view.get("title") or "")
+        top = (data.get("targets") or [None])[0] if isinstance(data, dict) else None
+        if tool == "waiver_targets" and isinstance(top, dict) and top.get("name"):       # the answer is the name
+            bid = (top.get("bid") or {}).get("suggested")
+            head = f"top target: {top['name']}" + (f" (${bid})" if bid is not None else "")
+        elif tool == "evaluate_move" and view.get("subtitle"):                            # the move itself
+            head = view["subtitle"]
+        out[tool] = {"head": head, "stamp": e["stamp"], "link": e.get("link")}
+    return out
+
+
 def _week_prediction(root, week):
     """The latest predictions row logged for `week`, canonical preferred."""
     best = None
