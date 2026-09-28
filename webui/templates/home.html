@@ -119,11 +119,22 @@
 .ring circle { fill: none; stroke-width: 9; }
 .ring .bg { stroke: var(--mid); }
 .ring .fg { stroke: url(#ringg); stroke-linecap: round; transition: stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1); transform: rotate(-90deg); transform-origin: 50% 50%; filter: drop-shadow(0 0 4px rgba(42,120,214,.35)); }
-.ofacts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 14px; margin-top: auto; }
+/* where I finish: the one graphic the season card needs, and the only one it draws */
+.seeds { margin-top: 2px; }
+.seeds .k { margin-bottom: 9px; }
+.seeds .sh { font-family: var(--sans); font-size: 11.5px; font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--muted); }
+.sbar { display: flex; height: 26px; background: var(--mid); border-radius: 8px; overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.08); }
+.sbar i { display: block; height: 100%; background: var(--turf); transition: width .9s cubic-bezier(.2,.8,.2,1); }
+.sbar i.out { background: var(--neg); } .sbar i.na { background: var(--pos); }
+.sbar i.cut { box-shadow: inset -2px 0 0 var(--ink); }
+.slegend { display: flex; flex-wrap: wrap; gap: 5px 16px; margin-top: 9px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.slegend span { display: inline-flex; align-items: center; gap: 6px; } .slegend b { color: var(--ink); font-weight: 600; }
+.slegend i { width: 10px; height: 10px; border-radius: 3px; background: var(--turf); flex: none; }
+.slegend .out i { background: var(--neg); opacity: .55; } .slegend .na i { background: var(--pos); }
+.ofacts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: auto; }
 .of { background: var(--plane); border: 1px solid var(--grid); border-radius: var(--r-ctl); padding: 9px 11px; }
-.of .k { margin-bottom: 4px; } .of b { font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
-.of .s { font-size: 11px; color: var(--muted); margin-top: 3px; display: block; }
-.of .mini { margin-top: 6px; }
+.of .k { margin-bottom: 4px; } .of b { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
+.of .s { font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
 .season .chartc .s { font-size: 12px; color: var(--ink-2); }
 
 .mini-standings td { padding: 6px 8px; }
@@ -140,7 +151,7 @@
 .qa { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 @media (max-width: 1100px) { .season { grid-template-columns: 1fr; } .starters { grid-template-columns: 1fr; } }
 @media (max-width: 760px) { .grid2 { grid-template-columns: 1fr; } .hero .who { grid-template-columns: 1fr; } .hero .side.r { flex-direction: row; justify-content: flex-start; text-align: left; } .game { grid-template-columns: 1fr 2.6rem 2rem 2.6rem 1fr; } .live .score { grid-template-columns: 1fr; } .live .score .r { text-align: left; } .live .bars .bar { grid-template-columns: 1fr; } .feed li { grid-template-columns: 4.4rem 3.4rem 1fr; } .feed li .parts { grid-column: 1 / -1; } }
-@media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .pwin { grid-template-columns: 1fr 1fr; } .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .ofacts { grid-template-columns: 1fr; } .ring { width: 76px; height: 76px; } }
+@media (max-width: 560px) { .hero { padding: 18px 16px 16px; } .pwin { grid-template-columns: 1fr 1fr; } .pwin .split { grid-column: 1 / -1; grid-row: 2; } .hero .facts { gap: 4px 14px; font-size: 12.5px; } .game { grid-template-columns: 1fr 2.4rem 1.6rem 2.4rem 1fr; font-size: 12px; padding: 4px 6px; } .game .vs { font-size: 9px; } .ofacts { grid-template-columns: 1fr 1fr; } .ring { width: 76px; height: 76px; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
@@ -207,11 +218,21 @@
         {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
       </div>
     </div>
+    {% if seed and seed.rows %}
+    <div class="seeds">
+      <div class="k">where I finish <span class="sh">probability of each seed{% if seed.spots %} · the top {{ seed.spots }} make the playoffs{% endif %}</span></div>
+      <div class="sbar">{% for r in seed.rows %}<i class="{{ r.cls }}{{ ' cut' if r.cut }}" style="width:{{ r.pct }}%;opacity:{{ r.shade }}" title="seed {{ r.seed }}: {{ r.pct|num(1) }}%"></i>{% endfor %}</div>
+      <div class="slegend">
+        {% for r in seed.rows[:(seed.spots or 4)] %}<span class="{{ r.cls }}"><i style="opacity:{{ r.shade }}"></i>#{{ r.seed }} <b>{{ r.pct|num(1) }}%</b></span>{% endfor %}
+        {% if seed.spots %}<span class="out"><i></i>miss <b>{{ seed.miss|num(1) }}%</b></span>{% endif %}
+      </div>
+    </div>
+    {% endif %}
     <div class="ofacts">
-      <div class="of"><span class="k">title odds</span><b>{{ champ|num(1) }}%</b><span class="mini gold"><i data-width="{{ (champ or 0)|round(0)|int }}"></i></span></div>
-      <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="mini turf"><i data-width="{{ (100 * (f.expected_final_wins or 0) / 28)|round(0)|int }}"></i></span></div>
-      <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins needed{% else %}not yet estimated{% endif %}</span></div>
-      <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">wins so far{% if c.actual_points_banked %} · {{ c.actual_points_banked|num(0) }} pts{% endif %}</span></div>
+      <div class="of"><span class="k">title odds</span><b>{{ champ|num(1) }}%</b></div>
+      <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="s">of 28</span></div>
+      <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins{% else %}not yet{% endif %}</span></div>
+      <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">{% if c.actual_points_banked %}{{ c.actual_points_banked|num(0) }} pts{% else %}wins{% endif %}</span></div>
     </div>
   </div>
   <div class="card chartc" style="animation-delay:.1s">
