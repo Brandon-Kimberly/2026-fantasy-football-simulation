@@ -123,8 +123,10 @@ def odds_moves(root, n=None):
     out = {"week": n, "prev": prev, "teams": {}, "rows": []}
     if not n or prev is None:
         return out
+    from webui.accuracy import chances_in, quoted_week
     now, then = odds_at(root, n), odds_at(root, prev)
     actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    quotes = {w: quoted_week(root, w) for w in range(prev, n)}        # UI-Q2: what it said at the time
     for team, v in now.items():
         was = then.get(team)
         if not was:
@@ -134,7 +136,9 @@ def odds_moves(root, n=None):
         for w in range(prev, n):
             r = ((actuals.get(f"week_{w}") or {}).get("team_results") or {}).get(team)
             if r:
-                results.append({"week": w, "h2h": _wl(r.get("h2h_win")), "median": _wl(r.get("median_win"))})
+                q = chances_in(quotes.get(w), team) or {}
+                results.append({"week": w, "h2h": _wl(r.get("h2h_win")), "median": _wl(r.get("median_win")),
+                                "p_h2h": q.get("h2h"), "p_median": q.get("median")})
         out["teams"][team] = {"team": team, "playoff": v["playoff"], "playoff_was": was["playoff"],
                               "d_playoff": d(v["playoff"], was["playoff"]), "champ": v["champ"],
                               "champ_was": was["champ"], "d_champ": d(v["champ"], was["champ"]), "results": results}
