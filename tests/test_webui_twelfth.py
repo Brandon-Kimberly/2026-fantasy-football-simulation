@@ -629,5 +629,34 @@ class TestFinalWinsAsARange(unittest.TestCase):
         self.assertIn("13–22", body)
 
 
+class TestDecisionsCountEachMoveOnce(unittest.TestCase):
+    """Found on the real data 2026-09-28 while building the team page: the decision log holds
+    133 move rows for 100 transactions. A local sync and the scheduled one both append the same
+    Sleeper transaction and git union-merges the two lines; the engine's two readers dedupe on
+    transaction_id, first row wins (decisions._read_decision_log, read_faab_observations,
+    2026-09-04). decisions_report did not, so the Decisions page listed 33 moves twice and its
+    ledger, awards and timelines counted them twice."""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        os.makedirs(os.path.join(self.td.name, "data", "logs"), exist_ok=True)
+        move = {"transaction_id": "t1", "type": "waiver", "week": 2, "created": "2026-09-10T10:00:00Z",
+                "teams": [A], "adds": [{"name": "Some Back", "to_team": A}], "drops": []}
+        ev = {"record_type": "evaluation", "transaction_id": "t1",
+              "teams": {A: {"playoff_pct": {"delta": 3.0, "se": 0.5}, "champ_pct": {"delta": 1.0, "se": 0.2}}}}
+        later = dict(move, snapshot_at="2026-09-10T10:05:00Z")      # the second capture, minutes later
+        with open(os.path.join(self.td.name, "data", "logs", "decision_log.jsonl"), "w", encoding="utf-8") as fh:
+            fh.write("".join(json.dumps(r) + "\n" for r in (move, later, ev)))
+        self.root = Root(self.td.name)
+
+    def test_a_union_merged_move_is_one_move(self):
+        from webui.glance import decisions_report
+        rep = decisions_report(self.root, A)
+        self.assertEqual(rep["n"], 1)
+        mine = next(L for L in rep["ledger"] if L["team"] == A)
+        self.assertEqual((mine["moves"], mine["playoff"]), (1, 3.0), "the ledger counts the move once")
+        self.assertEqual(rep["timelines"][A], [3.0])
+
+
 if __name__ == "__main__":
     unittest.main()
