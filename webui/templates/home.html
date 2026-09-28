@@ -316,6 +316,13 @@
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
   function pct(p) { return p == null ? '—' : (100 * p).toFixed(1) + '%'; }
+  // UI-M8: a chance to win is never shown as certain until the game is decided
+  function chance(p, decided) {
+    if (p == null) return '—';
+    if (decided) return Math.round(100 * p) + '%';
+    var t = (100 * p).toFixed(1);
+    return t === '100.0' ? '>99.9%' : (t === '0.0' ? '<0.1%' : t + '%');
+  }
   function ago(s) { if (s == null) return ''; if (s < 60) return s + ' s ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; return (s / 3600).toFixed(1) + ' h ago'; }
   function clock(at) { var t = Date.parse(at); if (isNaN(t)) return ''; var d = new Date(t), h = d.getHours() % 12 || 12; return h + ':' + ('0' + d.getMinutes()).slice(-2) + (d.getHours() < 12 ? ' am' : ' pm'); }
   function chip(status) { var c = status === 'final' ? 'final' : (/^(Q|OT)/.test(status || '') ? 'on' : 'pre'); return '<span class="gc ' + c + '">' + esc(status) + '</span>'; }
@@ -396,15 +403,15 @@
     // pre-game one it was rendered with; dropping the attribute takes it out of that pass
     val.removeAttribute('data-count');
     lab.textContent = 'to win, now';
-    if (them) them.textContent = pct(1 - to);
+    if (them) them.textContent = chance(1 - to, s.decided);
     if (bar) bar.style.width = (100 * to).toFixed(1) + '%';
     if (pre) pre.hidden = false;
     if (lastP != null && lastP !== to && !reduce) {
       var from = lastP, t0 = null;
       val.classList.add('swing');
-      (function step(t) { if (!t0) t0 = t; var f = Math.min(1, (t - t0) / 700); f = 1 - Math.pow(1 - f, 3); val.textContent = pct(from + (to - from) * f); if (f < 1) requestAnimationFrame(step); else setTimeout(function () { val.classList.remove('swing'); }, 300); })(performance.now());
+      (function step(t) { if (!t0) t0 = t; var f = Math.min(1, (t - t0) / 700); f = 1 - Math.pow(1 - f, 3); val.textContent = f < 1 ? chance(from + (to - from) * f, false) : chance(to, s.decided); if (f < 1) requestAnimationFrame(step); else setTimeout(function () { val.classList.remove('swing'); }, 300); })(performance.now());
     } else {
-      val.textContent = pct(to);
+      val.textContent = chance(to, s.decided);
     }
     lastP = to;
   }

@@ -398,7 +398,10 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
                     for e in exp.values() if e.get("name")}
     plan_diff = lineup_diff(plan, mine["rows"], bench_clocks)
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent,
+    # UI-M8: settled only when nobody on either side has any game left (an unknown clock
+    # counts as unplayed); until then the pages never print a rounded 0% or 100%
+    decided = bool(theirs) and mine["to_play"] == 0 and theirs["to_play"] == 0
+    return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent, "decided": decided,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
             "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats, "plan": plan_diff,

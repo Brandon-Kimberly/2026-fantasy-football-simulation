@@ -419,7 +419,8 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     if (isNaN(target)) return;
     if (reduce) { el.textContent = prefix + target.toFixed(nd) + suffix; return; }
     var t0 = null, dur = 400, from = 0.9 * target;
-    function step(t) { if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (from + (target - from) * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
+    // a script that takes the number over drops data-count, and the count-up yields to it
+    function step(t) { if (!el.hasAttribute('data-count')) return; if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (from + (target - from) * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
     requestAnimationFrame(step);
   });
   requestAnimationFrame(function () {

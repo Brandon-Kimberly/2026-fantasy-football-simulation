@@ -317,7 +317,7 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         """Found while writing the test above: the hero's count-up animates the pre-game
         number for 400 ms, and a live answer arriving inside that window was written and
         then painted over, frame by frame, back to the pre-game number."""
-        self.assertEqual(self.shown_with(live_payload(True, 0.9), "/", "#pw-val").strip(), "90.0%")
+        self.assertEqual(self.shown_with(live_payload(False, 0.9), "/", "#pw-val").strip(), "90.0%")
 
     def test_home_shows_the_certainty_once_decided(self):
         self.assertEqual(self.shown_with(live_payload(True, 1.0), "/", "#pw-val").strip(), "100%")
