@@ -57,7 +57,26 @@ def freshness_report(root):
     return {"status": status, "reasons": reasons, "stale_reasons": stale_reasons, "degraded_reasons": degraded_reasons,
             "manifest": manifest, "week": week,
             "vegas_week": meta.get("week"), "vegas_stale_since": meta.get("stale_since"),
-            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad}
+            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad,
+            "n_warn": len((manifest or {}).get("degraded") or []),
+            "phrase": sync_phrase(n_bad, n_fell, len((manifest or {}).get("degraded") or []))}
+
+
+def sync_phrase(n_bad, n_fell, n_warn):
+    """UI-F2: what the last sync did, with SOURCES and WARNINGS counted apart. The manifest's
+    `degraded` list is warnings (name collisions, carried baselines, depth-chart
+    disagreements...), not sources; the pages used to call thirty of them "30 sources fell
+    back" beside a table showing one source failed."""
+    bits = []
+    if n_bad:
+        bits.append(f"{n_bad} source{'s' if n_bad != 1 else ''} failed")
+    if n_fell:
+        noun = "" if n_bad else f" source{'s' if n_fell != 1 else ''}"
+        bits.append(f"{n_fell}{noun} fell back to an older copy")
+    out = " and ".join(bits) if bits else "every source came through"
+    if n_warn:
+        out += f", and the sync raised {n_warn} warning{'s' if n_warn != 1 else ''}"
+    return out
 
 
 # --------------------------------------------------------------------------- windows
