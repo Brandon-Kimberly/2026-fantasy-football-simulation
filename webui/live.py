@@ -301,6 +301,40 @@ def lineup_plan(root, week):
     return out
 
 
+def lineup_stakes(root, week, delta):
+    """UI-L1: what a lineup swap worth `delta` expected points is worth in chance to win.
+
+    The newest game-plan record for `week` (matchup_lineup) holds its best lineup's margin
+    against this opponent (mean, sd) and chance to beat the median. The lineup Sleeper has
+    now is `delta` points worse in expectation; shifting the margin by that much gives the
+    change in chance to win the game, and the same shift against the lineup's own spread the
+    change in chance to beat the median. An estimate from one record's Normal margin, not a
+    fresh simulation -- the page says so. None without a record for the week."""
+    from statistics import NormalDist
+    from webui.glance import _newest
+    wk = int(week) if week else None
+    if not wk or wk not in root.decision_weeks() or delta is None:
+        return None
+    dec = root.decisions(wk)
+    entries = sorted(dec["canonical"] + dec["archive"], key=lambda e: (e["stamp"] or "", e["name"]), reverse=True)
+    entry = _newest(entries, "matchup")
+    rec = root.read_json(entry["rel"], {}) if entry else {}
+    order = (rec or {}).get("ranking_by_p_beat_opponent") or []
+    best = ((rec or {}).get("constructions") or {}).get(order[0]) if order else None
+    if not best or not best.get("margin_sd") or best.get("margin_mean") is None:
+        return None
+    n = NormalDist()
+    m, s = float(best["margin_mean"]), float(best["margin_sd"])
+    out = {"d_h2h": round(n.cdf(m / s) - n.cdf((m - delta) / s), 4), "d_median": None,
+           "p_h2h": best.get("p_beat_opponent"), "p_median": best.get("p_beat_median"), "se": best.get("se"),
+           "stamp": rec.get("timestamp_utc") or entry.get("stamp")}
+    pm, sd = best.get("p_beat_median"), best.get("sd")
+    if pm is not None and sd and 0.0 < float(pm) < 1.0:
+        mm = n.inv_cdf(float(pm)) * float(sd)
+        out["d_median"] = round(n.cdf(mm / float(sd)) - n.cdf((mm - delta) / float(sd)), 4)
+    return out
+
+
 def lineup_diff(plan, my_rows, clock_by_name=None):
     """What the model would change about the lineup Sleeper says I am actually fielding.
 
@@ -397,6 +431,7 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
     bench_clocks = {e["name"]: clocks.get(e.get("nfl") or "?", (1.0, ""))[0]
                     for e in exp.values() if e.get("name")}
     plan_diff = lineup_diff(plan, mine["rows"], bench_clocks)
+    plan_diff["stakes"] = lineup_stakes(root, wk, plan_diff["delta"]) if (plan_diff["start"] or plan_diff["bench"]) else None
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
     # UI-M8: settled only when nobody on either side has any game left (an unknown clock
     # counts as unplayed); until then the pages never print a rounded 0% or 100%

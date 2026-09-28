@@ -181,6 +181,28 @@ class TestDecisionsFilters(BrowserCase):
                 self.assertEqual(self.shown("#list .dec"), total, "Everyone must bring every row back")
 
 
+class TestSortableTables(BrowserCase):
+    """League's standings said "click a column to sort", its headers had a pointer cursor and
+    sort-arrow CSS -- and no script had ever sorted anything (the markup and styles arrived in
+    c329cca; the script never did). Found 2026-09-28 while building the Players page."""
+
+    def column(self, table, i):
+        return self.page.eval_on_selector(table, f"t => Array.from(t.tBodies[0].rows).map(r => r.cells[{i}].getAttribute('data-sort'))")
+
+    def test_clicking_a_numeric_header_sorts_and_clicking_again_reverses(self):
+        p = self.open("/league", "simple")
+        table = "section:has(h2:has-text('Standings')) table"
+        heads = p.eval_on_selector_all(table + " thead th", "ths => ths.map(t => t.getAttribute('data-key'))")
+        i = heads.index("p")                                               # Points
+        p.click(f"{table} thead th[data-key='p']")
+        first = [float(x) for x in self.column(table, i)]
+        self.assertEqual(first, sorted(first, reverse=True), "a number sorts high to low first")
+        p.click(f"{table} thead th[data-key='p']")
+        again = [float(x) for x in self.column(table, i)]
+        self.assertEqual(again, sorted(again))
+        self.assertEqual(p.get_attribute(f"{table} thead th[data-key='p']", "aria-sort"), "ascending")
+
+
 class TestPaletteAndShortcuts(BrowserCase):
     def test_the_palette_opens_filters_and_goes(self):
         for mode in ("dev", "simple"):
@@ -319,6 +341,21 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         then painted over, frame by frame, back to the pre-game number."""
         self.assertEqual(self.shown_with(live_payload(False, 0.9), "/", "#pw-val").strip(), "90.0%")
 
+    def test_the_lineup_callout_prices_the_swap_in_chance_to_win(self):
+        """UI-L1: the callout says what the swap is worth in chance to win, not only points."""
+        pay = live_payload(False, 0.6)
+        pay["snapshot"]["plan"] = {"start": [{"name": "Jordan Love", "pos": "QB", "slot": "QB", "expected": 18.0, "flag": "", "locked": False}],
+                                   "bench": [{"name": "Patrick Mahomes", "pos": "QB", "slot": None, "expected": 14.8, "flag": "", "locked": False}],
+                                   "delta": 3.2, "stamp": "20260926T120000Z", "total": 186.4, "actionable": True, "locked": 0,
+                                   "stakes": {"d_h2h": 0.0247, "d_median": 0.0301, "p_h2h": 0.6946, "p_median": 0.7578,
+                                              "se": 0.0065, "stamp": "20260926T120000Z"}}
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/")
+        self.page.wait_for_selector(".plan")
+        text = self.page.inner_text(".plan")
+        self.assertIn("+2.5 points of chance to win the game", text)
+        self.assertIn("+3.0 to beat the median", text)
+
     def test_home_shows_the_certainty_once_decided(self):
         self.assertEqual(self.shown_with(live_payload(True, 1.0), "/", "#pw-val").strip(), "100%")
 
@@ -348,6 +385,49 @@ class TestMatchupsLive(BrowserCase):
         self.assertIn("101.5", card.inner_text())
         self.assertIn("83%", card.inner_text())
         self.assertIn("3 to play", card.inner_text())
+
+
+def _plant_players(root):
+    from tests.test_webui_live import plant as plant_live
+    plant_live(root)
+
+
+class TestInstantCompare(BrowserCase):
+    """UI-P4: the compare page answers at once, and redraws as names change."""
+    plant = staticmethod(_plant_players)
+
+    def test_a_third_name_redraws_the_estimate_for_three(self):
+        p = self.open("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3", "simple")
+        self.assertIn("outscores", p.inner_text("#instant-body"))
+        p.fill("#inst_c", "Jordan Love")
+        p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 3")
+        self.assertIn("Who scores the most", p.inner_text("#instant-body"))
+
+
+class TestInstantCompareSuggestions(BrowserCase):
+    """The owner, 2026-09-28: the third and fourth boxes gave no dropdown, so a name had to be
+    typed exactly. They are player fields like A and B now -- and picking from any dropdown
+    redraws the estimate (it set the value without an event, so only typing ever did). The
+    tests wait for the list to answer what was typed, as a person does; Enter on a list still
+    answering an earlier query is ignored rather than picking the wrong player."""
+    plant = staticmethod(_plant_players)
+
+    def test_a_partial_name_offers_players_and_picking_one_redraws(self):
+        p = self.open("/tools/compare_players?a=Jalen+Coker&b=Xavier+Worthy&week=3", "simple")
+        p.click("#inst_c")
+        p.type("#inst_c", "Jord")
+        p.wait_for_function("(document.querySelector('#s_inst_c div') || {}).textContent && document.querySelector('#s_inst_c div').textContent.indexOf('Jordan Love') === 0")
+        p.keyboard.press("Enter")
+        self.assertEqual(p.input_value("#inst_c"), "Jordan Love")
+        p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 3")
+
+    def test_picking_player_b_from_the_list_redraws_too(self):
+        p = self.open("/tools/compare_players?a=Jalen+Coker&week=3", "simple")
+        p.click("#f_b")
+        p.type("#f_b", "Xav")
+        p.wait_for_function("(document.querySelector('#s_b div') || {}).textContent && document.querySelector('#s_b div').textContent.indexOf('Xavier Worthy') === 0")
+        p.keyboard.press("Enter")
+        p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 2")
 
 
 class TestThreePaneHome(BrowserCase):

@@ -22,10 +22,11 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, objects, render
+from webui import brand, compare as comparemod, objects, players_page as playersmod, render
 from webui import sync as syncmod
-from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_digests, logs_git_report,
-                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
+from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
+                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
+                          TOOL_RECORD)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
 from webui.names import Overlay
@@ -45,10 +46,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
@@ -154,6 +155,13 @@ def current_report(root):
 
 
 # ------------------------------------------------------------------------- factory
+def _int_or_none(v):
+    try:
+        return int(v) if v not in (None, "") else None
+    except (TypeError, ValueError):
+        return None
+
+
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
                settings=None, default_mode=None, hostnames=()):
     if not isinstance(root, Root):
@@ -242,7 +250,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             return None
         if path in DEV_ONLY_EXACT or any(path == pfx or path.startswith(pfx + "/") for pfx in DEV_ONLY_PREFIXES if pfx != "/jobs"):
             return render_template("error.html", code=404, message="That page is part of the developer view. Switch to it from the footer to see it."), 404
-        if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0] not in SIMPLE_TOOLS:
+        if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0].split("/")[0] not in SIMPLE_TOOLS:
             return render_template("error.html", code=404, message="That tool is part of the developer view."), 404
         if path.startswith("/file/") and request.args.get("raw") == "1" and not path.endswith(".png"):
             return render_template("error.html", code=404, message="Raw files are part of the developer view."), 404
@@ -310,6 +318,42 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if not rep:
             abort(404)
         return render_template("player.html", **rep)
+
+    # ---- UI-P1 / W1: every player, and the waiver board
+    POSITIONS = ("all", "QB", "RB", "WR", "TE", "K", "DL", "LB", "DB")
+
+    def _players(board):
+        t = playersmod.players_table(root, MY_TEAM)
+        rows = t["rows"]
+        if board:
+            rows = [r for r in rows if r["standing"] in ("free", "waivers")]
+            rows.sort(key=lambda r: (r["rank"] is None, r["rank"] or 0, -(r["week_mean"] or 0.0)))
+            shows = (("available", "Everyone available"), ("free", "Free agents"), ("waivers", "On waivers"))
+        else:
+            shows = (("all", "Everyone"), ("available", "Available"), ("mine", "Mine"), ("rostered", "On a team"))
+        pos = request.args.get("pos", "all")
+        pos = pos if pos in POSITIONS else "all"
+        show = request.args.get("show", shows[0][0])
+        show = show if show in dict(shows) else shows[0][0]
+        if pos != "all":
+            rows = [r for r in rows if r["pos"] == pos]
+        keep = {"available": ("free", "waivers"), "free": ("free",), "waivers": ("waivers",), "mine": ("mine",),
+                "rostered": ("mine", "rostered")}.get(show)
+        if keep:
+            rows = [r for r in rows if r["standing"] in keep]
+        total = len(rows)
+        shown_rows = rows if request.args.get("all") == "1" or request.args.get("q") else rows[:200]
+        return render_template("players.html", board=board, rows=shown_rows, total=total, shown=len(shown_rows),
+                               positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
+                               week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"])
+
+    @app.route("/players")
+    def players_list():
+        return _players(False)
+
+    @app.route("/waivers")
+    def waivers_board():
+        return _players(True)
 
     @app.route("/matchups")
     @app.route("/matchups/week-<int:week>")
@@ -624,7 +668,25 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         avg = {n: runner.average_seconds(n) for n in list(TOOLS) + list(ENGINE)}
         tools = list(TOOLS.values()) if settings.mode == "dev" else [TOOLS[n] for n in SIMPLE_TOOLS if n in TOOLS]
         return render_template("tools.html", tools=tools, engine=list(ENGINE.values()) if settings.mode == "dev" else [],
-                               current=runner.current(), avg=avg)
+                               current=runner.current(), avg=avg, latest=latest_answers(root), writes=TOOL_RECORD)
+
+    def _compare_args():
+        names = [n for n in request.args.getlist("p") if n.strip()]
+        if not 2 <= len(names) <= 4:
+            abort(400)
+        return names, _int_or_none(request.args.get("week"))
+
+    @app.route("/api/compare")
+    def api_compare():
+        """UI-P4: the quick estimate for two to four players, as JSON. Reads only."""
+        names, week = _compare_args()
+        return comparemod.estimate(root, names, week)
+
+    @app.route("/tools/compare_players/instant")
+    def compare_instant():
+        """The same estimate as the compare page's panel body, for the page to swap in."""
+        names, week = _compare_args()
+        return render_template("_instant.html", inst=comparemod.estimate(root, names, week))
 
     @app.route("/tools/<name>", methods=["GET", "POST"])
     def tool(name):
@@ -656,7 +718,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 return redirect(url_for("job", job_id=job_id))
             except FormError as ex:
                 error = str(ex)
-        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(),
+        inst = None                                    # UI-P4: the quick estimate, at once
+        if name == "compare_players" and values.get("a") and values.get("b"):
+            inst = comparemod.estimate(root, [values["a"], values["b"]], _int_or_none(values.get("week")))
+        return render_template("tool.html", tool=t, values=values, error=error, current=runner.current(), inst=inst,
                                fr=fr, windows=win, avg=runner.average_seconds(t.name),
                                shown=(t.fields if settings.mode == "dev" else simple_fields(t)))
 

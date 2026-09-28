@@ -730,6 +730,28 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### Answers without waiting (2026-09-28, roadmap wave 3)
+
+- **Instant compare (UI-P4).** The compare page answers as soon as two names are in, for up
+  to four players (`webui/compare.py`). Each player is priced the way the live panel prices a
+  starter, as independent Normals: P(A > B) for a pair, and each player's chance of the top
+  score for more. It is labelled as an estimate that ignores same-game links and the chance a
+  player sits. A saved full comparison for the same pair and week replaces it.
+- **Lineup advice in chance to win (UI-L1).** `live.lineup_stakes` takes the game-plan record's
+  margin (mean and sd) and shifts it by the points a swap is worth. The live callout says
+  "about +2.5 points of chance to win the game and +3.0 to beat the median", as an estimate,
+  not a fresh simulation.
+- **Players and the waiver board (UI-P1, W1).** `/players` and `/waivers`
+  (`webui/players_page.py`). Each player's standing comes from the decision log's drops and
+  docs/WAIVER_MECHANICS.md: on waivers until the first 09:00 PT run two days after the drop,
+  otherwise a free agent. The board is ranked by the newest waiver-targets record.
+- **Tool cards show their latest answer (UI-A6)**, and "Not run yet" where a record-writing
+  tool has none.
+- **Found on the way:** column sorting had never worked. League said "click a column to sort",
+  but no script had ever sorted (`c329cca` shipped the markup and styles alone); one
+  delegated sorter in base.html now serves every `th[data-key]`. Also, the simple view's tools
+  guard 404'd the compare panel's own fragment.
+
 ### Team, player and matchup pages (2026-09-28, roadmap UI-A1, A2, A3)
 
 `/team/<slug>`, `/player/<id>` and `/matchups/week-<n>` are read-only views built in
