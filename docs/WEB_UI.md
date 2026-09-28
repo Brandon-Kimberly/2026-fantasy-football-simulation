@@ -730,6 +730,27 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### Game day, the trade builder, and League's second pass (2026-09-28, roadmap wave 4 and more)
+
+- **Home knows what day it is (UI-M1).** `home_report` carries the week's phase and last week's
+  result as the league counted it: "Last week (week 2): lost to … (re-scored box score; the
+  league's result stands) · the model had 71%". A decided game shows its result ("Won ·
+  final 188.8–164.0"), not a probability.
+- **A pinned score bar (UI-M2)** stays under the header while the starter tables scroll. **Stale
+  reads are flagged (UI-M7):** more than five minutes old while the game is undecided. With live
+  scores not connected, the simple view now says so plainly. The script used to write the
+  developer's SLEEPER_LEAGUE_ID instruction into it, and the vocabulary guard, which reads
+  server HTML, could not see script-written text.
+- **The trade builder (UI-T1, `/trade`, `webui/trade.py`).** Tick players on both sides and see
+  each side's best lineup week by week, before and after. It is an exact assignment to the 13
+  starting slots via scipy, with byes and IR respected. It also shows new empty-slot weeks and
+  the drop forced at the 19-man limit (pinned equal to the engine's constant by a test). One
+  button sends the deal to the paired simulation.
+- **League, second pass (UI-O2, O4, O11, F5).** A power rating from the head-to-head matrix
+  (no rank interval: the matrix carries no standard errors), the chance in the games left,
+  the bracket "if the season ended today" with each seed's chance of that seed, and pending
+  trades shown as their sides.
+
 ### Answers without waiting (2026-09-28, roadmap wave 3)
 
 - **Instant compare (UI-P4).** The compare page answers as soon as two names are in, for up
