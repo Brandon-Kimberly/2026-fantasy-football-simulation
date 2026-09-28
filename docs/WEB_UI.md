@@ -730,6 +730,24 @@ component, for the palette, the shortcut sheet, the player card and the toast. T
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
 
+### One grammar for uncertainty (2026-09-28, roadmap UI-V6 / UI-T2)
+
+- **"±" means one standard error, on every page.** It prints only through the `se` filter
+  (`render.fse`): two decimals below 1, one above, so the same 0.25 no longer reads ± 0.25
+  on Home and ± 0.3 on Forecasts. A guard in `tests.test_webui_twelfth` fails on any
+  literal "±" in a template or the renderer outside that one function.
+- **A spread is not a standard error.** The weekly-score column on a forecast page shows
+  "sd 21", with a tooltip saying what it is; it used to print "± 21" beside standard errors.
+- **Ranges are the 10th to 90th percentile** unless labelled otherwise.
+- **A paired result is stated in standard errors** (`render.verdict`): under 2 "no
+  measurable change", 2 to 4 "a modest gain/loss", above 4 "a clear gain/loss". Every
+  evaluated move on Decisions carries its verdict, and the "Measurably moved the odds"
+  filter draws the same line. These tiers are a DISPLAY convention, not a significance
+  test; the move is priced by the paired evaluation, and the tier only says how far
+  outside its own noise the number sits.
+- **A chance to win is never shown as certain until it is decided** (UI-M8): "over 99.9%"
+  or "under 0.1%" while anyone on either side has a game left.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

@@ -10,7 +10,7 @@
   <p class="lede">The rest of the season as the model saw it from here, from the data at the time.</p>
 </div>
 {% if mine %}{{ tiles([
-  {"k": "my playoff odds", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": "± " ~ mf.playoff_standard_error|num(2) ~ " simulation noise", "tone": ""},
+  {"k": "my playoff odds", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": mf.playoff_standard_error|se ~ " simulation noise", "tone": ""},
   {"k": "expected final wins", "v": mf.expected_final_wins|num(2), "s": mc.actual_wins_banked|num(0) ~ " banked · " ~ mf.expected_future_wins|num(2) ~ " still to come", "tone": ""},
   {"k": "points so far", "v": mc.actual_points_banked|num(1), "s": "the league's record", "tone": ""},
   {"k": "wins to clinch", "v": mf.approximate_magic_number|num(0), "s": "approximate magic number", "tone": ""}
@@ -35,7 +35,7 @@
 {% for r in rows %}
 <tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ r.team|real }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num" data-sort="{{ r.wins }}">{{ r.wins|num(0) }}</td><td class="num" data-sort="{{ r.points }}">{{ r.points|num(1) }}</td>
 <td class="num" data-sort="{{ r.exp_wins }}">{{ r.exp_wins|num(2) }}</td><td class="num muted" data-sort="{{ r.exp_points }}">{{ r.exp_points|num(0) }}</td>
-<td class="num" data-sort="{{ r.playoff }}"><b>{{ r.playoff|num(1) }}%</b>{% if r.se %} <span class="muted tiny">± {{ r.se|num(1) }}</span>{% endif %}</td><td class="num" data-sort="{{ r.champ }}">{{ r.champ|num(1) }}%</td><td class="num muted" data-sort="{{ r.toilet }}">{{ r.toilet|num(1) }}%</td>
+<td class="num" data-sort="{{ r.playoff }}"><b>{{ r.playoff|num(1) }}%</b>{% if r.se %} <span class="muted tiny">{{ r.se|se }}</span>{% endif %}</td><td class="num" data-sort="{{ r.champ }}">{{ r.champ|num(1) }}%</td><td class="num muted" data-sort="{{ r.toilet }}">{{ r.toilet|num(1) }}%</td>
 <td class="num" data-sort="{{ r.magic }}">{{ r.magic|num(0) }}</td><td class="num muted" data-sort="{{ r.faab }}">{{ r.faab|num(0) }}</td></tr>
 {% endfor %}
 </tbody></table></div>
@@ -88,7 +88,7 @@
 <div class="scroller"><table><thead><tr><th>Team</th><th>Season wins</th><th class="num">Mean</th><th>Weekly score</th><th class="num">Mean</th></tr></thead><tbody>
 {% for t in names %}{% set w = wins_dist.get(t) or {} %}{% set s = score_pct.get(t) or {} %}<tr{% if t == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>
 <td>{% if w %}<span class="rng"><span class="bar"><i style="left:{{ (100 * (w.p10_floor or 0) / wmax)|round(1) }}%;width:{{ (100 * ((w.p90_ceiling or 0) - (w.p10_floor or 0)) / wmax)|round(1) }}%"></i><b style="left:{{ (100 * (w.p50_median or 0) / wmax)|round(1) }}%"></b></span><span class="n">{{ w.p10_floor|num(0) }} · {{ w.p50_median|num(0) }} · {{ w.p90_ceiling|num(0) }}</span></span>{% endif %}</td><td class="num">{{ w.expected_mean|num(1) }}</td>
-<td>{% if s %}<span class="rng"><span class="bar"><i style="left:{{ (100 * (s.p10_floor or 0) / smax)|round(1) }}%;width:{{ (100 * ((s.p90_ceiling or 0) - (s.p10_floor or 0)) / smax)|round(1) }}%;border-color:var(--warm);background:var(--warm-bg)"></i><b style="left:{{ (100 * (s.mean or 0) / smax)|round(1) }}%;background:var(--warm)"></b></span><span class="n">{{ s.p10_floor|num(0) }} · {{ s.mean|num(0) }} · {{ s.p90_ceiling|num(0) }}</span></span>{% endif %}</td><td class="num">{{ s.mean|num(1) }}{% if s.std %} <span class="muted tiny">± {{ s.std|num(0) }}</span>{% endif %}</td></tr>{% endfor %}
+<td>{% if s %}<span class="rng"><span class="bar"><i style="left:{{ (100 * (s.p10_floor or 0) / smax)|round(1) }}%;width:{{ (100 * ((s.p90_ceiling or 0) - (s.p10_floor or 0)) / smax)|round(1) }}%;border-color:var(--warm);background:var(--warm-bg)"></i><b style="left:{{ (100 * (s.mean or 0) / smax)|round(1) }}%;background:var(--warm)"></b></span><span class="n">{{ s.p10_floor|num(0) }} · {{ s.mean|num(0) }} · {{ s.p90_ceiling|num(0) }}</span></span>{% endif %}</td><td class="num">{{ s.mean|num(1) }}{% if s.std %} <span class="muted tiny" title="the spread of a single week's score (one standard deviation), not a standard error">sd {{ s.std|num(0) }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}

@@ -182,6 +182,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["signed"] = render.fsigned
+    app.jinja_env.filters["se"] = render.fse                   # UI-V6: the only way a ± is printed
+    app.jinja_env.filters["verdict"] = lambda d, se: render.verdict(d, se)
     app.jinja_env.filters["ago"] = render.ago
     app.jinja_env.filters["dur"] = render.duration
     app.jinja_env.filters["when"] = render.when

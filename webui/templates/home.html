@@ -191,7 +191,7 @@
     <span class="pre" id="pw-pre" hidden>pre-game <b>{{ pre }}%</b></span>
     <span>expected <b>{{ m.mine|num(1) }}</b> vs <b>{{ m.theirs|num(1) }}</b> points</span>
     {% if m.p_median is not none %}<span>above the league median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
-    {% if m.se %}<span class="muted">± {{ (m.se * 100)|round(1) }} points of win probability (simulation noise)</span>{% endif %}
+    {% if m.se %}<span class="muted">{{ (m.se * 100)|se }} points of win probability (simulation noise)</span>{% endif %}
     {% if lineup and lineup.expected_total %}<span>lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">see the lineup</a>{% endif %}</span>{% endif %}
   </div>
   {% if h2h and h2h.rows %}
@@ -230,7 +230,7 @@
       <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
       <div>
         <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
-        <div class="s">to make the playoffs{% if f.playoff_standard_error %} · ± {{ f.playoff_standard_error|num(2) }}{% endif %}</div>
+        <div class="s">to make the playoffs{% if f.playoff_standard_error %} · {{ f.playoff_standard_error|se }}{% endif %}</div>
         {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
       </div>
     </div>

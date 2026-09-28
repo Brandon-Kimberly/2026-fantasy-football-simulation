@@ -454,7 +454,7 @@ def _matchup(d):
     secs.append(text("How this was computed", d.get("note")))
     return {"title": "Matchup lineups", "subtitle": f"{d.get('team')} vs {d.get('opponent')} · week {d.get('week')}",
             "tiles": [tile("recommended", CONSTRUCTION_LABELS.get(order[0], order[0]) if order else "—", "by P(beat opponent)"),
-                      tile("P(beat opponent)", fpct(best.get("p_beat_opponent")), f"± {fpct(best.get('se'), 1)}" if best.get("se") is not None else ""),
+                      tile("P(beat opponent)", fpct(best.get("p_beat_opponent")), fse(100 * best["se"], "%") if best.get("se") is not None else ""),
                       tile("P(beat median)", fpct(best.get("p_beat_median")), ""),
                       tile("favoured on means", "yes" if d.get("favoured_by_max_mean") else "no", "", "pos" if d.get("favoured_by_max_mean") else "neg")],
             "sections": secs}
@@ -516,7 +516,7 @@ def _compare(d):
     rows = [dict(player=an, **a), dict(player=bn, **b)]
     quick = (d.get("path") == "light")
     return {"title": "Start A or B", "subtitle": f"{an} vs {bn} · week {d.get('week')}",
-            "tiles": [tile(f"{an} wins", fpct(d.get("p_a")), f"± {fpct(d.get('se_p'))}" if d.get("se_p") else "",
+            "tiles": [tile(f"{an} wins", fpct(d.get("p_a")), fse(float(d["se_p"]) * (100 if abs(float(d["se_p"])) <= 1 else 1), "%") if d.get("se_p") else "",
                            "pos" if (d.get("p_a") or 0) > (d.get("p_b") or 0) else "neg"),
                       tile(f"{bn} wins", fpct(d.get("p_b")), f"tie {fpct(d.get('p_tie'))}"),
                       tile("mean difference", fsigned(d.get("mean_diff")), f"{an} minus {bn}", tone(d.get("mean_diff"))),
@@ -545,7 +545,7 @@ def _paired(d, what):
     tiles = []
     for r in principals[:2]:
         tiles.append(tile(f"{r['team']} · playoff", fsigned(r["playoff_delta"]) + " pts",
-                          f"± {fnum(r['playoff_se'], 2)} · champion {fsigned(r['champ_delta'])}", tone(r["playoff_delta"])))
+                          f"{fse(r['playoff_se'])} · champion {fsigned(r['champ_delta'])}", tone(r["playoff_delta"])))
     tiles.append(tile("simulations", f"{int(d.get('n_sims') or 0):,}", f"{d.get('batches')} paired batches, same seeds"))
     spec = d.get(what) or {}
     sub = (f"{spec.get('team_a')} gives {_join(spec.get('a_gives'))} · {spec.get('team_b')} gives {_join(spec.get('b_gives'))}"
@@ -644,7 +644,7 @@ def _odds_history(d):
         rows.append(dict(r, at=human_time(r.get("at")), moves=", ".join(str(m) for m in (r.get("moves") or [])) or "—"))
     return {"title": "Odds history", "subtitle": f"{d.get('team')} · {d.get('n_canonical')} canonical runs of {d.get('n_total')} logged",
             "tiles": [tile("canonical runs", str(d.get("n_canonical") or 0), "scheduled runs only (F56/B5)"),
-                      tile("latest playoff %", fpct((rows[-1].get("playoff_pct") or 0) / 100) if rows else "—", f"± {fnum(rows[-1].get('playoff_se'), 2)}" if rows else ""),
+                      tile("latest playoff %", fpct((rows[-1].get("playoff_pct") or 0) / 100) if rows else "—", fse(rows[-1].get("playoff_se")) if rows else ""),
                       tile("latest title %", fnum(rows[-1].get("champ_pct"), 1) + "%" if rows else "—", "")],
             "sections": [table("Every canonical run", [col("at", "run"), col("week", kind="num", nd=0), col("playoff_pct", "playoff %", "num"), col("playoff_se", "± se", "num", 2),
                                                        col("d_playoff", "Δ playoff", "signed", 1), col("champ_pct", "title %", "num"), col("d_champ", "Δ title", "signed", 1),

@@ -14,6 +14,9 @@
 .dec .fx { font-size: 13px; text-align: right; font-variant-numeric: tabular-nums; }
 .dec .fx .big { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
 .dec .fx .big.pos { color: var(--turf); } .dec .fx .big.neg { color: var(--neg); }
+.dec .fx .verdict { display: inline-block; margin: 2px 0; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; border: 1px solid var(--rule); color: var(--muted); }
+.dec .fx .verdict.pos { color: var(--turf); border-color: currentColor; } .dec .fx .verdict.neg { color: var(--neg); border-color: currentColor; }
+.dec .fx .verdict.clear { font-weight: 800; }
 .dec .fx .s { color: var(--muted); font-size: 12px; }
 .dec .fx .other { margin-top: 4px; font-size: 12px; color: var(--ink-2); }
 .dec.mine { background: linear-gradient(90deg, var(--pos-bg), transparent 40%); margin: 0 -8px; padding-left: 8px; padding-right: 8px; border-radius: var(--r-ctl); }
@@ -36,8 +39,8 @@
 {{ tiles([
   {"k": "moves logged", "v": n|string, "s": n_evaluated|string ~ " evaluated · " ~ n_skipped|string ~ " skipped (roster drift) · " ~ n_pending|string ~ " not yet", "tone": ""},
   {"k": "my moves", "v": mine|length|string, "s": "adds, claims and trades involving my roster", "tone": ""},
-  {"k": "my playoff odds, net of my moves", "v": (my_row.playoff|signed(1) ~ " pts") if my_row else "—", "s": ("± " ~ my_row.playoff_se|num(1) ~ " · " ~ my_row.evaluated|string ~ " evaluated") if my_row else "no evaluated move yet", "tone": ("pos" if my_row.playoff > 0 else ("neg" if my_row.playoff < 0 else "")) if my_row else ""},
-  {"k": "my title odds, net of my moves", "v": (my_row.champ|signed(1) ~ " pts") if my_row else "—", "s": ("± " ~ my_row.champ_se|num(1)) if my_row else "", "tone": ("pos" if my_row.champ > 0 else ("neg" if my_row.champ < 0 else "")) if my_row else ""}
+  {"k": "my playoff odds, net of my moves", "v": (my_row.playoff|signed(1) ~ " pts") if my_row else "—", "s": (my_row.playoff_se|se ~ " · " ~ my_row.evaluated|string ~ " evaluated") if my_row else "no evaluated move yet", "tone": ("pos" if my_row.playoff > 0 else ("neg" if my_row.playoff < 0 else "")) if my_row else ""},
+  {"k": "my title odds, net of my moves", "v": (my_row.champ|signed(1) ~ " pts") if my_row else "—", "s": (my_row.champ_se|se) if my_row else "", "tone": ("pos" if my_row.champ > 0 else ("neg" if my_row.champ < 0 else "")) if my_row else ""}
 ]) }}
 
 {% if awards and awards.best %}
@@ -48,7 +51,7 @@
 {% if p and not (key == 'best_week' and p.id == awards.best.id and p.team == awards.best.team) and not (key == 'worst_week' and p.id == awards.worst.id and p.team == awards.worst.team) %}
 <div class="card award {{ tone }}"><div class="k">{{ title }}</div><div class="v {{ tone }}">{{ p.playoff|signed(1) }} <span class="muted small">pts</span></div>
 <div class="s">{{ mark(p.team) }}{{ teamlink(p.team) }} · {{ p.label }}{% if p.week %} · week {{ p.week }}{% endif %}</div>
-<div class="s muted">{% if p.adds %}in: {{ p.adds|map(attribute='name')|join(', ') }}{% endif %}{% if p.drops %}{% if p.adds %} · {% endif %}out: {{ p.drops|map(attribute='name')|join(', ') }}{% endif %}{% if p.playoff_se %} · ± {{ p.playoff_se|num(1) }}{% endif %}</div></div>
+<div class="s muted">{% if p.adds %}in: {{ p.adds|map(attribute='name')|join(', ') }}{% endif %}{% if p.drops %}{% if p.adds %} · {% endif %}out: {{ p.drops|map(attribute='name')|join(', ') }}{% endif %}{% if p.playoff_se %} · {{ p.playoff_se|se }}{% endif %}</div></div>
 {% endif %}{% endfor %}
 </div>
 </section>
@@ -65,7 +68,7 @@
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Who has helped themselves <span class="hint">each team's own moves, summed · playoff percentage points</span></h2>
 {% set lmax = [(ledger|map(attribute='playoff')|map('abs')|max), 0.5]|max %}
-<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ sparkline(timelines.get(L.team), hue=L.team|hue) }} {{ L.playoff|signed(1) }} <span class="muted tiny">± {{ L.playoff_se|num(1) }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
+<div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ sparkline(timelines.get(L.team), hue=L.team|hue) }} {{ L.playoff|signed(1) }} <span class="muted tiny">{{ L.playoff_se|se }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
 <p class="small muted" style="margin-top:8px">The small line is the team's own moves added up in order, oldest to newest.</p>
 <p class="small muted" style="margin-top:8px">A trade counts for both sides. ± is the combined batch-to-batch spread of the evaluations; a team whose bar is inside its ± has not measurably moved.</p>
 </section>
@@ -83,7 +86,7 @@
 </div>
 <div id="list">
 {% for d in decisions %}{% set fx = d.actor_effect %}
-<div class="dec{% if d.is_mine or my_team in d.teams %} mine{% endif %}" data-type="{{ d.type }}" data-mine="{{ '1' if (d.is_mine or my_team in d.teams) else '0' }}" data-moved="{{ '1' if (fx and fx.playoff is not none and (fx.playoff|abs) > 2 * (fx.playoff_se or 0)) else '0' }}">
+<div class="dec{% if d.is_mine or my_team in d.teams %} mine{% endif %}" data-type="{{ d.type }}" data-mine="{{ '1' if (d.is_mine or my_team in d.teams) else '0' }}" data-moved="{{ '1' if (fx and ((fx.playoff|verdict(fx.playoff_se)) or {}).get('tier') in ('modest', 'clear')) else '0' }}">
   <div class="when"><b>{{ d.label }}</b>week {{ d.week }} · {{ d.created|when }}</div>
   <div class="what">
     {% if d.type == 'trade' %}
@@ -98,7 +101,8 @@
   <div class="fx">
     {% if fx and fx.playoff is not none %}
       <div class="big {{ 'pos' if fx.playoff > 0 else ('neg' if fx.playoff < 0) }}">{{ fx.playoff|signed(1) }} <span class="s">playoff pts</span></div>
-      <div class="s">± {{ fx.playoff_se|num(1) }} · title {{ fx.champ|signed(1) }} ± {{ fx.champ_se|num(1) }}</div>
+      {% set v = fx.playoff|verdict(fx.playoff_se) %}{% if v %}<div class="verdict {{ v.tier }}{{ (" " ~ v.sign) if v.tier != "none" }}"{% if dev %} title="{{ v.z }} standard errors from no change"{% endif %}>{{ v.text }}</div>{% endif %}
+      <div class="s">{{ fx.playoff_se|se }} · title {{ fx.champ|signed(1) }} {{ fx.champ_se|se }}</div>
       {% if d.type == 'trade' %}{% for t in d.teams if t != d.actor and d.effect.get(t) %}<div class="other">{{ t|real }}: {{ d.effect[t].playoff|signed(1) }} playoff · {{ d.effect[t].champ|signed(1) }} title</div>{% endfor %}{% endif %}
       {% if d.reversed %}<div class="s">roster had moved on; evaluated as of the log</div>{% endif %}
     {% elif d.skipped %}
