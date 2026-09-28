@@ -47,6 +47,20 @@ TOOL_TITLES = {"lineup": "Optimal lineup", "matchup": "Matchup lineups", "waiver
                "decision_scorecard": "Decision scorecard", "data_health": "Data health", "bid_review": "Bid review",
                "live_matchup": "Live matchup", "trade_leverage": "Trade leverage", "market_sweep": "Market sweep"}
 CONSTRUCTION_LABELS = {"p_max": "Max P(win)", "max_mean": "Max mean", "safe": "Safe", "stack": "Stack"}
+# One symbol per tool (the sprite in base.html), keyed by tool name and by record prefix.
+TOOL_ICONS = {"optimize_lineup": "lineup", "lineup": "lineup", "matchup_lineup": "matchup", "matchup": "matchup",
+              "waiver_targets": "waiver", "waivers": "waiver", "matchup_watch": "eye", "live_matchup": "live",
+              "market_sweep": "sweep", "compare_players": "compare", "compare": "compare", "evaluate_move": "arrow", "move": "arrow",
+              "evaluate_trade": "swap", "trade": "swap", "find_trades": "users", "trade_targets": "users", "trade_leverage": "lever",
+              "roster_grades": "award", "roster_calendar": "cal", "check_freshness": "drop", "run_windows": "clock",
+              "odds_history": "trend", "luck_ledger": "dice", "decision_scorecard": "score", "data_health": "health",
+              "bid_review": "tag", "run_simulation": "engine", "weekly_report": "book", "gameday": "live",
+              "draft_review": "award", "season_retrospective": "book", "run_sync": "refresh"}
+
+
+def tool_icon(name):
+    """The sprite symbol id for a tool or a record prefix; a clipboard when unknown."""
+    return "i-" + TOOL_ICONS.get(str(name or ""), "clip")
 
 
 def tool_title(name):

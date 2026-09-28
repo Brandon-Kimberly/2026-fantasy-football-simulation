@@ -14,15 +14,16 @@
    yard-line band on the landing page, team marks whose colour follows the team. Light
    first; dark via the OS preference. */
 :root { color-scheme: light dark;
-  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#898781;
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink-2:#52514e; --muted:#6f6e68;
   --grid:#e1e0d9; --rule:#c3c2b7; --ring:rgba(11,11,11,0.10);
-  --pos:#2a78d6; --neg:#e34948; --mid:#f0efec; --chip:#ffffff; --warn:#b7791f;
+  --pos:#1f66bd; --neg:#c93a39; --mid:#f0efec; --chip:#ffffff; --warn:#8f5d12;
+  --warm-ink:#a8561a; --gold-ink:#8a6a12;   /* the accents, dark enough to be read at 12 px (4.5:1) */
   --pos-bg:rgba(42,120,214,0.10); --neg-bg:rgba(227,73,72,0.10); --warn-bg:rgba(183,121,31,0.12);
   --turf:#2e7d4f; --turf-bg:rgba(46,125,79,0.10); --turf-line:rgba(46,125,79,0.16);
   --warm:#d9772b; --warm-bg:rgba(217,119,43,0.12); --gold:#c9962a; --gold-bg:rgba(201,150,42,0.14);
   --violet:#6b5bd2; --violet-bg:rgba(107,91,210,0.12);
   --g-brand: linear-gradient(100deg, #2e7d4f 0%, #2a78d6 55%, #6b5bd2 100%);
-  --g-turf: linear-gradient(135deg, #2e7d4f, #4fae7b); --g-pos: linear-gradient(135deg, #2a78d6, #5aa0ee);
+  --g-turf: linear-gradient(135deg, #2e7d4f, #4fae7b); --g-pos: linear-gradient(135deg, #1f66bd, #4a90e2);
   --g-gold: linear-gradient(135deg, #c9962a, #f0c24e); --g-warm: linear-gradient(135deg, #d9772b, #f2a25c); --g-violet: linear-gradient(135deg, #6b5bd2, #9a8cf0);
   --glow-turf: 0 8px 28px rgba(46,125,79,0.22); --glow-pos: 0 8px 28px rgba(42,120,214,0.22); --shadow: 0 10px 30px rgba(11,11,11,0.08), 0 1px 2px rgba(11,11,11,0.06);
   --display: Archivo, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -31,13 +32,13 @@
   /* one shape system: surfaces are soft, controls a touch softer, pills tight, tables square */
   --r-card: 8px; --r-ctl: 5px; --r-pill: 3px; }
 @media (prefers-color-scheme: dark) { :root {
-  --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#898781;
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#9a9891;
   --grid:#2c2c2a; --rule:#383835; --ring:rgba(255,255,255,0.10);
   --pos:#3987e5; --neg:#e66767; --mid:#383835; --chip:#222221; --warn:#d9a441;
   --pos-bg:rgba(57,135,229,0.16); --neg-bg:rgba(230,103,103,0.16); --warn-bg:rgba(217,164,65,0.16);
   --turf:#4fae7b; --turf-bg:rgba(79,174,123,0.14); --turf-line:rgba(79,174,123,0.18);
   --warm:#eb8d45; --warm-bg:rgba(235,141,69,0.16); --gold:#dcae45; --gold-bg:rgba(220,174,69,0.16);
-  --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16);
+  --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45;
   --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
   --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); } }
 
@@ -121,8 +122,8 @@ p { margin: .4em 0; }
 .note b { color: var(--ink); }
 .note.warn { border-left-color: var(--warn); } .note.bad { border-left-color: var(--neg); } .note.good { border-left-color: var(--pos); }
 .note + .note { margin-top: 10px; }
-.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
-.chip { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--grid); border-radius: 999px; padding: 6px 14px 6px 8px; font-size: 13px; text-decoration: none; color: var(--ink); transition: border-color .15s, transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
+.chips { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin-top: 16px; }
+.chip { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 8px 12px 8px 10px; font-size: 13px; text-decoration: none; color: var(--ink); transition: border-color .15s, transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
 .chip:hover { transform: translateY(-2px); border-color: var(--rule); box-shadow: var(--shadow); }
 .chip svg.i { width: 26px; height: 26px; padding: 6px; border-radius: 50%; background: var(--turf-bg); box-sizing: border-box; }
 .chip:nth-child(2) svg.i { background: var(--pos-bg); } .chip:nth-child(3) svg.i { background: var(--gold-bg); } .chip:nth-child(4) svg.i { background: var(--violet-bg); } .chip:nth-child(5) svg.i { background: var(--warm-bg); }
@@ -135,7 +136,7 @@ p { margin: .4em 0; }
 .mark { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 50%; font-family: var(--display); font-weight: 800; font-size: 11px; letter-spacing: 0; color: #fff; vertical-align: middle; margin-right: 8px; flex: none; box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--grid); }
 .mark.lg { width: 56px; height: 56px; font-size: 18px; margin-right: 0; box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--turf-line), var(--shadow); }
 .rank { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-family: var(--display); font-size: 11px; font-weight: 800; color: var(--muted); background: var(--mid); }
-.rank.r1 { background: var(--g-gold); color: #fff; box-shadow: 0 2px 8px rgba(201,150,42,.45); } .rank.r2 { background: linear-gradient(135deg, #9aa3ad, #d4d9de); color: #fff; } .rank.r3 { background: linear-gradient(135deg, #a5602d, #d4906a); color: #fff; }
+.rank.r1 { background: var(--g-gold); color: #2b2000; box-shadow: 0 2px 8px rgba(201,150,42,.45); } .rank.r2 { background: linear-gradient(135deg, #9aa3ad, #d4d9de); color: #fff; } .rank.r3 { background: linear-gradient(135deg, #a5602d, #d4906a); color: #fff; }
 img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
 
 /* ---- tables ---- */
@@ -145,7 +146,7 @@ img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--gr
 @media (max-width: 720px) { .scroller { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; } }
 .wrap { overflow-x: clip; }
 .st { display: inline-block; min-width: 1.6em; text-align: center; font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; line-height: 1; padding: 3px 5px; border-radius: 3px; background: var(--neg-bg); color: var(--neg); vertical-align: middle; }
-.st.ir, .st.pup, .st.sus { background: var(--mid); color: var(--ink-2); } .st.q { background: var(--warm-bg); color: var(--warm); } .st.bye { background: var(--violet-bg); color: var(--violet); }
+.st.ir, .st.pup, .st.sus { background: var(--mid); color: var(--ink-2); } .st.q { background: var(--warm-bg); color: var(--warm-ink); } .st.bye { background: var(--violet-bg); color: var(--violet); }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
 th { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); text-align: left; padding: 6px 8px 8px; border-bottom: 2px solid var(--turf-line); white-space: normal; line-height: 1.25; vertical-align: bottom; background: var(--plane); position: sticky; top: var(--head-h, 0px); }
 [id] { scroll-margin-top: calc(var(--head-h, 0px) + 12px); }
@@ -270,9 +271,12 @@ button:active, .btn:active { transform: translateY(0) scale(.98); }
 button.ghost, .btn.ghost { background: var(--surface); color: var(--ink); border-color: var(--rule); box-shadow: none; }
 button.ghost:hover, .btn.ghost:hover { border-color: var(--pos); color: var(--pos); box-shadow: var(--shadow); }
 button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; }
+a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--pos); outline-offset: 2px; border-radius: 4px; }
 .actions { display: flex; gap: 12px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
 .foot { margin-top: 56px; padding-top: 14px; border-top: 2px solid transparent; border-image: var(--g-brand) 1; font-size: 12px; opacity: .9; }
+.foot { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 18px; }
 .foot .modeform { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+.foot .meta { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .foot button { padding: 5px 11px; font-size: 10.5px; }
 
 @media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } th { position: static; } }   /* after the base th rule: below tablet width a table scrolls in its box, where sticky would sit mid-table */
@@ -302,6 +306,21 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
   <symbol id="i-swap" viewBox="0 0 24 24"><path d="M4 8h13M13 4l4 4-4 4M20 16H7M11 12l-4 4 4 4"/></symbol>
   <symbol id="i-health" viewBox="0 0 24 24"><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 11c0 5.5-7 10-7 10z"/><path d="M8 12h2l1-2 2 4 1-2h2"/></symbol>
   <symbol id="i-engine" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1"/></symbol>
+  <symbol id="i-lineup" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 13l2.5 2.5 4.5-5"/></symbol>
+  <symbol id="i-matchup" viewBox="0 0 24 24"><path d="M7 4l4 2v5c0 3-2 5-4 6-2-1-4-3-4-6V6zM17 4l4 2v5c0 3-2 5-4 6-2-1-4-3-4-6V6z"/></symbol>
+  <symbol id="i-waiver" viewBox="0 0 24 24"><path d="M4 13v5a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-5M12 3v11M8 10l4 4 4-4"/></symbol>
+  <symbol id="i-compare" viewBox="0 0 24 24"><path d="M12 4v16M5 20h14M6 8l-3 6h6zM18 8l-3 6h6zM6 8h12"/></symbol>
+  <symbol id="i-sweep" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></symbol>
+  <symbol id="i-dice" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/></symbol>
+  <symbol id="i-score" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M8 12l3 3 5-6"/></symbol>
+  <symbol id="i-tag" viewBox="0 0 24 24"><path d="M4 12V5a1 1 0 0 1 1-1h7l8 8-7 7-8-8z"/><circle cx="8.5" cy="8.5" r="1.3"/></symbol>
+  <symbol id="i-trend" viewBox="0 0 24 24"><path d="M4 17l5-5 4 4 7-8M15 8h5v5"/></symbol>
+  <symbol id="i-award" viewBox="0 0 24 24"><circle cx="12" cy="9" r="5"/><path d="M9 13.5L8 21l4-2 4 2-1-7.5"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s4-6 10-6 10 6 10 6-4 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-lever" viewBox="0 0 24 24"><path d="M3 19h18M12 19V6M12 6l6 3M12 6L6 9"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 20h6"/></symbol>
 </svg>
 <div class="wrap">
@@ -313,12 +332,12 @@ button:focus-visible, .btn:focus-visible { outline: 2px solid var(--pos); outlin
     {% for href, label in nav %}<a href="{{ href }}" class="{{ 'on' if (path == href if href in ('/', '/decisions') else (path.startswith(href) or (alias.get(href) and (alias[href]|select('in', path)|list)))) }}">{{ label }}</a>
     {% endfor %}
   </nav>
-  {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </header>
 {% if overlay_enabled and dev %}<div class="private"><b>{{ private_marker }}.</b> Real names are an in-memory overlay on this page only; every file on disk and every URL stays pseudonymous.</div>{% endif %}
 {% block body %}{% endblock %}
 <footer class="foot">
   <form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
+  {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </footer>
 </div>
 <script>

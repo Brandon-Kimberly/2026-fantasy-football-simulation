@@ -19,7 +19,7 @@
 <div class="head thead">
   <div>
     <p class="eyebrow">{% if dev %}{% if tool.engine %}engine run{% else %}decision tool{% endif %} · {{ tool.name|replace("_", " ") }}{% else %}a question for the model{% endif %}</p>
-    <h1>{{ tool.name|tool_title }}</h1>
+    <h1><svg class="i" style="width:.85em;height:.85em;stroke:var(--turf);-webkit-text-fill-color:initial"><use href="#{{ tool.name|tool_icon }}"/></svg>{{ tool.name|tool_title }}</h1>
     <p class="lede">{{ tool.question }}</p>
     {% if tool.note and dev %}<p class="small muted" style="margin:8px 0 0;max-width:80ch">{{ tool.note }}</p>{% endif %}
   </div>
