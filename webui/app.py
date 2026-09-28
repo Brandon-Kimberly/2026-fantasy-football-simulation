@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, compare as comparemod, objects, players_page as playersmod, render, trade as trademod
+from webui import brand, compare as comparemod, history as historymod, objects, players_page as playersmod, render, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -46,10 +46,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
@@ -346,6 +346,32 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return render_template("players.html", board=board, rows=shown_rows, total=total, shown=len(shown_rows),
                                positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
                                week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"])
+
+    # ---- UI-H1 / H2 / H3: the league's history
+    @app.route("/history")
+    def history_page():
+        gs = historymod.games(root)
+        pairs = historymod.rivalries(gs)
+        teams = sorted({t for g in gs for t in (g["a"], g["b"])})
+        mine = []
+        for (a, b), r in pairs.items():
+            if MY_TEAM in (a, b):
+                o = b if a == MY_TEAM else a
+                mine.append({"opponent": o, "w": r["wins"][MY_TEAM], "l": r["wins"][o], "t": r["ties"],
+                             "margin": r["avg_margin"][MY_TEAM], "last": r["last"]})
+        mine.sort(key=lambda o: (-(o["w"] - o["l"]), -o["margin"]))
+        state = root.read_json("current/league_state.json", {}) or {}
+        cur = str(state.get("season") or (root.read_json("current/sync_manifest.json", {}) or {}).get("season") or "")
+        return render_template("history.html", book=historymod.record_book(gs), n_games=len(gs), pairs=pairs,
+                               teams=teams, mine=mine, seasons=sorted({g["season"] for g in gs}), current_season=cur,
+                               drafts=historymod.seasons_available(root))
+
+    @app.route("/draft")
+    def draft_page():
+        seasons = historymod.seasons_available(root)
+        want = request.args.get("season") or (seasons[-1] if seasons else None)
+        board = historymod.draft_board(root, want) if want in seasons else None
+        return render_template("draft.html", board=board, seasons=seasons)
 
     @app.route("/trade")
     def trade_page():

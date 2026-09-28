@@ -73,6 +73,10 @@ class TestGames(Case):
         self.assertFalse(any(x["season"] == "2025" and x["week"] >= 15 for x in g), "no playoff or consolation game")
         w2 = next(x for x in g if x["season"] == "2026" and x["week"] == 2 and QF in (x["a"], x["b"]))
         self.assertEqual((w2["winner"], w2["rescored"]), (CB, True))
+        w1 = next(x for x in g if x["season"] == "2026" and x["week"] == 1 and QF in (x["a"], x["b"]))
+        self.assertEqual((w1["rescored"], w1["rescaled"]), (False, True),
+                         "week 1's result stands, but its points are Sleeper's re-scored box score (F83)")
+        self.assertFalse(next(x for x in g if x["season"] == "2025")["rescaled"])
         tie = next(x for x in g if x["season"] == "2025" and x["week"] == 1 and NW in (x["a"], x["b"]))
         self.assertIsNone(tie["winner"], "150-150 is a tie")
 
