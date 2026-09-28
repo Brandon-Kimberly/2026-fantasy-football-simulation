@@ -62,6 +62,48 @@ def freshness_report(root):
             "phrase": sync_phrase(n_bad, n_fell, len((manifest or {}).get("degraded") or []))}
 
 
+def odds_at(root, n):
+    """UI-E4: every team's odds from ONE week's export -- playoff (and its standard error),
+    expected final wins, the magic number and what is banked from the forecast file; the
+    title odds from the matrix's season outcomes (the forecast file carries none). The
+    matrix repeats the playoff figure at two decimals; the forecast file's one-decimal
+    figure is the one every page shows. {} when that week has no export."""
+    n = int(n)
+    d = f"weeks/week_{n:02d}"
+    f = root.read_json(f"{d}/live_season_forecast_week_{n}.json", {}) or {}
+    if not f:
+        return {}
+    m = root.read_json(f"{d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
+    outcomes = m.get("season_outcomes") or []
+    if isinstance(outcomes, dict):
+        outcomes = [dict(Team=k, **v) for k, v in outcomes.items()]
+    champ = {o.get("Team"): o.get("Champ_Pct") for o in outcomes if isinstance(o, dict)}
+    out = {}
+    for team, v in f.items():
+        if not isinstance(v, dict):
+            continue
+        fc, cs = v.get("forecast") or {}, v.get("current_state") or {}
+        out[team] = {"playoff": fc.get("playoff_probability_pct"), "playoff_se": fc.get("playoff_standard_error"),
+                     "champ": champ.get(team), "exp_wins": fc.get("expected_final_wins"),
+                     "magic": fc.get("approximate_magic_number"), "banked": cs.get("actual_wins_banked")}
+    return out
+
+
+def odds_now(root):
+    """UI-E4: THE answer to "what are the odds now", for every page: the newest export at or
+    before the sync week. `behind` is how many weeks the sync has moved on since (between
+    Tuesday's sync and that week's simulation it is 1), so a page can say which forecast it
+    shows instead of showing nothing."""
+    sync = freshness_report(root)["week"]
+    sync = int(sync) if sync else None
+    ws = [w for w in root.weeks() if sync is None or w <= sync]
+    for w in reversed(ws):
+        teams = odds_at(root, w)
+        if teams:
+            return {"week": w, "teams": teams, "behind": (sync - w) if sync else 0}
+    return {"week": None, "teams": {}, "behind": None}
+
+
 def _wlt(w, l, t):
     return {"w": w, "l": l, "t": t, "text": f"{w}–{l}" + (f"–{t}" if t else "")}
 

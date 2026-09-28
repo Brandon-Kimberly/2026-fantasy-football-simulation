@@ -11,6 +11,11 @@ UI-F6: the player card labelled the SEASON baseline "projection" -- the week-ver
 trap. It now says "season mean", and adds this week's price where a lineup or matchup
 record priced the player for the current week (webui.live.expectations' precedence).
 
+UI-E4: every page's odds come from one pair of helpers. Home read the export of the SYNC
+week while League, Forecasts and the odds race read the NEWEST export -- so between
+Tuesday's sync and that week's simulation, Home showed no odds while League showed last
+week's. `odds_now` is the newest export at or before the sync week, and says how far behind.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -24,7 +29,8 @@ import os
 import tempfile
 import unittest
 
-from webui.glance import freshness_report, kickoff_report, records, sync_phrase
+from webui.glance import (freshness_report, home_report, kickoff_report, odds_at, odds_now, odds_race, records,
+                          sync_phrase)
 from webui.paths import Root
 
 try:
@@ -265,6 +271,67 @@ class TestPlayerCardSeparatesWeekFromSeason(unittest.TestCase):
         self.assertNotIn("<span>projection</span>", js)
         self.assertIn("season mean", js)
         self.assertIn("week_mean", js)
+
+
+def _sync_week(root, week):
+    p = os.path.join(root, "data", "current", "sync_manifest.json")
+    with open(p, encoding="utf-8") as fh:
+        m = json.load(fh)
+    m["current_week"] = week
+    with open(p, "w", encoding="utf-8") as fh:
+        json.dump(m, fh)
+    with open(os.path.join(root, "data", "current", "league_state.json"), "w", encoding="utf-8") as fh:
+        json.dump({"current_week": week}, fh)
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestOneSourceForTheOdds(unittest.TestCase):
+    """The fixture's week-3 export prices Quantum Ferrets at 93.5% to make the playoffs and
+    35.8% for the title."""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def test_odds_at_reads_one_export(self):
+        o = odds_at(self.root, 3)
+        self.assertEqual((o[MY_TEAM]["playoff"], o[MY_TEAM]["champ"], o[MY_TEAM]["playoff_se"]), (93.5, 35.8, 0.25))
+        self.assertEqual(odds_at(self.root, 9), {})
+
+    def test_odds_now_is_the_newest_export_and_says_when_it_is_behind(self):
+        self.assertEqual((odds_now(self.root)["week"], odds_now(self.root)["behind"]), (3, 0))
+        _sync_week(self.td.name, 4)
+        now = odds_now(self.root)
+        self.assertEqual((now["week"], now["behind"]), (3, 1))
+        self.assertEqual(now["teams"][MY_TEAM]["playoff"], 93.5)
+
+    def test_every_page_shows_the_same_odds_after_the_sync_moves_on(self):
+        from webui.app import current_report
+        _sync_week(self.td.name, 4)                   # the week-4 simulation has not run yet
+        home = home_report(self.root, MY_TEAM)
+        mine = next(r for r in home["standings"] if r["team"] == MY_TEAM)
+        race = next(s for s in odds_race(self.root, MY_TEAM)["playoff"] if s["name"] == MY_TEAM)
+        seen = {"home hero": (home["forecast"] or {}).get("playoff_probability_pct"),
+                "home standings": mine["playoff"], "home title": home["champ"],
+                "league": current_report(self.root)["odds"].get(MY_TEAM), "odds race": race["values"][-1]}
+        self.assertEqual(seen, {"home hero": 93.5, "home standings": 93.5, "home title": 35.8,
+                                "league": 93.5, "odds race": 93.5})
+        self.assertEqual(home["odds_week"], 3)
+
+    def test_home_says_which_forecast_it_is_showing_when_it_is_behind(self):
+        _sync_week(self.td.name, 4)
+        st = Settings(self.root)
+        st.set_mode("simple")
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        body = app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("from the week-3 forecast", body)
+        self.assertNotIn("from this week's forecast", body)
 
 
 if __name__ == "__main__":
