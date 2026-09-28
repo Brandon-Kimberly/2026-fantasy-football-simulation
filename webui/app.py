@@ -24,7 +24,7 @@ from webui import accuracy as accuracymod
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
-                          odds_race, roster_vorp, team_hue, windows_report)
+                          odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard
 from webui.names import Overlay
@@ -151,7 +151,7 @@ def current_report(root):
         rows.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
-            "manifest": manifest, "files": root.current()}
+            "manifest": manifest, "files": root.current(), "records": records(root)}
 
 
 # ------------------------------------------------------------------------- factory
