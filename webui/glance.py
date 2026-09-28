@@ -139,6 +139,10 @@ def odds_moves(root, n=None):
     now, then = odds_at(root, n), odds_at(root, prev)
     actuals = root.read_json("current/weekly_actuals.json", {}) or {}
     quotes = {w: quoted_week(root, w) for w in range(prev, n)}        # UI-Q2: what it said at the time
+    # the box scores can disagree with the league's own record after a stat correction (seen
+    # on week 2 of 2026); the standings are the authority (F84), so a result they do not
+    # reconcile with is flagged, never stated
+    rec = records(root)
     for team, v in now.items():
         was = then.get(team)
         if not was:
@@ -153,7 +157,8 @@ def odds_moves(root, n=None):
                                 "p_h2h": q.get("h2h"), "p_median": q.get("median")})
         out["teams"][team] = {"team": team, "playoff": v["playoff"], "playoff_was": was["playoff"],
                               "d_playoff": d(v["playoff"], was["playoff"]), "champ": v["champ"],
-                              "champ_was": was["champ"], "d_champ": d(v["champ"], was["champ"]), "results": results}
+                              "champ_was": was["champ"], "d_champ": d(v["champ"], was["champ"]), "results": results,
+                              "reconciled": (rec.get(team) or {}).get("agrees", True)}
     out["rows"] = sorted(out["teams"].values(), key=lambda r: -(r["d_playoff"] if r["d_playoff"] is not None else -999))
     return out
 
