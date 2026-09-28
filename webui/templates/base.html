@@ -18,6 +18,7 @@
   --grid:#e1e0d9; --rule:#c3c2b7; --ring:rgba(11,11,11,0.10);
   --pos:#1f66bd; --neg:#c93a39; --mid:#f0efec; --chip:#ffffff; --warn:#8f5d12;
   --warm-ink:#a8561a; --gold-ink:#8a6a12;   /* the accents, dark enough to be read at 12 px (4.5:1) */
+  --line-l:40%;                             /* lightness of a team-hue chart line on this ground */
   --pos-bg:rgba(42,120,214,0.10); --neg-bg:rgba(227,73,72,0.10); --warn-bg:rgba(183,121,31,0.12);
   --turf:#2e7d4f; --turf-bg:rgba(46,125,79,0.10); --turf-line:rgba(46,125,79,0.16);
   --warm:#d9772b; --warm-bg:rgba(217,119,43,0.12); --gold:#c9962a; --gold-bg:rgba(201,150,42,0.14);
@@ -38,7 +39,7 @@
   --pos-bg:rgba(57,135,229,0.16); --neg-bg:rgba(230,103,103,0.16); --warn-bg:rgba(217,164,65,0.16);
   --turf:#4fae7b; --turf-bg:rgba(79,174,123,0.14); --turf-line:rgba(79,174,123,0.18);
   --warm:#eb8d45; --warm-bg:rgba(235,141,69,0.16); --gold:#dcae45; --gold-bg:rgba(220,174,69,0.16);
-  --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45;
+  --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45; --line-l:62%;
   --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
   --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); } }
 
@@ -200,13 +201,20 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .charts figure { margin: 0; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 8px; overflow: hidden; }
 /* inline SVG charts drawn by the templates */
 .viz { width: 100%; height: auto; display: block; }
-.viz text { font: 10.5px var(--sans); fill: var(--muted); }
+.viz text { font: 11.5px var(--sans); fill: var(--muted); } .viz text.vl { fill: var(--ink); font-weight: 600; paint-order: stroke; stroke: var(--surface); stroke-width: 3px; stroke-linejoin: round; }
 .viz .ax { stroke: var(--grid); stroke-width: 1; } .viz .ax2 { stroke: var(--rule); stroke-width: 1; }
 .viz .ln { fill: none; stroke: var(--rule); stroke-width: 1.4; opacity: .7; } .viz .ln.me { stroke: var(--turf); stroke-width: 2.6; opacity: 1; }
 .viz .ln.pos { stroke: var(--pos); stroke-width: 2.4; opacity: 1; } .viz .ln.gold { stroke: var(--gold); stroke-width: 2.4; opacity: 1; }
+.viz .ln.hue { stroke-width: 1.8; opacity: .85; stroke-linejoin: round; } .viz .ln.me[style] { stroke-width: 3.2; }
+.viz .xh { stroke: var(--ink); stroke-width: 1; opacity: .35; pointer-events: none; }
+.viztip { position: fixed; z-index: 60; pointer-events: none; background: var(--surface); border: 1px solid var(--rule); border-radius: 10px; box-shadow: var(--shadow); padding: 8px 11px; font-size: 12px; line-height: 1.55; color: var(--ink); max-width: 280px; }
+.viztip b { display: block; color: var(--muted); font-weight: 600; margin-bottom: 3px; } .viztip span { display: flex; justify-content: space-between; gap: 14px; white-space: nowrap; }
+.viztip i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; margin-right: 6px; vertical-align: middle; } .viztip strong { font-variant-numeric: tabular-nums; font-weight: 600; }
+.spark { width: 64px; height: 18px; vertical-align: middle; overflow: visible; flex: none; } .spark polyline { fill: none; stroke: var(--turf); stroke-width: 1.6; stroke-linejoin: round; stroke-linecap: round; } .spark circle { fill: var(--turf); }
+.rankd { display: inline-block; min-width: 24px; text-align: left; font-size: 11px; font-weight: 700; margin-left: 5px; letter-spacing: .02em; color: var(--muted); } .rankd.up { color: var(--turf); } .rankd.dn { color: var(--neg); }
 .viz .dot { fill: var(--turf); } .viz .dot.pos { fill: var(--pos); } .viz .dot.gold { fill: var(--gold); }
 .viz .area { fill: url(#vizg-turf); } .viz .area.pos { fill: url(#vizg-pos); }
-.viz .ln.me, .viz .ln.pos, .viz .ln.gold { stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: draw 1.6s cubic-bezier(.2,.8,.2,1) forwards; }
+.viz .ln.me, .viz .ln.pos, .viz .ln.gold, .viz .ln.hue { stroke-dasharray: 3000; stroke-dashoffset: 3000; animation: draw 1.6s cubic-bezier(.2,.8,.2,1) forwards; }
 .viz .dot { animation: pop .4s cubic-bezier(.2,.8,.2,1) both; animation-delay: 1s; }
 @keyframes draw { to { stroke-dashoffset: 0; } }
 @keyframes pop { from { r: 0; opacity: 0; } to { opacity: 1; } }
@@ -280,7 +288,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 .foot button { padding: 5px 11px; font-size: 10.5px; }
 
 @media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } th { position: static; } }   /* after the base th rule: below tablet width a table scrolls in its box, where sticky would sit mid-table */
-@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold { stroke-dashoffset: 0; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold, .viz .ln.hue { stroke-dashoffset: 0; } }
 </style>
 </head>
 <body>
@@ -357,6 +365,39 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   requestAnimationFrame(function () {
     document.querySelectorAll('[data-width]').forEach(function (el) { el.style.width = el.getAttribute('data-width') + '%'; });
     document.querySelectorAll('[data-dash]').forEach(function (el) { el.style.strokeDashoffset = el.getAttribute('data-dash'); });
+  });
+  // charts: a crosshair and a tooltip naming every series at the nearest point (the svg carries the data)
+  var tip = document.createElement('div'); tip.className = 'viztip'; tip.style.display = 'none'; document.body.appendChild(tip);
+  document.querySelectorAll('svg.viz[data-xs]').forEach(function (svg) {
+    var xs = svg.getAttribute('data-xs').split(',').map(parseFloat), labels = JSON.parse(svg.getAttribute('data-labels') || '[]');
+    var unit = svg.getAttribute('data-unit') || '', nd = parseInt(svg.getAttribute('data-nd') || '1', 10);
+    var lines = Array.prototype.map.call(svg.querySelectorAll('polyline[data-vals]'), function (p) {
+      return { name: p.getAttribute('data-name'), vals: JSON.parse(p.getAttribute('data-vals')), col: p.getAttribute('data-col') };
+    });
+    if (!xs.length || !lines.length) return;
+    var xh = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+    xh.setAttribute('class', 'xh'); xh.setAttribute('y1', svg.getAttribute('data-top')); xh.setAttribute('y2', svg.getAttribute('data-bottom'));
+    xh.style.display = 'none'; svg.appendChild(xh);
+    svg.addEventListener('pointermove', function (ev) {
+      var r = svg.getBoundingClientRect(), vb = svg.viewBox.baseVal, mx = (ev.clientX - r.left) * vb.width / r.width, best = 0;
+      xs.forEach(function (x, i) { if (Math.abs(x - mx) < Math.abs(xs[best] - mx)) best = i; });
+      xh.setAttribute('x1', xs[best]); xh.setAttribute('x2', xs[best]); xh.style.display = '';
+      var rows = lines.filter(function (l) { return l.vals[best] !== null && l.vals[best] !== undefined; })
+                      .sort(function (p, q) { return q.vals[best] - p.vals[best]; });
+      tip.textContent = '';
+      var h = document.createElement('b'); h.textContent = labels[best] || ''; tip.appendChild(h);
+      rows.forEach(function (l) {
+        var row = document.createElement('span'), nm = document.createElement('em'), sw = document.createElement('i'), v = document.createElement('strong');
+        sw.style.background = l.col; nm.appendChild(sw); nm.appendChild(document.createTextNode(l.name)); nm.style.fontStyle = 'normal';
+        v.textContent = Number(l.vals[best]).toFixed(nd) + unit; row.appendChild(nm); row.appendChild(v); tip.appendChild(row);
+      });
+      tip.style.display = '';
+      var tw = tip.offsetWidth, th = tip.offsetHeight, left = ev.clientX + 14, top = ev.clientY + 14;
+      if (left + tw > window.innerWidth - 8) left = ev.clientX - tw - 14;
+      if (top + th > window.innerHeight - 8) top = ev.clientY - th - 14;
+      tip.style.left = left + 'px'; tip.style.top = top + 'px';
+    });
+    svg.addEventListener('pointerleave', function () { tip.style.display = 'none'; xh.style.display = 'none'; });
   });
   // the sticky header's height, so sticky table headers and anchor targets sit below it
   var top = document.querySelector('header.top');

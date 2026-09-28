@@ -23,7 +23,7 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
-                          roster_vorp, team_hue, windows_report)
+                          odds_race, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard
 from webui.names import Overlay
@@ -200,6 +200,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
+    app.jinja_env.globals["sparkline"] = render.sparkline
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
     app.jinja_env.filters["tool_icon"] = render.tool_icon
@@ -341,7 +342,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                          "exp_wins": fc.get("expected_final_wins"), "champ": champ, "banked": cs.get("actual_wins_banked"),
                          "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
-        return render_template("weeks.html", rows=rows)
+        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM))
 
     @app.route("/forecasts/week-<int:week>")
     @app.route("/weeks/<int:week>")
@@ -398,7 +399,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         rep_ = decisions_report(root, MY_TEAM)
         series = rep_["series"]
         chart = render.line_chart([{"name": "my playoff odds, cumulative effect of my moves", "values": [x["value"] for x in series], "cls": "me"}],
-                                  [f"wk {x['week']}" if x.get("week") else render.human_time(x["at"]) for x in series],
+                                  [render.short_date(x["at"]) for x in series],
                                   unit=" pts", nd=1, y_min=None, height=200) if len(series) > 1 else ""
         return render_template("decisions.html", chart=chart, **rep_)
 
