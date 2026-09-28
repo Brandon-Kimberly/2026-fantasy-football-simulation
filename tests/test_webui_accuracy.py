@@ -174,14 +174,25 @@ class TestPage(unittest.TestCase):
         self.assertEqual(r.status_code, 200, path)
         return r.get_data(as_text=True)
 
-    def test_the_page_is_in_both_views_and_leads_with_the_sample_size(self):
-        for mode in ("dev", "simple"):
-            with self.subTest(mode=mode):
-                body = self.get(mode)
-                self.assertIn("Accuracy", body)
-                self.assertIn('href="/accuracy"', body)                      # it is in the nav
-                self.assertIn("2 weeks", body, "the thinness of the sample leads, not the hit rate")
-                self.assertIn("week 5", body.lower(), "and when it first means anything")
+    def test_the_page_leads_with_the_sample_size(self):
+        body = self.get()
+        self.assertIn("Accuracy", body)
+        self.assertIn('href="/accuracy"', body)                              # it is in the developer nav
+        self.assertIn("2 weeks", body, "the thinness of the sample leads, not the hit rate")
+        self.assertIn("week 5", body.lower(), "and when it first means anything")
+
+    def test_it_is_the_owners_page_only(self):
+        """The model's own report card is the owner's business, not a visitor's."""
+        st = Settings(self.root)
+        st.set_mode("simple")
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        c = app.test_client()
+        r = c.get("/accuracy")
+        self.assertEqual(r.status_code, 404)
+        self.assertIn("developer view", r.get_data(as_text=True))
+        self.assertNotIn('href="/accuracy"', c.get("/").get_data(as_text=True))
 
     def test_it_shows_the_calls_the_points_and_every_scored_week(self):
         body = self.get()
@@ -190,10 +201,6 @@ class TestPage(unittest.TestCase):
         for text in ("Week 1", "Week 2"):
             self.assertIn(text, body)
 
-    def test_the_simple_view_says_it_without_the_jargon(self):
-        from tests.test_webui_modes import DEV_TERMS, visible_text
-        text = visible_text(self.get("simple"))
-        self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
 
 if __name__ == "__main__":

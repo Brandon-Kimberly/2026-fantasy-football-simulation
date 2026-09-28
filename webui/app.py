@@ -47,9 +47,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 NAV_DEV = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/league", "League"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
-DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs")
+DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
+                     "/accuracy")
 DEV_ONLY_EXACT = ("/jobs",)
 TERMINAL_COMMANDS = (
     ("py -3.10 -m scripts.run_sync", "pull live data into data/current/ (H5: the odds key is verified first; "

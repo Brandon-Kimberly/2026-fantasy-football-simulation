@@ -709,6 +709,19 @@ beat-the-median calls. `ENOUGH_WEEKS` is 5 (F25: first measurable at weeks 5-6) 
 until then the page leads with how thin the sample is and calls the numbers counts
 rather than conclusions.
 
+It is the OWNER'S page: the model's own report card is dev-only, out of the simple view's
+navigation and refused by the mode gate like every other developer page.
+
+### One rule for hiding things (2026-09-28)
+
+Scripts here hide rows by setting the `hidden` attribute, and the browser's own rule
+for that (`[hidden] { display: none }`) loses to any class that sets a display. The
+Decisions filters set `hidden` on rows styled `display: grid`, so clicking a filter
+changed nothing on screen; the same bug had already been patched four times, once per
+component, for the palette, the shortcut sheet, the player card and the toast. There is
+now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
+patches are gone. A page that hides something does not have to remember this again.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

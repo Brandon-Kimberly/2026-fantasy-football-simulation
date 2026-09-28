@@ -58,6 +58,10 @@
 :root[data-theme="dark"] { color-scheme: dark; } :root[data-theme="light"] { color-scheme: light; }
 @view-transition { navigation: auto; }
 
+/* A script that hides something sets the `hidden` attribute, and the browser's own
+   rule for it loses to any class that sets a display -- which is how a filtered row
+   stayed on screen. One rule, so no component has to remember this again. */
+[hidden] { display: none !important; }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; background: var(--plane); color: var(--ink); font: 15px/1.55 var(--sans); -webkit-font-smoothing: antialiased; position: relative; }
@@ -217,7 +221,6 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 4px; }
 /* U4 / U14: the command palette and the shortcut help; U5: the player card */
 .pal { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.45); display: flex; align-items: flex-start; justify-content: center; padding: 10vh 16px 16px; backdrop-filter: blur(4px); }
-.pal[hidden] { display: none; }
 .pal .box { width: min(640px, 100%); background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; animation: rise .2s ease both; }
 .pal input { width: 100%; border: 0; border-bottom: 1px solid var(--grid); background: transparent; color: var(--ink); font: 17px var(--sans); padding: 16px 18px; outline: none; }
 .pal ul { list-style: none; margin: 0; padding: 6px; max-height: 50vh; overflow: auto; }
@@ -227,12 +230,11 @@ td.wrap { white-space: normal; max-width: 34ch; }
 .pal li.on, .pal li:hover { background: var(--mid); } .pal li.on .k { color: var(--pos); }
 .pal .foot { display: flex; gap: 16px; padding: 8px 14px; font-size: 11.5px; color: var(--muted); border-top: 1px solid var(--grid); }
 .keys { position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.45); display: flex; align-items: center; justify-content: center; padding: 16px; }
-.keys[hidden] { display: none; }
 .keys .box { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 22px; width: min(460px, 100%); animation: rise .2s ease both; }
 .keys h3 { margin: 0 0 10px; } .keys dl { display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; margin: 0; font-size: 13.5px; } .keys dt { color: var(--ink); } .keys dd { margin: 0; color: var(--ink-2); }
 kbd { font-family: var(--display); font-size: 11px; font-weight: 700; background: var(--mid); border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: 6px; padding: 1px 6px; color: var(--ink); }
 .pcard { position: fixed; z-index: 70; width: 260px; background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 14px; font-size: 12.5px; color: var(--ink-2); line-height: 1.5; animation: rise .15s ease both; }
-.pcard[hidden] { display: none; } .pcard .n { font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
+.pcard .n { font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
 .pcard .row { display: flex; justify-content: space-between; gap: 10px; } .pcard .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pcard a { display: inline-block; margin-top: 6px; font-weight: 600; }
 [data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
@@ -243,7 +245,7 @@ kbd { font-family: var(--display); font-size: 11px; font-weight: 700; background
 .jobbar i { display: block; height: 100%; width: 40%; background: var(--g-brand); border-radius: 999px; animation: jobslide 1.4s ease-in-out infinite; }
 @keyframes jobslide { from { transform: translateX(-100%); } to { transform: translateX(260%); } }
 .toast { position: fixed; right: 16px; bottom: 16px; z-index: 90; display: flex; align-items: center; gap: 12px; background: var(--surface); border: 1px solid var(--rule); border-left: 4px solid var(--turf); border-radius: 12px; box-shadow: var(--shadow); padding: 12px 12px 12px 14px; font-size: 13.5px; color: var(--ink-2); max-width: min(380px, calc(100vw - 32px)); animation: rise .35s ease both; }
-.toast[hidden] { display: none; } .toast b { color: var(--ink); } .toast a { font-weight: 700; color: var(--pos); white-space: nowrap; text-decoration: none; } .toast a:hover { text-decoration: underline; }
+.toast b { color: var(--ink); } .toast a { font-weight: 700; color: var(--pos); white-space: nowrap; text-decoration: none; } .toast a:hover { text-decoration: underline; }
 .toast button { padding: 2px 8px; font-size: 14px; line-height: 1; box-shadow: none; }
 .charts figure { margin: 0; background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 8px; overflow: hidden; }
 /* inline SVG charts drawn by the templates */
