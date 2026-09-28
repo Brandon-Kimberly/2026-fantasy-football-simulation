@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
 {% block title %}Sync · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -47,10 +48,35 @@
 </section>
 
 <section>
+<h2 id="changed"><svg class="i c-violet"><use href="#i-swap"/></svg> What changed <span class="hint">against {{ "the backup" if compare else "the last backup" }}{% if changes.taken_at %} · {{ changes.taken_at|when }}{% endif %}{% if compare %} · <a href="/sync#changed">back to the newest</a>{% endif %}</span></h2>
+{% if not changes.available %}<p class="small muted">{{ changes.note }}</p>
+{% elif changes.n == 0 %}<p class="small muted">Nothing has moved since that backup: the same rosters, the same designations, the same projections and the same standings.</p>
+{% else %}
+{% if changes.roster %}<h3>Rosters</h3>
+<div class="scroller"><table><thead><tr><th>Player</th><th>Was</th><th>Now</th></tr></thead><tbody>
+{% for c in changes.roster %}<tr><td class="nm">{{ c.name }}</td><td>{% if c.was %}{{ mark(c.was) }}{{ teamlink(c.was) }}{% else %}<span class="muted">free agent</span>{% endif %}</td><td>{% if c.now %}{{ mark(c.now) }}{{ teamlink(c.now) }}{% else %}<span class="muted">dropped</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+{% if changes.status %}<h3>Designations</h3>
+<div class="scroller"><table><thead><tr><th>Player</th><th>Team</th><th>Was</th><th>Now</th></tr></thead><tbody>
+{% for c in changes.status %}<tr><td class="nm">{{ c.name }}</td><td>{% if c.team %}{{ teamlink(c.team) }}{% endif %}</td><td class="muted">{{ c.was or "clear" }}</td><td>{% if c.now %}<span class="st {{ (c.now|sabbr)|lower }}">{{ c.now }}</span>{% else %}<span class="pos">clear</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+{% if changes.projection %}<h3>Projections <span class="hint">rostered players, biggest movers</span></h3>
+<div class="scroller"><table><thead><tr><th>Player</th><th>Team</th><th class="num">Was</th><th class="num">Now</th><th class="num">Change</th></tr></thead><tbody>
+{% for c in changes.projection %}<tr><td class="nm">{{ c.name }}<span class="small muted">{{ c.pos }}</span></td><td>{% if c.team %}{{ teamlink(c.team) }}{% endif %}</td><td class="num muted">{{ c.was|num(1) }}</td><td class="num">{{ c.now|num(1) }}</td><td class="num {{ 'pos' if c.delta > 0 else 'neg' }}">{{ c.delta|signed(1) }}</td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+{% if changes.standings %}<h3>Standings</h3>
+<div class="scroller"><table><thead><tr><th>Team</th><th class="num">Wins</th><th class="num">Points</th></tr></thead><tbody>
+{% for c in changes.standings %}<tr><td class="nm">{{ mark(c.team) }}{{ teamlink(c.team) }}</td><td class="num">{{ c.wins }} <span class="muted small">was {{ c.wins_was }}</span></td><td class="num">{{ c.points|num(1) }} <span class="muted small">was {{ c.points_was|num(1) }}</span></td></tr>{% endfor %}
+</tbody></table></div>{% endif %}
+<p class="small muted" style="margin-top:10px">Read from the backup on disk, not recomputed; a sync that changed nothing shows nothing.</p>
+{% endif %}
+</section>
+
+<section>
 <h2><svg class="i c-gold"><use href="#i-lock"/></svg> Backups <span class="hint">data/current/ as it was before each sync launched here</span></h2>
 {% if backups %}
-<div class="scroller"><table class="bk"><thead><tr><th>Taken</th><th>Why</th><th class="num">Week</th><th class="num">Files</th><th class="num">Size</th><th></th></tr></thead><tbody>
-{% for b in backups %}<tr><td class="nm">{{ b.taken_at|when }}</td><td>{{ b.reason }}</td><td class="num">{{ b.week or "—" }}</td><td class="num">{{ b.files|length }}</td><td class="num">{{ (b.bytes / 1048576)|round(1) }} MB</td><td><form method="post" action="/sync/restore" onsubmit="return confirm('Copy this backup back over data/current/? The current files will be replaced.')"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ b.name }}"><button type="submit" class="ghost" style="padding:5px 10px;font-size:11px"{% if current %} disabled{% endif %}>Restore</button></form></td></tr>{% endfor %}
+<div class="scroller"><table class="bk"><thead><tr><th>Taken</th><th>Why</th><th class="num">Week</th><th class="num">Files</th><th class="num">Size</th><th></th><th></th></tr></thead><tbody>
+{% for b in backups %}<tr><td class="nm">{{ b.taken_at|when }}</td><td>{{ b.reason }}</td><td class="num">{{ b.week or "—" }}</td><td class="num">{{ b.files|length }}</td><td class="num">{{ (b.bytes / 1048576)|round(1) }} MB</td><td><a class="tiny" href="/sync?from={{ b.name }}#changed">compare</a></td><td><form method="post" action="/sync/restore" onsubmit="return confirm('Copy this backup back over data/current/? The current files will be replaced.')"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ b.name }}"><button type="submit" class="ghost" style="padding:5px 10px;font-size:11px"{% if current %} disabled{% endif %}>Restore</button></form></td></tr>{% endfor %}
 </tbody></table></div>
 {% else %}<p class="small muted">None yet — the first sync from this page will take one.</p>{% endif %}
 </section>

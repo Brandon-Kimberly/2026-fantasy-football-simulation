@@ -616,17 +616,18 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                                shown=(t.fields if settings.mode == "dev" else simple_fields(t)))
 
     # ------------------------------------------------------------------ W4: sync
-    def _sync_context(probe=None):
+    def _sync_context(probe=None, compare=None):
         fr = freshness_report(root)
         key, source = syncmod.user_scope_key(read_user=_read_user)
         return {"fr": fr, "key_present": bool(key), "key_source": source, "probe": probe,
                 "backups": syncmod.list_backups(root), "modes": syncmod.MODES, "current": runner.current(),
+                "changes": syncmod.changes(root, compare), "compare": compare,
                 "last_job": next((m for m in runner.list() if m.get("tool") in ("run_sync", "weekly_report") and m.get("sync")), None)}
 
     @app.route("/sync")
     def sync_page():
         """The sync page renders without any network: the probe runs only on launch."""
-        return render_template("sync.html", **_sync_context())
+        return render_template("sync.html", **_sync_context(compare=request.args.get("from")))
 
     @app.route("/sync/launch", methods=["POST"])
     def sync_launch():

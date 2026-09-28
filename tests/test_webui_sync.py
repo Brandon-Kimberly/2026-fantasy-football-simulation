@@ -237,3 +237,92 @@ class TestSyncPage(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+class TestChanges(unittest.TestCase):
+    """U2: what moved between the last backup and what is on disk now -- the answer to
+    "what did I miss while I was away?" without reading a log."""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def cur(self, rel):
+        return os.path.join(self.td.name, "data", "current", rel)
+
+    def rewrite(self, rel, fn):
+        with open(self.cur(rel), encoding="utf-8") as fh:
+            d = json.load(fh)
+        fn(d)
+        with open(self.cur(rel), "w", encoding="utf-8") as fh:
+            json.dump(d, fh)
+
+    def test_nothing_to_compare_against(self):
+        r = syncmod.changes(self.root)
+        self.assertFalse(r["available"])
+        self.assertTrue(r["note"])
+        self.assertEqual(r["n"], 0)
+
+    def test_an_unchanged_tree_reports_no_change(self):
+        syncmod.backup(self.root, reason="test")
+        r = syncmod.changes(self.root)
+        self.assertTrue(r["available"])
+        self.assertEqual((r["roster"], r["status"], r["projection"], r["standings"]), ([], [], [], []))
+        self.assertEqual(r["n"], 0)
+
+    def test_every_kind_of_move_is_named(self):
+        from tests.test_webui_routes import TEAMS
+        syncmod.backup(self.root, reason="test")
+
+        def edit(d):
+            d[TEAMS[2]].append(d[TEAMS[1]].pop(0))                       # traded away
+            d[TEAMS[0]].append({"name": "Waiver Pickup", "pos": "RB", "team": "SEA",
+                                "injury_status": None, "on_ir": False})  # added
+            d[TEAMS[3]] = []                                             # dropped
+            for p in d[TEAMS[4]]:
+                p["injury_status"] = "Out"                               # status
+        self.rewrite("live_rosters.json", edit)
+        self.rewrite("player_baselines.json", lambda d: d.__setitem__("Player 5 O'Neil", dict(d["Player 5 O'Neil"], mean=8.0)))
+        self.rewrite("league_standings.json", lambda d: d.__setitem__(TEAMS[0], dict(d[TEAMS[0]], h2h_wins=99, points_scored=999.0)))
+
+        r = syncmod.changes(self.root)
+        self.assertTrue(r["available"])
+        by_name = {x["name"]: x for x in r["roster"]}
+        self.assertEqual(by_name["Player 1 O'Neil"]["kind"], "moved")
+        self.assertEqual((by_name["Player 1 O'Neil"]["was"], by_name["Player 1 O'Neil"]["now"]), (TEAMS[1], TEAMS[2]))
+        self.assertEqual(by_name["Waiver Pickup"]["kind"], "added")
+        self.assertIsNone(by_name["Waiver Pickup"]["was"])
+        self.assertEqual(by_name["Player 3 O'Neil"]["kind"], "dropped")
+        self.assertIsNone(by_name["Player 3 O'Neil"]["now"])
+        self.assertEqual([(x["name"], x["was"], x["now"]) for x in r["status"]],
+                         [("Player 4 O'Neil", None, "Out")])
+        self.assertEqual([(x["name"], x["now"], x["delta"]) for x in r["projection"]],
+                         [("Player 5 O'Neil", 8.0, -14.2)])
+        self.assertEqual([(x["team"], x["wins"], x["points"]) for x in r["standings"]],
+                         [(TEAMS[0], 99, 999.0)])
+        self.assertEqual(r["n"], 6)
+
+    def test_a_projection_that_barely_moved_is_not_news(self):
+        syncmod.backup(self.root, reason="test")
+        self.rewrite("player_baselines.json", lambda d: d.__setitem__("Player 5 O'Neil", dict(d["Player 5 O'Neil"], mean=22.3)))
+        self.assertEqual(syncmod.changes(self.root)["projection"], [])
+
+    @unittest.skipUnless(HAS_FLASK, "flask not installed")
+    def test_the_sync_page_shows_it(self):
+        from tests.test_webui_routes import TEAMS
+        syncmod.backup(self.root, reason="test")
+        self.rewrite("live_rosters.json", lambda d: d[TEAMS[2]].append(d[TEAMS[1]].pop(0)))
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok",
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        body = app.test_client().get("/sync").get_data(as_text=True)
+        self.assertIn("What changed", body)
+        self.assertIn("Player 1 O&#39;Neil", body)
+        # and any backup can be made the comparison point, for "what did I miss while I was away"
+        name = syncmod.list_backups(self.root)[0]["name"]
+        self.assertIn(f'href="/sync?from={name}#changed"', body)
+        picked = app.test_client().get(f"/sync?from={name}").get_data(as_text=True)
+        self.assertIn("back to the newest", picked)
+        self.assertEqual(app.test_client().get("/sync?from=nonsense").status_code, 200)

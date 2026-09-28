@@ -149,6 +149,108 @@ def list_backups(root):
     return out
 
 
+PROJECTION_NOISE = 0.5      # a mean that moved less than this is not news
+PROJECTION_SHOWN = 12       # the biggest movers, so one sync does not fill the page
+
+
+def _load(path):
+    try:
+        with open(path, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, ValueError):
+        return None
+
+
+def _owners(rosters):
+    """{player name: the team rostering him} from a live_rosters document."""
+    out = {}
+    for team, players in (rosters or {}).items():
+        for p in players or []:
+            if isinstance(p, dict) and p.get("name"):
+                out[p["name"]] = team
+    return out
+
+
+def _designations(rosters):
+    out = {}
+    for _team, players in (rosters or {}).items():
+        for p in players or []:
+            if isinstance(p, dict) and p.get("name"):
+                out[p["name"]] = p.get("injury_status") or None
+    return out
+
+
+def changes(root, name=None):
+    """U2: what moved between a backup of `data/current/` and what is on disk now -- who
+    changed hands, who picked up a designation, whose projection moved, and what the
+    standings did. The answer to "what did I miss?" without reading a log.
+
+    The backup is read straight off disk because the path chokepoint refuses `data/local/`
+    by design; the live side goes through the root like everything else. Nothing is
+    written, and with no backup to compare against the report says so rather than
+    inventing a baseline. `name` picks a backup; the newest is the default."""
+    out = {"available": False, "note": None, "name": None, "taken_at": None,
+           "roster": [], "status": [], "projection": [], "standings": [], "n": 0}
+    saved = list_backups(root)
+    if not saved:
+        out["note"] = ("no backup to compare against yet -- the first sync launched from this page takes "
+                       "one, and from then on this says what each sync changed")
+        return out
+    meta = next((b for b in saved if b.get("name") == name), saved[0]) if name else saved[0]
+    base = os.path.join(backups_dir(root), meta.get("name") or "")
+    old_rosters = _load(os.path.join(base, "live_rosters.json"))
+    if old_rosters is None:
+        out["note"] = f"the backup {meta.get('name')} has no roster file to compare against"
+        return out
+    out.update(available=True, name=meta.get("name"), taken_at=meta.get("taken_at"))
+
+    new_rosters = root.read_json("current/live_rosters.json", {}) or {}
+    was, now = _owners(old_rosters), _owners(new_rosters)
+    for player in sorted(set(was) | set(now)):
+        a, b = was.get(player), now.get(player)
+        if a == b:
+            continue
+        out["roster"].append({"name": player, "was": a, "now": b,
+                              "kind": "added" if a is None else ("dropped" if b is None else "moved")})
+
+    was_d, now_d = _designations(old_rosters), _designations(new_rosters)
+    for player in sorted(set(was_d) & set(now_d)):            # a man who arrived is already roster news
+        if was_d[player] != now_d[player]:
+            out["status"].append({"name": player, "was": was_d[player], "now": now_d[player],
+                                  "team": now.get(player)})
+
+    old_base = _load(os.path.join(base, "player_baselines.json")) or {}
+    new_base = root.read_json("current/player_baselines.json", {}) or {}
+    moved = []
+    for player, entry in new_base.items():
+        if player not in now or not isinstance(entry, dict):  # rostered players only: the pool is noise
+            continue
+        before = (old_base.get(player) or {}).get("mean")
+        after = entry.get("mean")
+        if before is None or after is None:
+            continue
+        delta = round(float(after) - float(before), 2)
+        if abs(delta) < PROJECTION_NOISE:
+            continue
+        moved.append({"name": player, "team": now.get(player), "pos": entry.get("pos"),
+                      "was": round(float(before), 2), "now": round(float(after), 2), "delta": delta})
+    moved.sort(key=lambda m: -abs(m["delta"]))
+    out["projection"] = moved[:PROJECTION_SHOWN]
+
+    old_st = _load(os.path.join(base, "league_standings.json")) or {}
+    new_st = root.read_json("current/league_standings.json", {}) or {}
+    for team, row in sorted(new_st.items()):
+        before = old_st.get(team) or {}
+        if not isinstance(row, dict) or not before:
+            continue
+        if before.get("h2h_wins") == row.get("h2h_wins") and before.get("points_scored") == row.get("points_scored"):
+            continue
+        out["standings"].append({"team": team, "wins": row.get("h2h_wins"), "points": row.get("points_scored"),
+                                 "wins_was": before.get("h2h_wins"), "points_was": before.get("points_scored")})
+    out["n"] = len(out["roster"]) + len(out["status"]) + len(out["projection"]) + len(out["standings"])
+    return out
+
+
 def prune(root, keep=KEEP_BACKUPS):
     names = [b["name"] for b in list_backups(root)]
     for name in names[keep:]:
