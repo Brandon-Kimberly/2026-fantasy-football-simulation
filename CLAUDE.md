@@ -218,6 +218,11 @@ the F27 commit, 2026-09-03):
   staleness class this repo keeps re-learning.
 - **MINOR** -- capability added, goldens byte-identical (new tools, report sections, CI,
   coverage).
+- **MINOR also covers an additive engine export** (owner ruling 2026-09-28, docs/WEB_UI_ROADMAP.md
+  Decision 1). A change that only ADDS a saved output -- every existing golden hash
+  byte-identical in all three stages -- is MINOR: the goldens are regenerated in a commit of
+  their own whose diff is shown to be the new entries and nothing else. A change to any
+  existing hash stays MAJOR, and so does anything that alters a draw.
 - **PATCH** -- fixes and docs that move neither.
 - **The behaviour check runs on BOTH scenarios before a MAJOR** (M2): `week01` and
   `--scenario week06`. week01 has no completed weeks and therefore no blend, so a
