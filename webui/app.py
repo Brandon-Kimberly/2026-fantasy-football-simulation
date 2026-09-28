@@ -24,7 +24,7 @@ from webui import accuracy as accuracymod
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
-                          odds_race, records, roster_vorp, team_hue, windows_report)
+                          odds_at, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
 from webui.names import Overlay
@@ -133,12 +133,9 @@ def current_report(root):
     manifest = root.read_json("current/sync_manifest.json", {}) or {}
     table = sorted(standings.items(),
                    key=lambda kv: (-float(kv[1].get("h2h_wins") or 0), -float(kv[1].get("points_scored") or 0)))
-    odds, odds_week = {}, None                  # playoff odds from the newest export, so the
-    weeks = root.weeks()                        # standings page answers "and where is that going?"
-    if weeks:
-        odds_week = weeks[-1]
-        f = root.read_json(f"weeks/week_{odds_week:02d}/live_season_forecast_week_{odds_week}.json", {}) or {}
-        odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in f.items() if isinstance(v, dict)}
+    now = odds_now(root)                        # playoff odds from THE current forecast (UI-E4), so the
+    odds_week = now["week"]                     # standings page answers "and where is that going?"
+    odds = {t: v["playoff"] for t, v in now["teams"].items()}
     roster_rows = {}
     for team, entries in rosters.items():
         rows = []
@@ -430,13 +427,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         the odds across the season's runs, not as a directory listing."""
         rows = []
         for n in root.weeks():
-            f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
-            fc = (f.get(MY_TEAM) or {}).get("forecast") or {}
-            cs = (f.get(MY_TEAM) or {}).get("current_state") or {}
+            mine = odds_at(root, n).get(MY_TEAM) or {}                      # UI-E4
             m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
-            champ = next((o.get("Champ_Pct") for o in (m.get("season_outcomes") or []) if isinstance(o, dict) and o.get("Team") == MY_TEAM), None)
-            rows.append({"week": n, "playoff": fc.get("playoff_probability_pct"), "se": fc.get("playoff_standard_error"),
-                         "exp_wins": fc.get("expected_final_wins"), "champ": champ, "banked": cs.get("actual_wins_banked"),
+            rows.append({"week": n, "playoff": mine.get("playoff"), "se": mine.get("playoff_se"),
+                         "exp_wins": mine.get("exp_wins"), "champ": mine.get("champ"), "banked": mine.get("banked"),
                          "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
         return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM))

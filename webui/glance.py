@@ -271,7 +271,6 @@ def home_report(root, my_team, runner=None):
     fr = freshness_report(root)
     week = fr["week"]
     wk = int(week) if week else None
-    d = f"weeks/week_{wk:02d}" if wk else None
 
     # ---- matchup, as the model priced it
     opponent = None
@@ -299,32 +298,34 @@ def home_report(root, my_team, runner=None):
         for m in pred.get("matchups") or []:
             all_matchups.append({"a": m.get("a"), "b": m.get("b"), "p_a": m.get("p_a"), "p_b": m.get("p_b")})
 
-    # ---- season standing
-    forecast = root.read_json(f"{d}/live_season_forecast_week_{wk}.json", {}) if d else {}
+    # ---- season standing, from THE current forecast (UI-E4): the newest export at or before
+    # the sync week, which after Tuesday's sync is last week's until this week's run lands
+    now = odds_now(root)
+    ow = now["week"]
+    od = f"weeks/week_{ow:02d}" if ow else None
+    forecast = root.read_json(f"{od}/live_season_forecast_week_{ow}.json", {}) if od else {}
     forecast = forecast or {}
     mine_fc = (forecast.get(my_team) or {}).get("forecast") or {}
     mine_cs = (forecast.get(my_team) or {}).get("current_state") or {}
-    matrix = root.read_json(f"{d}/syndicate_comprehensive_matrix_week_{wk}.json", {}) if d else {}
+    matrix = root.read_json(f"{od}/syndicate_comprehensive_matrix_week_{ow}.json", {}) if od else {}
     matrix = matrix or {}
     traj = ((matrix.get("weekly_trajectories") or {}).get(my_team) or {}).get("expected_cumulative_wins_by_week") or []
     seed = seed_report((matrix.get("finishing_seed_probabilities") or {}).get(my_team) or {},
                        (((forecast.get(my_team) or {}).get("forecast")) or {}).get("playoff_probability_pct"))
-    outcomes = {o.get("Team"): o for o in (matrix.get("season_outcomes") or []) if isinstance(o, dict)}
-    champ = (outcomes.get(my_team) or {}).get("Champ_Pct")
+    champ = (now["teams"].get(my_team) or {}).get("champ")
 
     # ---- standings, with each team's odds through the season and its move since the last forecast
     standings = root.read_json("current/league_standings.json", {}) or {}
     race = odds_race(root, my_team)
     sparks = {s["name"]: s["values"] for s in race["playoff"]}
-    prev_week = max((w for w in root.weeks() if wk and w < wk), default=None)
-    prev = (root.read_json(f"weeks/week_{prev_week:02d}/live_season_forecast_week_{prev_week}.json", {}) or {}) if prev_week else {}
-    prev_odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in prev.items() if isinstance(v, dict)}
+    prev_week = max((w for w in root.weeks() if ow and w < ow), default=None)
+    prev_odds = {t: v["playoff"] for t, v in odds_at(root, prev_week).items()} if prev_week else {}
     table = []
     for team, s in standings.items():
-        fc = (forecast.get(team) or {}).get("forecast") or {}
+        fc = now["teams"].get(team) or {}
         table.append({"team": team, "wins": s.get("h2h_wins"), "points": s.get("points_scored"),
-                      "faab": s.get("remaining_faab"), "playoff": fc.get("playoff_probability_pct"),
-                      "champ": (outcomes.get(team) or {}).get("Champ_Pct"), "hue": team_hue(team),
+                      "faab": s.get("remaining_faab"), "playoff": fc.get("playoff"),
+                      "champ": fc.get("champ"), "hue": team_hue(team),
                       "spark": sparks.get(team) or [], "rank_delta": None})
     table.sort(key=lambda r: (-(float(r["wins"] or 0)), -(float(r["points"] or 0))))
     for i, r in enumerate(table):
@@ -369,7 +370,7 @@ def home_report(root, my_team, runner=None):
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,
             "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
-            "weeks": root.weeks(), "prev_week": prev_week}
+            "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"]}
 
 
 def _seed_no(key):
@@ -494,14 +495,11 @@ def odds_race(root, my_team):
     export gets None there."""
     labels, per_week = [], []
     for n in root.weeks():
-        f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
-        if not f:
+        o = odds_at(root, n)                                                 # UI-E4
+        if not o:
             continue
-        m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
-        outcomes = {o.get("Team"): o for o in (m.get("season_outcomes") or []) if isinstance(o, dict)}
         labels.append(f"wk {n}")
-        per_week.append({t: (((v or {}).get("forecast") or {}).get("playoff_probability_pct"), (outcomes.get(t) or {}).get("Champ_Pct"))
-                         for t, v in f.items() if isinstance(v, dict)})
+        per_week.append({t: (v["playoff"], v["champ"]) for t, v in o.items()})
     teams = []
     for wkd in per_week:
         for t in wkd:

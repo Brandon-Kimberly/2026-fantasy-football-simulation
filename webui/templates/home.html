@@ -255,7 +255,7 @@
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
     {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, width=620, height=230, value_labels="last", marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
-    <div class="s" style="margin-top:auto">from this week's forecast · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    <div class="s" style="margin-top:auto">from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %} · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
     {% else %}<div class="s">No forecast yet{% if dev %} — <a href="/tools/run_simulation">run one</a>{% endif %}.</div>{% endif %}
   </div>
 </div>
@@ -274,7 +274,7 @@
 
 <div class="grid2">
   <section style="margin-top:28px">
-    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ week }} forecast{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
+    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %}{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
     <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num" title="wins: head-to-head plus median, as the league reports them">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
     {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|num(1) }}%{% if r.rank_delta %}<span class="rankd {{ 'up' if r.rank_delta > 0 else 'dn' }}" title="{{ 'up' if r.rank_delta > 0 else 'down' }} {{ r.rank_delta|abs }} in playoff odds since the week {{ prev_week }} forecast">{{ '▲' if r.rank_delta > 0 else '▼' }}{{ r.rank_delta|abs }}</span>{% elif prev_week %}<span class="rankd" title="no move in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
     </tbody></table></div>
