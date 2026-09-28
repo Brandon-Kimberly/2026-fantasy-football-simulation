@@ -78,6 +78,7 @@ def odds_at(root, n):
     if isinstance(outcomes, dict):
         outcomes = [dict(Team=k, **v) for k, v in outcomes.items()]
     champ = {o.get("Team"): o.get("Champ_Pct") for o in outcomes if isinstance(o, dict)}
+    dists = m.get("win_distributions") or {}
     out = {}
     for team, v in f.items():
         if not isinstance(v, dict):
@@ -85,8 +86,19 @@ def odds_at(root, n):
         fc, cs = v.get("forecast") or {}, v.get("current_state") or {}
         out[team] = {"playoff": fc.get("playoff_probability_pct"), "playoff_se": fc.get("playoff_standard_error"),
                      "champ": champ.get(team), "exp_wins": fc.get("expected_final_wins"),
-                     "magic": fc.get("approximate_magic_number"), "banked": cs.get("actual_wins_banked")}
+                     "magic": fc.get("approximate_magic_number"), "banked": cs.get("actual_wins_banked"),
+                     "wins": _wins_range(dists.get(team))}
     return out
+
+
+def _wins_range(w):
+    """UI-O12: a team's FINAL-season wins as percentiles (win_distributions; its mean is the
+    forecast's expected_final_wins). None when the export carries no distribution."""
+    if not isinstance(w, dict) or w.get("p10_floor") is None or w.get("p90_ceiling") is None:
+        return None
+    return {"p1": w.get("p01_worst_case"), "p10": w.get("p10_floor"), "p25": w.get("p25_lower_bound"),
+            "p50": w.get("p50_median"), "p75": w.get("p75_upper_bound"), "p90": w.get("p90_ceiling"),
+            "p99": w.get("p99_best_case"), "mean": w.get("expected_mean")}
 
 
 def odds_now(root):
@@ -413,7 +425,8 @@ def home_report(root, my_team, runner=None):
             "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
             "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"],
-            "my_move": (odds_moves(root, ow)["teams"].get(my_team) if ow else None)}
+            "my_move": (odds_moves(root, ow)["teams"].get(my_team) if ow else None),
+            "wins_range": (now["teams"].get(my_team) or {}).get("wins")}
 
 
 def _seed_no(key):

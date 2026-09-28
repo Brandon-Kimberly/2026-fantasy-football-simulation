@@ -34,6 +34,10 @@ UI-Q2: beside a past result, what the model said at the time -- from the same qu
 Accuracy page scores (the newest committed forecast logged before the week's first
 kickoff), through one shared helper, so the two can never disagree.
 
+UI-O12: final wins as a range. "Expected wins 17.9" hid the distribution the matrix already
+holds (win_distributions: final-season wins, p1..p99; its mean IS expected_final_wins, checked
+on all eight teams of the real week-3 export). Home and League show the likely range.
+
 UI-F2: the System page said "30 sources fell back" when one source had failed and the
 sync had raised thirty warnings. Sources and warnings are counted apart.
 
@@ -558,6 +562,55 @@ class TestWhatEachResultDid(unittest.TestCase):
         import re
         text = re.sub(r"<[^>]+>", "", self.get("/", "simple"))          # what the reader sees
         self.assertIn("+13.5 since the week-2 forecast", text)
+
+
+WINS = {"expected_mean": 17.94, "p01_worst_case": 9.0, "p10_floor": 13.0, "p25_lower_bound": 15.0,
+        "p50_median": 18.0, "p75_upper_bound": 20.0, "p90_ceiling": 22.0, "p99_best_case": 26.0}
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestFinalWinsAsARange(unittest.TestCase):
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        build_tree(self.td.name)
+        p = os.path.join(self.td.name, "data", "weeks", "week_03", "syndicate_comprehensive_matrix_week_3.json")
+        with open(p, encoding="utf-8") as fh:
+            m = json.load(fh)
+        m["win_distributions"] = {MY_TEAM: WINS}
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(m, fh)
+        self.root = Root(self.td.name)
+
+    def tearDown(self):
+        self.td.cleanup()
+
+    def get(self, path, mode="dev"):
+        st = Settings(self.root)
+        st.set_mode(mode)
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        r = app.test_client().get(path)
+        self.assertEqual(r.status_code, 200, path)
+        return r.get_data(as_text=True)
+
+    def test_odds_at_carries_the_range(self):
+        w = odds_at(self.root, 3)[MY_TEAM]["wins"]
+        self.assertEqual((w["p10"], w["p25"], w["p50"], w["p75"], w["p90"]), (13.0, 15.0, 18.0, 20.0, 22.0))
+        self.assertIsNone(odds_at(self.root, 3)[B]["wins"], "no distribution, no invented range")
+
+    def test_home_shows_the_likely_range_not_just_the_mean(self):
+        import re
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                text = re.sub(r"<[^>]+>", "", self.get("/", mode))
+                self.assertIn("likely 13–22", text)
+                self.assertIn("8 seasons in 10", text)
+
+    def test_league_standings_carry_each_teams_range(self):
+        body = self.get("/league")
+        self.assertIn(">Final wins</th>", body)
+        self.assertIn("13–22", body)
 
 
 if __name__ == "__main__":
