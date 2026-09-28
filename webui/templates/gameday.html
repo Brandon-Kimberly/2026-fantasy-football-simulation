@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Game day · {{ brand }}</title>
+<link rel="icon" type="image/svg+xml" href="/icon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;700;800&display=swap">
 <style>
 :root { --bg:#0b0b0c; --panel:#141416; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#8f8e88; --rule:#2c2c2a; --mine:hsl({{ hue }} 62% 62%); --theirs:hsl({{ opp_hue or 28 }} 62% 62%); --live:#e66767; --pre:#5e8ae2; --display:"Archivo", "Segoe UI", system-ui, sans-serif; }
@@ -65,6 +66,12 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
   function pct(p) { return p == null ? '—' : Math.round(100 * p) + '%'; }
+  // UI-M8: never a rounded 0% or 100% until nobody is left to play on either side
+  function chance(p, decided) {
+    if (p == null) return '—';
+    var r = Math.round(100 * p);
+    return decided ? r + '%' : (r >= 100 ? '>99%' : (r <= 0 ? '<1%' : r + '%'));
+  }
   function chip(st) { var c = st === 'final' ? 'final' : (/^(Q|OT)/.test(st || '') ? 'on' : 'pre'); return '<span class="gc ' + c + '">' + esc(st) + '</span>'; }
   function rows(st, name) {
     return '<table><thead><tr><th>' + esc(name) + '</th><th>Game</th><th class="num">Pts</th></tr></thead><tbody>' +
@@ -95,7 +102,7 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
     var anyOn = (s.games || []).some(function (g) { return g.state === 'in'; });
     liveEl.hidden = !anyOn;
     body.innerHTML = '<div class="score"><div class="l"><div class="pts">' + n1(me.banked) + '</div><div class="sub">' + me.to_play + ' of ' + me.starters + ' still to play · projects ' + n1(me.projected) + '</div></div>' +
-      '<div class="mid">chance to win<b>' + pct(s.p_win) + '</b>now</div>' +
+      '<div class="mid">chance to win<b>' + chance(s.p_win, s.decided) + '</b>now</div>' +
       '<div class="r"><div class="pts">' + n1(th.banked) + '</div><div class="sub">' + th.to_play + ' of ' + th.starters + ' still to play · projects ' + n1(th.projected) + '</div></div></div>' +
       '<div class="split"><i style="width:' + (s.p_win == null ? 50 : 100 * s.p_win).toFixed(1) + '%"></i></div>' + dayline(p.history) +
       '<div class="cols"><div>' + rows(me, s.team) + '</div><div>' + rows(th, s.opponent || 'opponent') + '</div></div>' + games(s.games);

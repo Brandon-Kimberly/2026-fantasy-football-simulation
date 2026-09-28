@@ -24,9 +24,9 @@ from webui import accuracy as accuracymod
 from webui import brand, render
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, latest_digests, logs_git_report,
-                          odds_race, roster_vorp, team_hue, windows_report)
+                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report)
 from webui.jobs import RUNNING, JobRefused, JobRunner
-from webui.live import LiveBoard
+from webui.live import LiveBoard, expectations
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
 from webui.settings import MODES, THEMES, Settings
@@ -133,12 +133,10 @@ def current_report(root):
     manifest = root.read_json("current/sync_manifest.json", {}) or {}
     table = sorted(standings.items(),
                    key=lambda kv: (-float(kv[1].get("h2h_wins") or 0), -float(kv[1].get("points_scored") or 0)))
-    odds, odds_week = {}, None                  # playoff odds from the newest export, so the
-    weeks = root.weeks()                        # standings page answers "and where is that going?"
-    if weeks:
-        odds_week = weeks[-1]
-        f = root.read_json(f"weeks/week_{odds_week:02d}/live_season_forecast_week_{odds_week}.json", {}) or {}
-        odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in f.items() if isinstance(v, dict)}
+    now = odds_now(root)                        # playoff odds from THE current forecast (UI-E4), so the
+    odds_week = now["week"]                     # standings page answers "and where is that going?"
+    odds = {t: v["playoff"] for t, v in now["teams"].items()}
+    wins = {t: v.get("wins") for t, v in now["teams"].items()}              # UI-O12
     roster_rows = {}
     for team, entries in rosters.items():
         rows = []
@@ -151,7 +149,7 @@ def current_report(root):
         rows.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
-            "manifest": manifest, "files": root.current()}
+            "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins}
 
 
 # ------------------------------------------------------------------------- factory
@@ -185,6 +183,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["signed"] = render.fsigned
+    app.jinja_env.filters["se"] = render.fse                   # UI-V6: the only way a ± is printed
+    app.jinja_env.filters["verdict"] = lambda d, se: render.verdict(d, se)
     app.jinja_env.filters["ago"] = render.ago
     app.jinja_env.filters["dur"] = render.duration
     app.jinja_env.filters["when"] = render.when
@@ -293,6 +293,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                "<path d='M22 38 L42 26 M27 32 l3 3 M31 29.5 l3 3 M35 27 l3 3' stroke='#2e7d4f' stroke-width='2.4' stroke-linecap='round' fill='none'/></svg>")
         return Response(svg, mimetype="image/svg+xml")
 
+    @app.route("/favicon.ico")
+    def favicon():
+        # a page with no icon link (or a browser probing anyway) gets the app icon, not a 404
+        return redirect("/icon.svg", code=301)
+
     @app.route("/api/player")
     def api_player():
         """U5: one player's card -- position, NFL team, owner, projection, bye, status, and
@@ -315,10 +320,18 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if rv and p.get("owner"):
             pr = (rv["players"].get(p["owner"]) or {}).get(p["name"]) or {}
             vorp, tier = pr.get("vorp"), pr.get("tier")
+        # UI-F6: `mean` is the SEASON baseline; a lineup or matchup record for the current
+        # week prices the player for this week, with live.expectations' precedence
+        wk = freshness_report(root)["week"]
+        priced = next((r for r in expectations(root, wk).values() if r["name"] == p["name"]), None) if wk else None
+        if priced and priced["source"] == "baseline":
+            priced = None
         return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
-                "vorp": vorp, "tier": tier}
+                "vorp": vorp, "tier": tier, "week": int(wk) if wk else None,
+                "week_mean": round(priced["mean"], 2) if priced else None,
+                "week_source": priced["source"] if priced else None, "week_stamp": priced.get("stamp") if priced else None}
 
     @app.route("/mode", methods=["POST"])
     def set_mode():
@@ -417,16 +430,13 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         the odds across the season's runs, not as a directory listing."""
         rows = []
         for n in root.weeks():
-            f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
-            fc = (f.get(MY_TEAM) or {}).get("forecast") or {}
-            cs = (f.get(MY_TEAM) or {}).get("current_state") or {}
+            mine = odds_at(root, n).get(MY_TEAM) or {}                      # UI-E4
             m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
-            champ = next((o.get("Champ_Pct") for o in (m.get("season_outcomes") or []) if isinstance(o, dict) and o.get("Team") == MY_TEAM), None)
-            rows.append({"week": n, "playoff": fc.get("playoff_probability_pct"), "se": fc.get("playoff_standard_error"),
-                         "exp_wins": fc.get("expected_final_wins"), "champ": champ, "banked": cs.get("actual_wins_banked"),
+            rows.append({"week": n, "playoff": mine.get("playoff"), "se": mine.get("playoff_se"),
+                         "exp_wins": mine.get("exp_wins"), "champ": mine.get("champ"), "banked": mine.get("banked"),
                          "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
-        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM))
+        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM), moves=odds_moves(root))
 
     @app.route("/forecasts/week-<int:week>")
     @app.route("/weeks/<int:week>")

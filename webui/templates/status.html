@@ -7,8 +7,8 @@
   <p class="eyebrow">system · data for week {{ fr.week or "?" }}</p>
   <h1>System <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
   <p class="lede">
-    {% if fr.status == 'STALE' %}The data on disk is not good enough to run on: {{ stale|join('; ') if stale else 'the sync has not run this week' }}.{% if degraded %} {{ degraded|length }} source{{ 's' if degraded|length != 1 }} also fell back; the list is under <b>Last sync</b>.{% endif %}
-    {% elif fr.status == 'DEGRADED' %}The sync ran this week, but {{ degraded|length }} source{{ 's' if degraded|length != 1 }} fell back to an older copy — the model runs, on slightly older inputs. The list is under <b>Last sync</b>.
+    {% if fr.status == 'STALE' %}The data on disk is not good enough to run on: {{ stale|join('; ') if stale else 'the sync has not run this week' }}.{% if fr.n_bad or fr.n_fell or fr.n_warn %} Also: {{ fr.phrase }}; details under <b>Last sync</b>.{% endif %}
+    {% elif fr.status == 'DEGRADED' %}The sync ran this week: {{ fr.phrase }}. The model runs{% if fr.n_bad or fr.n_fell %}, on older inputs where a source failed or fell back{% endif %}. Each source's state is in the table under <b>Last sync</b>, and the warnings are folded beneath it.
     {% else %}Everything is current: the sync ran this week, the betting lines are for week {{ fr.vegas_week }}, and the simulation export is newer than the sync.{% endif %}
   </p>
 </div>
@@ -21,7 +21,7 @@
 {% for name, s in fr.sources.items()|sort %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td><span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span></td><td class="num">{{ s.rows }}</td><td class="small muted">{{ s.fallback or "" }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
-{% if degraded %}<details class="sec" style="margin-top:10px"><summary>What fell back<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
+{% if degraded %}<details class="sec" style="margin-top:10px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
 </section>
 
 <section>

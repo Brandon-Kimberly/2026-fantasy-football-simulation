@@ -57,7 +57,164 @@ def freshness_report(root):
     return {"status": status, "reasons": reasons, "stale_reasons": stale_reasons, "degraded_reasons": degraded_reasons,
             "manifest": manifest, "week": week,
             "vegas_week": meta.get("week"), "vegas_stale_since": meta.get("stale_since"),
-            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad}
+            "age_hours": age_h, "sources": sources, "n_ok": n_ok, "n_fell": n_fell, "n_bad": n_bad,
+            "n_warn": len((manifest or {}).get("degraded") or []),
+            "phrase": sync_phrase(n_bad, n_fell, len((manifest or {}).get("degraded") or []))}
+
+
+def odds_at(root, n):
+    """UI-E4: every team's odds from ONE week's export -- playoff (and its standard error),
+    expected final wins, the magic number and what is banked from the forecast file; the
+    title odds from the matrix's season outcomes (the forecast file carries none). The
+    matrix repeats the playoff figure at two decimals; the forecast file's one-decimal
+    figure is the one every page shows. {} when that week has no export."""
+    n = int(n)
+    d = f"weeks/week_{n:02d}"
+    f = root.read_json(f"{d}/live_season_forecast_week_{n}.json", {}) or {}
+    if not f:
+        return {}
+    m = root.read_json(f"{d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
+    outcomes = m.get("season_outcomes") or []
+    if isinstance(outcomes, dict):
+        outcomes = [dict(Team=k, **v) for k, v in outcomes.items()]
+    champ = {o.get("Team"): o.get("Champ_Pct") for o in outcomes if isinstance(o, dict)}
+    dists = m.get("win_distributions") or {}
+    out = {}
+    for team, v in f.items():
+        if not isinstance(v, dict):
+            continue
+        fc, cs = v.get("forecast") or {}, v.get("current_state") or {}
+        out[team] = {"playoff": fc.get("playoff_probability_pct"), "playoff_se": fc.get("playoff_standard_error"),
+                     "champ": champ.get(team), "exp_wins": fc.get("expected_final_wins"),
+                     "magic": fc.get("approximate_magic_number"), "banked": cs.get("actual_wins_banked"),
+                     "wins": _wins_range(dists.get(team))}
+    return out
+
+
+def _wins_range(w):
+    """UI-O12: a team's FINAL-season wins as percentiles (win_distributions; its mean is the
+    forecast's expected_final_wins). None when the export carries no distribution."""
+    if not isinstance(w, dict) or w.get("p10_floor") is None or w.get("p90_ceiling") is None:
+        return None
+    return {"p1": w.get("p01_worst_case"), "p10": w.get("p10_floor"), "p25": w.get("p25_lower_bound"),
+            "p50": w.get("p50_median"), "p75": w.get("p75_upper_bound"), "p90": w.get("p90_ceiling"),
+            "p99": w.get("p99_best_case"), "mean": w.get("expected_mean")}
+
+
+def odds_now(root):
+    """UI-E4: THE answer to "what are the odds now", for every page: the newest export at or
+    before the sync week. `behind` is how many weeks the sync has moved on since (between
+    Tuesday's sync and that week's simulation it is 1), so a page can say which forecast it
+    shows instead of showing nothing."""
+    sync = freshness_report(root)["week"]
+    sync = int(sync) if sync else None
+    ws = [w for w in root.weeks() if sync is None or w <= sync]
+    for w in reversed(ws):
+        teams = odds_at(root, w)
+        if teams:
+            return {"week": w, "teams": teams, "behind": (sync - w) if sync else 0}
+    return {"week": None, "teams": {}, "behind": None}
+
+
+def _wl(v):
+    if v is None:
+        return None
+    v = float(v)
+    return "W" if v >= 1 else ("L" if v <= 0 else "T")
+
+
+def odds_moves(root, n=None):
+    """UI-O3: what each result cost or bought. Every team's playoff and title odds in the
+    forecast for week `n` (default: THE current one, odds_now) against the forecast before
+    it, with the results of the weeks in between -- the head-to-head game and the median
+    game. The change also carries every roster move and projection update since, so a
+    page says "what week N did", never "what the win did". No earlier forecast: no rows,
+    never a zero."""
+    n = n if n is not None else odds_now(root)["week"]
+    prev = max((w for w in root.weeks() if n and w < n and odds_at(root, w)), default=None)
+    out = {"week": n, "prev": prev, "teams": {}, "rows": []}
+    if not n or prev is None:
+        return out
+    from webui.accuracy import chances_in, quoted_week
+    now, then = odds_at(root, n), odds_at(root, prev)
+    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    quotes = {w: quoted_week(root, w) for w in range(prev, n)}        # UI-Q2: what it said at the time
+    # the box scores can disagree with the league's own record after a stat correction (seen
+    # on week 2 of 2026); the standings are the authority (F84), so a result they do not
+    # reconcile with is flagged, never stated
+    rec = records(root)
+    for team, v in now.items():
+        was = then.get(team)
+        if not was:
+            continue
+        d = lambda a, b: round(float(a) - float(b), 1) if a is not None and b is not None else None
+        results = []
+        for w in range(prev, n):
+            r = ((actuals.get(f"week_{w}") or {}).get("team_results") or {}).get(team)
+            if r:
+                q = chances_in(quotes.get(w), team) or {}
+                results.append({"week": w, "h2h": _wl(r.get("h2h_win")), "median": _wl(r.get("median_win")),
+                                "p_h2h": q.get("h2h"), "p_median": q.get("median")})
+        out["teams"][team] = {"team": team, "playoff": v["playoff"], "playoff_was": was["playoff"],
+                              "d_playoff": d(v["playoff"], was["playoff"]), "champ": v["champ"],
+                              "champ_was": was["champ"], "d_champ": d(v["champ"], was["champ"]), "results": results,
+                              "reconciled": (rec.get(team) or {}).get("agrees", True)}
+    out["rows"] = sorted(out["teams"].values(), key=lambda r: -(r["d_playoff"] if r["d_playoff"] is not None else -999))
+    return out
+
+
+def _wlt(w, l, t):
+    return {"w": w, "l": l, "t": t, "text": f"{w}–{l}" + (f"–{t}" if t else "")}
+
+
+def records(root):
+    """UI-F4: each team's head-to-head, median and combined records from the weekly
+    actuals. In a median league those are two contests a week, and the standings' one
+    number (`h2h_wins`, which despite its name counts both) hides which one a team is
+    winning. The standings stay the authority on the total (F84); `agrees` says whether
+    the actuals account for exactly the wins the standings report, and a page shows the
+    split only when they do -- the actuals can lag a week behind."""
+    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    standings = root.read_json("current/league_standings.json", {}) or {}
+    tally = {}
+    for key, wk in actuals.items():
+        if not str(key).startswith("week_") or not isinstance(wk, dict):
+            continue
+        for team, r in (wk.get("team_results") or {}).items():
+            t = tally.setdefault(team, {"h2h": [0, 0, 0], "median": [0, 0, 0], "weeks": 0})
+            t["weeks"] += 1
+            for kind, field in (("h2h", "h2h_win"), ("median", "median_win")):
+                v = (r or {}).get(field)
+                if v is None:
+                    continue
+                v = float(v)
+                t[kind][0 if v >= 1 else (1 if v <= 0 else 2)] += 1
+    out = {}
+    for team, t in tally.items():
+        comb = [a + b for a, b in zip(t["h2h"], t["median"])]
+        row = standings.get(team) or {}
+        stated = row.get("h2h_wins")
+        agrees = stated is None or int(float(stated)) == comb[0]
+        out[team] = {"h2h": _wlt(*t["h2h"]), "median": _wlt(*t["median"]), "combined": _wlt(*comb),
+                     "weeks": t["weeks"], "agrees": agrees}
+    return out
+
+
+def sync_phrase(n_bad, n_fell, n_warn):
+    """UI-F2: what the last sync did, with SOURCES and WARNINGS counted apart. The manifest's
+    `degraded` list is warnings (name collisions, carried baselines, depth-chart
+    disagreements...), not sources; the pages used to call thirty of them "30 sources fell
+    back" beside a table showing one source failed."""
+    bits = []
+    if n_bad:
+        bits.append(f"{n_bad} source{'s' if n_bad != 1 else ''} failed")
+    if n_fell:
+        noun = "" if n_bad else f" source{'s' if n_fell != 1 else ''}"
+        bits.append(f"{n_fell}{noun} fell back to an older copy")
+    out = " and ".join(bits) if bits else "every source came through"
+    if n_warn:
+        out += f", and the sync raised {n_warn} warning{'s' if n_warn != 1 else ''}"
+    return out
 
 
 # --------------------------------------------------------------------------- windows
@@ -173,7 +330,6 @@ def home_report(root, my_team, runner=None):
     fr = freshness_report(root)
     week = fr["week"]
     wk = int(week) if week else None
-    d = f"weeks/week_{wk:02d}" if wk else None
 
     # ---- matchup, as the model priced it
     opponent = None
@@ -201,32 +357,34 @@ def home_report(root, my_team, runner=None):
         for m in pred.get("matchups") or []:
             all_matchups.append({"a": m.get("a"), "b": m.get("b"), "p_a": m.get("p_a"), "p_b": m.get("p_b")})
 
-    # ---- season standing
-    forecast = root.read_json(f"{d}/live_season_forecast_week_{wk}.json", {}) if d else {}
+    # ---- season standing, from THE current forecast (UI-E4): the newest export at or before
+    # the sync week, which after Tuesday's sync is last week's until this week's run lands
+    now = odds_now(root)
+    ow = now["week"]
+    od = f"weeks/week_{ow:02d}" if ow else None
+    forecast = root.read_json(f"{od}/live_season_forecast_week_{ow}.json", {}) if od else {}
     forecast = forecast or {}
     mine_fc = (forecast.get(my_team) or {}).get("forecast") or {}
     mine_cs = (forecast.get(my_team) or {}).get("current_state") or {}
-    matrix = root.read_json(f"{d}/syndicate_comprehensive_matrix_week_{wk}.json", {}) if d else {}
+    matrix = root.read_json(f"{od}/syndicate_comprehensive_matrix_week_{ow}.json", {}) if od else {}
     matrix = matrix or {}
     traj = ((matrix.get("weekly_trajectories") or {}).get(my_team) or {}).get("expected_cumulative_wins_by_week") or []
     seed = seed_report((matrix.get("finishing_seed_probabilities") or {}).get(my_team) or {},
                        (((forecast.get(my_team) or {}).get("forecast")) or {}).get("playoff_probability_pct"))
-    outcomes = {o.get("Team"): o for o in (matrix.get("season_outcomes") or []) if isinstance(o, dict)}
-    champ = (outcomes.get(my_team) or {}).get("Champ_Pct")
+    champ = (now["teams"].get(my_team) or {}).get("champ")
 
     # ---- standings, with each team's odds through the season and its move since the last forecast
     standings = root.read_json("current/league_standings.json", {}) or {}
     race = odds_race(root, my_team)
     sparks = {s["name"]: s["values"] for s in race["playoff"]}
-    prev_week = max((w for w in root.weeks() if wk and w < wk), default=None)
-    prev = (root.read_json(f"weeks/week_{prev_week:02d}/live_season_forecast_week_{prev_week}.json", {}) or {}) if prev_week else {}
-    prev_odds = {t: ((v or {}).get("forecast") or {}).get("playoff_probability_pct") for t, v in prev.items() if isinstance(v, dict)}
+    prev_week = max((w for w in root.weeks() if ow and w < ow), default=None)
+    prev_odds = {t: v["playoff"] for t, v in odds_at(root, prev_week).items()} if prev_week else {}
     table = []
     for team, s in standings.items():
-        fc = (forecast.get(team) or {}).get("forecast") or {}
+        fc = now["teams"].get(team) or {}
         table.append({"team": team, "wins": s.get("h2h_wins"), "points": s.get("points_scored"),
-                      "faab": s.get("remaining_faab"), "playoff": fc.get("playoff_probability_pct"),
-                      "champ": (outcomes.get(team) or {}).get("Champ_Pct"), "hue": team_hue(team),
+                      "faab": s.get("remaining_faab"), "playoff": fc.get("playoff"),
+                      "champ": fc.get("champ"), "hue": team_hue(team),
                       "spark": sparks.get(team) or [], "rank_delta": None})
     table.sort(key=lambda r: (-(float(r["wins"] or 0)), -(float(r["points"] or 0))))
     for i, r in enumerate(table):
@@ -271,7 +429,9 @@ def home_report(root, my_team, runner=None):
             "designations": designations, "watch_link": watch_e["link"] if watch_e else None,
             "fresh": fr, "windows": win, "last_job": last_job, "git": git, "kick": kick, "h2h": h2h,
             "hue": team_hue(my_team), "opp_hue": team_hue(opponent) if opponent else None,
-            "weeks": root.weeks(), "prev_week": prev_week}
+            "weeks": root.weeks(), "prev_week": prev_week, "odds_week": ow, "odds_behind": now["behind"],
+            "my_move": (odds_moves(root, ow)["teams"].get(my_team) if ow else None),
+            "wins_range": (now["teams"].get(my_team) or {}).get("wins")}
 
 
 def _seed_no(key):
@@ -317,18 +477,20 @@ def seed_report(seeds, playoff_pct):
 def kickoff_report(root, week, now=None):
     """U6: the synced kickoffs for `week` against the clock -- the next one (ISO, and
     seconds away), how many games start then, how many are still ahead, whether the
-    first has yet to kick off or every game is under way. Kickoffs come from the sync
+    first has yet to kick off or every game is under way, and whether ANY has (UI-F1: Home
+    reads live scores on load from then on). Kickoffs come from the sync
     (nfl_schedule._meta.kickoffs); this never reaches the network."""
     sched = root.read_json("current/nfl_schedule.json", {}) or {}
     raw = ((sched.get("_meta") or {}).get("kickoffs") or {}).get(str(int(week))) if week else None
     out = {"week": week, "next": None, "in_seconds": None, "games": 0, "remaining": 0, "at_next": 0,
-           "done": False, "first": False, "last": None}
+           "done": False, "first": False, "started": False, "last": None}
     if not raw:
         return out
     now = now or _dt.datetime.now(_dt.timezone.utc)
     kicks = sorted((_parse_iso(t), t) for t in raw)
     ahead = [(d, t) for d, t in kicks if d > now]
-    out.update(games=len(kicks), remaining=len(ahead), done=not ahead, first=len(ahead) == len(kicks), last=kicks[-1][1])
+    out.update(games=len(kicks), remaining=len(ahead), done=not ahead, first=len(ahead) == len(kicks),
+               started=len(ahead) < len(kicks), last=kicks[-1][1])
     if ahead:
         d, t = ahead[0]
         out.update(next=t, in_seconds=int((d - now).total_seconds()), at_next=sum(1 for dd, _t in ahead if dd == d))
@@ -394,14 +556,11 @@ def odds_race(root, my_team):
     export gets None there."""
     labels, per_week = [], []
     for n in root.weeks():
-        f = root.read_json(f"weeks/week_{n:02d}/live_season_forecast_week_{n}.json", {}) or {}
-        if not f:
+        o = odds_at(root, n)                                                 # UI-E4
+        if not o:
             continue
-        m = root.read_json(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json", {}) or {}
-        outcomes = {o.get("Team"): o for o in (m.get("season_outcomes") or []) if isinstance(o, dict)}
         labels.append(f"wk {n}")
-        per_week.append({t: (((v or {}).get("forecast") or {}).get("playoff_probability_pct"), (outcomes.get(t) or {}).get("Champ_Pct"))
-                         for t, v in f.items() if isinstance(v, dict)})
+        per_week.append({t: (v["playoff"], v["champ"]) for t, v in o.items()})
     teams = []
     for wkd in per_week:
         for t in wkd:

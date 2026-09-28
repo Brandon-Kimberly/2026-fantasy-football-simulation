@@ -419,7 +419,8 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     if (isNaN(target)) return;
     if (reduce) { el.textContent = prefix + target.toFixed(nd) + suffix; return; }
     var t0 = null, dur = 400, from = 0.9 * target;
-    function step(t) { if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (from + (target - from) * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
+    // a script that takes the number over drops data-count, and the count-up yields to it
+    function step(t) { if (!el.hasAttribute('data-count')) return; if (!t0) t0 = t; var k = Math.min(1, (t - t0) / dur); k = 1 - Math.pow(1 - k, 3); el.textContent = prefix + (from + (target - from) * k).toFixed(nd) + suffix; if (k < 1) requestAnimationFrame(step); }
     requestAnimationFrame(step);
   });
   requestAnimationFrame(function () {
@@ -523,7 +524,8 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   function pcShow(el, d) {
     var st = d.status ? d.status : (d.on_ir ? 'IR' : 'healthy');
     pcard.innerHTML = '<div class="n">' + escT(d.name) + '</div><div class="row"><span>' + escT(d.pos || '?') + ' · ' + escT(d.nfl || 'FA') + '</span><span>' + escT(d.owner || 'free agent') + '</span></div>' +
-      '<div class="row"><span>projection</span><b>' + (d.mean == null ? '—' : Number(d.mean).toFixed(1)) + '</b></div>' +
+      (d.week_mean != null ? '<div class="row"><span>week ' + escT(d.week) + ' <span class="muted">· ' + escT(d.week_source) + '</span></span><b>' + Number(d.week_mean).toFixed(1) + '</b></div>' : '') +
+      '<div class="row"><span>season mean</span><b>' + (d.mean == null ? '—' : Number(d.mean).toFixed(1)) + '</b></div>' +
       (d.vorp != null ? '<div class="row"><span>value over replacement</span><b>' + (d.vorp > 0 ? '+' : '') + Number(d.vorp).toFixed(1) + (d.tier ? ' · tier ' + escT(d.tier) : '') + '</b></div>' : '') +
       '<div class="row"><span>status</span><b>' + escT(st) + '</b></div>' + (d.bye ? '<div class="row"><span>bye</span><b>week ' + escT(d.bye) + '</b></div>' : '') +
       '<a href="/tools/compare_players?a=' + encodeURIComponent(d.name) + '">Compare with…</a>';

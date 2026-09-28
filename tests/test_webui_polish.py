@@ -174,7 +174,7 @@ class TestPages(unittest.TestCase):
 
     def test_system_page_folds_the_degraded_list_and_humanises_the_sync_age(self):
         body = self.get("/system")
-        self.assertIn("What fell back", body)
+        self.assertIn("Sync warnings", body)            # UI-F2: warnings, not sources
         self.assertIn('class="n">1</span>', body)
         self.assertIsNone(re.search(r"\d+\.\d h ago", body), "the raw '37.7 h ago' form is gone")
         self.assertIn(" ago", body)
@@ -183,7 +183,7 @@ class TestPages(unittest.TestCase):
     def test_report_form_folds_the_degraded_list_instead_of_listing_it_in_the_banner(self):
         body = self.get("/tools/weekly_report")
         self.assertIn("pill DEGRADED", body)
-        self.assertIn("What fell back", body)
+        self.assertIn("Sync warnings", body)            # UI-F2: warnings, not sources
         self.assertNotIn("<li>WARNING", body)
         self.assertIn("include the trade finder", body.lower())          # labels come from LABELS, never raw flags
         self.assertIn("canonical run", body)

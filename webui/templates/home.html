@@ -150,6 +150,13 @@
 .of { background: var(--plane); border: 1px solid var(--grid); border-radius: var(--r-ctl); padding: 9px 11px; }
 .of .k { margin-bottom: 4px; } .of b { font-family: var(--display); font-size: 20px; font-weight: 800; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; display: block; line-height: 1.1; }
 .of .s { font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
+.wrange { grid-column: 1 / -1; } .wrange .k { margin-bottom: 8px; }
+.wbar { position: relative; height: 14px; background: var(--mid); border-radius: 7px; }
+.wbar .r80 { position: absolute; top: 3px; bottom: 3px; background: color-mix(in srgb, var(--pos) 30%, transparent); border-radius: 4px; }
+.wbar .r50 { position: absolute; top: 0; bottom: 0; background: color-mix(in srgb, var(--pos) 60%, transparent); border-radius: 4px; }
+.wbar .med { position: absolute; top: -3px; bottom: -3px; width: 2px; background: var(--ink); }
+.wbar .bk { position: absolute; top: -3px; bottom: -3px; width: 0; border-left: 2px dashed var(--muted); }
+.wscale { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
 .season .chartc .s { font-size: 12px; color: var(--ink-2); }
 
 .mini-standings td { padding: 6px 8px; }
@@ -191,7 +198,7 @@
     <span class="pre" id="pw-pre" hidden>pre-game <b>{{ pre }}%</b></span>
     <span>expected <b>{{ m.mine|num(1) }}</b> vs <b>{{ m.theirs|num(1) }}</b> points</span>
     {% if m.p_median is not none %}<span>above the league median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
-    {% if m.se %}<span class="muted">± {{ (m.se * 100)|round(1) }} points of win probability (simulation noise)</span>{% endif %}
+    {% if m.se %}<span class="muted">{{ (m.se * 100)|se }} points of win probability (simulation noise)</span>{% endif %}
     {% if lineup and lineup.expected_total %}<span>lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">see the lineup</a>{% endif %}</span>{% endif %}
   </div>
   {% if h2h and h2h.rows %}
@@ -204,7 +211,7 @@
   {% endif %}
 
   {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
-  <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}">
+  <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}" data-started="{{ '1' if kick and kick.started else '0' }}">
     <div class="lh">
       <span class="k" id="live-k"><svg class="i"><use href="#i-live"/></svg> Live</span>
       <span class="meta" id="live-meta">{% if not live.enabled %}{% if dev %}not connected — set SLEEPER_LEAGUE_ID for this server{% else %}live scores are not connected{% endif %}{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}not fetched yet{% endif %}</span>
@@ -230,8 +237,9 @@
       <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
       <div>
         <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
-        <div class="s">to make the playoffs{% if f.playoff_standard_error %} · ± {{ f.playoff_standard_error|num(2) }}{% endif %}</div>
+        <div class="s">to make the playoffs{% if f.playoff_standard_error %} · {{ f.playoff_standard_error|se }}{% endif %}</div>
         {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
+        {% if my_move and my_move.d_playoff is not none %}<div class="s"><b class="{{ 'pos' if my_move.d_playoff > 0 else ('neg' if my_move.d_playoff < 0) }}">{{ my_move.d_playoff|signed(1) }}</b> since the week-{{ prev_week }} forecast{% if not my_move.reconciled %} · the box-score result does not match the league's standings (most likely a stat correction after the result was recorded), so it is not shown here{% else %}{% for x in my_move.results %} · week {{ x.week }}: {{ 'won' if x.h2h == 'W' else ('lost' if x.h2h == 'L' else 'tied') }} head-to-head{% if x.p_h2h is not none %} (the model had {{ (100 * x.p_h2h)|round(0)|int }}%){% endif %}, {{ 'beat' if x.median == 'W' else ('missed' if x.median == 'L' else 'tied') }} the median{% if x.p_median is not none %} ({{ (100 * x.p_median)|round(0)|int }}%){% endif %}{% endfor %}{% endif %} · <a href="/forecasts">what it did to everyone</a></div>{% endif %}
       </div>
     </div>
     {% if seed and seed.rows %}
@@ -249,13 +257,18 @@
       <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="s">of 28</span></div>
       <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins{% else %}not yet{% endif %}</span></div>
       <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">{% if c.actual_points_banked %}{{ c.actual_points_banked|num(0) }} pts{% else %}wins{% endif %}</span></div>
+      {% if wins_range %}{% set W = 28 %}{% set wr = wins_range %}
+      <div class="of wrange"><span class="k">final wins · likely {{ wr.p10|num(0) }}–{{ wr.p90|num(0) }}, 8 seasons in 10</span>
+        <div class="wbar" role="img" aria-label="final wins: 80% of simulated seasons between {{ wr.p10|num(0) }} and {{ wr.p90|num(0) }}, half between {{ wr.p25|num(0) }} and {{ wr.p75|num(0) }}, median {{ wr.p50|num(0) }}; {{ c.actual_wins_banked|num(0) }} banked"><i class="r80" style="left:{{ (100 * wr.p10 / W)|round(1) }}%;width:{{ (100 * (wr.p90 - wr.p10) / W)|round(1) }}%"></i><i class="r50" style="left:{{ (100 * (wr.p25 or wr.p10) / W)|round(1) }}%;width:{{ (100 * ((wr.p75 or wr.p90) - (wr.p25 or wr.p10)) / W)|round(1) }}%"></i><b class="med" style="left:{{ (100 * wr.p50 / W)|round(1) }}%" title="median {{ wr.p50|num(0) }}"></b>{% if c.actual_wins_banked is not none %}<em class="bk" style="left:{{ (100 * c.actual_wins_banked / W)|round(1) }}%" title="{{ c.actual_wins_banked|num(0) }} banked"></em>{% endif %}</div>
+        <div class="wscale"><span>0</span><span>median {{ wr.p50|num(0) }} · dashed line: {{ c.actual_wins_banked|num(0) }} banked</span><span>{{ W }}</span></div>
+      </div>{% endif %}
     </div>
   </div>
   <div class="card chartc" style="animation-delay:.1s">
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
     {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, width=620, height=230, value_labels="last", marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
-    <div class="s" style="margin-top:auto">from this week's forecast · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    <div class="s" style="margin-top:auto">from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %} · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
     {% else %}<div class="s">No forecast yet{% if dev %} — <a href="/tools/run_simulation">run one</a>{% endif %}.</div>{% endif %}
   </div>
 </div>
@@ -274,8 +287,8 @@
 
 <div class="grid2">
   <section style="margin-top:28px">
-    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ week }} forecast{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
-    <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
+    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %}{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
+    <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num" title="wins: head-to-head plus median, as the league reports them">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
     {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|num(1) }}%{% if r.rank_delta %}<span class="rankd {{ 'up' if r.rank_delta > 0 else 'dn' }}" title="{{ 'up' if r.rank_delta > 0 else 'down' }} {{ r.rank_delta|abs }} in playoff odds since the week {{ prev_week }} forecast">{{ '▲' if r.rank_delta > 0 else '▼' }}{{ r.rank_delta|abs }}</span>{% elif prev_week %}<span class="rankd" title="no move in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
     </tbody></table></div>
     {% if all_matchups %}<h3 style="margin-top:16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
@@ -309,13 +322,20 @@
 <script>
 (function () {
   var box = document.getElementById('live'); if (!box) return;
-  var enabled = box.getAttribute('data-enabled') === '1';
+  var enabled = box.getAttribute('data-enabled') === '1', started = box.getAttribute('data-started') === '1';
   var body = document.getElementById('live-body'), meta = document.getElementById('live-meta'), k = document.getElementById('live-k');
   var auto = document.getElementById('live-auto'), btn = document.getElementById('live-refresh'), timer = null;
   var initial = {{ live|tojson }};
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
   function pct(p) { return p == null ? '—' : (100 * p).toFixed(1) + '%'; }
+  // UI-M8: a chance to win is never shown as certain until the game is decided
+  function chance(p, decided) {
+    if (p == null) return '—';
+    if (decided) return Math.round(100 * p) + '%';
+    var t = (100 * p).toFixed(1);
+    return t === '100.0' ? '>99.9%' : (t === '0.0' ? '<0.1%' : t + '%');
+  }
   function ago(s) { if (s == null) return ''; if (s < 60) return s + ' s ago'; if (s < 3600) return Math.round(s / 60) + ' min ago'; return (s / 3600).toFixed(1) + ' h ago'; }
   function clock(at) { var t = Date.parse(at); if (isNaN(t)) return ''; var d = new Date(t), h = d.getHours() % 12 || 12; return h + ':' + ('0' + d.getMinutes()).slice(-2) + (d.getHours() < 12 ? ' am' : ' pm'); }
   function chip(status) { var c = status === 'final' ? 'final' : (/^(Q|OT)/.test(status || '') ? 'on' : 'pre'); return '<span class="gc ' + c + '">' + esc(status) + '</span>'; }
@@ -396,15 +416,15 @@
     // pre-game one it was rendered with; dropping the attribute takes it out of that pass
     val.removeAttribute('data-count');
     lab.textContent = 'to win, now';
-    if (them) them.textContent = pct(1 - to);
+    if (them) them.textContent = chance(1 - to, s.decided);
     if (bar) bar.style.width = (100 * to).toFixed(1) + '%';
     if (pre) pre.hidden = false;
     if (lastP != null && lastP !== to && !reduce) {
       var from = lastP, t0 = null;
       val.classList.add('swing');
-      (function step(t) { if (!t0) t0 = t; var f = Math.min(1, (t - t0) / 700); f = 1 - Math.pow(1 - f, 3); val.textContent = pct(from + (to - from) * f); if (f < 1) requestAnimationFrame(step); else setTimeout(function () { val.classList.remove('swing'); }, 300); })(performance.now());
+      (function step(t) { if (!t0) t0 = t; var f = Math.min(1, (t - t0) / 700); f = 1 - Math.pow(1 - f, 3); val.textContent = f < 1 ? chance(from + (to - from) * f, false) : chance(to, s.decided); if (f < 1) requestAnimationFrame(step); else setTimeout(function () { val.classList.remove('swing'); }, 300); })(performance.now());
     } else {
-      val.textContent = pct(to);
+      val.textContent = chance(to, s.decided);
     }
     lastP = to;
   }
@@ -508,7 +528,9 @@
   auto.addEventListener('change', function () { try { localStorage.setItem('live-auto', auto.checked ? '1' : '0'); } catch (e) {} schedule(); if (auto.checked) fetchLive(true); });
   btn.addEventListener('click', function () { fetchLive(true); });
   draw(initial);
-  if (enabled && (auto.checked || (initial.snapshot && initial.snapshot.ok))) fetchLive(!initial.snapshot);
+  // UI-F1: once any game of the week has kicked off, the pre-game number is the wrong thing to
+  // lead with, so read the scores on load (the board's minimum interval still guards Sleeper)
+  if (enabled && (auto.checked || started || (initial.snapshot && initial.snapshot.ok))) fetchLive(started || !initial.snapshot);
   schedule();
 })();
 </script>

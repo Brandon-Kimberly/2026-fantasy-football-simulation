@@ -247,6 +247,14 @@ cleanly without it, so `py -3.10 -m unittest discover tests` stays runnable from
 `ci.yml`'s ruff step adds `webui` to its paths. The expected local verdict changes from
 `skipped=1` to `skipped=1+N` when Flask is absent — document it beside the espn_api note.
 
+**The browser layer (2026-09-28, roadmap UI-E1).** Presence tests pin a script by its
+text in the served page, which is why the Decisions filters shipped broken: the script was
+right and a class's `display` beat the browser's rule for `hidden`. `tests/test_webui_browser.py`
+serves the fixture tree on a loopback port and drives the installed Edge through Playwright,
+asserting on what is DISPLAYED. Run against the templates before `b36f933`, its filter test
+fails in both views with the original defect ("4 not less than 4"); on the fix it passes.
+Any new script behaviour gets a test here, not only a presence pin.
+
 ---
 
 ## 4. Phased backlog
@@ -721,6 +729,24 @@ changed nothing on screen; the same bug had already been patched four times, onc
 component, for the palette, the shortcut sheet, the player card and the toast. There is
 now one rule in `base.html` -- `[hidden] { display: none !important; }` -- and those four
 patches are gone. A page that hides something does not have to remember this again.
+
+### One grammar for uncertainty (2026-09-28, roadmap UI-V6 / UI-T2)
+
+- **"±" means one standard error, on every page.** It prints only through the `se` filter
+  (`render.fse`): two decimals below 1, one above, so the same 0.25 no longer reads ± 0.25
+  on Home and ± 0.3 on Forecasts. A guard in `tests.test_webui_twelfth` fails on any
+  literal "±" in a template or the renderer outside that one function.
+- **A spread is not a standard error.** The weekly-score column on a forecast page shows
+  "sd 21", with a tooltip saying what it is; it used to print "± 21" beside standard errors.
+- **Ranges are the 10th to 90th percentile** unless labelled otherwise.
+- **A paired result is stated in standard errors** (`render.verdict`): under 2 "no
+  measurable change", 2 to 4 "a modest gain/loss", above 4 "a clear gain/loss". Every
+  evaluated move on Decisions carries its verdict, and the "Measurably moved the odds"
+  filter draws the same line. These tiers are a DISPLAY convention, not a significance
+  test; the move is priced by the paired evaluation, and the tier only says how far
+  outside its own noise the number sits.
+- **A chance to win is never shown as certain until it is decided** (UI-M8): "over 99.9%"
+  or "under 0.1%" while anyone on either side has a game left.
 
 ---
 

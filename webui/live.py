@@ -238,6 +238,7 @@ def expectations(root, week):
                 if r.get("p90") is not None and r.get("p10") is not None:
                     row["sd"] = max(0.0, (float(r["p90"]) - float(r["p10"])) / Z80)
                 row["source"] = "lineup record"
+                row["stamp"] = lineup_e["stamp"]
         matchup_e = _newest(entries, "matchup")
         matchup = root.read_json(matchup_e["rel"], {}) if matchup_e else {}
         for r in matchup.get("opponent_lineup") or []:
@@ -247,6 +248,7 @@ def expectations(root, week):
                 if r.get("sd") is not None:
                     row["sd"] = float(r["sd"])
                 row["source"] = "matchup record"
+                row["stamp"] = matchup_e["stamp"]
     return out
 
 
@@ -396,7 +398,10 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
                     for e in exp.values() if e.get("name")}
     plan_diff = lineup_diff(plan, mine["rows"], bench_clocks)
     stamp = (now or _dt.datetime.now(_dt.timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
-    return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent,
+    # UI-M8: settled only when nobody on either side has any game left (an unknown clock
+    # counts as unplayed); until then the pages never print a rounded 0% or 100%
+    decided = bool(theirs) and mine["to_play"] == 0 and theirs["to_play"] == 0
+    return {"ok": True, "week": wk, "fetched_at": stamp, "team": my_team, "opponent": opponent, "decided": decided,
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
             "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats, "plan": plan_diff,
