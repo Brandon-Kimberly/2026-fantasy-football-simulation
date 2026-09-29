@@ -466,7 +466,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         priced = next((r for r in expectations(root, wk).values() if r["name"] == p["name"]), None) if wk else None
         if priced and priced["source"] == "baseline":
             priced = None
-        return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+        extra = objects.card_extras(root, p["name"], base.get("player_id"), p.get("owner"))      # UI-P5
+        return {**extra, "name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
                 "vorp": vorp, "tier": tier, "week": int(wk) if wk else None, "pid": base.get("player_id"),
@@ -910,7 +911,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         q = request.args.get("q", "")
         owner = request.args.get("owner", "all")
         idx = PlayerIndex.for_root(root)
+        base = root.read_json("current/player_baselines.json", {}) or {}
         return {"players": [{"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+                             "pid": (base.get(p["name"]) or {}).get("player_id"),              # UI-A9: a palette result links to it
                              "owner": overlay.text(p.get("owner")) if p.get("owner") else None}
                             for p in idx.search(q, owner, MY_TEAM, limit=12)]}
 
