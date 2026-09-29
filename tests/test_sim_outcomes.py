@@ -95,5 +95,21 @@ class TestSimOutcomesExport(unittest.TestCase):
             self.assertAlmostEqual(n[t] / (BATCHES * SIMS), sum(champ_rates[t]) / BATCHES, places=9, msg=t)
 
 
+class TestEveryWriteGoesThroughTheExport(unittest.TestCase):
+    """The suite's hermeticity contract: every file run_simulation writes is written inside
+    export_and_visualize, so a test that patches that one method writes nothing. About twenty
+    engine tests rely on it and patch nothing else. The outcome record first shipped as a
+    save_json call AFTER export_and_visualize, and a full suite run left eight fixture exports
+    (teams A-H, two to ten seasons) in the real data/weeks/ -- found by the web UI, which would
+    have read one as the league's odds."""
+
+    def test_patching_the_export_leaves_nothing_written(self):
+        with _sandbox("week06", 1, 5) as saved:
+            with patch.object(FantasySimulationEngine, "export_and_visualize", lambda self, *a: None):
+                FantasySimulationEngine().run_simulation()
+            written = sorted(saved)
+        self.assertEqual(written, [])
+
+
 if __name__ == "__main__":
     unittest.main()
