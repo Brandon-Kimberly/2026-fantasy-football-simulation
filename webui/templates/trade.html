@@ -53,6 +53,19 @@
   </div>
   {% endfor %}
 </div>
+<h3 style="margin-top:16px">What changes, and why</h3>
+<div class="tsum">
+  {% for s in (me, th) %}{% set f = s.factors %}
+  <div class="card"><div class="k">{{ mark(s.team) }} {{ "Your side" if s.team == my_team else (s.team|real) }}</div>
+    <ul>
+      <li>{% if f.out or f.in %}Starters out: {{ f.out|join(", ") or "none" }} · in: {{ f.in|join(", ") or "none" }}{% else %}The starting lineup does not change{% endif %}</li>
+      {% for sl in f.slots %}<li>{{ sl.slot }}: {{ sl.before or "empty" }}{% if sl.before_mean is not none %} ({{ sl.before_mean|num(1) }}){% endif %} → {{ sl.after or "empty" }}{% if sl.after_mean is not none %} ({{ sl.after_mean|num(1) }}){% endif %} <b class="{{ 'pos' if sl.delta > 0 else ('neg' if sl.delta < 0) }}">{{ sl.delta|signed(1) }}</b></li>{% endfor %}
+      {% for b in f.byes %}<li class="neg">Week {{ b.week }}: {{ b.players|join(" and ") }} share a bye</li>{% endfor %}
+      <li class="small muted">Depth after: {% for pos, d in f.depth.items() %}{{ pos }} {{ d.after }}{% if d.after != d.before %} (was {{ d.before }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</li>
+    </ul>
+  </div>
+  {% endfor %}
+</div>
 <div class="scroller" style="margin-top:14px"><table><thead><tr><th>Week</th><th class="num">Your lineup</th><th class="num">Change</th><th class="num">{{ other|real }}</th><th class="num">Change</th></tr></thead><tbody>
 {% for i in range(est.weeks|length) %}{% set a = me.weeks[i] %}{% set b = th.weeks[i] %}<tr><td>Week {{ a.week }}</td>
 <td class="num">{{ a.before|num(1) }} → <b>{{ a.after|num(1) }}</b></td><td class="num {{ 'pos' if a.delta > 0 else ('neg' if a.delta < 0) }}">{{ a.delta|signed(1) }}</td>

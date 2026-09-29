@@ -259,6 +259,34 @@ class TestPlayerCardByKeyboard(BrowserCase):
         p.wait_for_selector("#pcard", state="hidden")
 
 
+def _plant_objects(root):
+    from tests.test_webui_objects import plant
+    plant(root)
+
+
+class TestPalettePlayersAndTheCard(BrowserCase):
+    """UI-A9: a player's name in the palette offers the player's page. UI-P5: the card, opened
+    from the keyboard, draws the player's strip and the injury detail."""
+    plant = staticmethod(_plant_objects)
+
+    def test_a_player_in_the_palette_opens_the_player_page(self):
+        p = self.open("/", "simple")
+        p.keyboard.press("Control+k")
+        p.fill("#pal-q", "Player 0")
+        p.wait_for_function("Array.prototype.some.call(document.querySelectorAll('#pal-list li'), function (li) { return li.textContent.indexOf(\"Player 0 O'Neil\") >= 0; })")
+        with p.expect_navigation():
+            p.click("#pal-list li:has-text(\"Player 0 O'Neil\")")
+        self.assertTrue(p.url.endswith("/player/100"), p.url)
+        self.assertEqual(self.errors, [])
+
+    def test_the_card_from_the_keyboard_shows_the_strip_and_the_injury(self):
+        p = self.open("/team/quantum-ferrets", "simple")
+        p.focus("a[data-player=\"Player 0 O'Neil\"]")
+        p.wait_for_selector("#pcard svg.dstrip", state="visible")
+        self.assertIn("Ankle", p.inner_text("#pcard"))
+        self.assertIn("Limited", p.inner_text("#pcard"))
+
+
 class TestPaletteAndShortcuts(BrowserCase):
     def test_the_palette_opens_filters_and_goes(self):
         for mode in ("dev", "simple"):

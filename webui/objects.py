@@ -161,6 +161,21 @@ def injury_report(root, team):
     return rows
 
 
+def card_extras(root, name, pid, owner):
+    """UI-P5: what the player card adds -- the distribution strip from the current forecast
+    (rostered players only; free agents are not simulated) on a scale fitted to the player,
+    and Sleeper's injury detail: body part, practice participation, when it last updated."""
+    from webui import render
+    rg = _ranges(root, odds_now(root)["week"], owner).get(name) if owner else None
+    strip = None
+    if rg and rg.get("p25") is not None and rg.get("p90") is not None:
+        hi = max(5.0, -(-float(rg["p90"]) * 1.3 // 5) * 5)
+        strip = str(render.strip(rg, hi, width=236, height=24))
+    c = _players_cache(root).get(str(pid)) or {} if pid is not None else {}
+    return {"strip": strip, "body_part": c.get("injury_body_part"), "practice": c.get("practice_participation"),
+            "practice_note": c.get("practice_description"), "updated": _epoch_iso(c.get("news_updated"))}
+
+
 def _standings_row(root, team):
     """UI-O1: the team's row from the one standings helper League and Home use."""
     from webui.standings import by_team

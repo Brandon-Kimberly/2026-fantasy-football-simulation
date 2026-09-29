@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
+from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, luck as luckmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -266,6 +266,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         the teams. Pseudonyms in; the page applies the overlay before showing them."""
         items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV if mode == "dev" else NAV_SIMPLE)]
         items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
+        items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how the dice fell, five measures"})     # UI-R6: pulled, never on Home
         for name, t in TOOLS.items():
             if mode == "dev" or name in SIMPLE_TOOLS:
                 items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}", "d": t.question})
@@ -350,7 +351,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         shown_rows = rows if request.args.get("all") == "1" or request.args.get("q") else rows[:200]
         return render_template("players.html", board=board, rows=shown_rows, total=total, shown=len(shown_rows),
                                positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
-                               week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"])
+                               week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"],
+                               run=playersmod.waiver_run(root, MY_TEAM) if board else None)         # UI-W3
 
     # ---- UI-H1 / H2 / H3: the league's history
     @app.route("/history")
@@ -381,6 +383,15 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def playoffs_result():
         """The machine's result alone, for the page to swap in while the old one stays on screen."""
         return render_template("_playoffs_result.html", r=outcomesmod.report(root, request.args, MY_TEAM))
+
+    @app.route("/luck")
+    def luck_page():
+        """UI-R6: the ledger's five pre-registered measures for one team, looked up rather than pushed."""
+        want = request.args.get("team")
+        team = objects.team_for_slug(root, want) if want else MY_TEAM
+        if not team:
+            abort(404)
+        return render_template("luck.html", r=luckmod.report(root, team), teams=objects._teams(root))
 
     @app.route("/draft")
     def draft_page():
@@ -466,7 +477,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         priced = next((r for r in expectations(root, wk).values() if r["name"] == p["name"]), None) if wk else None
         if priced and priced["source"] == "baseline":
             priced = None
-        return {"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+        extra = objects.card_extras(root, p["name"], base.get("player_id"), p.get("owner"))      # UI-P5
+        return {**extra, "name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
                 "vorp": vorp, "tier": tier, "week": int(wk) if wk else None, "pid": base.get("player_id"),
@@ -910,7 +922,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         q = request.args.get("q", "")
         owner = request.args.get("owner", "all")
         idx = PlayerIndex.for_root(root)
+        base = root.read_json("current/player_baselines.json", {}) or {}
         return {"players": [{"name": p["name"], "pos": p.get("pos"), "nfl": p.get("nfl"),
+                             "pid": (base.get(p["name"]) or {}).get("player_id"),              # UI-A9: a palette result links to it
                              "owner": overlay.text(p.get("owner")) if p.get("owner") else None}
                             for p in idx.search(q, owner, MY_TEAM, limit=12)]}
 

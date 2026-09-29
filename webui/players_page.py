@@ -127,3 +127,31 @@ def players_table(root, my_team, now=None):
                      "bid": (t.get("bid") or {}).get("suggested")})
     rows.sort(key=lambda r: -(r["week_mean"] or 0.0))
     return {"week": week, "rows": rows, "targets_stamp": stamp, "n_waivers": sum(1 for r in rows if r["standing"] == "waivers")}
+
+
+def waiver_run(root, my_team=None):
+    """UI-W3: the most recent daily waiver run -- every claim that won it (the run is the
+    Pacific date the claims processed on), with the team, the players in and out, the
+    winning bid, and the claim's paired-simulation grade for the claiming team (playoff
+    percentage points, its standard error and the render.verdict tier), or None when the
+    claim is not graded yet. Losing bids are not logged (roadmap Decision 4), so this is the
+    winners only. None when no claim is on file."""
+    from webui.render import verdict
+    rows = [d for d in decisions_report(root, my_team)["decisions"] if d.get("type") == "waiver" and _parse(d.get("created"))]
+    if not rows:
+        return None
+    day = lambda d: _parse(d["created"]).astimezone(_pt()).date().isoformat()          # noqa: E731
+    latest = max(day(d) for d in rows)
+    claims = []
+    for d in rows:
+        if day(d) != latest:
+            continue
+        team = d.get("actor") or (d.get("teams") or [None])[0]
+        fx = (d.get("effect") or {}).get(team) or {}
+        grade = None
+        if d.get("evaluated") and fx.get("playoff") is not None:
+            grade = {"delta": fx["playoff"], "se": fx.get("playoff_se"), "verdict": verdict(fx["playoff"], fx.get("playoff_se"))}
+        claims.append({"team": team, "adds": d.get("adds") or [], "drops": d.get("drops") or [], "bid": d.get("faab_bid"),
+                       "grade": grade, "skipped": d.get("skipped"), "is_mine": bool(d.get("is_mine")), "created": d.get("created")})
+    claims.sort(key=lambda c: (-(c["bid"] or 0), c["team"] or ""))
+    return {"date": latest, "claims": claims}

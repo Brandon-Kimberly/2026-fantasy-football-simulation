@@ -24,6 +24,20 @@
   </div>
 </div>
 
+{% if run %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-flag"/></svg> The last waiver run <span class="hint">{{ run.date }} · every claim that won it, with its grade from the paired simulation</span></h2>
+<div class="scroller"><table><thead><tr><th>Team</th><th>Added</th><th>Dropped</th><th class="num">Winning bid</th><th>Grade for that team</th></tr></thead><tbody>
+{% for c in run.claims %}<tr{% if c.is_mine %} class="me"{% endif %}><td class="nm">{{ mark(c.team) }}{{ teamlink(c.team) }}</td>
+<td>{% for p in c.adds %}{{ p.name }} <span class="small muted">{{ p.pos }}</span>{% if not loop.last %}, {% endif %}{% endfor %}</td>
+<td>{% for p in c.drops %}{{ p.name }} <span class="small muted">{{ p.pos }}</span>{% if not loop.last %}, {% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+<td class="num">bid {{ c.bid if c.bid is not none else "—" }}</td>
+<td>{% if c.grade %}<b class="{{ 'pos' if c.grade.delta > 0 else ('neg' if c.grade.delta < 0) }}">{{ c.grade.delta|signed(1) }}</b> <span class="small muted">playoff points {{ c.grade.se|se }}</span>{% if c.grade.verdict %} · {{ c.grade.verdict.text }}{% endif %}{% elif c.skipped %}<span class="muted">not graded: {{ c.skipped }}</span>{% else %}<span class="muted">not graded yet</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">Losing bids are not recorded, so this lists the winners only. A grade is the change in that team's playoff odds from the claim, priced by a paired simulation after it went through.</p>
+</section>
+{% endif %}
+
 <section>
 <h2><svg class="i"><use href="#i-users"/></svg> {{ total }} player{{ 's' if total != 1 }}{% if shown < total %} <span class="hint">the top {{ shown }} by this week's projection · <a href="?pos={{ pos }}&show={{ show }}{{ qs }}&all=1">show all {{ total }}</a></span>{% else %} <span class="hint">click a column to sort</span>{% endif %}</h2>
 {% set pmax = [(rows|map(attribute='p90')|select|max) if rows|map(attribute='p90')|select|list else 1, 1]|max %}

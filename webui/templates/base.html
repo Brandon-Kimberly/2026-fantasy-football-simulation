@@ -237,6 +237,7 @@ kbd { font-family: var(--display); font-size: 11px; font-weight: 700; background
 .pcard .n { font-family: var(--display); font-weight: 800; font-size: 15px; color: var(--ink); letter-spacing: -0.01em; }
 .pcard .row { display: flex; justify-content: space-between; gap: 10px; } .pcard .row b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
 .pcard a { display: inline-block; margin-top: 6px; font-weight: 600; }
+.pcard .strip { margin: 6px 0 2px; }
 button.csv { margin-top: 6px; padding: 2px 10px; font-size: 11px; }
 th[data-key]:focus-visible { outline: 2px solid var(--pos); outline-offset: -2px; }
 .dstrip { display: block; overflow: visible; } .dstrip .h { fill: var(--turf); opacity: .16; } .dstrip .rng { stroke: var(--ink-2); stroke-width: 2; stroke-linecap: round; }
@@ -500,13 +501,31 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
     palItems = [];
     if (vs) palItems.push({ k: 'do', t: 'Compare ' + vs[1] + ' vs ' + vs[2], h: '/tools/compare_players?a=' + encodeURIComponent(vs[1].trim()) + '&b=' + encodeURIComponent(vs[2].trim()) });
     PALETTE.forEach(function (it) { if (!ql || (it.t + ' ' + (it.d || '')).toLowerCase().indexOf(ql) >= 0) palItems.push(it); });
-    palItems = palItems.slice(0, 12); palIdx = 0;
+    palItems = palItems.slice(0, 8);
+    if (palPlayers.q === ql) palItems = palItems.concat(palPlayers.items).slice(0, 12);   // UI-A9
+    palIdx = 0;
     palList.innerHTML = palItems.map(function (it, i) { return '<li class="' + (i === 0 ? 'on' : '') + '" data-i="' + i + '"><span class="k">' + escT(it.k) + '</span><span>' + escT(it.t) + '</span>' + (it.d ? '<span class="d">' + escT(it.d) + '</span>' : '') + '</li>'; }).join('');
+  }
+  // UI-A9: players come from the player index as the query is typed; an answer to an older
+  // query is dropped, so the list never shows players for letters since deleted
+  var palPlayers = { q: null, items: [] }, palSeq = 0;
+  function palFetchPlayers() {
+    var q = palQ.value.trim(), ql = q.toLowerCase(), my = ++palSeq;
+    if (q.length < 2 || /^compare\s/i.test(q)) { palPlayers = { q: null, items: [] }; return; }
+    fetch('/api/players?owner=all&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (!d || my !== palSeq) return;
+        palPlayers = { q: ql, items: (d.players || []).filter(function (p) { return p.pid; }).slice(0, 6).map(function (p) {
+          return { k: 'player', t: p.name, h: '/player/' + encodeURIComponent(p.pid), d: [p.pos, p.nfl, p.owner || 'free agent'].filter(Boolean).join(' · ') };
+        }) };
+        palRender();
+      }).catch(function () {});
   }
   function palOpen() { if (!pal) return; keys.hidden = true; pal.hidden = false; palQ.value = ''; palRender(); palQ.focus(); }
   function palGo() { var it = palItems[palIdx]; if (it) window.location.href = it.h; }
   if (pal) {
-    palQ.addEventListener('input', palRender);
+    palQ.addEventListener('input', function () { palRender(); palFetchPlayers(); });
     palQ.addEventListener('keydown', function (ev) {
       if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') { ev.preventDefault(); palIdx = (palIdx + (ev.key === 'ArrowDown' ? 1 : palItems.length - 1)) % Math.max(1, palItems.length); Array.prototype.forEach.call(palList.children, function (li, i) { li.classList.toggle('on', i === palIdx); }); }
       else if (ev.key === 'Enter') { ev.preventDefault(); palGo(); }
@@ -535,11 +554,15 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
       (d.week_mean != null ? '<div class="row"><span>week ' + escT(d.week) + ' <span class="muted">· ' + escT(d.week_source) + '</span></span><b>' + Number(d.week_mean).toFixed(1) + '</b></div>' : '') +
       '<div class="row"><span>season mean</span><b>' + (d.mean == null ? '—' : Number(d.mean).toFixed(1)) + '</b></div>' +
       (d.vorp != null ? '<div class="row"><span>value over replacement</span><b>' + (d.vorp > 0 ? '+' : '') + Number(d.vorp).toFixed(1) + (d.tier ? ' · tier ' + escT(d.tier) : '') + '</b></div>' : '') +
-      '<div class="row"><span>status</span><b>' + escT(st) + '</b></div>' + (d.bye ? '<div class="row"><span>bye</span><b>week ' + escT(d.bye) + '</b></div>' : '') +
+      '<div class="row"><span>status</span><b>' + escT(st) + '</b></div>' +
+      ((d.body_part || d.practice) ? '<div class="row"><span>' + escT(d.body_part || 'injury') + (d.practice ? ' · practice ' + escT(d.practice) : '') + '</span>' + (d.updated ? '<span class="muted">' + escT(String(d.updated).slice(0, 10)) + '</span>' : '') + '</div>' : '') +
+      (d.bye ? '<div class="row"><span>bye</span><b>week ' + escT(d.bye) + '</b></div>' : '') +
+      (d.strip ? '<div class="strip" title="one week of points: 10th to 90th percentile, the middle half boxed, the mean ticked">' + d.strip + '</div>' : '') +
       (d.pid ? '<a href="' + playerHref(d.pid) + '">Player page</a> · ' : '') + '<a href="/tools/compare_players?a=' + encodeURIComponent(d.name) + '">Compare with…</a>';
-    var r = el.getBoundingClientRect(), left = Math.min(r.left, window.innerWidth - 276), top = r.bottom + 8;
-    if (top + 190 > window.innerHeight) top = Math.max(8, r.top - 198);
-    pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.hidden = false;
+    pcard.style.visibility = 'hidden'; pcard.hidden = false;                   // measure before placing: the card grew (UI-P5)
+    var r = el.getBoundingClientRect(), h = pcard.offsetHeight, left = Math.min(r.left, window.innerWidth - 276), top = r.bottom + 8;
+    if (top + h > window.innerHeight) top = Math.max(8, r.top - h - 8);
+    pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.style.visibility = '';
   }
   if (pcard) {
     function pcFor(el) {
