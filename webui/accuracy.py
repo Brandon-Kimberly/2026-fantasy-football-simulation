@@ -211,3 +211,8 @@ def backtest_read(root):
     return {"cover80": float(overall["cover80"]), "n": n, "checkpoints": row.get("checkpoints") or [],
             "at": row.get("timestamp_utc"), "commit": (row.get("git_commit") or "")[:7],
             "se": (0.8 * 0.2 / n) ** 0.5}
+
+
+def reliability(pairs, edges=None):
+    """UI-Q1 characterisation stub."""
+    return []
