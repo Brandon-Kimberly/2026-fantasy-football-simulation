@@ -128,6 +128,10 @@ def main(argv=None):
                 f"{s_.strftime('%a %m-%d %H:%M')} -> {d_.strftime('%a %m-%d %H:%M %Z')}")
         if w["covered_by"]:
             line += f"  [{w['covered_by']}]"
+            if w.get("adjudicated"):
+                a = w["adjudicated"]
+                line += (f"  ADJUDICATED: {a['late_by_seconds'] // 60} min {a['late_by_seconds'] % 60} s late, "
+                         f"ruled covered by the owner {a['ruled']}")
         elif w["status"] == "OPEN":
             remaining = w["deadline"] - now
             hrs = remaining.total_seconds() / 3600

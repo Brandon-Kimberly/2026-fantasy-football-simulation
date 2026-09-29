@@ -341,6 +341,14 @@ class TestAnAdjudicatedWindow(unittest.TestCase):
                 self.assertEqual(w["adjudicated"]["ruled"], "2026-09-29")
                 self.assertNotIn(marker, r["outside_windows"], "it covered something now")
 
+    def test_both_markers_of_the_one_run_are_claimed(self):
+        """The local tool sees the run twice -- its digest and its predictions row -- and an
+        on-time window claims every marker inside it; an adjudicated one must too, or the
+        same run is reported as covering the window AND as covering nothing."""
+        _w, r = self.run2([("predictions@2026-09-27T17:08:02Z", u("2026-09-27T17:08:02")),
+                           ("weekly_report_week3_20260927T170809Z.md", u("2026-09-27T17:08:09"))])
+        self.assertEqual(r["outside_windows"], [])
+
     def test_it_says_how_late(self):
         w, _r = self.run2([("weekly_report_week3_20260927T170809Z.md", u("2026-09-27T17:08:09"))])
         self.assertEqual(w["adjudicated"]["late_by_seconds"], 489)
