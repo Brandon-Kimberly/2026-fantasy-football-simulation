@@ -1471,3 +1471,11 @@ def pctbar(p, nd=1):
     w = max(0.0, min(1.0, f)) * 100
     return Markup(f'<span class="pbar"><span class="trk"><i style="width:{w:.1f}%"></i></span><b>{f * 100:.{nd}f}%</b></span>')
 
+
+
+SLEEPER_CHAT_LIMIT = 1000     # UNVERIFIED: a conservative message length, not read from Sleeper docs
+
+
+def chat_parts(text, limit=SLEEPER_CHAT_LIMIT):
+    """UI-R3 characterisation stub."""
+    return []
