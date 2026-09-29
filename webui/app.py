@@ -124,6 +124,7 @@ def week_report(root, week):
                      "exp_points": o.get("Expected_Points"), "magic": fc.get("approximate_magic_number"), "faab": cs.get("remaining_faab")})
     return {"week": n, "forecast": forecast, "teams": teams, "outcomes": outcomes, "rows": rows,
             "metadata": matrix.get("metadata") or {}, "seeds": matrix.get("finishing_seed_probabilities") or {},
+            "roster_value": {t: float(v) for t, v in (matrix.get("roster_value_baseline_pts") or {}).items() if v is not None},
             "seed_vals": {(t, str(k).replace("Seed ", "#")): float(v) / 100.0                          # UI-V2
                           for t, ks in (matrix.get("finishing_seed_probabilities") or {}).items() if isinstance(ks, dict)
                           for k, v in ks.items() if v is not None},

@@ -106,7 +106,7 @@ table.standings tr.cutline td { border-bottom: 2px solid var(--turf); }
 <section>
 <h2><svg class="i c-pos"><use href="#i-users"/></svg> Rosters <span class="hint">sorted by season projection · status as of the last update{% if vorp %} · VORP from roster grades{% endif %}</span></h2>
 <div class="roster-nav">{% for team in rosters %}<a href="#t-{{ team|slug }}">{{ mark(team) }}{{ team|real }}</a>{% endfor %}</div>
-{% if vorp %}<div class="vorp-head"><span><b>VORP</b> = a player's season projection over the replacement level of his position — what he is worth over the best free agent you could have instead.</span>{% if dev %}<span class="muted">from <a href="{{ vorp.entry|pretty }}">the week-{{ vorp.week }} roster grades</a></span>{% endif %}</div>{% endif %}
+{% if vorp %}<div class="vorp-head"><span><b>VORP</b> = a player's season projection over the replacement level at their position — what they are worth over the best free agent you could have instead.</span>{% if dev %}<span class="muted">from <a href="{{ vorp.entry|pretty }}">the week-{{ vorp.week }} roster grades</a></span>{% endif %}</div>{% endif %}
 <div class="cards wide">
 {% for team, rows in rosters.items() %}
 {% set tot = [(rows|map(attribute='mean')|select('number')|sum), 0.001]|max %}

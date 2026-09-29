@@ -42,6 +42,15 @@
 </section>
 {% endif %}
 
+{% if roster_value %}{# UI-V2: the roster value baseline, drawn like the odds rather than as the engine's image #}
+{% set rv = roster_value|dictsort(by='value', reverse=true) %}{% set rvmax = [(roster_value.values()|max)|float, 1.0]|max %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Roster value <span class="hint">the best starting lineup's projected points, plus a tenth of the bench</span></h2>
+<div class="vizbox"><div class="k">projected points a week</div><div class="hbar">{% for t, v in rv %}<span class="{{ 'me' if t == my_team }}">{{ mark(t) }}{{ teamlink(t) }}</span><span class="b" title="{{ t|real }}: {{ v|num(1) }} points"><i class="{{ 'me' if t == my_team }}" data-width="{{ (100 * v / rvmax)|round(1) }}"></i></span><span class="v">{{ v|num(1) }} pts</span>{% endfor %}</div></div>
+<p class="small muted" style="margin-top:8px">A measure of roster strength rather than a forecast: the most points the best legal lineup projects this week, with each bench player adding a tenth of their projection for depth.</p>
+</section>
+{% endif %}
+
 {% if traj %}
 {% set names = rows|map(attribute='team')|list if rows else traj.keys()|list %}
 {% set series = [] %}{% for t in names %}{% set v = (traj.get(t) or {}).get('expected_cumulative_wins_by_week') %}{% if v %}{% set _ = series.append((t, v)) %}{% endif %}{% endfor %}
@@ -125,6 +134,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 {% if h2h %}{% set _ = replaced.append("H2H_Heatmap") %}{% endif %}
 {% if rows %}{% set _ = replaced.append("Season_Outcomes") %}{% endif %}
 {% if wins_dist or score_pct %}{% set _ = replaced.append("Weekly_Scoring_Density") %}{% endif %}
+{% if roster_value %}{% set _ = replaced.append("Power_Rankings") %}{% endif %}
 {% set shown_charts = [] %}{% for e in charts %}{% set base = e.name|replace(".png", "")|replace("_week_" ~ week, "") %}{% if not (sos and sos.nfl and e.name.startswith("Strength_of_Schedule")) and base not in replaced %}{% set _ = shown_charts.append(e) %}{% endif %}{% endfor %}
 {% if shown_charts %}
 <section>
