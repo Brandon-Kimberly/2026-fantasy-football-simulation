@@ -93,10 +93,35 @@
 </section>
 {% endif %}
 
+{% if sos and sos.nfl %}
+<style>
+table.sos { font-variant-numeric: tabular-nums; } table.sos th, table.sos td { padding: 4px 6px; text-align: center; font-size: 12px; }
+table.sos td.nm, table.sos th.nm { text-align: left; white-space: nowrap; } table.sos .po { border-left: 2px solid var(--gold); }
+table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em; } table.sos td.avg { font-weight: 700; }
+.soswin { display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0 10px; } .soswin a { padding: 3px 10px; border: 1px solid var(--rule); border-radius: var(--r-pill); font-size: 12px; font-weight: 600; color: var(--ink-2); text-decoration: none; }
+.soswin a.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
+</style>
+{% macro sosrows(rows, nfl) -%}
+{% for r in rows %}<tr{% if not nfl and r.team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ r.team|real if not nfl else r.team }}">{% if nfl %}<b>{{ r.team }}</b>{% else %}{{ mark(r.team) }}{{ teamlink(r.team) }}{% endif %}</td><td class="num avg" data-sort="{{ r.avg or 0 }}">{{ r.avg|num(1) if r.avg is not none else "—" }}</td>{% for c in r.cells %}{% if c.bye %}<td class="bye{{ ' po' if c.week in sos.playoff_weeks and c.week == sos.playoff_weeks[0] }}" data-sort="0">BYE</td>{% elif c.total is none %}<td class="muted{{ ' po' if c.week == (sos.playoff_weeks[0] if sos.playoff_weeks else -1) }}" data-sort="0">—</td>{% else %}<td class="{{ 'po' if c.week == (sos.playoff_weeks[0] if sos.playoff_weeks else -1) }}" data-sort="{{ c.total }}" style="background:color-mix(in srgb, var(--pos) {{ (6 + 54 * c.shade)|round(0)|int }}%, transparent)" title="{% if c.opponent %}vs {{ c.opponent }} · {% endif %}week {{ c.week }} · {{ c.total|num(1) }} implied points">{{ c.total|num(1) }}</td>{% endif %}{% endfor %}</tr>{% endfor %}
+{%- endmacro %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-cal"/></svg> Strength of schedule <span class="hint">implied points for each offence, week by week · darker is more · gold line: the fantasy playoffs</span></h2>
+<nav class="soswin" aria-label="window">{% for k, label in sos.windows %}<a href="?sos={{ k }}" class="{{ 'on' if sos.window == k }}">{{ label }}</a>{% endfor %}</nav>
+<div class="scroller"><table class="sos"><thead><tr><th class="nm" data-key="t" data-type="text">NFL team</th><th data-key="a" data-type="number">Average</th>{% for w in sos.weeks %}<th{% if sos.playoff_weeks and w == sos.playoff_weeks[0] %} class="po"{% endif %} data-key="w{{ w }}" data-type="number">wk {{ w }}</th>{% endfor %}</tr></thead><tbody>
+{{ sosrows(sos.nfl, true) }}
+</tbody></table></div>
+{% if sos.fantasy %}<h3 style="margin-top:16px">Each roster's average</h3>
+<div class="scroller"><table class="sos"><thead><tr><th class="nm" data-key="t" data-type="text">Team</th><th data-key="a" data-type="number">Average</th>{% for w in sos.weeks %}<th{% if sos.playoff_weeks and w == sos.playoff_weeks[0] %} class="po"{% endif %} data-key="w{{ w }}" data-type="number">wk {{ w }}</th>{% endfor %}</tr></thead><tbody>
+{{ sosrows(sos.fantasy, false) }}
+</tbody></table></div>{% endif %}
+<p class="small muted" style="margin-top:8px">The average is over the window chosen above. A higher number is a better scoring environment for that team's offensive players; hover a cell for the opponent.</p>
+</section>
+{% endif %}
+
 {% if charts %}
 <section>
 <h2>Charts <span class="hint">from the run · click to open full size</span></h2>
-<div class="charts">{% for e in charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_week_" ~ week, "")|replace("_"," ")|replace("syndicate ","") }}</figcaption></figure>{% endfor %}</div>
+<div class="charts">{% for e in charts if not (sos and sos.nfl and e.name.startswith("Strength_of_Schedule")) %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_week_" ~ week, "")|replace("_"," ")|replace("syndicate ","") }}</figcaption></figure>{% endfor %}</div>
 </section>
 {% endif %}
 
