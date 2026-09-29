@@ -224,6 +224,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["clock"] = render.human_time
     app.jinja_env.filters["dshort"] = render.duration_short
     app.jinja_env.filters["avatar"] = overlay.avatar
+    app.jinja_env.filters["headshot"] = lambda pid: root.image("players", pid)          # UI-P6: local only, or None
+    app.jinja_env.filters["logo"] = lambda team: root.image("teams", team)
     app.jinja_env.filters["pretty"] = render.pretty_url
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr
@@ -478,6 +480,14 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, lineups=lu,
                                split=sp, post=post, **rep)
 
+    @app.route("/img/<kind>/<name>")
+    def image(kind, name):
+        """UI-P6/E7: a headshot or team logo from the sync's local cache -- never fetched here."""
+        full = root.image_file(kind, name)
+        if not full:
+            abort(404)
+        return send_file(full, mimetype="image/jpeg" if name.endswith(".jpg") else "image/png", max_age=86400)
+
     @app.route("/favicon.ico")
     def favicon():
         # a page with no icon link (or a browser probing anyway) gets the app icon, not a 404
@@ -516,6 +526,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 "owner": overlay.text(p["owner"]) if p.get("owner") else None,
                 "mean": base.get("mean"), "bye": base.get("bye"), "status": status, "on_ir": bool(base.get("on_ir")),
                 "vorp": vorp, "tier": tier, "week": int(wk) if wk else None, "pid": base.get("player_id"),
+                "img": root.image("players", base.get("player_id")) or root.image("teams", p.get("nfl")),     # UI-P6
                 "week_mean": round(priced["mean"], 2) if priced else None,
                 "week_source": priced["source"] if priced else None, "week_stamp": priced.get("stamp") if priced else None}
 
@@ -573,6 +584,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             for k in ("team", "opponent"):
                 if snap.get(k):
                     snap[k] = overlay.text(snap[k])
+            for side in ("mine", "theirs"):                       # UI-P6: each row's local face, or none
+                if isinstance(snap.get(side), dict):
+                    snap[side] = dict(snap[side], rows=[dict(r, img=root.image("players", r.get("pid")) or root.image("teams", r.get("nfl")))
+                                                        for r in snap[side].get("rows") or []])
             p = dict(p, snapshot=snap)
         return p
 

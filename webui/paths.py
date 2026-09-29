@@ -26,6 +26,11 @@ KNOWN_TOOLS = ("weekly_report", "roster_grades", "trade_targets", "roster_calend
                "move", "trade", "draft_review", "season_retrospective")
 
 
+# UI-P6/E7: the image cache the sync fills. Served only through Root.image_file, which accepts
+# a digits-only Sleeper id as .jpg or a lower-case team code as .png -- never a path.
+IMAGE_KINDS = {"players": (re.compile(r"^\d{1,12}$"), ".jpg"), "teams": (re.compile(r"^[a-z]{2,3}$"), ".png")}
+
+
 class PathRefused(ValueError):
     """A path the chokepoint will not serve. Rendered as HTTP 400, never as a file."""
 
@@ -67,6 +72,41 @@ class Root:
         self.root = os.path.realpath(str(root))
         self.data = os.path.join(self.root, "data")
         self.local = os.path.join(self.data, "local")
+        self._images = {}
+
+    # ------------------------------------------------------------------ images (UI-P6)
+    def _image_names(self, kind):
+        """The cached file names of one kind, re-listed only when the folder changes."""
+        d = os.path.join(self.data, "images", kind)
+        try:
+            m = os.stat(d).st_mtime_ns
+        except OSError:
+            return frozenset()
+        hit = self._images.get(kind)
+        if not hit or hit[0] != m:
+            hit = (m, frozenset(os.listdir(d)))
+            self._images[kind] = hit
+        return hit[1]
+
+    def image_file(self, kind, name):
+        """The full path of a cached image, or None: the kind is known, the name is a valid
+        id or team code with its kind's extension, and the file is there."""
+        if kind not in IMAGE_KINDS or not isinstance(name, str):
+            return None
+        pattern, ext = IMAGE_KINDS[kind]
+        stem, dot, got = name.rpartition(".")
+        if not dot or "." + got != ext or not pattern.match(stem) or name not in self._image_names(kind):
+            return None
+        return os.path.join(self.data, "images", kind, name)
+
+    def image(self, kind, key):
+        """The local URL of a cached headshot ("players", a Sleeper id) or logo ("teams", a
+        team code, any case), or None."""
+        if not key or kind not in IMAGE_KINDS:
+            return None
+        key = str(key).lower() if kind == "teams" else str(key)
+        name = key + IMAGE_KINDS[kind][1]
+        return f"/img/{kind}/{name}" if self.image_file(kind, name) else None
 
     # ------------------------------------------------------------------ chokepoint
     def _full(self, rel):

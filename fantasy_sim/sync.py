@@ -1472,6 +1472,15 @@ def _sync_body(sharp_polling=False):
                                   current_nfl_week)
     if n_adj:
         print(f"[FAAB] {n_adj} budget(s) no transaction explains -- see the warnings above.")
+    # Decision 3 (UI-E7): the rostered players' headshots and the 32 team logos, cached once
+    # under data/images for the web UI. Cosmetic, so it runs last and can never fail a sync.
+    try:
+        from .images import cache_images
+        n_img = cache_images(rostered_pids)
+        if n_img["fetched"]:
+            print(f"[IMAGES] {n_img['fetched']} new image(s) cached.")
+    except Exception as ex:                                      # noqa: BLE001 -- cosmetic
+        logging.info("IMAGES: cache skipped (%s)", ex)
     return current_nfl_week, str(state.get("season", "2026"))
 
 

@@ -95,7 +95,8 @@ class TestThePages(Case):
         self.assertRegex(self.get("/player/101"), r'<img class="face lg" src="/img/teams/gb\.png"')
         os.remove(os.path.join(self.td.name, "data", "images", "teams", "gb.png"))
         body = self.get("/player/101")
-        self.assertNotIn('<img class="face', body)
+        # a rendered face has a local src; the hover card's script carries the bare tag as a string
+        self.assertNotRegex(body, r'<img class="face[^"]*" src="/img/')
         self.assertRegex(body, r'<span class="face lg mark"[^>]*>P1</span>')
 
     def test_the_rosters_and_the_lists_carry_faces(self):
