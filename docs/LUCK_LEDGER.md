@@ -81,6 +81,45 @@ Pooled that is −2.28 wins against a pooled SE near ±2.6, **z ≈ −0.88, p �
 consistent lean, and still indistinguishable from chance. Two seasons is not enough, which
 is the point of writing it down and waiting.
 
+## Addendum: three more, registered 2026-09-29
+
+**Registered 2026-09-29, after weeks 1-3 of 2026 had been played and were visible on the web
+UI, and before any of the three below had been computed by anything in this project.** They
+are registered late, not post hoc: the owner asked for them (docs/WEB_UI_ROADMAP.md, Decision
+2) and nothing had computed them on this season's data before this commit. The git history of
+this file is the timestamp, and the implementation lands in a later commit. Every rule above
+holds for them: each is shown separately, never combined with anything, and z and p are
+withheld below `MIN_WEEKS_FOR_INFERENCE` (6).
+
+| metric | definition | null | lucky direction |
+|---|---|---|---|
+| `forecast_luck` | my actual H2H wins − the sum of my quoted pre-game H2H win probabilities | 0 | **+** |
+| `median_luck` | (my actual median wins − the sum of my quoted pre-game median probabilities) − the league average of the same | 0 | **+** |
+
+Definitions, fixed now:
+
+- **The quote** is the model's canonical pre-kickoff forecast for that week, the row
+  `webui.accuracy.quoted_week` returns, which the Accuracy page scores. A week with no such
+  quote, or with no result, is left out, and the count of weeks left out is reported.
+- **Wins** are the league's record as played (F83, `webui.results.week_results`). A tie is
+  half a win, and a tie against the median is half a median win.
+- **Standard error:** sqrt(sum of p × (1 − p)) over the counted weeks, treating each quoted
+  game as an independent Bernoulli trial. The median measure's league average is itself
+  estimated, which the SE ignores; that is stated beside the number, not corrected.
+- **`forecast_luck` is not separately differenced against the league.** Across the league
+  the sum of wins equals the sum of the quoted chances (each game's two chances sum to one),
+  so the league average is zero by construction. The methodological commitment is met by
+  that identity.
+- **`median_luck` is differenced.** The quoted median chances need not sum to half the league
+  each week, so the league average of the raw difference is subtracted.
+
+**The schedule-swap matrix** is descriptive, not a test: no null, no z, no p. Row A, column
+B is the head-to-head record team A would have had on team B's schedule. For each played
+week, A's score is set against the score of B's opponent that week; in the week B played A,
+A is set against B instead. Scores are Sleeper's box scores, the same basis and the same
+re-scored-weeks caveat as all-play. The diagonal is A's own record on box scores, which can
+differ from the league's record where a week was re-scored (F83), and the page says so.
+
 ## Usage
 
 ```
