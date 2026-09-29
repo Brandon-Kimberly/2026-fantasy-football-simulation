@@ -855,6 +855,69 @@ measures the panes' boxes at 2560 and the stacking at 1280 and 1920.
 - **A chance to win is never shown as certain until it is decided** (UI-M8): "over 99.9%"
   or "under 0.1%" while anyone on either side has a game left.
 
+### The playoff machine (2026-09-28, roadmap Decision 1; UI-E5, O6, O7, O8, O9, O10)
+
+The owner ruled an additive engine export MINOR (CLAUDE.md, release policy). The engine now
+writes one line per simulated season: every remaining game, every team against every
+week's median, the final seeds and the champion
+(`weeks/week_NN/sim_outcomes_week_N.json`). Only the seeds were captured before. The
+capture reads values the loop already computed and draws nothing, so every existing golden
+hash stayed byte-identical. `tests.test_sim_outcomes` checks that the record rebuilds the
+engine's own wins, seed matrix and title rates.
+
+`webui/outcomes.py` reads that file. The web process still never re-simulates: every number
+on `/playoffs` is a share of the forecast's own seasons.
+
+- **The machine (O7).** Pin any remaining result, or any team against the median, and every
+  team's playoff, title and seed odds are recomputed over the matching seasons.
+  - The count is shown ("600 of 1,000 seasons match"), and so is a standard error on each
+    number: binomial, because each simulated season is an independent draw.
+  - Below 200 matching seasons the numbers are refused, not greyed. Each pin keeps roughly
+    half the seasons, and the page says so.
+  - The result swaps in place and the old one stays on screen while the new one loads. The
+    address follows, so a view can be shared or reloaded.
+  - Presets:
+    - favourites win this week;
+    - upsets this week;
+    - the owner wins out;
+    - a played week "as it was played", offered when the forecast predates the result.
+- **Leverage (O8).** For each team and week, the playoff odds if it wins versus loses, and
+  if it beats versus misses the median.
+  - The swing is 2 × p × (1 − p) × the difference. That is the expected size of the move
+    once the result is known.
+  - An index scales every swing by the season's average game swing, so the average game is
+    1.0 by construction, and a median result reads on the same scale.
+  - "The biggest games of the week" sums each game's swing over all eight teams.
+- **Rooting guide (O9).** For every other game this week: the owner's odds if each side
+  wins, the difference, and its standard error. Tiers follow `render.verdict`, so inside
+  two standard errors the page says "either". The same is shown for each other team
+  against the median.
+- **Wins needed (O6).** The playoff odds for each final win total, with the count of
+  seasons behind each bar.
+  - A final total is banked wins plus the remaining games plus the median results. Banked
+    wins come from the same week's forecast file.
+  - Bars behind fewer than 200 seasons are hatched, and a table view carries the same
+    numbers.
+- **Markers (O10).**
+  - **Clinched and eliminated** come only from a bound on the remaining schedule. A tie in
+    wins counts against the team, because the points tiebreak is still to be played.
+    Simulation frequency never decides them.
+  - **"Over 99.9%" and "under 0.1%"** are frequency near-certainty, and need at least
+    3,000 seasons. By the rule of three, 0 in 3,000 bounds the rate near 0.1%.
+  - **"Controls its destiny"** is the same kind of bound: if the team wins out and beats
+    every median, fewer than four others can still match its total.
+
+**What it does not claim:**
+- The bounds are conservative. A team can be mathematically in before the page says
+  "clinched", but never the other way.
+- From week 15 the export's seeds are the engine's banked ranking. Sleeper's bracket can
+  override the playoff field, and the machine does not model that override.
+- The Tk trap. `tests.test_webui_outcomes` runs a real (sandboxed) engine on the Agg
+  backend. On Windows' default Tk backend, the engine's first figure starts an interpreter
+  whose objects a later browser test's server thread finalises, and that test times out.
+  The older engine tests, run in the full suite's order, have not hit this; the hazard is
+  latent there.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
@@ -878,6 +941,11 @@ Stated up front so nobody discovers it mid-phase.
 
 Nothing in W1–W3 requires an engine, golden, behaviour-baseline or gate change. If an
 implementer finds otherwise, stop and report (the prompt's instruction, repeated here).
+
+The one engine change the UI has needed so far is the per-simulation outcome export
+(roadmap Decision 1). It went to the owner first and was ruled MINOR because it only adds a
+file. The goldens were regenerated in a commit of their own, whose diff is 33 added lines
+and nothing else.
 
 ---
 

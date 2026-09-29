@@ -39,7 +39,6 @@ try:
     from tests.test_webui_launch import FakeRunner
     from tests.test_webui_modes import DEV_TERMS, visible_text
     from tests.test_webui_objects import plant
-    from tests.test_webui_routes import TEAMS as FIX_TEAMS
     HAS_FLASK = True
 except ImportError:
     HAS_FLASK = False
@@ -249,8 +248,13 @@ class TestAgainstTheEngine(unittest.TestCase):
     UI's loader, reproduces the engine's own playoff and title rates."""
 
     def test_the_unconditioned_odds_are_the_engines(self):
+        import matplotlib.pyplot as plt
         from fantasy_sim.simulation import FantasySimulationEngine
         from tests.golden_master import _sandbox
+        # Headless, as the web UI and CI run it: on matplotlib's default Windows backend the
+        # engine's first figure starts a Tk interpreter, whose objects a later browser test's
+        # server thread then finalises -- Tk refuses off its own thread and that test times out.
+        plt.switch_backend("Agg")
         rec, real = {}, FantasySimulationEngine.export_and_visualize
 
         def recording(self, *args):
@@ -284,6 +288,21 @@ class TestLoader(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------------- the page
+def plant_export(root):
+    """The fixture league's week-3 export (also served to tests.test_webui_browser)."""
+    from tests.test_webui_routes import TEAMS as fix
+    weeks = list(range(3, 15))
+    later = [[fix[0], fix[6]], [fix[1], fix[7]], [fix[2], fix[4]], [fix[3], fix[5]]]
+    rows = []
+    for s in range(1000):
+        won = s < 600
+        codes = [code(("1" if won else "0") + "111", 1 if s % 4 == 0 else 0)] + [code("1111")] * (len(weeks) - 1)
+        rows.append(row(codes, IN0 if (won or s % 2 == 0) else OUT0, 0))
+    doc = export(rows, teams=fix, weeks=weeks, matchups={w: later for w in weeks})
+    with open(os.path.join(root, "data", "weeks", "week_03", "sim_outcomes_week_3.json"), "w", encoding="utf-8") as fh:
+        json.dump(doc, fh)
+
+
 @unittest.skipUnless(HAS_FLASK, "flask not installed")
 class PageCase(unittest.TestCase):
     """The fixture league at week 3 with a synthetic 1,000-season export: the owner's team
@@ -294,16 +313,7 @@ class PageCase(unittest.TestCase):
         self.td = tempfile.TemporaryDirectory()
         plant(self.td.name)
         self.root = Root(self.td.name)
-        weeks = list(range(3, 15))
-        later = [[FIX_TEAMS[0], FIX_TEAMS[6]], [FIX_TEAMS[1], FIX_TEAMS[7]], [FIX_TEAMS[2], FIX_TEAMS[4]], [FIX_TEAMS[3], FIX_TEAMS[5]]]
-        rows = []
-        for s in range(1000):
-            won = s < 600
-            codes = [code(("1" if won else "0") + "111", 1 if s % 4 == 0 else 0)] + [code("1111")] * (len(weeks) - 1)
-            rows.append(row(codes, IN0 if (won or s % 2 == 0) else OUT0, 0))
-        doc = export(rows, teams=FIX_TEAMS, weeks=weeks, matchups={w: later for w in weeks})
-        with open(os.path.join(self.td.name, "data", "weeks", "week_03", "sim_outcomes_week_3.json"), "w", encoding="utf-8") as fh:
-            json.dump(doc, fh)
+        plant_export(self.td.name)
 
     def tearDown(self):
         self.td.cleanup()
@@ -349,6 +359,16 @@ class TestPlayoffPage(PageCase):
     def test_the_page_is_in_the_navigation(self):
         for mode in ("dev", "simple"):
             self.assertIn('href="/playoffs"', self.get("/", mode))
+
+    def test_an_export_for_other_teams_is_not_shown_as_this_league(self):
+        """A test run once leaked a two-season export for teams A-H into the real tree
+        (fixed in the tests' patches); the page must not present such a file as the league."""
+        p = os.path.join(self.td.name, "data", "weeks", "week_03", "sim_outcomes_week_3.json")
+        with open(p, "w", encoding="utf-8") as fh:
+            json.dump(export([row([code("1111"), code("1111")], IN0, 0)] * 300), fh)
+        text = visible_text(self.get("/playoffs", "simple"))
+        self.assertNotIn("T0", text)
+        self.assertIn("next forecast", text)
 
     def test_without_an_export_the_page_says_when_it_will_appear(self):
         os.remove(os.path.join(self.td.name, "data", "weeks", "week_03", "sim_outcomes_week_3.json"))

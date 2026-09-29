@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
+{% block title %}Playoffs · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.pm { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 12px; }
+.pm > .res { position: sticky; top: 12px; }
+@media (max-width: 960px) { .pm { grid-template-columns: minmax(0, 1fr); } .pm > .res { position: static; } }
+#pm-result { transition: opacity .15s; } #pm-result.updating { opacity: .55; }
+#pm-result.updating::before { content: "Updating…"; display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.pm-count p { margin: 0 0 8px; } .pm-count.refused p b { color: var(--neg); }
+.pm-picks { list-style: none; padding: 0; margin: 0 0 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.pm-picks li { background: var(--mid); border-radius: var(--r-pill); padding: 3px 6px 3px 10px; font-size: 12.5px; }
+.pm-x { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 50%; text-decoration: none; color: var(--ink-2); }
+.pm-x:hover, .pm-x:focus-visible { background: var(--neg-bg); color: var(--neg); }
+.pm-clear { font-size: 12px; }
+.pm-table td, .pm-table th { padding: 6px 8px; } .pm-table .se { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.pm-table td.dim { color: var(--muted); text-align: center; }
+.pm-table td.seed { position: relative; min-width: 3.2rem; } .pm-table td.seed i { position: absolute; left: 4px; bottom: 3px; height: 3px; width: calc(var(--w) - 8px); max-width: calc(100% - 8px); background: var(--turf); border-radius: 2px; opacity: .55; }
+.mk { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; padding: 1px 7px; border-radius: var(--r-pill); background: var(--mid); color: var(--ink-2); vertical-align: middle; white-space: nowrap; }
+.mk-clinched { background: var(--g-turf); color: #fff; } .mk-eliminated { background: var(--neg-bg); color: var(--neg); }
+.mk-over { background: var(--turf-bg); color: var(--turf); } .mk-under { background: var(--neg-bg); color: var(--neg); } .mk-destiny { background: var(--gold-bg); color: var(--gold); }
+.presets { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 0; }
+.presets a { display: inline-block; padding: 6px 12px; border: 1px solid var(--grid); border-radius: var(--r-pill); background: var(--surface); text-decoration: none; font-size: 13px; color: var(--ink); }
+.presets a:hover, .presets a:focus-visible { border-color: var(--turf); color: var(--turf); }
+.wk { border: 1px solid var(--grid); border-radius: var(--r-card); background: var(--surface); margin-bottom: 8px; }
+.wk > summary { cursor: pointer; padding: 9px 14px; font-weight: 600; } .wk > summary .hint { font-weight: 400; }
+.wk .body { padding: 2px 14px 12px; display: grid; gap: 8px; }
+.gm { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: stretch; border: 0; margin: 0; padding: 0; min-width: 0; }
+.gm legend { grid-column: 1 / -1; font-size: 11.5px; color: var(--muted); padding: 0; margin-bottom: 2px; }
+.gm label { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--grid); border-radius: 8px; cursor: pointer; font-size: 13px; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.gm label.b { justify-content: flex-end; text-align: right; } .gm label.mid { justify-content: center; color: var(--muted); font-size: 12px; }
+.gm input { position: absolute; opacity: 0; pointer-events: none; }
+.gm label:has(input:checked) { border-color: var(--turf); background: var(--turf-bg); font-weight: 600; }
+.gm label.mid:has(input:checked) { background: var(--mid); border-color: var(--grid); font-weight: 400; }
+.gm label:has(input:focus-visible) { outline: 2px solid var(--turf); outline-offset: 2px; }
+.gm .p { font-size: 11px; color: var(--muted); font-weight: 400; }
+.meds { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; margin-top: 4px; }
+.meds label { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; }
+.meds select { font-size: 12px; }
+table.lev td, table.lev th { text-align: center; padding: 5px 6px; font-variant-numeric: tabular-nums; } table.lev td.nm, table.lev th.nm { text-align: left; }
+table.lev td.c { background: color-mix(in srgb, var(--turf) calc(var(--s) * 55%), transparent); }
+table.lev tr.me td.nm { font-weight: 700; }
+.big { list-style: none; padding: 0; margin: 10px 0 0; display: grid; gap: 8px; }
+.big li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 12px; border: 1px solid var(--grid); border-radius: var(--r-card); background: var(--surface); }
+.big .v { font-family: var(--display); font-weight: 800; font-size: 18px; min-width: 4.5rem; font-variant-numeric: tabular-nums; }
+.curve { display: flex; align-items: flex-end; gap: 6px; height: 180px; padding: 22px 0 0; border-bottom: 1px solid var(--rule); overflow-x: auto; }
+.curve .bar { flex: 1 0 34px; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; position: relative; }
+.curve .bar i { display: block; width: 100%; max-width: 44px; background: var(--turf); border-radius: 4px 4px 0 0; min-height: 2px; }
+.curve .bar.thin i { background: repeating-linear-gradient(45deg, var(--mid), var(--mid) 3px, transparent 3px, transparent 6px); border: 1px dashed var(--muted); border-bottom: 0; }
+.curve .bar b { font-size: 11px; font-weight: 600; margin-bottom: 3px; font-variant-numeric: tabular-nums; } .curve .bar.thin b { color: var(--muted); }
+.curve-x { display: flex; gap: 6px; overflow-x: auto; } .curve-x span { flex: 1 0 34px; text-align: center; font-size: 11.5px; color: var(--ink-2); padding-top: 4px; font-variant-numeric: tabular-nums; }
+</style>
+<div class="head">
+  <p class="eyebrow">playoffs{% if r.available %} · week {{ r.week }}'s forecast · {{ "{:,}".format(r.o.n) }} simulated seasons{% endif %}</p>
+  <h1>The playoff machine</h1>
+  <p class="lede">Pick who wins any remaining game, or who beats the weekly median, and see every team's playoff and title odds in the seasons where those results happened. Nothing is simulated again: each number is a share of the forecast's own {% if r.available %}{{ "{:,}".format(r.o.n) }} {% endif %}simulated seasons, with the count behind it and its standard error.</p>
+</div>
+
+{% if not r.available %}
+<div class="note">Nothing to show yet. The machine works from every season the forecast simulates, and the forecasts on file were made before they recorded them. This page fills in after the next forecast.</div>
+{% else %}
+{% set o = r.o %}
+{% if r.behind and r.behind > 0 %}<div class="note">This forecast was made before week {{ r.week }} was played{% if r.behind > 1 %}, {{ r.behind }} weeks ago{% endif %}. Its seasons still include every way those games could have gone; pin what really happened with the preset below to follow the season as it stands.</div>{% endif %}
+<div class="presets">{% for p in r.presets %}<a href="{{ p.href }}">{% if p.team %}{{ p.team|real }} {% endif %}{{ p.label }}</a>{% endfor %}</div>
+
+<div class="pm">
+  <div class="res" id="pm-result" aria-live="polite">{% include "_playoffs_result.html" %}</div>
+  <form id="pm" method="get" action="/playoffs">
+    <h2 class="small" style="margin: 0 0 8px">Pick results</h2>
+    {% for w in o.weeks %}{% set ns = namespace(n=0) %}{% for k in r.chosen %}{% if k.startswith('g%d.'|format(w)) or k.startswith('m%d.'|format(w)) %}{% set ns.n = ns.n + 1 %}{% endif %}{% endfor %}
+    <details class="wk"{% if ns.n or (loop.first and not r.chosen) or w == r.this_week %} open{% endif %}>
+      <summary>Week {{ w }}{% if w == r.this_week %} <span class="hint">this week</span>{% endif %}{% if ns.n %} <span class="hint">· {{ ns.n }} picked</span>{% endif %}</summary>
+      <div class="body">
+      {% for a, b in o.matchups.get(w, []) %}{% set key = 'g%d.%d'|format(w, loop.index0) %}{% set cur = r.chosen.get(key, '') %}{% set pa = r.game_p.get('%d.%d'|format(w, loop.index0)) %}
+        <fieldset class="gm"><legend>{{ a|real }} vs {{ b|real }}{% if pa is not none %} — {{ a|real }} wins {{ pa|pct(0) }} of the seasons{% endif %}</legend>
+          <label class="a"><input type="radio" name="{{ key }}" value="a"{% if cur == 'a' %} checked{% endif %}>{{ a|real }}</label>
+          <label class="mid"><input type="radio" name="{{ key }}" value=""{% if not cur %} checked{% endif %}>either</label>
+          <label class="b"><input type="radio" name="{{ key }}" value="b"{% if cur == 'b' %} checked{% endif %}>{{ b|real }}</label>
+        </fieldset>
+      {% endfor %}
+      {% if o.median_enabled %}<div class="meds">{% for t in o.teams %}{% set key = 'm%d.%d'|format(w, loop.index0) %}{% set cur = r.chosen.get(key, '') %}
+        <label for="f_{{ key|replace('.', '_') }}">{{ t|real }}<select id="f_{{ key|replace('.', '_') }}" name="{{ key }}"><option value="">median: either</option><option value="1"{% if cur == '1' %} selected{% endif %}>beats the median</option><option value="0"{% if cur == '0' %} selected{% endif %}>misses the median</option></select></label>{% endfor %}</div>{% endif %}
+      </div>
+    </details>{% endfor %}
+    <button type="submit">Show the odds</button>
+  </form>
+</div>
+<p class="small muted">Status marks: <b>clinched</b> and <b>eliminated</b> are proven from the remaining schedule, counting a tie in wins against the team because the points tiebreak is still to be played. <b>over 99.9%</b> and <b>under 0.1%</b> mean nearly every one of at least {{ "{:,}".format(r.near_min) }} simulated seasons went that way, which is not proof. <b>Controls its destiny</b>: winning every remaining game and beating every remaining median leaves fewer than four teams able to match it.</p>
+
+<section>
+<h2><svg class="i"><use href="#i-matchup"/></svg> Which games matter most <span class="hint">how far each result moves a team's playoff odds</span></h2>
+{% set big = r.lev.games.get(r.this_week, []) %}
+{% if big %}<h3 class="small">The biggest games of week {{ r.this_week }}</h3>
+<ol class="big">{% for g in big %}<li><span class="v">{% if g.total is not none %}{{ (g.total * 100)|num(1) }}<span class="small muted"> pts</span>{% else %}—{% endif %}</span>
+<span>{{ mark(g.a) }}{{ teamlink(g.a) }} <span class="muted">vs</span> {{ mark(g.b) }}{{ teamlink(g.b) }}</span>
+<span class="small muted">{% if g.total is not none %}expected move in playoff odds, summed over all eight teams{% else %}decided the same way in almost every season, so there is nothing to compare{% endif %}</span></li>{% endfor %}</ol>{% endif %}
+<p class="small muted" style="margin-top: 12px">Each cell is a team's own game that week, scaled so the season's average game is 1.0. The swing behind it is 2 × p × (1 − p) × (odds if it wins − odds if it loses): the expected size of the move once the result is known. A dash means one side of the result happened in fewer than {{ r.min }} seasons.</p>
+<div class="scroller"><table class="lev"><thead><tr><th class="nm">Team</th>{% for w in o.weeks %}<th>{{ w }}</th>{% endfor %}</tr></thead><tbody>
+{% for t in r.order %}<tr{% if t == r.me %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for w in o.weeks %}{% set c = r.lev.cells[t][w].h2h %}{% if c and c.index is not none %}<td class="c" style="--s: {{ [c.index / 3, 1]|min|round(3) }}" title="{{ t|real }}, week {{ w }}: {{ c.if_won|pct }} if it wins, {{ c.if_lost|pct }} if it loses">{{ c.index|num(1) }}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+{% if o.median_enabled %}<details class="tview"><summary>the same, for beating the median</summary><div class="scroller"><table class="lev"><thead><tr><th class="nm">Team</th>{% for w in o.weeks %}<th>{{ w }}</th>{% endfor %}</tr></thead><tbody>
+{% for t in r.order %}<tr{% if t == r.me %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for w in o.weeks %}{% set c = r.lev.cells[t][w].median %}{% if c and c.index is not none %}<td class="c" style="--s: {{ [c.index / 3, 1]|min|round(3) }}" title="{{ t|real }}, week {{ w }}: {{ c.if_yes|pct }} if it beats the median, {{ c.if_no|pct }} if it misses">{{ c.index|num(1) }}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
+</tbody></table></div></details>{% endif %}
+</section>
+
+{% if r.rooting and r.rooting.base is not none %}{% set rg = r.rooting %}
+<section>
+<h2><svg class="i"><use href="#i-users"/></svg> Who to root for <span class="hint">week {{ r.this_week }}, for {{ r.me|real }} ({{ rg.base|pct }} now)</span></h2>
+<div class="scroller"><table><thead><tr><th>Game</th><th>Root for</th><th class="num">Your odds if the first team wins</th><th class="num">if the second wins</th><th class="num">Difference</th><th></th></tr></thead><tbody>
+{% for g in rg.games %}<tr><td class="nm">{{ mark(g.a) }}{{ teamlink(g.a) }} <span class="muted">vs</span> {{ mark(g.b) }}{{ teamlink(g.b) }}</td>
+{% if g.diff is none %}<td colspan="5" class="muted">one side won in fewer than {{ r.min }} seasons, so there is nothing to compare</td>
+{% else %}{% set v = (g.diff * 100)|verdict(g.se * 100) %}
+<td>{% if g.root_for and v and v.tier != 'none' %}{{ mark(g.root_for) }}<b>{{ g.root_for|real }}</b>{% else %}<span class="muted">either</span>{% endif %}</td>
+<td class="num">{{ g.if_a|pct }}</td><td class="num">{{ g.if_b|pct }}</td>
+<td class="num">{{ (g.diff * 100)|signed(1) }} <span class="small muted">{{ (g.se * 100)|se }}</span></td>
+<td class="small muted">{{ v.text if v and v.tier == 'none' else ('a ' ~ v.tier ~ ' difference' if v else '') }}</td>{% endif %}</tr>{% endfor %}
+</tbody></table></div>
+{% set lows = rg.median|selectattr('diff')|list %}
+{% if o.median_enabled and lows %}<h3 class="small" style="margin-top: 14px">Around the median</h3>
+<ul class="small">{% for m in lows[:4] %}{% set v = (m.diff * 100)|verdict(m.se * 100) %}<li>{{ mark(m.team) }}<b>{{ m.team|real }}</b>: your odds {{ m.if_misses|pct }} if they miss the median, {{ m.if_beats|pct }} if they beat it{% if v and v.tier != 'none' %} — want them to score <b>{{ m.want }}</b>{% else %} — no measurable change{% endif %}.</li>{% endfor %}</ul>{% endif %}
+</section>
+{% endif %}
+
+<section>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> How many wins is enough? <span class="hint">the playoff odds for each final win total</span></h2>
+<form method="get" action="/playoffs" class="small" style="margin-bottom: 8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<label for="f_team">Team</label> <select id="f_team" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
+{% if r.curve %}
+<div class="curve" role="img" aria-label="{{ r.team|real }}: playoff odds by final win total">{% for b in r.curve %}<div class="bar{{ ' thin' if b.thin }}" title="{{ b.wins|num(1) }} wins: {{ b.p|pct }} made the playoffs, {{ '{:,}'.format(b.n) }} seasons{{ ' — too few to rely on' if b.thin }}"><b>{{ b.p|pct(0) }}</b><i style="height: {{ (b.p * 100)|round(1) }}%"></i></div>{% endfor %}</div>
+<div class="curve-x">{% for b in r.curve %}<span>{{ b.wins|num(1) if b.wins % 1 else b.wins|int }}</span>{% endfor %}</div>
+<p class="small muted">Final regular-season wins, head-to-head and median together. Hatched bars stand on fewer than {{ r.min }} seasons and should not be relied on. The share is of the seasons in which {{ r.team|real }} finished on that total; ties in wins are settled on points.</p>
+<details class="tview"><summary>view as table</summary><div class="scroller"><table><thead><tr><th>Final wins</th><th class="num">Made the playoffs</th><th class="num">Seasons</th><th class="num">How often it ends there</th></tr></thead><tbody>
+{% for b in r.curve %}<tr><td>{{ b.wins|num(1) }}</td><td class="num">{{ b.p|pct }} <span class="small muted">{{ (b.se * 100)|se }}</span></td><td class="num">{{ '{:,}'.format(b.n) }}{% if b.thin %} <span class="muted">(too few)</span>{% endif %}</td><td class="num">{{ b.share|pct }}</td></tr>{% endfor %}
+</tbody></table></div></details>
+{% else %}<div class="note">The wins each team has already banked are missing from this forecast, so the final totals cannot be counted.</div>{% endif %}
+</section>
+{% endif %}
+<script>
+(function () {
+  var f = document.getElementById("pm"), out = document.getElementById("pm-result");
+  if (!f || !out || !window.fetch) return;
+  var seq = 0;
+  function qs() {
+    var p = new URLSearchParams();
+    new FormData(f).forEach(function (v, k) { if (v !== "") p.append(k, v); });
+    return p.toString();
+  }
+  f.addEventListener("change", function () {
+    var q = qs(), my = ++seq;
+    out.classList.add("updating");
+    fetch("/playoffs/result" + (q ? "?" + q : ""), {headers: {"Accept": "text/html"}})
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(r.status); })
+      .then(function (h) {
+        if (my !== seq) return;
+        out.innerHTML = h;
+        out.classList.remove("updating");
+        history.replaceState(null, "", "/playoffs" + (q ? "?" + q : ""));
+      })
+      .catch(function () { if (my === seq) out.classList.remove("updating"); });
+  });
+})();
+</script>
+{% endblock %}

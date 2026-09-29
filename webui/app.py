@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, compare as comparemod, history as historymod, objects, players_page as playersmod, recap as recapmod, render, trade as trademod
+from webui import brand, compare as comparemod, history as historymod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -46,10 +46,10 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
-NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
+NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
            ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
            ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
@@ -366,6 +366,17 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return render_template("history.html", book=historymod.record_book(gs), n_games=len(gs), pairs=pairs,
                                teams=teams, mine=mine, seasons=sorted({g["season"] for g in gs}), current_season=cur,
                                drafts=historymod.seasons_available(root))
+
+    @app.route("/playoffs")
+    def playoffs_page():
+        """UI-O6 to O10: the playoff machine, leverage, the rooting guide, the wins-needed curve
+        and the clinch markers -- every number a filter over the forecast's simulated seasons."""
+        return render_template("playoffs.html", r=outcomesmod.report(root, request.args, MY_TEAM))
+
+    @app.route("/playoffs/result")
+    def playoffs_result():
+        """The machine's result alone, for the page to swap in while the old one stays on screen."""
+        return render_template("_playoffs_result.html", r=outcomesmod.report(root, request.args, MY_TEAM))
 
     @app.route("/draft")
     def draft_page():

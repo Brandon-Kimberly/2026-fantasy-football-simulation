@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 45 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 51 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -43,6 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
 | UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
+| UI-E5 / O6 / O7 / O8 / O9 / O10 | The playoff machine, leverage, the rooting guide, wins needed and clinch markers on `/playoffs`, all filters over the forecast's own simulated seasons. It needed the engine export: Decision 1, which the owner ruled MINOR, with the goldens regenerated alone as 33 added lines. Counts and standard errors come with every number, and anything under 200 seasons is refused. |
 | UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |
 
 **Found while building, not on the original list.**
@@ -193,6 +194,11 @@ MAJOR, even when no prediction changes. Three options:
    only. This mirrors how B30's golden regeneration was proven "trajectories only".
 3. Write the export from outside the pinned monoliths. Not obviously possible without
    touching `run_simulation`, which rule 4 protects while R1 stands.
+
+**Owner ruling (2026-09-28): option 2.** CLAUDE.md's release policy now says an export that only
+adds a file is MINOR. The export landed on `engine/sim-outcomes-export` as a policy commit, a red
+characterisation, the capture, and then the goldens regenerated alone. Every existing hash is
+unchanged in all three scenarios, and one entry was added to each.
 
 ### Decision 2: new luck measures
 
