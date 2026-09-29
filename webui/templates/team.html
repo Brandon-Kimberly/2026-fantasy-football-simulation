@@ -12,23 +12,23 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 .chance { display: inline-flex; align-items: center; gap: 8px; } .chance .mini { width: 70px; }
 .moves .mv { display: block; } .verdict { font-size: 11px; font-weight: 600; } .verdict.pos { color: var(--turf); } .verdict.neg { color: var(--neg); } .verdict.none { color: var(--muted); }
 </style>
-{% set rec = record %}{% set o = odds %}
+{% set rec = record %}{% set o = odds if odds else {"playoff": None, "champ": None, "wins": None, "playoff_se": None} %}{# UI-V8: no forecast is None, not Undefined #}
 <div class="head">
   <p class="eyebrow">team{% if rank %} · rank {{ rank }} of {{ of }}{% endif %}{% if is_mine %} · mine{% endif %}</p>
   <h1 class="thead">{{ mark(team, 'lg') }}<span>{{ team|real }}</span></h1>
-  {% if not is_mine %}<p style="margin:6px 0 0"><a class="btn ghost" href="/trade?with={{ team|slug }}"><svg class="i"><use href="#i-swap"/></svg> Propose a trade</a></p>{% endif %}
+  {% if not is_mine %}<p class="u-m-6px-0-0"><a class="btn ghost" href="/trade?with={{ team|slug }}"><svg class="i"><use href="#i-swap"/></svg> Propose a trade</a></p>{% endif %}
   {% set sr = row %}<p class="lede">{% if sr and sr.wins is not none %}{{ sr.wins|wins }} wins{% if sr.combined %} · {{ sr.h2h.text }} head-to-head · {{ sr.median.text }} against the median{% endif %}{% if sr.all_play %} · {{ sr.all_play.text }} all-play{% endif %} · {% endif %}{{ standing.points_scored|num(1) }} points for{% if sr and sr.points_against is not none %}, {{ sr.points_against|num(1) }} against{% endif %}{% if sr and sr.streak %} · streak {{ sr.streak }}{% endif %}{% if sr and sr.cushion is not none %} · {% if sr.cushion == 0 %}level with fifth on wins, ahead on points{% else %}{{ sr.cushion|wins }} clear of fifth{% endif %}{% elif sr and sr.gb is not none %} · {% if sr.gb == 0 %}level with fourth on wins, behind on points{% else %}{{ sr.gb|wins }} back of fourth{% endif %}{% endif %}{% if standing.remaining_faab is not none %} · {{ standing.remaining_faab|num(0) }} of 100 budget left{% endif %}.{% if sr and sr.rescored and sr.all_play %} <span class="small muted">All-play and points against use Sleeper's re-scored box scores.</span>{% endif %} <a class="small" href="/luck?team={{ team|slug }}">How the dice fell</a></p>
 </div>
 
 {{ tiles([
-  {"k": "playoff odds", "v": (o.playoff|num(1) ~ "%") if o.playoff is not none else "—", "s": ((o.playoff_se|se) ~ ((" · " ~ (move.d_playoff|signed(1)) ~ " since week " ~ prev_week) if move and move.d_playoff is not none else "")) if o.playoff is not none else "no forecast yet", "tone": ""},
+  {"k": "playoff odds", "v": (o.playoff|num(1) ~ "%") if o.playoff is not none else "—", "s": ((o.playoff_se|se) ~ ((" · " ~ (move.d_playoff|signed(1)) ~ " since week " ~ prev_week) if move and move.d_playoff is not none else "")) if o.playoff is not none else "appear after the first forecast", "tone": ""},
   {"k": "title odds", "v": (o.champ|num(1) ~ "%") if o.champ is not none else "—", "s": ("week-" ~ odds_week ~ " forecast") if odds_week else "", "tone": ""},
   {"k": "final wins", "v": (o.wins.p10|num(0) ~ "–" ~ o.wins.p90|num(0)) if o.wins else "—", "s": ("8 seasons in 10 · median " ~ o.wins.p50|num(0)) if o.wins else "", "tone": ""},
   {"k": "record", "v": (rec.combined.text if rec and rec.agrees else "—"), "s": "head-to-head and median games together", "tone": ""}
 ]) }}
 
 <section>
-<h2><svg class="i"><use href="#i-cal"/></svg> Season <span class="hint">results as the league counts them · the model's chance before kickoff · later weeks from the week-{{ odds_week or "?" }} forecast</span></h2>
+<h2><svg class="i"><use href="#i-cal"/></svg> Season <span class="hint">results as the league counts them · the model's chance before kickoff · later weeks {% if odds_week %}from the week-{{ odds_week }} forecast{% else %}priced after the first forecast{% endif %}{# UI-V8 #}</span></h2>
 <div class="scroller"><table class="sched"><thead><tr><th>Week</th><th>Opponent</th><th>Result</th><th class="num">Score</th><th>Median</th><th class="num">Chance to win</th></tr></thead><tbody>
 {% for r in schedule %}<tr class="{{ 'now' if r.current }}"><td class="nm"><a href="/matchups/week-{{ r.week }}">Week {{ r.week }}</a>{% if r.current %} <span class="muted">· this week</span>{% endif %}</td>
 <td class="nm">{{ mark(r.opponent) }}{{ teamlink(r.opponent) }}</td>
@@ -49,7 +49,7 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 {% endif %}
 
 <section>
-<h2><svg class="i"><use href="#i-clip"/></svg> Roster <span class="hint">season mean · the likely range of one week's points, 10th to 90th percentile, from the week-{{ odds_week or "?" }} forecast</span></h2>
+<h2><svg class="i"><use href="#i-clip"/></svg> Roster <span class="hint">season mean · the likely range of one week's points, 10th to 90th percentile, {% if odds_week %}from the week-{{ odds_week }} forecast{% else %}after the first forecast{% endif %}</span></h2>
 {% set pmax = [(roster|map(attribute='p90')|select|max) if roster|map(attribute='p90')|select|list else 1, 1]|max %}{% set shi = ((pmax * 1.15 / 5)|round(0, 'ceil') * 5) %}
 <div class="scroller"><table><thead><tr><th>Player</th><th>Pos</th><th>NFL</th><th class="num">Season mean</th><th>Likely range</th><th class="num">Bye</th><th>Status</th><th class="num">Value over replacement</th></tr></thead><tbody>
 {% for p in roster %}<tr><td class="nm">{{ playerlink(p.name, p.pid, p.nfl) }}</td><td>{{ p.pos }}</td><td class="muted">{{ p.nfl|nflteam }}</td><td class="num">{{ p.mean|num(1) }}</td>

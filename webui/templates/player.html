@@ -29,7 +29,7 @@
   <div><span class="k">Status</span><b>{{ "IR" if on_ir else (status or "healthy") }}</b></div>
   <div><span class="k">Injury</span><b>{{ body_part or "—" }}</b></div>
   <div><span class="k">Practice</span><b>{{ practice or "—" }}{% if practice_note %} <span class="muted">· {{ practice_note }}</span>{% endif %}</b></div>
-  {% if notes %}<div style="grid-column: 1 / -1"><span class="k">Notes</span><b>{{ notes }}</b></div>{% endif %}
+  {% if notes %}<div class="u-gcol-1-1"><span class="k">Notes</span><b>{{ notes }}</b></div>{% endif %}
 </div>
 </section>
 

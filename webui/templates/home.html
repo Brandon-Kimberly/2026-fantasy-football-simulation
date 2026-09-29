@@ -139,6 +139,7 @@
 /* the season, in one card that is actually full */
 .season { display: grid; grid-template-columns: minmax(300px, .82fr) 1.18fr; gap: 16px; margin-top: 16px; align-items: stretch; }
 .season > * { min-width: 0; }
+.season .card.outlook { animation-delay: .05s; } .season .card.chartc { animation-delay: .1s; }   /* the two cards arrive in turn (UI-E11: were inline) */
 .season .card { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 18px 20px; animation: rise .5s ease both; display: flex; flex-direction: column; gap: 14px; }
 .season .card.outlook { border-left: 3px solid var(--pos); } .season .card.chartc { border-left: 3px solid var(--gold); }
 .season .k { font-family: var(--display); font-size: 10px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
@@ -210,7 +211,7 @@
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
 <div class="home3">
 <div class="hero">
-  <div class="top-line"><p class="eyebrow" style="margin:0">Week {{ week or "?" }} · {{ tagline }}</p>
+  <div class="top-line"><p class="eyebrow u-m-0">Week {{ week or "?" }} · {{ tagline }}</p>
     {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}" data-q="{{ (lineup.questionable_starters|length) if (lineup and lineup.questionable_starters) else 0 }}" data-week="{{ week or '' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.at_next }} game{{ 's' if kick.at_next != 1 }}{% if kick.remaining > kick.at_next %} · {{ kick.remaining }} still to start this week{% endif %}{% endif %}</span>{% endif %}
     {% if next_waiver %}<span class="kick"><svg class="i"><use href="#i-waiver"/></svg> next waiver run <b>{{ next_waiver|when }}</b></span>{% endif %}
     {% if deadline_left %}<span class="kick"><svg class="i c-warm"><use href="#i-swap"/></svg> trade deadline: trades close after week 11 · <b>{{ deadline_left }} week{{ 's' if deadline_left != 1 }} left</b> · <a href="/trade">trade builder</a></span>{% endif %}
@@ -242,7 +243,7 @@
   </div>
   {% endif %}
   {% else %}
-  <div class="note" style="margin-top:12px">No prediction for week {{ week }} yet{% if dev %} — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup{% endif %}.</div>
+  <div class="note u-mt-12px">No prediction for week {{ week }} yet{% if dev %} — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup{% endif %}.</div>
   {% endif %}
 
   {% if others %}{# ---- UI-M6: the other games this week; the live poller redraws their scores ---- #}
@@ -280,14 +281,15 @@
 </div>
 
 <div class="season">
-  <div class="card outlook" style="animation-delay:.05s">
+  <div class="card outlook">
     {% set po = f.playoff_probability_pct or 0 %}{% set circ = 2 * 3.14159 * 40 %}
     <div class="k"><svg class="i c-pos"><use href="#i-trophy"/></svg> season outlook</div>
     <div class="ohead">
       <svg class="ring" viewBox="0 0 96 96" aria-label="playoff probability"><defs><linearGradient id="ringg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2e7d4f"/><stop offset="1" stop-color="#2a78d6"/></linearGradient></defs><circle class="bg" cx="48" cy="48" r="40"/><circle class="fg" cx="48" cy="48" r="40" stroke-dasharray="{{ circ|round(2) }}" stroke-dashoffset="{{ circ|round(2) }}" data-dash="{{ (circ * (1 - po / 100))|round(2) }}"/></svg>
       <div>
-        <div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
+        {% if f.playoff_probability_pct is number %}<div class="big"><span data-count="{{ po|round(1) }}" data-nd="1" data-suffix="%">{{ po|round(1) }}%</span></div>
         <div class="s">to make the playoffs{% if f.playoff_standard_error %} · {{ f.playoff_standard_error|se }}{% endif %}</div>
+        {% else %}<div class="big">—</div><div class="s">Playoff odds appear after the first forecast, which the week-1 report runs.</div>{% endif %}{# UI-V8: no forecast is not 0% #}
         {% if my_row and standings %}<div class="s muted">rank {{ my_row.rank }} of {{ standings|length }} · {{ my_row.wins|wins }}–{{ losses }} · {{ my_row.points|num(1) }} points for</div>{% endif %}
         {% if my_move and my_move.d_playoff is not none %}<div class="s"><b class="{{ 'pos' if my_move.d_playoff > 0 else ('neg' if my_move.d_playoff < 0) }}">{{ my_move.d_playoff|signed(1) }}</b> since the week-{{ prev_week }} forecast{% if not my_move.reconciled %} · the box-score result does not match the league's standings (a scoring change or a stat correction after the result was recorded), so it is not shown here{% else %}{% for x in my_move.results %} · week {{ x.week }}: {{ 'won' if x.h2h == 'W' else ('lost' if x.h2h == 'L' else 'tied') }} head-to-head{% if x.p_h2h is not none %} (the model had {{ (100 * x.p_h2h)|round(0)|int }}%){% endif %}, {{ 'beat' if x.median == 'W' else ('missed' if x.median == 'L' else 'tied') }} the median{% if x.p_median is not none %} ({{ (100 * x.p_median)|round(0)|int }}%){% endif %}{% endfor %}{% endif %} · <a href="/forecasts">what it did to everyone</a></div>{% endif %}
       </div>
@@ -295,15 +297,15 @@
     {% if seed and seed.rows %}
     <div class="seeds">
       <div class="k">where I finish <span class="sh">probability of each seed{% if seed.spots %} · the top {{ seed.spots }} make the playoffs{% endif %}</span></div>
-      <div class="sbar">{% for r in seed.rows %}<i class="{{ r.cls }}{{ ' cut' if r.cut }}" style="width:{{ r.pct }}%;opacity:{{ r.shade }}" title="seed {{ r.seed }}: {{ r.pct|num(1) }}%"></i>{% endfor %}</div>
+      <div class="sbar">{% for r in seed.rows %}<i class="{{ r.cls }}{{ ' cut' if r.cut }}" style="width:{{ r.pct }}%;opacity:{{ r.shade }}" title="seed {{ r.seed }}: {{ r.pct|pctn(1) }}"></i>{% endfor %}</div>
       <div class="slegend">
-        {% for r in seed.rows[:(seed.spots or 4)] %}<span class="{{ r.cls }}"><i style="opacity:{{ r.shade }}"></i>#{{ r.seed }} <b>{{ r.pct|num(1) }}%</b></span>{% endfor %}
-        {% if seed.spots %}<span class="out"><i></i>miss <b>{{ seed.miss|num(1) }}%</b></span>{% endif %}
+        {% for r in seed.rows[:(seed.spots or 4)] %}<span class="{{ r.cls }}"><i style="opacity:{{ r.shade }}"></i>#{{ r.seed }} <b>{{ r.pct|pctn(1) }}</b></span>{% endfor %}
+        {% if seed.spots %}<span class="out"><i></i>miss <b>{{ seed.miss|pctn(1) }}</b></span>{% endif %}
       </div>
     </div>
     {% endif %}
     <div class="ofacts">
-      <div class="of"><span class="k">title odds</span><b>{{ champ|num(1) }}%</b></div>
+      <div class="of"><span class="k">title odds</span><b>{{ champ|pctn(1) }}</b></div>
       <div class="of"><span class="k">expected wins</span><b>{{ f.expected_final_wins|num(1) }}</b><span class="s">of 28</span></div>
       <div class="of"><span class="k">to clinch</span><b>{% if f.approximate_magic_number %}{{ f.approximate_magic_number|num(0) }}{% else %}—{% endif %}</b><span class="s">{% if f.approximate_magic_number %}more wins{% else %}not yet{% endif %}</span></div>
       <div class="of"><span class="k">banked</span><b>{{ c.actual_wins_banked|num(0) }}</b><span class="s">{% if c.actual_points_banked %}{{ c.actual_points_banked|num(0) }} pts{% else %}wins{% endif %}</span></div>
@@ -314,11 +316,11 @@
       </div>{% endif %}
     </div>
   </div>
-  <div class="card chartc" style="animation-delay:.1s">
+  <div class="card chartc">
     <div class="k"><svg class="i c-gold"><use href="#i-chart"/></svg> expected wins, week by week</div>
     {% if trajectory %}{% set labels = [] %}{% for v in trajectory %}{% set _ = labels.append("wk " ~ loop.index) %}{% endfor %}
     {{ line_chart([{"name": "expected cumulative wins", "values": trajectory, "cls": "me"}], labels, unit="", nd=1, y_min=0, width=620, height=230, value_labels="last", marker=((week or 1) - 1) if (week or 1) - 1 < trajectory|length else None) }}
-    <div class="s" style="margin-top:auto">from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %} · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
+    <div class="s u-mt-auto">from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %} · {{ c.actual_wins_banked|num(0) }} banked so far · hover a point for its value{% if weeks %} · <a href="/forecasts/week-{{ weeks[-1] }}">full forecast</a>{% endif %}</div>
     {% else %}<div class="s">No forecast yet{% if dev %} — <a href="/tools/run_simulation">run one</a>{% endif %}.</div>{% endif %}
   </div>
 </div>
@@ -332,19 +334,19 @@
   <a class="chip {{ 'warn' if git and (git.uncommitted or git.unpushed) }}" href="/system"><svg class="i"><use href="#i-git"/></svg><span class="k">logs</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} uncommitted{% elif git.unpushed %}{{ git.unpushed }} unpushed{% else %}committed &amp; pushed{% endif %}</span></a>
 </div>
 {% else %}
-<p class="small muted" style="margin-top:16px">{% if fresh.manifest %}League data as of {{ fresh.manifest.finished_at|when }}{% if fresh.status == 'STALE' %} — <span class="neg">it is out of date; the owner needs to refresh it</span>{% endif %}.{% else %}No league data yet.{% endif %}</p>
+<p class="small muted u-mt-16px">{% if fresh.manifest %}League data as of {{ fresh.manifest.finished_at|when }}{% if fresh.status == 'STALE' %} — <span class="neg">it is out of date; the owner needs to refresh it</span>{% endif %}.{% else %}No league data yet.{% endif %}</p>
 {% endif %}
 
 <div class="grid2">
-  <section style="margin-top:28px">
-    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · odds from the week-{{ odds_week }} forecast{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %}{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
+  <section class="u-mt-28px">
+    <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · {% if odds_week %}odds from the week-{{ odds_week }} forecast{% else %}odds after the first forecast{% endif %}{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %}{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
     <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num" title="wins: head-to-head plus median, as the league reports them">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
-    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins|wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|num(1) }}%{% if r.rank_delta %}<span class="rankd {{ 'up' if r.rank_delta > 0 else 'dn' }}" title="{{ 'up' if r.rank_delta > 0 else 'down' }} {{ r.rank_delta|abs }} in playoff odds since the week {{ prev_week }} forecast">{{ '▲' if r.rank_delta > 0 else '▼' }}{{ r.rank_delta|abs }}</span>{% elif prev_week %}<span class="rankd" title="no move in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|num(1) }}%</span></span></td></tr>{% endfor %}
+    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins|wins }}</b></td><td class="num">{{ r.points|num(1) }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|pctn(1) }}{% if r.rank_delta %}<span class="rankd {{ 'up' if r.rank_delta > 0 else 'dn' }}" title="{{ 'up' if r.rank_delta > 0 else 'down' }} {{ r.rank_delta|abs }} in playoff odds since the week {{ prev_week }} forecast">{{ '▲' if r.rank_delta > 0 else '▼' }}{{ r.rank_delta|abs }}</span>{% elif prev_week %}<span class="rankd" title="no move in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|pctn(1) }}</span></span></td></tr>{% endfor %}
     </tbody></table></div>
-    {% if all_matchups %}<h3 style="margin-top:16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
+    {% if all_matchups %}<h3 class="u-mt-16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
     <div class="games">{% for mm in all_matchups %}{% set pa = (mm.p_a or 0) * 100 %}{% set pb = (mm.p_b or 0) * 100 %}<div class="game{% if my_team in (mm.a, mm.b) %} me{% endif %}"><span class="a{% if pa >= pb %} fav{% endif %}">{{ teamlink(mm.a) }}</span><span class="p a{% if pa >= pb %} fav{% endif %}">{{ pa|round(0)|int }}%</span><span class="vs">vs</span><span class="p{% if pb > pa %} fav{% endif %}">{{ pb|round(0)|int }}%</span><span{% if pb > pa %} class="fav"{% endif %}>{{ teamlink(mm.b) }}</span></div>{% endfor %}</div>{% endif %}
   </section>
-  <section style="margin-top:28px">
+  <section class="u-mt-28px">
     <h2><svg class="i"><use href="#i-flag"/></svg> Watch list <span class="hint">from the newest records</span></h2>
     {% set q = lineup.questionable_starters if lineup else [] %}
     {% if q %}<h3>Questionable starters</h3>

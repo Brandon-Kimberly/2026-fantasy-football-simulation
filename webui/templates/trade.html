@@ -22,7 +22,7 @@
 </div>
 
 <form method="get" action="/trade" id="tform">
-  <div class="pfind" style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:8px">
+  <div class="pfind u-d-flex--gap-12px--align-items-center--flex-wrap-wrap--mt-8px">
     <label for="with">Trade with</label>
     <select id="with" name="with">{% if not other %}<option value="">choose a team</option>{% endif %}{% for t in teams %}<option value="{{ t|slug }}"{% if t == other %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select>
     <noscript><button type="submit">Estimate</button></noscript>
@@ -54,7 +54,7 @@
   </div>
   {% endfor %}
 </div>
-<h3 style="margin-top:16px">What changes, and why</h3>
+<h3 class="u-mt-16px">What changes, and why</h3>
 <div class="tsum">
   {% for s in (me, th) %}{% set f = s.factors %}
   <div class="card"><div class="k">{{ mark(s.team) }} {{ "Your side" if s.team == my_team else (s.team|real) }}</div>
@@ -67,15 +67,15 @@
   </div>
   {% endfor %}
 </div>
-<div class="scroller" style="margin-top:14px"><table><thead><tr><th>Week</th><th class="num">Your lineup</th><th class="num">Change</th><th class="num">{{ other|real }}</th><th class="num">Change</th></tr></thead><tbody>
+<div class="scroller u-mt-14px"><table><thead><tr><th>Week</th><th class="num">Your lineup</th><th class="num">Change</th><th class="num">{{ other|real }}</th><th class="num">Change</th></tr></thead><tbody>
 {% for i in range(est.weeks|length) %}{% set a = me.weeks[i] %}{% set b = th.weeks[i] %}<tr><td>Week {{ a.week }}</td>
 <td class="num">{{ a.before|num(1) }} → <b>{{ a.after|num(1) }}</b></td><td class="num {{ 'pos' if a.delta > 0 else ('neg' if a.delta < 0) }}">{{ a.delta|signed(1) }}</td>
 <td class="num">{{ b.before|num(1) }} → <b>{{ b.after|num(1) }}</b></td><td class="num {{ 'pos' if b.delta > 0 else ('neg' if b.delta < 0) }}">{{ b.delta|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:10px">A quick estimate: each side's best lineup from season averages, with byes and injured reserve left out. It knows nothing of injuries to come, matchups, or how the rest of the league moves, and it does not price playoff or title chances.</p>
-<p style="margin-top:12px"><a class="btn" href="{{ est.simulate }}"><svg class="i"><use href="#i-swap"/></svg> Run the full simulation</a> <span class="small muted">two paired runs, a few minutes</span></p>
+<p class="small muted u-mt-10px">A quick estimate: each side's best lineup from season averages, with byes and injured reserve left out. It knows nothing of injuries to come, matchups, or how the rest of the league moves, and it does not price playoff or title chances.</p>
+<p class="u-mt-12px"><a class="btn" href="{{ est.simulate }}"><svg class="i"><use href="#i-swap"/></svg> Run the full simulation</a> <span class="small muted">two paired runs, a few minutes</span></p>
 </section>
-{% elif other %}<p class="small muted" style="margin-top:14px">Tick at least one player on either side.</p>{% endif %}
+{% elif other %}<p class="small muted u-mt-14px">Tick at least one player on either side.</p>{% endif %}
 <script>
 (function () {   // re-estimate whenever a box or the team changes
   var f = document.getElementById('tform');

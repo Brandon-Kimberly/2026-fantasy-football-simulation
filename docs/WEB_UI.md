@@ -957,6 +957,28 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### Small things: week 1, density, the crawl, inline styles (2026-09-29, roadmap UI-V8, V5, E10, E11)
+
+- **Week 1 teaches (V8).** Rendering every page against a clean week-1 fixture (no results,
+  no forecast) found wrong numbers, not just empty pages:
+  - Home read "0% to make the playoffs";
+  - tables said "week-?" and "—%".
+  Each page now says what will appear, and from which week. A percentage that does not exist
+  yet goes through `pctn`: "—", never "—%".
+- **Compact density (V5).** A toggle beside the theme buttons, in both views. It sets
+  `data-density="compact"` on the page root before first paint, from this browser's
+  `localStorage`, read inside a try. The rule touches table-cell padding and nothing else,
+  which a browser test checks.
+- **The crawl (E10).** `scripts.webui_audit` leaves `<pre>` text, which is verbatim engine
+  output, out of its leak check, and adds a 2560-pixel desktop to the default shots.
+- **No static inline styles (E11).** The 112 static `style` attributes are 53 utility classes
+  in `base.html`. Each carries `!important`, so it keeps the precedence the inline style had
+  over every stylesheet. Home's two staggered card delays moved into Home's own stylesheet.
+  Proven by screenshots: 23 pages were pixel-identical before and after. A later re-shoot
+  differed only in live data (a sync's age, refreshed game-day projections).
+  `tests.test_webui_no_inline_styles` fails on any new static style. Computed values (a
+  team's hue, a bar's width) stay inline.
+
 ### What it took to win a claim (2026-09-29, roadmap Decision 4; UI-W4)
 
 The owner ruled "extend the sync".

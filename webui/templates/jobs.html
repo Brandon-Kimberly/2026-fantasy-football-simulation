@@ -5,12 +5,12 @@
 {% if durations %}
 <section>
 <h2><svg class="i c-pos"><use href="#i-clock"/></svg> How long each tool takes <span class="hint">finished runs, oldest to newest · the last twelve</span></h2>
-<div class="hbar durs">{% for tool, secs in durations.items()|sort %}<span><svg class="i c-turf" style="margin-right:6px"><use href="#{{ tool|tool_icon }}"/></svg>{{ tool|tool_title }}</span><span>{{ sparkline(secs, width=160, height=22) }}</span><span class="v">{{ secs[-1]|dur }} <span class="muted tiny">last · avg {{ ((secs|sum) / (secs|length))|round(0)|int|dur }}</span></span>{% endfor %}</div>
+<div class="hbar durs">{% for tool, secs in durations.items()|sort %}<span><svg class="i c-turf u-mr-6px"><use href="#{{ tool|tool_icon }}"/></svg>{{ tool|tool_title }}</span><span>{{ sparkline(secs, width=160, height=22) }}</span><span class="v">{{ secs[-1]|dur }} <span class="muted tiny">last · avg {{ ((secs|sum) / (secs|length))|round(0)|int|dur }}</span></span>{% endfor %}</div>
 </section>
 {% endif %}
 {% if jobs %}
 <div class="scroller"><table><thead><tr><th>State</th><th>Job</th><th>Started</th><th class="num">Took</th><th>Answer</th></tr></thead><tbody>
-{% for j in jobs %}<tr><td><span class="pill {{ j.state }}">{{ j.state }}</span></td><td class="nm"><svg class="i c-turf" style="margin-right:6px"><use href="#{{ j.tool|tool_icon }}"/></svg><a href="{{ j|job_url }}">{{ j.tool|tool_title }}</a>{% set sub = j|job_subtitle %}{% if sub %}<span class="small muted" style="display:block;font-weight:400">{{ sub|real }}</span>{% endif %}</td><td class="tnum muted">{{ j.started_at|when }}</td><td class="num muted">{% if j.finished_at %}{{ j.seconds|dur }}{% elif j.state == 'RUNNING' %}running{% endif %}</td><td>{% if j.record %}<a href="{{ j.record }}">open record</a>{% elif j.state == 'OK' %}<a href="{{ j|job_url }}">open answer</a>{% elif j.state == 'VOID' %}<span class="small muted">{{ (j.note or '')|real|truncate(60) }}</span>{% endif %}</td></tr>{% endfor %}
+{% for j in jobs %}<tr><td><span class="pill {{ j.state }}">{{ j.state }}</span></td><td class="nm"><svg class="i c-turf u-mr-6px"><use href="#{{ j.tool|tool_icon }}"/></svg><a href="{{ j|job_url }}">{{ j.tool|tool_title }}</a>{% set sub = j|job_subtitle %}{% if sub %}<span class="small muted u-d-block--font-weight-400">{{ sub|real }}</span>{% endif %}</td><td class="tnum muted">{{ j.started_at|when }}</td><td class="num muted">{% if j.finished_at %}{{ j.seconds|dur }}{% elif j.state == 'RUNNING' %}running{% endif %}</td><td>{% if j.record %}<a href="{{ j.record }}">open record</a>{% elif j.state == 'OK' %}<a href="{{ j|job_url }}">open answer</a>{% elif j.state == 'VOID' %}<span class="small muted">{{ (j.note or '')|real|truncate(60) }}</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% else %}<div class="note">Nothing launched yet — pick something from <a href="/tools">Tools</a>.</div>{% endif %}
 {% endblock %}

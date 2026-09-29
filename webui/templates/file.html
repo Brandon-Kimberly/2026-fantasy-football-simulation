@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 {% block title %}{{ rel }} · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">{{ 'json' if kind == 'json' else 'text' }} file · data/{{ rel.rsplit('/', 1)[0] }}</p><h1 style="font-size:20px;letter-spacing:0">{{ rel.rsplit('/', 1)[-1] }}</h1><p class="lede small"><a href="{{ link }}?raw=1">download the file as written</a></p></div>
+<div class="head"><p class="eyebrow">{{ 'json' if kind == 'json' else 'text' }} file · data/{{ rel.rsplit('/', 1)[0] }}</p><h1 class="u-fs-20px--ls-0">{{ rel.rsplit('/', 1)[-1] }}</h1><p class="lede small"><a href="{{ link }}?raw=1">download the file as written</a></p></div>
 {% if kind == 'large' %}<div class="note"><b>{{ size_mb }} MB</b> — too large to show as a page. <a href="{{ link }}?raw=1">Download it</a> instead.</div>{% else %}<div class="con"><pre>{{ body|real }}</pre></div>{% endif %}
 {% endblock %}

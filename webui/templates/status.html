@@ -21,7 +21,7 @@
 {% for name, s in fr.sources.items()|sort %}{% set ln = fr.lines_note if name == "vegas_odds" else None %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td>{% if ln %}<span class="pill">few left</span>{% else %}<span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span>{% endif %}</td><td class="num">{{ s.rows }}</td><td class="small muted">{% if ln %}{{ ln.before }} of {{ ln.total }} week-{{ ln.week }} games had kicked off before this sync, so few lines were left -- expected, not an outage{% if s.fallback %} · the rest use {{ s.fallback }}{% endif %}{% else %}{{ s.fallback or "" }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
-{% if degraded %}<details class="sec" style="margin-top:10px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
+{% if degraded %}<details class="sec u-mt-10px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
 </section>
 
 <section>
@@ -37,19 +37,19 @@
 
 <section>
 <h2><svg class="i"><use href="#i-git"/></svg> Season logs <span class="hint">the record that survives a machine loss</span></h2>
-<div class="chips" style="margin-top:0">
+<div class="chips u-mt-0">
   <a class="chip {{ 'warn' if git and git.uncommitted }}" href="/logs"><svg class="i"><use href="#i-git"/></svg><span class="k">uncommitted</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} file{{ 's' if git.uncommitted|length != 1 }}{% else %}none{% endif %}</span></a>
   <a class="chip {{ 'warn' if git and git.unpushed }}" href="/logs"><svg class="i"><use href="#i-cloud"/></svg><span class="k">unpushed</span><span class="v">{% if git is none or git.unpushed is none %}—{% elif git.unpushed %}{{ git.unpushed }} commit{{ 's' if git.unpushed != 1 }}{% else %}none{% endif %}</span></a>
   <a class="chip" href="/results"><svg class="i"><use href="#i-clip"/></svg><span class="k">runner results</span><span class="v">downloaded artifacts</span></a>
 </div>
-{% if git is none %}<p class="small muted" style="margin-top:10px">Not a git checkout, or git is unavailable.</p>{% elif git.uncommitted %}<p class="small muted" style="margin-top:10px">Uncommitted: {{ git.uncommitted|join(", ") }}</p>{% endif %}
-{% if digests %}<p class="small muted" style="margin-top:10px">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e|pretty }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
+{% if git is none %}<p class="small muted u-mt-10px">Not a git checkout, or git is unavailable.</p>{% elif git.uncommitted %}<p class="small muted u-mt-10px">Uncommitted: {{ git.uncommitted|join(", ") }}</p>{% endif %}
+{% if digests %}<p class="small muted u-mt-10px">Canonical digests: {% for wk, e in digests.items()|sort(reverse=true) %}<a href="{{ e|pretty }}">week {{ wk }}</a>{% if not loop.last %} · {% endif %}{% endfor %}</p>{% endif %}
 </section>
 
 <section>
 <details class="sec"><summary>What this UI will not do, and the terminal command for each</summary>
-<div class="rows" style="margin-top:8px">{% for cmd, why in commands %}<div class="row" style="grid-template-columns:1fr"><span><code>{{ cmd }}</code><span class="sub" style="font-family:var(--sans)">{{ why }}</span></span></div>{% endfor %}</div>
-<p class="small muted" style="margin-top:10px">{{ r1 }}</p>
+<div class="rows u-mt-8px">{% for cmd, why in commands %}<div class="row u-gtc-1fr"><span><code>{{ cmd }}</code><span class="sub u-ff-var-sans">{{ why }}</span></span></div>{% endfor %}</div>
+<p class="small muted u-mt-10px">{{ r1 }}</p>
 <p class="small muted">{{ warnings_note }}</p>
 </details>
 </section>

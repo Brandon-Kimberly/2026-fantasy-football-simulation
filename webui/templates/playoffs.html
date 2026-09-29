@@ -70,7 +70,7 @@ table.lev tr.me td.nm { font-weight: 700; }
 <div class="pm">
   <div class="res" id="pm-result" aria-live="polite">{% include "_playoffs_result.html" %}</div>
   <form id="pm" method="get" action="/playoffs">
-    <h2 class="small" style="margin: 0 0 8px">Pick results</h2>
+    <h2 class="small u-m-0-0-8px">Pick results</h2>
     {% for w in o.weeks %}{% set ns = namespace(n=0) %}{% for k in r.chosen %}{% if k.startswith('g%d.'|format(w)) or k.startswith('m%d.'|format(w)) %}{% set ns.n = ns.n + 1 %}{% endif %}{% endfor %}
     <details class="wk"{% if ns.n or (loop.first and not r.chosen) or w == r.this_week %} open{% endif %}>
       <summary>Week {{ w }}{% if w == r.this_week %} <span class="hint">this week</span>{% endif %}{% if ns.n %} <span class="hint">· {{ ns.n }} picked</span>{% endif %}</summary>
@@ -98,7 +98,7 @@ table.lev tr.me td.nm { font-weight: 700; }
 <ol class="big">{% for g in big %}<li><span class="v">{% if g.total is not none %}{{ (g.total * 100)|num(1) }}<span class="small muted"> pts</span>{% else %}—{% endif %}</span>
 <span>{{ mark(g.a) }}{{ teamlink(g.a) }} <span class="muted">vs</span> {{ mark(g.b) }}{{ teamlink(g.b) }}</span>
 <span class="small muted">{% if g.total is not none %}expected move in playoff odds, summed over all eight teams{% else %}decided the same way in almost every season, so there is nothing to compare{% endif %}</span></li>{% endfor %}</ol>{% endif %}
-<p class="small muted" style="margin-top: 12px">Each cell is a team's own game that week, scaled so the season's average game is 1.0. The swing behind it is 2 × p × (1 − p) × (odds if it wins − odds if it loses): the expected size of the move once the result is known. A dash means one side of the result happened in fewer than {{ r.min }} seasons.</p>
+<p class="small muted u-mt-12px">Each cell is a team's own game that week, scaled so the season's average game is 1.0. The swing behind it is 2 × p × (1 − p) × (odds if it wins − odds if it loses): the expected size of the move once the result is known. A dash means one side of the result happened in fewer than {{ r.min }} seasons.</p>
 <div class="scroller"><table class="lev"><thead><tr><th class="nm">Team</th>{% for w in o.weeks %}<th>{{ w }}</th>{% endfor %}</tr></thead><tbody>
 {% for t in r.order %}<tr{% if t == r.me %} class="me"{% endif %}><td class="nm">{{ mark(t) }}{{ teamlink(t) }}</td>{% for w in o.weeks %}{% set c = r.lev.cells[t][w].h2h %}{% if c and c.index is not none %}<td class="c" style="--s: {{ [c.index / 3, 1]|min|round(3) }}" title="{{ t|real }}, week {{ w }}: {{ c.if_won|pct }} if it wins, {{ c.if_lost|pct }} if it loses">{{ c.index|num(1) }}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
@@ -120,15 +120,15 @@ table.lev tr.me td.nm { font-weight: 700; }
 <td class="small muted">{{ v.text if v and v.tier == 'none' else ('a ' ~ v.tier ~ ' difference' if v else '') }}</td>{% endif %}</tr>{% endfor %}
 </tbody></table></div>
 {% set lows = rg.median|selectattr('diff')|list %}
-{% if o.median_enabled and lows %}<h3 class="small" style="margin-top: 14px">Around the median</h3>
+{% if o.median_enabled and lows %}<h3 class="small u-mt-14px">Around the median</h3>
 <ul class="small">{% for m in lows[:4] %}{% set v = (m.diff * 100)|verdict(m.se * 100) %}<li>{{ mark(m.team) }}<b>{{ m.team|real }}</b>: your odds {{ m.if_misses|pct }} if they miss the median, {{ m.if_beats|pct }} if they beat it{% if v and v.tier != 'none' %} — want them to score <b>{{ m.want }}</b>{% else %} — no measurable change{% endif %}.</li>{% endfor %}</ul>{% endif %}
 </section>
 {% endif %}
 
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> How many wins is enough? <span class="hint">the playoff odds for each final win total</span></h2>
-<form method="get" action="/playoffs" class="small" style="margin-bottom: 8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
-<label for="f_team">Team</label> <select id="f_team" style="width: auto; max-width: 20rem; display: inline-block" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
+<form method="get" action="/playoffs" class="small u-mb-8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<label for="f_team">Team</label> <select id="f_team" class="u-w-auto--maxw-20rem--d-inline-block" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
 {% if r.curve %}
 <div class="curve" role="img" aria-label="{{ r.team|real }}: playoff odds by final win total">{% for b in r.curve %}<div class="bar{{ ' thin' if b.thin }}" title="{{ b.wins|num(1) }} wins: {{ b.p|pct }} made the playoffs, {{ '{:,}'.format(b.n) }} seasons{{ ' — too few to rely on' if b.thin }}"><b>{{ '99%+' if b.p >= 0.995 else ('<1%' if b.p <= 0.005 else b.p|pct(0)) }}</b><i style="height: {{ (b.p * 100)|round(1) }}%"></i></div>{% endfor %}</div>
 <div class="curve-x">{% for b in r.curve %}<span>{{ b.wins|num(1) if b.wins % 1 else b.wins|int }}</span>{% endfor %}</div>

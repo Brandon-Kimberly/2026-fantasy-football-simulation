@@ -739,5 +739,29 @@ class TestThreePaneHome(BrowserCase):
                 self.assertLessEqual(over, 0)
 
 
+class TestCompactDensity(BrowserCase):
+    """UI-V5: the compact toggle tightens table rows and nothing else, and the browser
+    remembers it across pages."""
+
+    def boxes(self):
+        return self.page.evaluate("""() => ({
+            row: document.querySelector('main table tbody tr, table tbody tr').getBoundingClientRect().height,
+            h1: document.querySelector('h1').getBoundingClientRect().height,
+            lede: (document.querySelector('.lede') || document.querySelector('h1')).getBoundingClientRect().width})""")
+
+    def test_rows_tighten_nothing_else_moves_and_it_is_remembered(self):
+        self.open("/league")
+        before = self.boxes()
+        self.page.click("#density")
+        after = self.boxes()
+        self.assertLess(after["row"], before["row"], "a table row is shorter")
+        self.assertEqual((after["h1"], after["lede"]), (before["h1"], before["lede"]), "the heading and the text are untouched")
+        self.open("/players")
+        self.assertEqual(self.page.evaluate("document.documentElement.dataset.density"), "compact", "remembered on the next page")
+        self.page.click("#density")
+        self.assertIsNone(self.page.evaluate("document.documentElement.dataset.density || null"))
+        self.assertEqual(self.errors, [])
+
+
 if __name__ == "__main__":
     unittest.main()
