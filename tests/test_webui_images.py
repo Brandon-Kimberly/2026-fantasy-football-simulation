@@ -75,6 +75,12 @@ class TestTheRoute(Case):
         r = c.get("/img/teams/gb.png")
         self.assertEqual((r.status_code, r.mimetype), (200, "image/png"))
 
+    def test_a_headshot_is_served_as_what_its_bytes_are(self):
+        """Sleeper's headshots are PNG bytes under a .jpg name; the type follows the bytes."""
+        self.image("players", "104.jpg", PNG)
+        r = self.client().get("/img/players/104.jpg")
+        self.assertEqual((r.status_code, r.mimetype), (200, "image/png"))
+
     def test_anything_else_is_refused(self):
         self.image("players", "100.jpg", JPEG)
         c = self.client()

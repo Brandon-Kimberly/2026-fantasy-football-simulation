@@ -39,6 +39,8 @@ class TestCacheImages(unittest.TestCase):
             return _Resp(403, b"<html>no</html>", "text/html")
         if url.endswith("/102.jpg"):
             raise ConnectionError("offline")
+        if url.endswith("/104.jpg"):
+            return _Resp(200, PNG, "image/jpeg")          # what Sleeper really sends (checked 2026-09-29)
         if url.endswith("/103.jpg"):
             return _Resp(200, b"<html>a login page</html>", "image/jpeg")      # says image, is not one
         if url.endswith(".png"):
@@ -63,6 +65,13 @@ class TestCacheImages(unittest.TestCase):
         self.run_cache()
         written = sorted(os.listdir(os.path.join(self.dest, "players")))
         self.assertEqual(written, ["100.jpg"], "a 403, an error and a non-image leave no file behind")
+
+    def test_a_headshot_sent_as_png_bytes_is_kept(self):
+        """Found filling the real cache (2026-09-29): Sleeper serves every headshot as PNG
+        bytes at a .jpg URL, labelled image/jpeg. A JPEG-only check refused all 163."""
+        self.run_cache(pids=("104",), teams=())
+        with open(os.path.join(self.dest, "players", "104.jpg"), "rb") as fh:
+            self.assertEqual(fh.read(), PNG)
 
     def test_a_defence_has_no_headshot_to_fetch(self):
         self.run_cache()
