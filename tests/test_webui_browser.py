@@ -11,6 +11,8 @@ They skip cleanly without Flask, without Playwright (requirements-web.txt), or w
 browser Playwright can launch -- the same precedent as the other optional dependencies.
 Nothing here touches the engine or the network beyond 127.0.0.1.
 """
+import json
+import os
 import tempfile
 import threading
 import unittest
@@ -554,6 +556,36 @@ class TestPlayoffMachine(BrowserCase):
         p.click("fieldset.gm >> nth=0 >> label.a")
         p.wait_for_function("document.querySelector('#pm-result').innerText.indexOf('600 of 1,000 seasons match') >= 0")
         self.assertIn("g3.0=a", p.url)
+        self.assertEqual(self.errors, [])
+
+
+def _plant_started_week(root):
+    """Week 3 under way, with a schedule: the owner (fixture team 0) against team 6."""
+    from tests.test_webui_routes import TEAMS
+    kickoffs("2026-01-01T17:00:00Z")(root)
+    pairs = [[TEAMS[0], TEAMS[6]], [TEAMS[1], TEAMS[7]], [TEAMS[2], TEAMS[4]], [TEAMS[3], TEAMS[5]]]
+    with open(os.path.join(root, "data", "current", "league_schedule.json"), "w", encoding="utf-8") as fh:
+        json.dump([pairs] * 14, fh)
+
+
+class TestHomeOtherGamesLive(BrowserCase):
+    """UI-M6: the strip under Home's hero redraws the other games' scores and chances from the
+    live snapshot the page already polls."""
+    live_enabled = True
+    plant = staticmethod(_plant_started_week)
+
+    def test_another_games_live_score_lands_in_the_strip(self):
+        from tests.test_webui_routes import TEAMS
+        pay = live_payload(False, 0.7)
+        pay["snapshot"]["league"] = [{"a": TEAMS[1], "b": TEAMS[7], "a_banked": 77.5, "b_banked": 64.25, "a_proj": 140.0,
+                                      "b_proj": 150.0, "a_to_play": 4, "b_to_play": 2, "a_starters": 13,
+                                      "b_starters": 13, "p_a": 0.31, "decided": False}]
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/", "simple")
+        card = self.page.locator(f'#others .og[data-a="{TEAMS[1]}"]').first
+        card.locator(".live").wait_for()
+        self.assertIn("77.5", card.inner_text())
+        self.assertIn("31%", card.inner_text())
         self.assertEqual(self.errors, [])
 
 
