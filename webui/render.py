@@ -195,6 +195,17 @@ def fpct(v, nd=1):
     return f"{f:.{nd}f}%"
 
 
+def fwins(v):
+    """A win total: whole numbers bare, a tie's half kept (2 -> "2", 2.5 -> "2.5")."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return "—"
+    if f != f:
+        return "—"
+    return f"{f:.0f}" if f == int(f) else f"{f:.1f}"
+
+
 def fsigned(v, nd=2):
     try:
         f = float(v)

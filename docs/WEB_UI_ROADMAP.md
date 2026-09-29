@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 52 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 53 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -43,6 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
 | UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
+| UI-O1 | One standings helper (`webui/standings.py`) behind League, Home and the team page. It adds all-play, points against, the head-to-head streak, games back of fourth (or the lead over fifth), the odds' move and a proven clinch mark. All-play and points against say when they rest on Sleeper's re-scored weeks. |
 | UI-O5 | Strength of schedule is a native grid on each forecast week: implied points per NFL team per week, each roster's average, every cell numbered, and a rest-of-season / next-four / playoff-weeks window. The three static images step aside where it renders. |
 | UI-E5 / O6 / O7 / O8 / O9 / O10 | The playoff machine, leverage, the rooting guide, wins needed and clinch markers on `/playoffs`, all filters over the forecast's own simulated seasons. It needed the engine export: Decision 1, which the owner ruled MINOR, with the goldens regenerated alone as 33 added lines. Counts and standard errors come with every number, and anything under 200 seasons is refused. |
 | UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |

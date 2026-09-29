@@ -855,6 +855,23 @@ measures the panes' boxes at 2560 and the stacking at 1280 and 1920.
 - **A chance to win is never shown as certain until it is decided** (UI-M8): "over 99.9%"
   or "under 0.1%" while anyone on either side has a game left.
 
+### One standings table (2026-09-28, roadmap UI-O1)
+
+`webui/standings.py` builds every standings row, and League, Home and the team page render
+from it, so a number means the same thing everywhere. League shows every column: wins,
+head-to-head, median, all-play, points for and against, the head-to-head streak, games back,
+playoff odds with their move since the last forecast, title odds, final wins, VORP and budget.
+- **Games back.** Games back of fourth, or, for a team in the top four, its lead over fifth.
+  Level on wins is still decided on points, the league's tiebreak, and the page says "on
+  points" rather than implying a tie.
+- **Head-to-head and median** appear only when the week-by-week results add up to the
+  league's total (UI-F4).
+- **All-play and points against** come from Sleeper's box scores. The as-played record
+  carries results only, so for re-scored weeks (F83) the page says these two columns use
+  the re-scored points.
+- **Clinch marks.** A clinch or elimination mark appears when the current forecast wrote its
+  per-season record and the remaining schedule proves it (UI-O10).
+
 ### The playoff machine (2026-09-28, roadmap Decision 1; UI-E5, O6, O7, O8, O9, O10)
 
 The owner ruled an additive engine export MINOR (CLAUDE.md, release policy). The engine now
