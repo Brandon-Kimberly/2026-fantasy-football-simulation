@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 82 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 81 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -43,7 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
 | UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
-| UI-R7 / Q3 / H6 | Built on the owner's rulings of 2026-09-29. Luck adds forecast luck, median luck and the schedule-swap matrix, pre-registered in `docs/LUCK_LEDGER.md` before any code computed them, in a "Registered later" table; the five stay five. `/picks` is your picks against the model, scored with Brier, locked at the first kickoff, the model's chances hidden until then, and stored only in `data/local/webui/picks.json`. `/history/<season>` pages cover 2024 (newly archived) and 2025. |
+| UI-R7 / H6 | Built on the owner's rulings of 2026-09-29. Luck adds forecast luck, median luck and the schedule-swap matrix, pre-registered in `docs/LUCK_LEDGER.md` before any code computed them, in a "Registered later" table; the five stay five. `/history/<season>` pages cover 2024 (newly archived) and 2025. The UI-Q3 pick'em was built and then removed at the owner's request. |
 | UI-W6 / T6 / H4 / R3 / M10 / F7 / F8 | The waiver board adds budgets and pace, and who can outbid you. The trade finder orders ideas by the smaller of the two gains and shows the other side's need. History adds records only a model can keep (least likely win, comeback, collapse, improbable champion). The week in review can be copied for Sleeper chat, split into messages under an unverified 1000-character limit. `[` and `]` step between games. Layout fixes: League chips run in fours, Tools groups never end on one card, and Home's standings fit at 520 px. |
 | UI-V3 / V2 | Chart primitives in `render.py`: a slope chart, a heat grid that writes every value, a dot histogram, a fan chart and a percentage bar. Each has a hover and a table view, and draws only from `--c-*` tokens, whose values passed the dataviz validator in both themes. That validation moved gains and losses to blue and red, stepped the dark turf down and cut the ramp to four steps. The forecast week page drops every image with a native section; Power Rankings stays. The seed grid uses the heat grid, and the odds bars lost their per-team hues. |
 | UI-R5 | Four more opt-in alerts on Home beside the kickoff one: a player's injury status changes, a lineup change worth 2+ points of win chance, playoff odds moving beyond two standard errors, and the waiver run 30 minutes away. Each fires once, keyed to the change, and only while the page is open, as the row says. |
@@ -290,7 +290,7 @@ A pick'em against the model would store the owner's picks. That belongs in the s
 local directory, never in `data/logs`, but it is still a new kind of write.
 
 
-**Owner ruling (2026-09-29): yes, locally.** Picks go under `data/local/webui` only, never `data/logs` and never committed, with a test that nothing else is touched.
+**Owner ruling (2026-09-29): yes, locally. Withdrawn the same day:** the pick'em (UI-Q3) was built, the owner did not want it, and it is removed. The UI still writes only its own settings, job logs and backups.
 ---
 
 ## 4. Guardrails every item inherits

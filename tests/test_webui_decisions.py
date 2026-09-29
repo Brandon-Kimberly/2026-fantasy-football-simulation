@@ -1,6 +1,7 @@
 """
 tests.test_webui_decisions -- the items the owner's rulings of 2026-09-29 unlocked
-(docs/WEB_UI_ROADMAP.md Decisions 2, 7, 8; UI-R7, Q3, H6).
+(docs/WEB_UI_ROADMAP.md Decisions 2 and 7; UI-R7, H6). Decision 8's picks feature was built and
+then removed at the owner's request the same day.
 
 Decision 2: forecast luck, median luck and the schedule-swap matrix, as pre-registered in
 docs/LUCK_LEDGER.md's addendum (committed before this code). On the fixture season -- week 2
@@ -15,15 +16,9 @@ quoted, week 1 not -- worked by hand:
 They sit on the Luck page in their own table, marked registered later; the original five
 stay five, and nothing is combined.
 
-Decision 8: the owner's picks against the model -- a chance for each game, saved only to
-data/local/webui/picks.json and locked at the week's first kickoff; each played week is
-scored with Brier for both. Week 2, the owner gave Quantum Ferrets 40% against Cosmic
-Badgers: (0.40 - 0)^2 = 0.16 against the model's (0.71 - 0)^2 = 0.5041.
-
 Decision 7 (with H6): a page per archived season -- final standings and every regular-season
 week's scores; the archives do not record the bracket, and the page says so.
 """
-import hashlib
 import json
 import os
 import tempfile
@@ -104,53 +99,6 @@ class TestLateLuck(Case):
                 for s in ("Registered later", "Forecast luck", "Median luck", "On each other's schedule"):
                     self.assertIn(s, text)
                 self.assertNotIn("luck score", text.lower())
-                if mode == "simple":
-                    self.assertEqual([t for t in DEV_TERMS if t in text], [])
-
-
-def digest_except(root, skip):
-    h = hashlib.sha256()
-    for d, _dirs, files in sorted(os.walk(os.path.join(root, "data"))):
-        for f in sorted(files):
-            p = os.path.join(d, f)
-            if os.path.normcase(os.path.abspath(p)) == os.path.normcase(os.path.abspath(skip)):
-                continue
-            h.update(p.encode())
-            with open(p, "rb") as fh:
-                h.update(fh.read())
-    return h.hexdigest()
-
-
-class TestPicks(Case):
-    def test_week_two_scored_with_brier(self):
-        from webui import picks
-        picks.save(self.root, 2, {f"{QF}|{CB}": 0.40}, now_ok=True)
-        s = picks.scores(self.root)
-        wk = next(w for w in s["weeks"] if w["week"] == 2)
-        self.assertAlmostEqual(wk["mine"], 0.16)
-        self.assertAlmostEqual(wk["model"], 0.5041)
-        self.assertEqual(wk["n"], 1)
-
-    def test_saving_writes_only_the_local_picks_file(self):
-        target = os.path.join(self.td.name, "data", "local", "webui", "picks.json")
-        c = self.app("simple")                          # setting the view writes settings.json: before the snapshot
-        before = digest_except(self.td.name, target)
-        r = c.post("/picks", data={"_csrf": "tok", "week": "4", f"p:{QF}|Iron Wombats": "65"})
-        self.assertIn(r.status_code, (200, 302, 303))
-        self.assertTrue(os.path.exists(target))
-        self.assertEqual(digest_except(self.td.name, target), before, "nothing else under data/ changed")
-        with open(target, encoding="utf-8") as fh:
-            self.assertAlmostEqual(json.load(fh)["weeks"]["4"][f"{QF}|Iron Wombats"], 0.65)
-
-    def test_a_started_week_is_locked(self):
-        from webui import picks
-        self.assertFalse(picks.save(self.root, 2, {f"{QF}|{CB}": 0.9}), "week 2 has kicked off")
-
-    def test_the_page_in_both_views(self):
-        for mode in ("dev", "simple"):
-            with self.subTest(mode=mode):
-                text = visible_text(self.get("/picks", mode))
-                self.assertIn("Your picks against the model", text)
                 if mode == "simple":
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
