@@ -40,3 +40,9 @@ data/logs/first_recorded_scores.jsonl merge=union
 #                          reader keys by (team, week) taking the series in order, so a
 #                          duplicate row from a union merge is absorbed (B28)
 data/logs/faab_adjustments.jsonl merge=union
+#   failed_claims       -- the lost waiver claims (Decision 4, 2026-09-29), written inside sync.
+#                          Deduped on transaction_id at WRITE time, and its one reader
+#                          (webui.players_page._contested) keeps the first row per
+#                          transaction_id, so a duplicate from a union merge is absorbed;
+#                          pinned by tests.test_webui_bids
+data/logs/failed_claims.jsonl merge=union

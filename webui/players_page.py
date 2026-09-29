@@ -134,14 +134,15 @@ def waiver_run(root, my_team=None):
     Pacific date the claims processed on), with the team, the players in and out, the
     winning bid, and the claim's paired-simulation grade for the claiming team (playoff
     percentage points, its standard error and the render.verdict tier), or None when the
-    claim is not graded yet. Losing bids are not logged (roadmap Decision 4), so this is the
-    winners only. None when no claim is on file."""
+    claim is not graded yet, and (UI-W4) the losing bids each claim beat, highest first, from
+    Decision 4's failed-claims log. None when no claim is on file."""
     from webui.render import verdict
     rows = [d for d in decisions_report(root, my_team)["decisions"] if d.get("type") == "waiver" and _parse(d.get("created"))]
     if not rows:
         return None
     day = lambda d: _parse(d["created"]).astimezone(_pt()).date().isoformat()          # noqa: E731
     latest = max(day(d) for d in rows)
+    contested = _contested(root)
     claims = []
     for d in rows:
         if day(d) != latest:
@@ -152,9 +153,10 @@ def waiver_run(root, my_team=None):
         if d.get("evaluated") and fx.get("playoff") is not None:
             grade = {"delta": fx["playoff"], "se": fx.get("playoff_se"), "verdict": verdict(fx["playoff"], fx.get("playoff_se"))}
         claims.append({"team": team, "adds": d.get("adds") or [], "drops": d.get("drops") or [], "bid": d.get("faab_bid"),
-                       "grade": grade, "skipped": d.get("skipped"), "is_mine": bool(d.get("is_mine")), "created": d.get("created")})
+                       "grade": grade, "skipped": d.get("skipped"), "is_mine": bool(d.get("is_mine")), "created": d.get("created"),
+                       "losing": (contested.get(d.get("id")) or {}).get("bids") or []})         # UI-W4: the bids it beat
     claims.sort(key=lambda c: (-(c["bid"] or 0), c["team"] or ""))
-    return {"date": latest, "claims": claims}
+    return {"date": latest, "claims": claims, "bids_logged": root.exists("logs/failed_claims.jsonl")}
 
 
 FAAB_BUDGET = 100          # docs/WAIVER_MECHANICS.md: the league's waiver_budget, per team per season
@@ -178,3 +180,88 @@ def faab_table(root, my_team):
     for r in rows:
         r["outbids"] = mine is not None and r["team"] != my_team and r["left"] > mine
     return {"rows": rows, "outbid": [r["team"] for r in rows if r["outbids"]], "weeks_done": done, "mine": mine}
+
+
+def _log_rows(root, rel):
+    """A log's parsed rows, oldest first; [] when it is not there yet."""
+    try:
+        rows, _n = root.tail_jsonl(rel, n=1_000_000)
+    except (FileNotFoundError, ValueError):
+        return []
+    return [r for r in reversed(rows) if isinstance(r, dict) and "_unparsed" not in r]
+
+
+def _contested(root):
+    """{winning transaction_id: [{team, bid}, ...]} -- each outbid lost claim under the claim
+    that beat it (the pairing the sync made by the run's processing time), highest bid first."""
+    out, seen = {}, set()
+    for r in _log_rows(root, "logs/failed_claims.jsonl"):
+        if r.get("transaction_id") in seen:           # first row wins: the log is union-merged (.gitattributes)
+            continue
+        seen.add(r.get("transaction_id"))
+        w = r.get("won_by") or {}
+        if r.get("reason") != "outbid" or not w.get("transaction_id") or r.get("faab_bid") is None:
+            continue
+        out.setdefault(w["transaction_id"], {"won_by": w, "row": r, "bids": []})["bids"].append({"team": r.get("team"), "bid": r["faab_bid"]})
+    for g in out.values():
+        g["bids"].sort(key=lambda b: (-b["bid"], b["team"] or ""))
+    return out
+
+
+LEDGER_WINDOW_DAYS = 8       # a bid-ledger row counts for a run when it was placed in the 8 days before it: a
+#                              claim sits at most a week before the daily run takes it (the ledger's own F65 note)
+
+
+def clearing_prices(root, my_team):
+    """UI-W4, on Decision 4's failed-claims log: every contested claim this season -- the
+    winning bid against the next best, and what the winner paid above it (Sleeper's auction
+    is first-price, so a winner pays their own bid, and the next best bid + 1 is what winning
+    actually took). Per team, the contested wins and the total paid above the next bid; the
+    league's median; and the owner's suggested bid ranges from the bid ledger laid against the
+    price each claim took. None when no contested claim is on file."""
+    groups = _contested(root)
+    claims = []
+    for tid, g in groups.items():
+        w, r, bids = g["won_by"], g["row"], g["bids"]
+        if w.get("faab_bid") is None:
+            continue
+        top = bids[0]
+        run = _parse(r.get("processed"))
+        claims.append({"transaction_id": tid, "player": r.get("name"), "player_id": r.get("player_id"), "week": r.get("week"),
+                       # the run's Pacific date labels a claim, not the submission leg (F65: a claim can sit across one)
+                       "run": f"{run.astimezone(_pt()):%b} {run.astimezone(_pt()).day}" if run else None,
+                       "processed": r.get("processed"), "winner": w.get("team"), "paid": w["faab_bid"],
+                       "next_bid": top["bid"], "next_team": top["team"], "above": w["faab_bid"] - top["bid"],
+                       "losing": len(bids), "bids": bids})
+    if not claims:
+        return None
+    claims.sort(key=lambda c: (c["processed"] or "", c["player"] or ""), reverse=True)
+    by_team = {}
+    for c in claims:
+        t = by_team.setdefault(c["winner"], {"contested": 0, "above": 0})
+        t["contested"] += 1
+        t["above"] += c["above"]
+    aboves = sorted(c["above"] for c in claims)
+    mid = len(aboves) // 2
+    median = aboves[mid] if len(aboves) % 2 else (aboves[mid - 1] + aboves[mid]) / 2
+    ledger = _log_rows(root, "logs/bid_ledger.jsonl")
+    bands = []
+    for c in claims:
+        mine_lost = next((b for b in c["bids"] if b["team"] == my_team), None)
+        if c["winner"] != my_team and not mine_lost:
+            continue
+        others = [b["bid"] for b in c["bids"] if b["team"] != my_team] + ([c["paid"]] if c["winner"] != my_team else [])
+        run = _parse(c["processed"])
+        rows = [x for x in ledger if str(x.get("player_id")) == str(c["player_id"]) and _parse(x.get("placed_at")) and run
+                and _dt.timedelta(0) <= run - _parse(x["placed_at"]) <= _dt.timedelta(days=LEDGER_WINDOW_DAYS)]
+        if not rows or not others:
+            continue
+        x = max(rows, key=lambda x: _parse(x["placed_at"]))          # the live bid: the latest placed (the ledger's F64 rule)
+        lo, hi = x.get("suggested_v2_low"), x.get("suggested_v2_high")
+        if lo is None or hi is None:
+            continue
+        price = max(others) + 1
+        bands.append({"player": c["player"], "week": c["week"], "run": c["run"], "low": lo, "high": hi, "price": price, "placed": x.get("bid_placed"),
+                      "won": c["winner"] == my_team, "verdict": "below" if hi < price else ("above" if lo > price else "within")})
+    team_rows = sorted(({"team": t, **v} for t, v in by_team.items()), key=lambda r: (-r["above"], r["team"] or ""))
+    return {"claims": claims, "by_team": by_team, "team_rows": team_rows, "median_above": median, "bands": bands}

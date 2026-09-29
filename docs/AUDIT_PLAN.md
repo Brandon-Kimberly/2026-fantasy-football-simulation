@@ -6618,3 +6618,56 @@ verification report I started the full suite with a report still running — two
 processes — and took a segmentation fault, R1's exact signature. That run was discarded as
 void and the suite re-run alone after confirming zero Python processes. R1 is a hardware
 fault, not a code defect, and the rule is one engine process at a time.
+
+### F88 — Lost waiver claims ARE in Sleeper's feed: B14's premise was wrong — OPEN (2026-09-29; the F31 half measured and cleared)
+
+Found building the web UI's losing-bids ledger (docs/WEB_UI_ROADMAP.md Decision 4, UI-W4).
+B14 built the bid ledger on the premise that "a lost waiver claim never becomes a
+transaction at all", and F80 repeated it. **It is false.** `/league/<id>/transactions/<leg>`
+returns every lost claim as a `waiver` with `status: "failed"`, its bid in
+`settings.waiver_bid` and Sleeper's reason in `metadata.notes`. The sync dropped them
+(`ingest_transactions` keeps `status == "complete"`). Measured on 2026-09-29:
+- **2026 live, weeks 1–3:** 13 failed claims, 11 "claimed by another owner" and 2 "your
+  roster will have too many players".
+- **2025 (the league F31 was fitted to):** 25 failed claims beside the 99 completed ones,
+  19 of them outbid.
+
+**The pairing is by the run, never the leg.** Every outbid claim in both seasons (11 of 11
+and 19 of 19) shares its winner's `status_updated` to the millisecond. Pairing by leg would
+have been wrong on three of them: two 2026 claims submitted in leg 3 lost to claims
+submitted in leg 2, and one 2025 claim in leg 10 lost to one in leg 11, which is F65's
+boundary again. A first count of "10 of 19 paired" was a bug in my throwaway script (it
+looked winners up before indexing them all). The sync code indexes first, and its tests pin
+a cross-leg pair.
+
+**Built (Decision 4, tests first).**
+- The sync writes each lost claim to `data/logs/failed_claims.jsonl`: append-only, deduped
+  on `transaction_id`, and union-merged under F87's rule. Each row carries `won_by`, the
+  claim that beat it. The decision log's completed-only contract is unchanged.
+- The Waiver board shows what each contested claim took to win, the next best bid in the
+  last run, and the owner's suggested ranges against the price.
+
+**The F31 half — MEASURED AND CLEARED.** F31's lognormal bid curve was fitted to the 99
+WINNING 2025 bids. A winners-only fit could overstate a typical bid, because a winning bid
+is the highest of the bids placed. With the losing half now visible:
+
+| 2025 waiver bids | n | median | mean |
+|---|---|---|---|
+| won | 99 | 4 | 7.35 |
+| lost to another owner | 19 | 5 | 8.00 |
+| every bid placed | 118 | 4 | 7.46 |
+
+The losing bids are not lower: contested players draw higher bids from everyone. So the curve
+fitted to winners matches all bids placed to within 0.11 in the mean and exactly in the
+median. Nothing to refit. F31's acceptance was league spend, which the losing bids do not
+change.
+
+**OPEN — the B14 half, not blocked, not done.** The bid ledger can now read what it was
+built to wait for:
+- A ledger claim with a matching failed row is a LOSS. Today it stays `won: None`
+  (unresolved) forever.
+- `rival_bids`, entered by hand through `record_rival_bids`, are the failed rows paired to
+  the owner's win.
+
+Wiring that into `bid_ledger.reconcile` changes what F61's calibration is scored on, so it
+is its own tests-first change. It moves no prediction; it moves a measurement's inputs.

@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 83 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 84 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -57,6 +57,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-O1 | One standings helper (`webui/standings.py`) behind League, Home and the team page. It adds all-play, points against, the head-to-head streak, games back of fourth (or the lead over fifth), the odds' move and a proven clinch mark. All-play and points against say when they rest on Sleeper's re-scored weeks. |
 | UI-O5 | Strength of schedule is a native grid on each forecast week: implied points per NFL team per week, each roster's average, every cell numbered, and a rest-of-season / next-four / playoff-weeks window. The three static images step aside where it renders. |
 | UI-E5 / O6 / O7 / O8 / O9 / O10 | The playoff machine, leverage, the rooting guide, wins needed and clinch markers on `/playoffs`, all filters over the forecast's own simulated seasons. It needed the engine export: Decision 1, which the owner ruled MINOR, with the goldens regenerated alone as 33 added lines. Counts and standard errors come with every number, and anything under 200 seasons is refused. |
+| UI-W4 | Built on Decision 4. The sync logs every lost claim to `data/logs/failed_claims.jsonl`, paired with the claim that beat it by the run's processing time (never the week: three real claims cross a leg boundary). The Waiver board shows what each contested claim took to win, the next best bid, what each team paid above it, the median, and your suggested ranges against the price. The sync golden did not move. The measurement also cleared a question about F31's bid curve and opened F88: B14's premise was wrong. |
 | UI-E7 / P6 | Built on Decision 3. The sync caches each rostered player's headshot and the 32 NFL logos under `data/images/` (not `data/local/`, which is never served), once per file, and never fails on them. `/img/<kind>/<file>` serves only a numeric id as .jpg or a team code as .png. Faces appear on the player page, the roster and player lists, the hover card and the TV view, falling back to the team logo and then (on the player page) the lettered mark. No page requests an image from a third party. Team avatars are unchanged: they identify accounts and stay in memory, from Sleeper, with the real-name overlay. |
 | UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |
 
@@ -252,7 +253,7 @@ means extending the sync. That touches the sync-stage golden (`tests.golden_sync
 it is its own piece of work.
 
 
-**Owner ruling (2026-09-29): extend the sync.** It gets a branch of its own with the sync golden checked, and anything that moves the golden's baselines is flagged before merging.
+**Owner ruling (2026-09-29): extend the sync.** It gets a branch of its own with the sync golden checked, and anything that moves the golden's baselines is flagged before merging. **Built (UI-W4): the sync golden matched, and no baseline moved** (the lost claims are a new log, and `generate_player_baselines` never reads them).
 ### Decision 5: the shape of the 4K layout
 
 **Unlocks:** UI-V1.
