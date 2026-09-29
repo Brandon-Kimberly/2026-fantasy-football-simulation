@@ -22,6 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
+from webui import records_view as recordsmod
 from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, lineups as lineupsmod, luck as luckmod, matchup_split as splitmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
@@ -622,9 +623,31 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def decisions(week):
         if week not in root.decision_weeks():
             abort(404)
-        return render_template("records.html", week=week, listing=root.decisions(week),
-                               weeks=root.decision_weeks(), adhoc=None, season=None,
-                               title=f"Week {week} records")
+        # UI-A7: runs, headlines, a tool filter and "compare with the previous"
+        listing = root.decisions(week)
+        every = listing["canonical"] + listing["archive"]
+        tools = sorted({e["tool"] for e in every if e.get("tool")})
+        want = request.args.get("tool")
+        want = want if want in tools else None
+        keep = (lambda es: [e for e in es if e.get("tool") == want]) if want else (lambda es: list(es))    # noqa: E731
+        canonical, archive = keep(listing["canonical"]), keep(listing["archive"])
+        prev = recordsmod.annotate(root, canonical + archive, every)
+        return render_template("records.html", week=week, listing=listing, weeks=root.decision_weeks(), adhoc=None,
+                               season=None, title=f"Week {week} records", tools=tools, tool=want, prev=prev,
+                               canon_runs=recordsmod.runs(canonical), archive_runs=recordsmod.runs(archive))
+
+    @app.route("/records/compare")
+    def records_compare():
+        """UI-A7: two records of the same tool side by side -- what changed."""
+        a, b = request.args.get("a", ""), request.args.get("b", "")
+        try:
+            ra, rb = root.read_json(a, None), root.read_json(b, None)
+        except PathRefused:
+            abort(400)
+        if not isinstance(ra, dict) or not isinstance(rb, dict):
+            abort(404)
+        ea, eb = root.entry(a), root.entry(b)
+        return render_template("records_compare.html", a=ea, b=eb, d=recordsmod.diff(ra, rb))
 
     @app.route("/records/ad-hoc")
     @app.route("/decisions/adhoc")

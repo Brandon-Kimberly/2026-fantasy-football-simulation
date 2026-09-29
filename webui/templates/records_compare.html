@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Compare records · {{ brand }}{% endblock %}
+{% block body %}
+<div class="head">
+  <p class="eyebrow">records · compare</p>
+  <h1>{{ b|entry_title|real }}: what changed</h1>
+  <p class="lede"><a href="{{ a|pretty }}">{{ a.stamp|when if a.stamp else a.name }}</a> → <a href="{{ b|pretty }}">{{ b.stamp|when if b.stamp else b.name }}</a></p>
+</div>
+<section>
+{% if d.kind == "lineup" %}
+<h2>Starters <span class="hint">slots whose starters changed{% if d.total is not none %} · expected total {{ d.total|signed(1) }}{% endif %}</span></h2>
+{% if d.slots %}<div class="scroller"><table><thead><tr><th>Slot</th><th>Before</th><th>After</th></tr></thead><tbody>
+{% for s in d.slots %}<tr><td>{{ s.slot }}</td><td>{{ s.before|join(", ") or "—" }}</td><td><b>{{ s.after|join(", ") or "—" }}</b></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="note">The same starters in every slot.</p>{% endif %}
+{% else %}
+<h2>Values that differ</h2>
+{% if d["values"] %}<div class="scroller"><table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>
+{% for v in d["values"] %}<tr><td>{{ v.key }}</td><td>{{ v.before }}</td><td><b>{{ v.after }}</b></td></tr>{% endfor %}
+</tbody></table></div>{% else %}<p class="note">No top-level value differs; open the two records to compare their tables.</p>{% endif %}
+{% endif %}
+</section>
+{% endblock %}
