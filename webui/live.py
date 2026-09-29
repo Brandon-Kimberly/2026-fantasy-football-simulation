@@ -534,3 +534,8 @@ class LiveBoard:
         age = None if self._at is None else int(self._clock() - self._at)
         return {"enabled": self.enabled, "snapshot": self._snap, "error": self._error, "age_seconds": age,
                 "min_interval": self.min_interval, "history": list(self._history), "updates": list(self._updates)}
+
+
+def add_categories(snap, scoring):
+    """UI-M4 characterisation stub."""
+    return snap
