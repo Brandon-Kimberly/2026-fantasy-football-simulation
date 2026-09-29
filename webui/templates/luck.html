@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink with context %}
+{% from "_macros.html" import mark, teamlink, toolshere with context %}
 {% block title %}Luck · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -13,6 +13,7 @@ table.luck td { vertical-align: top; } table.luck td.nm { white-space: normal; m
   <p class="eyebrow">luck · {{ r.weeks }} week{{ "s" if r.weeks != 1 }} played</p>
   <h1>How the dice fell for {{ r.team|real }}</h1>
   <p class="lede">Five measures of luck, each defined before the season began and each measured against the league rather than against the model, so the model's own misses are not called luck. They are shown side by side and never added into one number.</p>
+  {{ toolshere(["luck_ledger"] if dev else []) }}
   <div class="lteams">{% for t in teams %}<a href="/luck?team={{ t|slug }}" class="{{ 'on' if t == r.team }}">{{ mark(t) }}{{ t|real }}</a>{% endfor %}</div>
 </div>
 <section>

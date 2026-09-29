@@ -176,6 +176,35 @@ def card_extras(root, name, pid, owner):
             "practice_note": c.get("practice_description"), "updated": _epoch_iso(c.get("news_updated"))}
 
 
+def season_grid(root, my_team, weeks=14):
+    """UI-A4: every team by every regular-season week. A cell is the opponent and, once played,
+    the result and the median result as the league counted them (F83) with the box-score
+    points; before, the chance to win from the current forecast's head-to-head matrix. Every
+    cell links to that game on the Matchups page. Rows in the league's order; symmetric by
+    construction, since both teams read the same schedule pair."""
+    from webui.standings import table
+    sched = _schedule(root)[:weeks]
+    results = week_results(root)
+    scaled = rescaled_weeks(root)
+    matrix = _matrix(root, odds_now(root)["week"])
+    order = [r["team"] for r in table(root)] or _teams(root)
+    wks = list(range(1, len(sched) + 1))
+    cells = {}
+    for t in order:
+        row = {}
+        for w in wks:
+            opp = _opponent(sched[w - 1], t)
+            mine, theirs = (results.get(w) or {}).get(t), (results.get(w) or {}).get(opp)
+            played = bool(mine and theirs and mine.get("h2h_win") is not None)
+            row[w] = {"opponent": opp, "result": _wl(mine["h2h_win"]) if played else None,
+                      "median": _wl(mine.get("median_win")) if played else None,
+                      "pts": mine.get("points_scored") if played else None, "opp_pts": theirs.get("points_scored") if played else None,
+                      "p_win": None if played or not opp else _chance(matrix, t, opp),
+                      "rescaled": w in scaled, "href": f"/matchups/week-{w}#t-{render.slug(t)}"}
+        cells[t] = row
+    return {"teams": order, "weeks": wks, "cells": cells, "me": my_team, "run_in": [w for w in wks if w >= 12]}
+
+
 def _standings_row(root, team):
     """UI-O1: the team's row from the one standings helper League and Home use."""
     from webui.standings import by_team

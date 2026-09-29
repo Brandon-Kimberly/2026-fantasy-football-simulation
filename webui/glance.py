@@ -178,6 +178,39 @@ def odds_moves(root, n=None):
     return out
 
 
+def _other_games(root, my_team, wk, all_matchups):
+    """UI-M6: this week's games without the owner, from the schedule (always complete): each
+    with its pre-game chance from the prediction log and, when this week's forecast wrote its
+    per-season record for these teams, the side the owner should want (UI-O9) with the size
+    of the difference and its verdict tier."""
+    sched = root.read_json("current/league_schedule.json", []) or []
+    if not wk or not isinstance(sched, list) or not (0 < int(wk) <= len(sched)):
+        return []
+    pre = {frozenset((m.get("a"), m.get("b"))): m for m in all_matchups or []}
+    root_rows = {}
+    try:
+        from webui import outcomes
+        from webui.render import verdict
+        o = outcomes.load(root, at_most=wk)
+        if o is not None and int(wk) in o.weeks and set(o.teams) == set(odds_at(root, o.week)):
+            for g in outcomes.rooting(o, my_team, int(wk))["games"]:
+                if g["diff"] is not None:
+                    root_rows[frozenset((g["a"], g["b"]))] = dict(g, verdict=verdict(g["diff"] * 100, (g["se"] or 0) * 100))
+    except Exception:                          # the strip never breaks Home over the optional rooting read
+        root_rows = {}
+    out = []
+    for pair in sched[int(wk) - 1] or []:
+        if not isinstance(pair, (list, tuple)) or len(pair) != 2 or my_team in pair:
+            continue
+        a, b = pair
+        m = pre.get(frozenset(pair)) or {}
+        p_a = m.get("p_a") if m.get("a") == a else m.get("p_b") if m else None
+        rg = root_rows.get(frozenset(pair))
+        out.append({"a": a, "b": b, "p_a": p_a, "root_for": rg["root_for"] if rg and rg["verdict"] and rg["verdict"]["tier"] != "none" else None,
+                    "root_diff": abs(rg["diff"]) if rg else None, "root_tier": rg["verdict"]["tier"] if rg and rg["verdict"] else None})
+    return out
+
+
 def _wlt(w, l, t):
     return {"w": w, "l": l, "t": t, "text": f"{w}–{l}" + (f"–{t}" if t else "")}
 
@@ -498,7 +531,8 @@ def home_report(root, my_team, runner=None):
     win = windows_report(root, week)
     last_job = (runner.list() or [None])[0] if runner is not None else None
     git = logs_git_report(root)
-    return {"week": wk, "opponent": opponent, "matchup": matchup, "all_matchups": all_matchups,
+    others = _other_games(root, my_team, wk, all_matchups)                        # UI-M6
+    return {"week": wk, "opponent": opponent, "matchup": matchup, "all_matchups": all_matchups, "others": others,
             "forecast": mine_fc, "current": mine_cs, "champ": champ, "trajectory": traj, "seed": seed,
             "standings": table, "my_row": my_row, "losses": losses, "opp_row": opp_row, "opp_losses": opp_losses,
             "lineup": lineup, "lineup_link": lineup_e["link"] if lineup_e else None,

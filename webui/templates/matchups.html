@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink with context %}
+{% from "_macros.html" import mark, teamlink, toolshere with context %}
 {% block title %}Week {{ week }} matchups · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -27,6 +27,7 @@
   <p class="eyebrow">matchups · week {{ week }}{% if week == current %} · this week{% endif %}</p>
   <h1>Week {{ week }}</h1>
   <p class="lede">{% if played %}Every game as the league counted it, beside the chance the model gave each side before kickoff.{% elif week == current %}This week's games, with the chance the model gives each side.{% else %}The chance each side wins, from the latest forecast.{% endif %}</p>
+  {{ toolshere(["matchup_lineup", "live_matchup"] + (["matchup_watch"] if dev else [])) }}
   <nav class="weeks" aria-label="weeks">{% for w in weeks %}<a href="/matchups/week-{{ w }}" class="{{ 'on' if w == week }}{{ ' cur' if w == current }}"{% if w == current %} title="this week"{% endif %}>{{ w }}</a>{% endfor %}</nav>
 </div>
 
@@ -35,7 +36,7 @@
 {% for g in games %}
   <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}">
     {% for side in ("a", "b") %}{% set t = g[side] %}{% set pts = g["pts_" ~ side] %}{% set med = g["med_" ~ side] %}{% set p = g["p_" ~ side] %}
-    <div class="side{{ ' lose' if g.winner and g.winner != t }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
+    <div class="side{{ ' lose' if g.winner and g.winner != t }}" id="t-{{ t|slug }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">
@@ -46,6 +47,18 @@
 {% endfor %}
 </div>
 {% else %}<div class="note">No schedule on file for week {{ week }}.</div>{% endif %}
+
+{% if lineups and lineups.columns %}{% set lu = lineups %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Three ways to set your lineup <span class="hint">from the matchup record of {{ lu.stamp|when }}{% if lu.opponent %} against {{ lu.opponent|real }}{% endif %}</span></h2>
+{% if lu.agree %}<p class="note">This week all three agree: the lineup with the most expected points is also the best bet against {{ (lu.opponent|real) if lu.opponent else "your opponent" }} and against the median.</p>{% endif %}
+<div class="scroller"><table class="lu3"><thead><tr><th>Slot</th>{% for c in lu.columns %}<th>{{ {"points": "Most expected points", "opponent": "Best chance to win the game", "median": "Best chance to beat the median"}[c.objective] }}<div class="small muted">{{ c.mean|num(1) }} points · {{ c.p_opponent|pct(0) }} to win · {{ c.p_median|pct(0) }} to beat the median</div></th>{% endfor %}</tr></thead><tbody>
+{% for r in lu.rows %}<tr class="{{ 'differs' if r.differs }}"><td class="muted">{{ r.slot }}</td>{% for n in r.names %}<td>{{ n or "—" }}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">{% if not lu.agree %}Highlighted rows are where the three differ. {% endif %}The median column is the best of the lineups the matchup tool built, judged on beating the median, not a lineup built for the median alone.</p>
+</section>
+<style>table.lu3 tr.differs td { background: var(--warn-bg); font-weight: 600; } table.lu3 th { vertical-align: bottom; } table.lu3 th .small { text-transform: none; letter-spacing: 0; font-weight: 400; font-family: inherit; }</style>
+{% endif %}
 
 {% if review and review.awards %}{% set rv = review %}
 <section>

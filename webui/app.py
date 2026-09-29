@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, luck as luckmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
+from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, lineups as lineupsmod, luck as luckmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -48,8 +48,9 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
 NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
-           ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
-           ("/sync", "Sync"))
+           ("/tools", "Tools"))
+# UI-A5 / Decision 6: the machinery under one developer menu, so the bar is the league's objects
+NAV_DEV_MORE = (("/records", "Records"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"), ("/sync", "Sync"))
 NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
@@ -127,6 +128,11 @@ def week_report(root, week):
             "charts": charts, "jsons": jsons, "subdirs": listing["subdirs"]}
 
 
+def _my_team():
+    from fantasy_sim.config import MY_TEAM
+    return MY_TEAM
+
+
 def current_report(root):
     standings = root.read_json("current/league_standings.json", {}) or {}
     rosters = root.read_json("current/live_rosters.json", {}) or {}
@@ -153,7 +159,8 @@ def current_report(root):
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
             "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins,
-            "srows": standingsmod.table(root), "rescored_weeks": sorted(rescaled_weeks(root))}
+            "srows": standingsmod.table(root), "rescored_weeks": sorted(rescaled_weeks(root)),
+            "grid": objects.season_grid(root, _my_team())}                                  # UI-A4
 
 
 # ------------------------------------------------------------------------- factory
@@ -230,6 +237,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
                 "audit": request.args.get("audit") == "1",      # the harness's overflow probe (scripts.webui_audit)
                 "mode": mode, "dev": mode == "dev", "nav": NAV_DEV if mode == "dev" else NAV_SIMPLE,
+                "nav_more": NAV_DEV_MORE if mode == "dev" else (),
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
@@ -264,7 +272,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def _palette(mode):
         """U4: what the command palette can jump to in THIS view -- its pages, its tools,
         the teams. Pseudonyms in; the page applies the overlay before showing them."""
-        items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV if mode == "dev" else NAV_SIMPLE)]
+        items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV + NAV_DEV_MORE if mode == "dev" else NAV_SIMPLE)]
         items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
         items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how the dice fell, five measures"})     # UI-R6: pulled, never on Home
         for name, t in TOOLS.items():
@@ -442,7 +450,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             abort(404)
         started = bool(kickoff_report(root, rep["week"]).get("started")) if rep["week"] == cur else False
         review = recapmod.week_recap(root, rep["week"], MY_TEAM)                     # UI-R1 / R2
-        return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, **rep)
+        lu = lineupsmod.latest(root, rep["week"], MY_TEAM) if rep["week"] == cur else None           # UI-L2
+        return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, lineups=lu, **rep)
 
     @app.route("/favicon.ico")
     def favicon():

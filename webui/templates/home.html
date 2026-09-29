@@ -4,6 +4,13 @@
 {% block body %}
 <style>
 .hero { position: relative; margin-top: 26px; padding: 26px 28px 24px; background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 55%, var(--turf-bg) 100%); border: 1px solid var(--grid); border-top: 3px solid transparent; border-image: var(--g-brand) 1; border-radius: var(--r-card); overflow: hidden; animation: rise .5s ease both; box-shadow: var(--shadow); }
+.others { position: relative; display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 8px; margin-top: 14px; }
+.others .og { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px; background: var(--surface); border: 1px solid var(--grid); border-radius: 10px; font-size: 12.5px; }
+.others .og .ogr { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.others .og .ogt { display: flex; align-items: center; gap: 6px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.others .og .sc { font-variant-numeric: tabular-nums; font-size: 13px; } .others .og .ogr.won .ogt, .others .og .ogr.won .sc { font-weight: 800; } .others .og .ogr.lost { opacity: .7; }
+.others .og .ogf { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--muted); } .others .og.is-live .pre { display: none; } .others .og .live { margin: 0; padding: 0; border: 0; } .others .og .live:empty { display: none; }
+.others .og .rt { color: var(--ink-2); }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
 .hero::after { content: ""; position: absolute; top: -40%; right: -10%; width: 45%; height: 180%; background: radial-gradient(closest-side, var(--violet-bg), transparent); pointer-events: none; animation: drift 12s ease-in-out infinite alternate; }
 @keyframes drift { from { transform: translate(0, 0); } to { transform: translate(-6%, 8%); } }
@@ -231,6 +238,14 @@
   {% endif %}
   {% else %}
   <div class="note" style="margin-top:12px">No prediction for week {{ week }} yet{% if dev %} — <a href="/tools/weekly_report">run the weekly digest</a> to price this matchup{% endif %}.</div>
+  {% endif %}
+
+  {% if others %}{# ---- UI-M6: the other games this week; the live poller redraws their scores ---- #}
+  <div class="others" id="others" aria-label="the other games this week">{% for g in others %}<div class="og" data-a="{{ g.a }}" data-b="{{ g.b }}">
+    <div class="ogr ra"><span class="ogt">{{ mark(g.a) }}{{ teamlink(g.a) }}</span><b class="sc sa"></b></div>
+    <div class="ogr rb"><span class="ogt">{{ mark(g.b) }}{{ teamlink(g.b) }}</span><b class="sc sb"></b></div>
+    <div class="ogf"><span class="pre">{% if g.p_a is not none %}chance {{ g.p_a|pct(0) }} – {{ (1 - g.p_a)|pct(0) }}{% else %}not played yet{% endif %}</span><span class="live"></span>{% if g.root_for %}<span class="rt">you want <b>{{ g.root_for|real }}</b> · {{ (g.root_diff * 100)|num(1) }} points of playoff odds</span>{% endif %}</div>
+  </div>{% endfor %}</div>
   {% endif %}
 
   {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
@@ -487,8 +502,26 @@
   }
   function wasOpen(cls, fallback) { var el = body.querySelector('details.' + cls); return el ? el.open : fallback; }
 
+  // UI-M6: every league game in the snapshot redraws its card in the strip, facing the card's order
+  function drawOthers(s) {
+    (s.league || []).forEach(function (g) {
+      var el = document.querySelector('#others .og[data-a="' + CSS.escape(g.a) + '"][data-b="' + CSS.escape(g.b) + '"]'), flip = false;
+      if (!el) { el = document.querySelector('#others .og[data-a="' + CSS.escape(g.b) + '"][data-b="' + CSS.escape(g.a) + '"]'); flip = true; }
+      if (!el) return;
+      var a = flip ? g.b_banked : g.a_banked, b = flip ? g.a_banked : g.b_banked, pa = flip ? 1 - g.p_a : g.p_a;
+      var pct = function (x) { return x > 0.999 ? '>99%' : (x < 0.001 ? '<1%' : Math.round(x * 100) + '%'); };
+      el.querySelector('.sa').textContent = Number(a).toFixed(1);
+      el.querySelector('.sb').textContent = Number(b).toFixed(1);
+      el.querySelector('.ra').classList.toggle('won', !!g.decided && a > b); el.querySelector('.ra').classList.toggle('lost', !!g.decided && a < b);
+      el.querySelector('.rb').classList.toggle('won', !!g.decided && b > a); el.querySelector('.rb').classList.toggle('lost', !!g.decided && b < a);
+      el.querySelector('.live').textContent = g.decided ? 'final' : 'live · chance ' + pct(pa) + ' – ' + pct(1 - pa);
+      el.classList.add('is-live');
+    });
+  }
+
   function draw(p) {
     var s = p.snapshot;
+    if (s && s.ok) drawOthers(s);
     // the developer's instruction for the developer; everyone else gets the plain fact
     if (!p.enabled) { meta.textContent = body.getAttribute('data-dev') === '1' ? 'not connected — set SLEEPER_LEAGUE_ID for this server' : 'live scores are not connected'; return; }
     if (!s) { meta.textContent = p.error ? 'could not fetch: ' + p.error : 'not fetched yet'; return; }
