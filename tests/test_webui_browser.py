@@ -603,6 +603,56 @@ class TestStarterCategories(BrowserCase):
         self.assertEqual(self.errors, [])
 
 
+class TestSundayChangeable(BrowserCase):
+    """UI-L3: during the games the live panel says what can still change, locked slots greyed."""
+    live_enabled = True
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def test_the_panel_lists_locked_and_changeable_slots(self):
+        pay = live_payload(False, 0.7)
+        pay["snapshot"]["changeable"] = [
+            {"slot": "QB", "name": "A Passer", "locked": True, "changeable": False, "alternative": None, "cost": None, "label": "Q3 5:12"},
+            {"slot": "WR", "name": "E Catcher", "locked": False, "changeable": True, "alternative": "F Receiver", "cost": 2.5, "label": ""}]
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/", "simple")
+        self.page.wait_for_selector("#live-body .changeable")
+        box = self.page.inner_text("#live-body .changeable")
+        self.assertIn("F Receiver", box)
+        self.assertEqual(self.page.locator("#live-body .changeable tr.locked").count(), 1)
+        self.assertEqual(self.errors, [])
+
+
+def _plant_designation(root):
+    from tests.test_webui_routes import TEAMS
+    import datetime as _d
+    now = _d.datetime.now(_d.timezone.utc)
+    rows = [{"player_id": "p1", "name": "Alert Target", "team": TEAMS[0], "week": 3, "injury_status": None,
+             "recorded_at": (now - _d.timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")},
+            {"player_id": "p1", "name": "Alert Target", "team": TEAMS[0], "week": 3, "injury_status": "Doubtful",
+             "recorded_at": (now - _d.timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ")}]
+    with open(os.path.join(root, "data", "logs", "designations.jsonl"), "w", encoding="utf-8") as fh:
+        fh.write("".join(json.dumps(r) + "\n" for r in rows))
+
+
+class TestAlertsFireOnce(BrowserCase):
+    """UI-R5: an opted-in alert fires once, and not again when the page reloads."""
+    plant = staticmethod(_plant_designation)
+
+    FAKE = ("window.__notes = JSON.parse(sessionStorage.getItem('__notes') || '[]');"
+            "window.Notification = function (t, o) { window.__notes.push(t); sessionStorage.setItem('__notes', JSON.stringify(window.__notes)); this.close = function () {}; };"
+            "window.Notification.permission = 'granted'; window.Notification.requestPermission = function () { return Promise.resolve('granted'); };"
+            "try { localStorage.setItem('alert-designation', '1'); } catch (e) {}")
+
+    def test_a_designation_alert_fires_once(self):
+        self.ctx.add_init_script(self.FAKE)
+        p = self.open("/", "simple")
+        p.wait_for_function("window.__notes.some(function (t) { return t.indexOf('Alert Target') >= 0; })")
+        p.reload(wait_until="load")
+        p.wait_for_timeout(1500)
+        self.assertEqual(sum(1 for t in p.evaluate("window.__notes") if "Alert Target" in t), 1)
+        self.assertEqual(self.errors, [])
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

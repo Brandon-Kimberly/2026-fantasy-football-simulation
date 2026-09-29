@@ -435,6 +435,9 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
     # W14: what the tool would change about the lineup Sleeper says I am actually fielding.
     # A man the tool wants started is on my bench, so his clock comes from his NFL team.
     plan = lineup_plan(root, wk)
+    base_teams = {n: (b or {}).get("team") for n, b in (root.read_json("current/player_baselines.json", {}) or {}).items()
+                  if isinstance(b, dict)}
+    change = changeable(_lineup_record(root, wk), clocks if clocks_ok else {}, base_teams)          # UI-L3
     bench_clocks = {e["name"]: clocks.get(e.get("nfl") or "?", (1.0, ""))[0]
                     for e in exp.values() if e.get("name")}
     plan_diff = lineup_diff(plan, mine["rows"], bench_clocks)
@@ -463,6 +466,7 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
             "mine": mine, "theirs": theirs, "p_win": None if p is None else round(p, 4),
             "p_win_wide": None if p_wide is None else round(p_wide, 4),
             "clocks_ok": clocks_ok, "statuses": labels, "games": games, "stats": stats, "plan": plan_diff,
+            "changeable": change,
             "sources": sorted({e.get("source") for e in exp.values() if e.get("source") != "baseline"} - {None})}
 
 
@@ -554,3 +558,44 @@ def add_categories(snap, scoring):
             parts = stat_parts({}, stats.get(str(r.get("pid"))) or {}, scoring or {}, limit=12)
             r["cats"] = [{"text": p["text"], "pts": p["pts"]} for p in parts]
     return snap
+
+
+def changeable(record, clocks, teams):
+    """UI-L3: what can still move on Sunday. Each starter of the lineup record, locked once his
+    NFL team's game has started (the live clocks: less than all of the game left) or
+    changeable; a changeable slot offers the record's alternative only if the alternative's
+    game has not started either, with the swap's cost in expected points. No clock for a
+    team counts as not started, so before any kickoff nothing is locked."""
+    bench = {r.get("name"): r.get("expected") for r in (record or {}).get("bench") or [] if r.get("name")}
+    clocks = clocks or {}
+
+    def clock(name):
+        return clocks.get(teams.get(name), (1.0, "")) if teams.get(name) else (1.0, "")
+
+    out = []
+    for r in (record or {}).get("lineup") or []:
+        name = r.get("name")
+        if not name:
+            continue
+        frac, label = clock(name)
+        locked = frac < 1.0
+        alt = r.get("alternative")
+        alt_ok = bool(alt) and not locked and clock(alt)[0] >= 1.0
+        cost = None
+        if alt_ok and r.get("expected") is not None and bench.get(alt) is not None:
+            cost = round(float(r["expected"]) - float(bench[alt]), 2)
+        out.append({"slot": r.get("slot"), "name": name, "locked": locked, "changeable": not locked,
+                    "alternative": alt if alt_ok else None, "cost": cost, "label": label})
+    return out
+
+
+def _lineup_record(root, week):
+    """The newest optimal-lineup record for `week`, whole; {} when there is none."""
+    from webui.glance import _newest
+    wk = int(week) if week else None
+    if not wk or wk not in root.decision_weeks():
+        return {}
+    dec = root.decisions(wk)
+    entries = sorted(dec["canonical"] + dec["archive"], key=lambda e: (e["stamp"] or "", e["name"]), reverse=True)
+    entry = _newest(entries, "lineup")
+    return (root.read_json(entry["rel"], {}) or {}) if entry else {}
