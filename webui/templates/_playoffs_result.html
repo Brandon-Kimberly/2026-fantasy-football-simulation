@@ -11,12 +11,12 @@
 </div>
 <div class="scroller"><table class="pm-table"><thead><tr><th>Team</th><th class="num">Playoffs</th>{% if live %}<th class="num">Change</th>{% endif %}<th class="num">Title</th><th class="num">Seed 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th></tr></thead><tbody>
 {% for t in r.order %}{% set x = res.teams[t] %}{% set mk = r.marks[t] %}<tr{% if t == r.me %} class="me"{% endif %}>
-<td class="nm">{{ mark(t) }}{{ teamlink(t) }}{% if mk.label %} <span class="mk mk-{{ mk.label.split(' ')[0] }}">{{ mk.label }}</span>{% endif %}{% if mk.destiny and not mk.proven_in %} <span class="mk mk-destiny" title="If it wins every remaining game and beats every remaining median, fewer than four teams can still match its total">controls its destiny</span>{% endif %}</td>
+<td class="nm">{{ mark(t) }}{{ teamlink(t) }}{% if mk.label or (mk.destiny and not mk.proven_in) %}<div class="mks">{% if mk.label %}<span class="mk mk-{{ mk.label.split(' ')[0] }}">{{ mk.label }}</span>{% endif %}{% if mk.destiny and not mk.proven_in %}<span class="mk mk-destiny" title="If it wins every remaining game and beats every remaining median, fewer than four teams can still match its total">controls its destiny</span>{% endif %}</div>{% endif %}</td>
 {% if res.refused %}<td class="num dim" colspan="{{ 7 if live else 6 }}">—</td>{% else %}
 <td class="num"><b>{{ x.playoff|pct }}</b> <span class="se">{{ (x.playoff_se * 100)|se }}</span></td>
-{% if live %}{% set d = (x.playoff - base.teams[t].playoff) * 100 %}<td class="num {{ 'pos' if d > 0.05 else ('neg' if d < -0.05) }}">{{ d|signed(1) }}</td>{% endif %}
+{% if live %}{% set d = (x.playoff - base.teams[t].playoff) * 100 %}<td class="num {{ 'pos' if d >= 0.05 else ('neg' if d <= -0.05) }}">{{ '0.0' if d|abs < 0.05 else d|signed(1) }}</td>{% endif %}
 <td class="num">{{ x.champ|pct }} <span class="se">{{ (x.champ_se * 100)|se }}</span></td>
-{% for s in x.seeds[:4] %}<td class="num seed"><i style="--w: {{ (s * 100)|round(1) }}%"></i><span>{{ s|pct(0) }}</span></td>{% endfor %}
+{% for s in x.seeds[:4] %}<td class="num seed">{{ s|pct(0) }}</td>{% endfor %}
 {% endif %}</tr>{% endfor %}
 </tbody></table></div>
 {% if live %}<p class="small muted">Change is in percentage points against the odds with no picks.</p>{% endif %}

@@ -3,8 +3,9 @@
 {% block title %}Playoffs · {{ brand }}{% endblock %}
 {% block body %}
 <style>
-.pm { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; margin-top: 12px; }
-.pm > .res { position: sticky; top: 12px; }
+.pm { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 20px; align-items: start; margin-top: 12px; }
+.pm > .res { position: sticky; top: 12px; min-width: 0; overflow-x: auto; }
+.pm > form { min-width: 0; }
 @media (max-width: 960px) { .pm { grid-template-columns: minmax(0, 1fr); } .pm > .res { position: static; } }
 #pm-result { transition: opacity .15s; } #pm-result.updating { opacity: .55; }
 #pm-result.updating::before { content: "Updating…"; display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
@@ -16,7 +17,8 @@
 .pm-clear { font-size: 12px; }
 .pm-table td, .pm-table th { padding: 6px 8px; } .pm-table .se { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 .pm-table td.dim { color: var(--muted); text-align: center; }
-.pm-table td.seed { position: relative; min-width: 3.2rem; } .pm-table td.seed i { position: absolute; left: 4px; bottom: 3px; height: 3px; width: calc(var(--w) - 8px); max-width: calc(100% - 8px); background: var(--turf); border-radius: 2px; opacity: .55; }
+.pm-table .mks { display: flex; flex-wrap: wrap; gap: 4px; margin: 3px 0 0 30px; }
+.pm-table td.seed { min-width: 2.6rem; }
 .mk { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; padding: 1px 7px; border-radius: var(--r-pill); background: var(--mid); color: var(--ink-2); vertical-align: middle; white-space: nowrap; }
 .mk-clinched { background: var(--g-turf); color: #fff; } .mk-eliminated { background: var(--neg-bg); color: var(--neg); }
 .mk-over { background: var(--turf-bg); color: var(--turf); } .mk-under { background: var(--neg-bg); color: var(--neg); } .mk-destiny { background: var(--gold-bg); color: var(--gold); }
@@ -125,9 +127,9 @@ table.lev tr.me td.nm { font-weight: 700; }
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> How many wins is enough? <span class="hint">the playoff odds for each final win total</span></h2>
 <form method="get" action="/playoffs" class="small" style="margin-bottom: 8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
-<label for="f_team">Team</label> <select id="f_team" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
+<label for="f_team">Team</label> <select id="f_team" style="width: auto; max-width: 20rem; display: inline-block" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
 {% if r.curve %}
-<div class="curve" role="img" aria-label="{{ r.team|real }}: playoff odds by final win total">{% for b in r.curve %}<div class="bar{{ ' thin' if b.thin }}" title="{{ b.wins|num(1) }} wins: {{ b.p|pct }} made the playoffs, {{ '{:,}'.format(b.n) }} seasons{{ ' — too few to rely on' if b.thin }}"><b>{{ b.p|pct(0) }}</b><i style="height: {{ (b.p * 100)|round(1) }}%"></i></div>{% endfor %}</div>
+<div class="curve" role="img" aria-label="{{ r.team|real }}: playoff odds by final win total">{% for b in r.curve %}<div class="bar{{ ' thin' if b.thin }}" title="{{ b.wins|num(1) }} wins: {{ b.p|pct }} made the playoffs, {{ '{:,}'.format(b.n) }} seasons{{ ' — too few to rely on' if b.thin }}"><b>{{ '99%+' if b.p >= 0.995 else ('<1%' if b.p <= 0.005 else b.p|pct(0)) }}</b><i style="height: {{ (b.p * 100)|round(1) }}%"></i></div>{% endfor %}</div>
 <div class="curve-x">{% for b in r.curve %}<span>{{ b.wins|num(1) if b.wins % 1 else b.wins|int }}</span>{% endfor %}</div>
 <p class="small muted">Final regular-season wins, head-to-head and median together. Hatched bars stand on fewer than {{ r.min }} seasons and should not be relied on. The share is of the seasons in which {{ r.team|real }} finished on that total; ties in wins are settled on points.</p>
 <details class="tview"><summary>view as table</summary><div class="scroller"><table><thead><tr><th>Final wins</th><th class="num">Made the playoffs</th><th class="num">Seasons</th><th class="num">How often it ends there</th></tr></thead><tbody>
