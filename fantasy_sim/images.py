@@ -21,7 +21,11 @@ from .storage import _path
 IMAGES_DIR = _path("images")
 HEADSHOT_URL = "https://sleepercdn.com/content/nfl/players/thumb/{}.jpg"
 LOGO_URL = "https://sleepercdn.com/images/team_logos/nfl/{}.png"   # Sleeper's names are lower case (DET.png is a 404)
-MAGIC = {".jpg": b"\xff\xd8\xff", ".png": b"\x89PNG\r\n\x1a\n"}
+JPEG_MAGIC, PNG_MAGIC = b"\xff\xd8\xff", b"\x89PNG\r\n\x1a\n"
+# Sleeper serves every headshot as PNG bytes at a .jpg URL, labelled image/jpeg (checked
+# 2026-09-29), so a headshot is accepted when its bytes are either; the UI serves the type
+# the bytes are, whatever the name says.
+MAGIC = {".jpg": (JPEG_MAGIC, PNG_MAGIC), ".png": (PNG_MAGIC,)}
 TIMEOUT_S = 10
 
 

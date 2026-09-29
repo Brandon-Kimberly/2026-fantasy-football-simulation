@@ -486,7 +486,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         full = root.image_file(kind, name)
         if not full:
             abort(404)
-        return send_file(full, mimetype="image/jpeg" if name.endswith(".jpg") else "image/png", max_age=86400)
+        with open(full, "rb") as fh:                   # small files: read whole, so no handle outlives the response
+            body = fh.read()
+        # the bytes decide the type: Sleeper's .jpg headshots are PNGs (checked 2026-09-29)
+        mimetype = "image/png" if body.startswith(b"\x89PNG") else "image/jpeg"
+        return Response(body, mimetype=mimetype, headers={"Cache-Control": "public, max-age=86400"})
 
     @app.route("/favicon.ico")
     def favicon():
