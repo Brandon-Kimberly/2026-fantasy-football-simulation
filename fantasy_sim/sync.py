@@ -32,7 +32,7 @@ from fantasy_sim.storage import (
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
-    PENDING_TRADES_FILE, draft_log_file, season_log_file, FAILED_CLAIMS_FILE,
+    PENDING_TRADES_FILE, draft_log_file, season_log_file, NFL_TEAM_COLORS_FILE, FAILED_CLAIMS_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1481,6 +1481,11 @@ def _sync_body(sharp_polling=False):
             print(f"[IMAGES] {n_img['fetched']} new image(s) cached.")
     except Exception as ex:                                      # noqa: BLE001 -- cosmetic
         logging.info("IMAGES: cache skipped (%s)", ex)
+    # UI-V4: NFL team colours for the swatches. Cosmetic, and it cannot fail a sync.
+    try:
+        fetch_nfl_team_colors()
+    except Exception as ex:                                      # noqa: BLE001 -- cosmetic
+        logging.info("NFL COLOURS: skipped (%s)", ex)
     return current_nfl_week, str(state.get("season", "2026"))
 
 
@@ -1585,6 +1590,43 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                         "re-ingested by the next successful sync.", len(records), path, ex)
         return 0
     return appended
+
+
+ESPN_TEAMS_URL = "https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams"
+ESPN_TEAM_CODES = {"WSH": "WAS"}          # ESPN's code -> this repo's (the schedule fetch maps it the same way)
+
+
+def fetch_nfl_team_colors(path=NFL_TEAM_COLORS_FILE, get=None):
+    """UI-V4: {team code: {"color": "#rrggbb" or None, "alt": ...}} from ESPN's teams endpoint,
+    written to data/current/nfl_team_colors.json for the web UI's swatches. A colour that is not
+    six hex digits is None rather than guessed; a team with neither is left out. Cosmetic, so a
+    failed fetch writes nothing, raises nothing and logs at INFO -- never WARNING, which would
+    mark the sync degraded. Returns the number of teams written."""
+    import re as _re
+    get = get or requests.get
+
+    def hexc(v):
+        v = str(v or "").strip().lstrip("#").lower()
+        return "#" + v if _re.fullmatch(r"[0-9a-f]{6}", v) else None
+    try:
+        r = get(ESPN_TEAMS_URL, timeout=10)
+        if getattr(r, "status_code", None) != 200:
+            raise ValueError(f"HTTP {getattr(r, 'status_code', None)}")
+        teams = r.json()["sports"][0]["leagues"][0]["teams"]
+        out = {}
+        for t in teams:
+            t = t.get("team") or {}
+            code = ESPN_TEAM_CODES.get(t.get("abbreviation"), t.get("abbreviation"))
+            color, alt = hexc(t.get("color")), hexc(t.get("alternateColor"))
+            if code and (color or alt):
+                out[code] = {"color": color, "alt": alt}
+        if not out:
+            raise ValueError("no team carried a colour")
+        save_json(path, out)
+        return len(out)
+    except Exception as ex:
+        logging.info("NFL COLOURS: not refreshed this sync (%s); the web UI keeps the last copy or neutral swatches.", ex)
+        return 0
 
 
 FAILED_CLAIM_REASONS = (("claimed by another owner", "outbid"), ("too many players", "roster_full"))

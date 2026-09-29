@@ -120,6 +120,7 @@ def report(root):
     from webui.results import week_results
     by_week = week_results(root)          # results as the league counts them (F83): as played
     weeks, skipped = [], []
+    pairs, brier_weeks = [], []                          # UI-Q1
     calls, hits, briers = 0, 0, []
     errors, zs, med_calls, med_hits, med_briers = [], [], 0, 0, []
 
@@ -140,6 +141,7 @@ def report(root):
                 continue
             p, won = float(p), float(won)
             briers.append((p - won) ** 2)
+            pairs.append((p, 1.0 if won >= 0.5 else 0.0))
             call = None if abs(p - 0.5) < 1e-9 else (p > 0.5)
             hit = None if call is None else (call == (won >= 0.5))
             if call is not None:
@@ -160,6 +162,7 @@ def report(root):
             if pm is not None and beat is not None:
                 pm, beat = float(pm), float(beat)
                 med_briers.append((pm - beat) ** 2)
+                pairs.append((pm, 1.0 if beat >= 0.5 else 0.0))
                 if abs(pm - 0.5) > 1e-9:
                     med_calls += 1
                     med_hits += 1 if ((pm > 0.5) == (beat >= 0.5)) else 0
@@ -169,6 +172,10 @@ def report(root):
                                "beat": None if beat is None else beat >= 0.5})
         w["teams"].sort(key=lambda t: -abs(t["error"]))
         weeks.append(w)
+        mb = [(m["p"] - (1.0 if m["won"] else 0.0)) ** 2 for m in w["matchups"]]
+        db = [(t["p_median"] - (1.0 if t["beat"] else 0.0)) ** 2 for t in w["teams"] if t["p_median"] is not None and t["beat"] is not None]
+        brier_weeks.append({"week": week, "matchups": round(sum(mb) / len(mb), 6) if mb else None,
+                            "median": round(sum(db) / len(db), 6) if db else None})
 
     n_weeks = len(weeks)
     sd_z = _sd(zs)
@@ -187,6 +194,7 @@ def report(root):
                    "rate": round(med_hits / med_calls, 4) if med_calls else None,
                    "brier": round(sum(med_briers) / len(med_briers), 6) if med_briers else None},
         "enough": n_weeks >= ENOUGH_WEEKS,
+        "reliability": reliability(pairs), "n_calls": len(pairs), "brier_weeks": brier_weeks,      # UI-Q1
         "note": (f"{n_weeks} week{'s' if n_weeks != 1 else ''} scored. A read on how well these "
                  f"probabilities are calibrated first means something at week {ENOUGH_WEEKS} or "
                  f"{ENOUGH_WEEKS + 1}; until then these are counts, not conclusions."),
@@ -211,3 +219,23 @@ def backtest_read(root):
     return {"cover80": float(overall["cover80"]), "n": n, "checkpoints": row.get("checkpoints") or [],
             "at": row.get("timestamp_utc"), "commit": (row.get("git_commit") or "")[:7],
             "se": (0.8 * 0.2 / n) ** 0.5}
+
+
+RELIABILITY_EDGES = (0.0, 0.2, 0.4, 0.6, 0.8, 1.0)
+
+
+def reliability(pairs, edges=RELIABILITY_EDGES):
+    """UI-Q1: [(forecast probability, outcome 0/1)] in bins of the forecast -- each bin's mean
+    forecast, how often it happened, and the standard error that rate would have if the
+    forecasts were calibrated (the mean forecast's binomial SE). A calibrated forecast sits on
+    the diagonal within that. An empty bin is kept, with None."""
+    rows = []
+    last = len(edges) - 2
+    for i, (lo, hi) in enumerate(zip(edges, edges[1:])):
+        got = [(p, y) for p, y in pairs if lo <= p < hi or (i == last and p == hi)]
+        n = len(got)
+        f = sum(p for p, _y in got) / n if n else None
+        rows.append({"lo": lo, "hi": hi, "n": n, "forecast": f,
+                     "observed": sum(y for _p, y in got) / n if n else None,
+                     "se": math.sqrt(f * (1 - f) / n) if n else None})
+    return rows

@@ -174,6 +174,8 @@ p { margin: .4em 0; }
 .rank { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-family: var(--display); font-size: 11px; font-weight: 800; color: var(--muted); background: var(--mid); }
 .rank.r1 { background: var(--g-gold); color: #2b2000; box-shadow: 0 2px 8px rgba(201,150,42,.45); } .rank.r2 { background: linear-gradient(135deg, #9aa3ad, #d4d9de); color: #fff; } .rank.r3 { background: linear-gradient(135deg, #a5602d, #d4906a); color: #fff; }
 img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
+/* UI-V4: an NFL team's colour as a swatch beside its code -- never the text's colour; neutral when none is cached */
+.nflsw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--team, var(--mid)); box-shadow: 0 0 0 1px var(--rule); }
 /* UI-P6: a player's face (the local headshot, or the NFL team's logo), after .mark so it wins */
 .face { display: inline-block; width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; margin-right: 7px; flex: none; }
 img.face { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
@@ -278,6 +280,8 @@ th[data-key]:focus-visible { outline: 2px solid var(--pos); outline-offset: -2px
 .viz .vl, .viz .nl { font-size: 11px; fill: var(--ink-2); } .viz .nl.me { fill: var(--ink); font-weight: 700; }
 .viz .dcol circle { fill: var(--c-other); } .viz .dcol.on circle { fill: var(--c-me); } .viz .hit { fill: transparent; }
 .viz .dcol:hover circle { stroke: var(--ink); stroke-width: 1; }
+.viz.relia .diag { stroke: var(--ink-2); stroke-width: 1.5; stroke-dasharray: 4 3; } .viz.relia .band { fill: var(--mid); } .viz.relia .grid { stroke: var(--grid); }
+.viz.relia .pt circle { fill: var(--c-me); stroke: var(--surface); stroke-width: 2; } .viz.relia .yl, .viz.relia .xl { font-size: 11px; fill: var(--ink-2); }
 .viz .band.outer { fill: var(--c-seq-1); opacity: .7; } .viz .band.inner { fill: var(--c-seq-2); opacity: .85; }
 .viz .med { fill: none; stroke: var(--c-me); stroke-width: 2; stroke-linejoin: round; }
 .viz .hit:hover { fill: var(--ink); opacity: .05; }

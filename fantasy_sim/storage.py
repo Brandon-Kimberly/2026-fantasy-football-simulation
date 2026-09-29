@@ -163,6 +163,9 @@ BASELINES_FILE = _current("player_baselines.json")
 TEAM_RATINGS_FILE = _current("nfl_team_power_ratings.json")
 LEAGUE_SCHEDULE_FILE = _current("league_schedule.json")
 NFL_SCHEDULE_FILE = _current("nfl_schedule.json")
+# UI-V4 (2026-09-29): each NFL team's colour and alternate colour from ESPN, for the web UI's
+# swatches. Cosmetic: nothing in the engine or the tools reads it.
+NFL_TEAM_COLORS_FILE = _current("nfl_team_colors.json")
 DEFENSIVE_RATINGS_FILE = _current("nfl_defensive_ratings.json")
 DEFENSIVE_TIERS_FILE = _current("nfl_defensive_tiers.json")
 LEAGUE_STATE_FILE = _current("league_state.json")

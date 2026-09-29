@@ -957,6 +957,41 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### How the model has done on each player; Accuracy's second version (2026-09-29, roadmap UI-P3, Q1)
+
+- **Where a week landed (P3, `webui.calibration`).** A player's points as a percentile of that
+  week's forecast spread. It is linear between the export's min, p10, p25, p50, p75, p90 and
+  max, from `weeks/week_NN/player_variance.json`.
+  - **Player page:** a "Landed" column, with the count and "noise, not a verdict".
+  - **Accuracy:** every rostered player-week pooled into the quantiles' own six bins. If the
+    ranges are right, each bin holds its width's share, so observed over expected is flat at 1.
+- **Limits, stated on both pages.**
+  - The export is one week's spread pooled over the weeks that forecast simulated. The model
+    saves no per-player spread for each week, so a week's own matchup is not in the range.
+  - A zero is left out, because the export leaves out weeks not played, and a zero in the
+    first-recorded scores is more often a player who did not play.
+- **Are the chances right? (Q1).** A reliability diagram over the quoted matchup and
+  beat-the-median calls, in five bins. It draws the diagonal and a two-standard-error band
+  per bin, at that bin's count. Beside it is the Brier score week by week. It draws only
+  from `ENOUGH_WEEKS` (5); before then the page counts the calls and says when it will draw.
+  `render.reliability_chart` follows the other primitives: tokens only, a hover per dot, and a
+  table view with every bin.
+
+**What it does not claim:** through week 3 the histogram is a check on the ranges' shape, not
+their verdict. 427 player-weeks give each bin a standard error of 0.08-0.15 on the ratio.
+
+### NFL team colours (2026-09-29, roadmap UI-V4)
+
+- **The cache.** `sync.fetch_nfl_team_colors` reads ESPN's teams endpoint and writes
+  `data/current/nfl_team_colors.json`, one `{color, alt}` pair per team under this repo's
+  codes. ESPN's WSH becomes WAS. A value that is not six hex digits is None, not guessed.
+  It is cosmetic: a failed fetch writes nothing and logs at INFO.
+- **The swatch.** A 10-pixel square beside the team code, with a 1-pixel ring so a dark
+  colour still reads on a dark page. It appears on the schedule grid and in the TV view's
+  games. The text keeps the theme's ink, and a team with no colour gets the neutral swatch.
+  The TV view's games carry the live scoreboard's ESPN codes, so its colour map is keyed by
+  those too.
+
 ### Small things: week 1, density, the crawl, inline styles (2026-09-29, roadmap UI-V8, V5, E10, E11)
 
 - **Week 1 teaches (V8).** Rendering every page against a clean week-1 fixture (no results,

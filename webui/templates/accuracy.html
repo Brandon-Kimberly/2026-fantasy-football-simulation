@@ -58,6 +58,26 @@ They measure different things -- a one-week horizon against weeks of it, this se
 </section>
 
 <section>
+<h2><svg class="i c-turf"><use href="#i-chart"/></svg> Are the chances right? <span class="hint">every quoted matchup and beat-the-median call, by how likely the model said it was</span></h2>
+{% if enough %}
+<div class="grid2"><div>{{ reliability_chart(reliability) }}</div>
+<div><p class="small">{{ n_calls }} calls in five bins. The dashed line is where a calibrated forecast sits: of the calls given about 70%, about 70% happen. The grey band around it is two standard errors at each bin's count, so a dot inside its band is inside the noise.</p>
+{% if brier_weeks %}<table><thead><tr><th>Week</th><th class="num">Brier, matchups</th><th class="num">Brier, the median</th></tr></thead><tbody>{% for b in brier_weeks %}<tr><td>Week {{ b.week }}</td><td class="num">{{ b.matchups|num(3) }}</td><td class="num">{{ b.median|num(3) }}</td></tr>{% endfor %}</tbody></table>
+<p class="small muted u-mt-8px">Brier is the squared distance between the chance and what happened: 0 is perfect, 0.25 is a coin flip every time.</p>{% endif %}</div></div>
+{% else %}<p class="small">{{ n_calls }} call{{ "s" if n_calls != 1 }} so far. The reliability diagram, the chance quoted against how often it happened, draws from week {{ enough_weeks }}: before that its bins hold a few calls each, and a few calls cannot tell a well-set chance from a badly set one.{% if brier_weeks %} Brier by week so far: {% for b in brier_weeks %}week {{ b.week }} {{ b.matchups|num(3) }}{% if not loop.last %}, {% endif %}{% endfor %} (0 is perfect, 0.25 a coin flip every time).{% endif %}</p>{% endif %}
+</section>
+
+<section>
+<h2><svg class="i c-pos"><use href="#i-chart"/></svg> Where players' weeks landed <span class="hint">each rostered player's points as a percentile of the model's range for that week</span></h2>
+{% if landings.n %}
+<table><thead><tr><th>Landed</th><th class="num">Weeks</th><th class="num">Share</th><th class="num">If the ranges are right</th><th class="num">Ratio</th></tr></thead><tbody>
+{% for b in landings.bins %}<tr><td>{{ b.label }}</td><td class="num">{{ b.count }}</td><td class="num">{{ b.share|pct(0) }}</td><td class="num">{{ b.expected|pct(0) }}</td><td class="num"><b>{{ b.ratio|num(2) }}</b> <span class="muted">{{ b.ratio_se|se }}</span></td></tr>{% endfor %}
+</tbody></table>
+<p class="small muted u-mt-8px">{{ landings.n }} player-weeks from {{ landings.players }} players, weeks {{ landings.weeks|join(", ") }}. If the model's ranges are right, each row holds its share and every ratio sits near 1. Ratios above 1 at both ends would mean the ranges are too narrow; above 1 in the middle, too wide. The range is each forecast's one-week spread pooled over the weeks it simulated, and a zero is left out, as it usually means the player did not play.</p>
+{% else %}<p class="small">No player-week has both a forecast range and a result yet. This fills in from the first week whose forecast was run before its games.</p>{% endif %}
+</section>
+
+<section>
 <h2><svg class="i c-violet"><use href="#i-cal"/></svg> Week by week</h2>
 {% for w in weeks %}
 <details class="wk"{% if loop.first %} open{% endif %}>

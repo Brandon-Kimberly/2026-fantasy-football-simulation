@@ -228,13 +228,24 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["avatar"] = overlay.avatar
     app.jinja_env.filters["headshot"] = lambda pid: root.image("players", pid)          # UI-P6: local only, or None
     app.jinja_env.filters["logo"] = lambda team: root.image("teams", team)
+    # UI-V4: {NFL team: "#rrggbb"} from the sync's cache -- the primary colour, else the alternate; {} before a sync
+    def nfl_colors(espn=False):
+        out = {t: (c.get("color") or c.get("alt")) for t, c in (root.read_json("current/nfl_team_colors.json", {}) or {}).items()
+               if isinstance(c, dict) and (c.get("color") or c.get("alt"))}
+        if espn:                         # the live scoreboard names teams by ESPN's codes (webui.live.ABBR_ALIASES)
+            from webui.live import ABBR_ALIASES
+            out.update({e: out[r] for e, r in ABBR_ALIASES.items() if r in out})
+        return out
+    app.jinja_env.globals["nfl_colors"] = nfl_colors
+    from webui.calibration import ordinal as _ordinal
+    app.jinja_env.globals["ordinal"] = _ordinal                       # UI-P3: "83rd"
     app.jinja_env.filters["pretty"] = render.pretty_url
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
     app.jinja_env.globals["sparkline"] = render.sparkline
     app.jinja_env.globals["strip"] = render.strip                 # UI-P2
-    for _n in ("heat", "slope", "dots", "fan", "pctbar"):             # UI-V3 primitives
+    for _n in ("heat", "slope", "dots", "fan", "pctbar", "reliability_chart"):             # UI-V3 primitives
         app.jinja_env.globals[_n] = getattr(render, _n)
     app.jinja_env.globals["pct0"] = lambda v: render.fpct(v, 0)
     app.jinja_env.globals["chat_parts"] = render.chat_parts             # UI-R3
@@ -720,7 +731,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/accuracy")
     def accuracy_page():
         """W17: what the model quoted before each week's games, against what happened."""
-        return render_template("accuracy.html", backtest=accuracymod.backtest_read(root), **accuracymod.report(root))
+        from webui.calibration import league_histogram
+        return render_template("accuracy.html", backtest=accuracymod.backtest_read(root), landings=league_histogram(root),   # UI-P3
+                               enough_weeks=accuracymod.ENOUGH_WEEKS, **accuracymod.report(root))
 
     @app.route("/decisions")
     def decisions_tab():

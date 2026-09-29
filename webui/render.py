@@ -1419,6 +1419,41 @@ def dots(bins, per_dot=None, width=420, unit="seasons", hi=(), name=str):
     return Markup("".join(out) + _tview(["", unit, "share"], table))
 
 
+def reliability_chart(rows, width=360, height=320):
+    """UI-Q1: a reliability diagram. Forecast probability across, how often it happened up, on
+    one 0-100% scale both ways; the diagonal is where a calibrated forecast sits, and each
+    bin's grey band is that diagonal +- 2 standard errors at the bin's count -- a dot inside it
+    is inside the noise. One dot per non-empty bin, sized by nothing but a hover with the
+    numbers; a table view carries every bin, empty ones included."""
+    from markupsafe import Markup
+    got = [r for r in rows if r.get("n")]
+    if not got:
+        return Markup("")
+    L, R, T, B = 40, 12, 12, 34
+    W, H = width - L - R, height - T - B
+    x = lambda p: L + p * W                  # noqa: E731
+    y = lambda p: T + (1 - p) * H            # noqa: E731
+    out = [f'<svg class="viz relia" viewBox="0 0 {width} {height}" role="img" aria-label="reliability diagram: forecast probability against how often it happened">']
+    for t in (0, 0.25, 0.5, 0.75, 1.0):
+        out.append(f'<line class="grid" x1="{L}" x2="{L + W}" y1="{y(t):.1f}" y2="{y(t):.1f}"/>'
+                   f'<text class="yl" x="{L - 6}" y="{y(t) + 4:.1f}" text-anchor="end">{int(t * 100)}%</text>'
+                   f'<text class="xl" x="{x(t):.1f}" y="{T + H + 16}" text-anchor="middle">{int(t * 100)}%</text>')
+    out.append(f'<line class="diag" x1="{x(0):.1f}" y1="{y(0):.1f}" x2="{x(1):.1f}" y2="{y(1):.1f}"/>')
+    for r in got:
+        f, o, se = r["forecast"], r["observed"], r["se"]
+        lo, hi = max(0.0, f - 2 * se), min(1.0, f + 2 * se)
+        out.append(f'<rect class="band" x="{x(r["lo"]) + 2:.1f}" width="{(r["hi"] - r["lo"]) * W - 4:.1f}" y="{y(hi):.1f}" height="{y(lo) - y(hi):.1f}"/>')
+        out.append(f'<g class="pt"><title>forecasts {int(r["lo"] * 100)}-{int(r["hi"] * 100)}%: {r["n"]} calls, '
+                   f'average forecast {f * 100:.0f}%, happened {o * 100:.0f}% (calibrated: {lo * 100:.0f}-{hi * 100:.0f}%)</title>'
+                   f'<circle cx="{x(f):.1f}" cy="{y(o):.1f}" r="5"/></g>')
+    out.append(f'<text class="xl" x="{L + W / 2:.1f}" y="{height - 4}" text-anchor="middle">forecast chance</text></svg>')
+    table = [[f"{int(r['lo'] * 100)}-{int(r['hi'] * 100)}%", str(r["n"]),
+              "—" if r["forecast"] is None else f"{r['forecast'] * 100:.0f}%",
+              "—" if r["observed"] is None else f"{r['observed'] * 100:.0f}%",
+              "—" if r["se"] is None else f"{r['se'] * 100:.0f} pts"] for r in rows]
+    return Markup("".join(out) + _tview(["forecasts", "calls", "average forecast", "happened", "standard error"], table))
+
+
 def fan(labels, bands, unit="", width=640, height=220, nd=1):
     """A fan chart: the 10th-90th and 25th-75th percentile bands (--c-seq-1, --c-seq-2) and the
     median line (--c-me) over the x labels, on one scale with round ticks; a hover per x with
