@@ -60,6 +60,19 @@
 <style>table.lu3 tr.differs td { background: var(--warn-bg); font-weight: 600; } table.lu3 th { vertical-align: bottom; } table.lu3 th .small { text-transform: none; letter-spacing: 0; font-weight: 400; font-family: inherit; }</style>
 {% endif %}
 
+{% if split and split.rows %}{% set sp = split %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-lever"/></svg> Where this game is decided <span class="hint">your lineup against {{ (sp.opponent|real) if sp.opponent else "theirs" }}, position by position · before kickoff</span></h2>
+<div class="scroller"><table class="split"><thead><tr><th>Slot</th><th>Yours</th><th class="num">Chance yours scores more</th><th>Theirs</th><th class="num">Share of the uncertainty</th></tr></thead><tbody>
+{% for r in sp.rows|sort(attribute="share", reverse=true) %}<tr><td class="muted">{{ r.slot }}</td><td>{{ r.mine }} <span class="small muted">{{ r.mine_mean|num(1) }}</span></td>
+<td class="num {{ 'pos' if r.p > 0.55 else ('neg' if r.p < 0.45) }}"><b>{{ r.p|pct(0) }}</b></td>
+<td>{{ r.theirs }} <span class="small muted">{{ r.theirs_mean|num(1) }}</span></td>
+<td class="num"><span class="bc"><span class="mini turf"><i data-width="{{ (100 * r.share)|round(0)|int }}"></i></span>{{ r.share|pct(0) }}</span></td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">Pairing the lineups position by position is a presentation choice, not a real contest: nobody's quarterback plays the other quarterback. Each chance treats both players as independent normal curves, with this week's projection as the middle and the forecast's spread for that player; the share is how much of the swing in the final margin sits in that pair, so the biggest shares are where the game is most likely to be won or lost.{% if sp.left_out %} {{ sp.left_out }} pair{{ "s" if sp.left_out != 1 }} left out: no spread on file for one of the players.{% endif %}</p>
+</section>
+{% endif %}
+
 {% if review and review.awards %}{% set rv = review %}
 <section>
 <h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review <span class="hint">results as the league counted them{% if rv.rescaled %} · the award points are Sleeper's re-scored box scores, under the league's later IDP settings{% endif %}</span></h2>

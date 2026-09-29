@@ -48,6 +48,13 @@ STAT_LABELS = {
     "idp_blk_kick": "blocked kick", "idp_def_td": "defensive TD",
     "fgm": "field goal", "fgmiss": "missed FG", "xpm": "extra point", "xpmiss": "missed XP",
     "def_td": "defensive TD", "sack": "sack", "int": "INT", "ff": "forced fumble", "safe": "safety",
+    # UI-M4: every other key the league scores (tests/fixtures/golden_sync/scoring_settings.json)
+    "fum_rec": "fumble recovery", "blk_kick": "blocked kick", "fgm_yds_over_30": "FG yds past 30",
+    "st_td": "special-teams TD", "st_ff": "special-teams forced fumble", "st_fum_rec": "special-teams fumble recovery",
+    "def_st_td": "return TD", "def_st_ff": "forced fumble on a return", "def_st_fum_rec": "fumble recovery on a return",
+    "pts_allow_0": "shutout", "pts_allow_1_6": "1-6 points allowed", "pts_allow_7_13": "7-13 points allowed",
+    "pts_allow_14_20": "14-20 points allowed", "pts_allow_21_27": "21-27 points allowed",
+    "pts_allow_28_34": "28-34 points allowed", "pts_allow_35p": "35+ points allowed",
 }
 
 
@@ -66,7 +73,7 @@ def stat_text(key, n):
     A yardage always carries its number; a count carries one only when it is not one."""
     label = STAT_LABELS.get(key) or str(key).replace("_", " ")
     n_i = int(round(float(n)))
-    if str(key).endswith("_yd") or str(key).endswith("_yds"):
+    if str(key).endswith("_yd") or str(key).endswith("_yds") or "_yds_" in str(key):
         return f"{n_i} {label}"
     if abs(n_i) == 1:
         return label
@@ -515,6 +522,7 @@ class LiveBoard:
                     self._snap = snapshot(self.root, week, self.my_team, self.league_id, self.fetch)
                     self._error = None if self._snap.get("ok") else self._snap.get("error")
                     if self._snap.get("ok"):
+                        add_categories(self._snap, self.scoring())                      # UI-M4
                         if self._snap.get("week") != self._week:
                             self._history, self._updates, self._week = [], [], self._snap.get("week")
                         else:
@@ -537,5 +545,12 @@ class LiveBoard:
 
 
 def add_categories(snap, scoring):
-    """UI-M4 characterisation stub."""
+    """UI-M4: each starter's scored categories this week (Sleeper's stat line, priced with the
+    league's own weights, biggest first), for the row's tooltip. No stat line or no scoring
+    settings -> an empty list, never a guess."""
+    stats = (snap or {}).get("stats") or {}
+    for side in ("mine", "theirs"):
+        for r in ((snap or {}).get(side) or {}).get("rows") or []:
+            parts = stat_parts({}, stats.get(str(r.get("pid"))) or {}, scoring or {}, limit=12)
+            r["cats"] = [{"text": p["text"], "pts": p["pts"]} for p in parts]
     return snap

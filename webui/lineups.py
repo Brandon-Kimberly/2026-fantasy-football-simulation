@@ -58,8 +58,8 @@ def _by_slot(lineup):
     return {s: sorted(n for n in names if n) for s, names in out.items()}
 
 
-def latest(root, week, my_team):
-    """The newest matchup_lineup record for `week` about the owner's team, or None."""
+def record(root, week, my_team):
+    """(the newest matchup_lineup record for `week` about the owner's team, its stamp), or None."""
     if not week or int(week) not in root.decision_weeks():
         return None
     dec = root.decisions(int(week))
@@ -69,4 +69,13 @@ def latest(root, week, my_team):
     rec = root.read_json(e["rel"], {}) if e else {}
     if not rec or (rec.get("team") and rec.get("team") != my_team):
         return None
-    return dict(objectives(rec), opponent=rec.get("opponent"), stamp=e["stamp"])
+    return rec, e["stamp"]
+
+
+def latest(root, week, my_team):
+    """The three objectives from the newest matchup record for `week`, or None."""
+    got = record(root, week, my_team)
+    if not got:
+        return None
+    rec, stamp = got
+    return dict(objectives(rec), opponent=rec.get("opponent"), stamp=stamp)
