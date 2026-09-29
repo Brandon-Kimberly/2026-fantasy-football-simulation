@@ -23,6 +23,7 @@ from flask import Flask, Response, abort, redirect, render_template, request, se
 
 from webui import accuracy as accuracymod
 from webui import records_view as recordsmod
+from webui import alerts as alertsmod
 from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, lineups as lineupsmod, luck as luckmod, matchup_split as splitmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
@@ -977,6 +978,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if week not in rep["weeks"]:
             abort(404)
         return _json(rep)
+
+    @app.route("/api/alerts")
+    def api_alerts():
+        """UI-R5: the alerts a page may fire -- designation changes, a big odds move, the next waiver run."""
+        return _json({"alerts": alertsmod.alerts(root, MY_TEAM)})
 
     @app.route("/api/odds")
     def api_odds():

@@ -11,6 +11,8 @@
 .others .og .sc { font-variant-numeric: tabular-nums; font-size: 13px; } .others .og .ogr.won .ogt, .others .og .ogr.won .sc { font-weight: 800; } .others .og .ogr.lost { opacity: .7; }
 .others .og .ogf { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 11.5px; color: var(--muted); } .others .og.is-live .pre { display: none; } .others .og .live { margin: 0; padding: 0; border: 0; } .others .og .live:empty { display: none; }
 .others .og .rt { color: var(--ink-2); }
+.alertrow { position: relative; display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 12px; font-size: 12px; color: var(--ink-2); }
+.alertrow label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
 .changeable { margin-top: 14px; } .changeable table { width: 100%; font-size: 12.5px; } .changeable td { padding: 4px 8px; border-top: 1px solid var(--grid); }
 .changeable tr.locked td { opacity: .45; } .changeable .cap { font-weight: 700; font-size: 12px; margin-bottom: 4px; }
 .hero::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 1px), var(--turf-line) calc(10% - 1px) 10%); opacity: .55; pointer-events: none; }
@@ -249,6 +251,13 @@
     <div class="ogf"><span class="pre">{% if g.p_a is not none %}chance {{ g.p_a|pct(0) }} – {{ (1 - g.p_a)|pct(0) }}{% else %}not played yet{% endif %}</span><span class="live"></span>{% if g.root_for %}<span class="rt">you want <b>{{ g.root_for|real }}</b> · {{ (g.root_diff * 100)|num(1) }} points of playoff odds</span>{% endif %}</div>
   </div>{% endfor %}</div>
   {% endif %}
+
+  {# ---- UI-R5: the alerts beside the kickoff one; opt-in, browser-only, while this page is open ---- #}
+  <div class="alertrow" id="alertrow"><span class="muted">Alert me, while this page is open, when</span>
+    <label><input type="checkbox" data-alert="designation"> a player's injury status changes</label>
+    <label><input type="checkbox" data-alert="lineup"> a lineup change is worth 2+ points of win chance</label>
+    <label><input type="checkbox" data-alert="odds"> my playoff odds move beyond their noise</label>
+    <label><input type="checkbox" data-alert="waiver"> the waiver run is 30 minutes away</label></div>
 
   {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
   <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}" data-started="{{ '1' if kick and kick.started else '0' }}">
@@ -536,6 +545,7 @@
 
   function draw(p) {
     var s = p.snapshot;
+    if (s && s.ok && window.alertLineup) window.alertLineup(s.plan);
     if (s && s.ok) drawOthers(s);
     // the developer's instruction for the developer; everyone else gets the plain fact
     if (!p.enabled) { meta.textContent = body.getAttribute('data-dev') === '1' ? 'not connected — set SLEEPER_LEAGUE_ID for this server' : 'live scores are not connected'; return; }
@@ -633,6 +643,55 @@
   // lead with, so read the scores on load (the board's minimum interval still guards Sleeper)
   if (enabled && (auto.checked || started || (initial.snapshot && initial.snapshot.ok))) fetchLive(started || !initial.snapshot);
   schedule();
+})();
+</script>
+<script>
+// UI-R5: opt-in alerts beside the kickoff one. Each fires once -- its key is remembered -- and
+// only while this page is open; nothing is pushed from the server.
+(function () {
+  var LINEUP_MIN = 0.02;                      // a display choice: a swap worth 2+ points of win chance
+  var boxes = document.querySelectorAll('#alertrow input[data-alert]');
+  function on(kind) { try { return localStorage.getItem('alert-' + kind) === '1'; } catch (e) { return false; } }
+  function fire(a) {
+    if (!window.Notification || Notification.permission !== 'granted' || !on(a.kind)) return;
+    var tag = 'alerted:' + a.key;
+    try { if (localStorage.getItem(tag)) return; localStorage.setItem(tag, '1'); } catch (e) { return; }
+    try { var n = new Notification(a.title, { body: a.body || '', tag: tag }); n.onclick = function () { window.focus(); n.close(); }; } catch (e) {}
+  }
+  Array.prototype.forEach.call(boxes, function (b) {
+    var kind = b.getAttribute('data-alert');
+    b.checked = on(kind);
+    if (!window.Notification) { b.disabled = true; b.checked = false; }
+    b.addEventListener('change', function () {
+      try { localStorage.setItem('alert-' + kind, b.checked ? '1' : '0'); } catch (e) {}
+      if (b.checked && window.Notification && Notification.permission !== 'granted') {
+        Notification.requestPermission().then(function (p) { if (p !== 'granted') { b.checked = false; } else { check(); } });
+      } else if (b.checked) { check(); }
+    });
+  });
+  var waiver = null;
+  function check() {
+    fetch('/api/alerts', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        ((d && d.alerts) || []).forEach(function (a) { if (a.kind === 'waiver') { waiver = a; } else { fire(a); } });
+        waitWaiver();
+      }).catch(function () {});
+  }
+  function waitWaiver() {
+    if (!waiver) return;
+    var secs = (Date.parse(waiver.at) - Date.now()) / 1000;
+    if (secs > 0 && secs <= 30 * 60) fire(waiver);
+  }
+  window.alertLineup = function (plan) {
+    var st = plan && plan.stakes;
+    if (!plan || !plan.actionable || !st || st.d_h2h == null || Math.abs(st.d_h2h) < LINEUP_MIN) return;
+    var names = (plan.start || []).map(function (x) { return x.name; }).sort().join(',');
+    fire({ kind: 'lineup', key: 'lineup:' + names, title: 'A lineup change is worth ' + Math.round(Math.abs(st.d_h2h) * 100) + ' points of win chance',
+           body: 'Start ' + (plan.start || []).map(function (x) { return x.name; }).join(', ') });
+  };
+  check();
+  setInterval(check, 5 * 60 * 1000);
+  setInterval(waitWaiver, 30 * 1000);
 })();
 </script>
 {% endblock %}
