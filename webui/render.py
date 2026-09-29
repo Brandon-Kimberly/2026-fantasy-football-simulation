@@ -1290,22 +1290,168 @@ def strip(v, hi, history=None, width=160, height=26):
     return Markup("".join(out))
 
 
-# ---- UI-V3 characterisation stubs
-def slope(rows, left, right, me=None, unit="", nd=1, width=420, height=None):
-    return ""
+# ---- UI-V3: chart primitives. One scale per chart, a hover <title> per mark, a table view
+# (the heat grid is itself a table; a percentage bar writes its number), and colour only
+# through classes that base.html's --c-* tokens fill -- validated with the dataviz tool in
+# both themes (tests.test_webui_primitives pins the values).
+
+def _tview(head, rows):
+    from markupsafe import escape
+    return ('<details class="tview"><summary>view as table</summary><div class="scroller"><table><thead><tr>'
+            + "".join(f"<th>{escape(h)}</th>" for h in head) + "</tr></thead><tbody>"
+            + "".join("<tr>" + "".join(f"<td>{escape(c)}</td>" for c in r) + "</tr>" for r in rows)
+            + "</tbody></table></div></details>")
 
 
-def heat(rows, cols, values, fmt=str, me=None):
-    return ""
+def _span(values, pad=0.06):
+    lo, hi = min(values), max(values)
+    if hi == lo:
+        lo, hi = lo - 1, hi + 1
+    d = (hi - lo) * pad
+    return lo - d, hi + d
 
 
-def dots(bins, per_dot=None, width=420, unit="seasons"):
-    return ""
+def slope(rows, left, right, me=None, unit="", nd=1, width=420, height=None, name=str):
+    """Each row's value at two moments, both on ONE scale: the owner's line in --c-me, every
+    other in the recessive --c-other (identity by the direct label, never by a generated hue).
+    Right-hand labels are nudged apart so none overlap. rows: [{name, a, b}]."""
+    from markupsafe import Markup, escape
+    rows = [r for r in rows if r.get("a") is not None and r.get("b") is not None]
+    if not rows:
+        return Markup("")
+    W, H = width, height or max(160, 24 * len(rows) + 56)
+    padt, padb, x1, x2 = 26, 16, 58, width - 150
+    lo, hi = _span([float(r["a"]) for r in rows] + [float(r["b"]) for r in rows])
+
+    def y(v):
+        return round(padt + (H - padt - padb) * (1 - (float(v) - lo) / (hi - lo)), 1)
+    out = [f'<svg class="viz slope" viewBox="0 0 {W} {H}" role="img" aria-label="{escape(left)} to {escape(right)}">',
+           f'<text class="yl" x="{x1}" y="14" text-anchor="middle">{escape(left)}</text>',
+           f'<text class="yl" x="{x2}" y="14" text-anchor="middle">{escape(right)}</text>']
+    order = sorted(rows, key=lambda r: r["name"] == me)                      # the owner drawn last, on top
+    placed, last = {}, -1e9
+    for yy, r in sorted(((y(r["b"]), r) for r in rows), key=lambda t: t[0]):
+        yy = max(yy, last + 12)
+        placed[r["name"]], last = yy, yy
+    for r in order:
+        cls = "sl me" if r["name"] == me else "sl"
+        nm = escape(name(r["name"]))
+        ya, yb = y(r["a"]), y(r["b"])
+        out.append(f'<g><title>{nm}: {fnum(r["a"], nd)}{unit} to {fnum(r["b"], nd)}{unit}</title>'
+                   f'<line class="{cls}" x1="{x1}" y1="{ya}" x2="{x2}" y2="{yb}"/>'
+                   f'<circle class="{cls}" cx="{x1}" cy="{ya}" r="3"/><circle class="{cls}" cx="{x2}" cy="{yb}" r="3"/>'
+                   f'<text class="vl" x="{x1 - 6}" y="{ya + 4}" text-anchor="end">{fnum(r["a"], nd)}</text>'
+                   f'<text class="nl{" me" if r["name"] == me else ""}" x="{x2 + 8}" y="{placed[r["name"]] + 4}">{fnum(r["b"], nd)} {nm}</text></g>')
+    out.append("</svg>")
+    table = [[name(r["name"]), f"{fnum(r['a'], nd)}{unit}", f"{fnum(r['b'], nd)}{unit}",
+              f"{float(r['b']) - float(r['a']):+.{nd}f}"] for r in rows]
+    return Markup("".join(out) + _tview(["", left, right, "change"], table))
 
 
-def fan(labels, bands, unit="", width=640, height=220):
-    return ""
+def heat(rows, cols, values, fmt=str, me=None, row_name=str, col_name=str, corner=""):
+    """A heat grid that writes its value in every cell: four sequential steps (--c-seq-1..4)
+    binned on the grid's own range, the text in the step's own ink token. A missing cell is
+    a dash. values: {(row, col): number}. The grid is its own table view."""
+    from markupsafe import Markup, escape
+    vals = [float(v) for v in values.values() if v is not None]
+    lo, hi = (min(vals), max(vals)) if vals else (0.0, 1.0)
+    out = [f'<div class="scroller"><table class="heat2"><thead><tr><th>{escape(corner)}</th>'
+           + "".join(f"<th>{escape(col_name(c))}</th>" for c in cols) + "</tr></thead><tbody>"]
+    for r in rows:
+        mine = ' class="me"' if r == me else ""
+        out.append(f'<tr{mine}><th class="nm">{escape(row_name(r))}</th>')
+        for c in cols:
+            v = values.get((r, c))
+            if v is None:
+                out.append('<td class="hc h0">—</td>')
+                continue
+            k = 2 if hi == lo else 1 + min(3, int((float(v) - lo) / (hi - lo) * 4))
+            text = escape(fmt(v))
+            out.append(f'<td class="hc h{k}" title="{escape(row_name(r))} · {escape(col_name(c))}: {text}">{text}</td>')
+        out.append("</tr>")
+    out.append("</tbody></table></div>")
+    return Markup("".join(out))
+
+
+def dots(bins, per_dot=None, width=420, unit="seasons", hi=(), name=str):
+    """A dot histogram: each dot is `per_dot` of the count (chosen so the tallest column holds
+    about twelve), columns labelled below, a hover per column (the count and its share).
+    Columns named in `hi` wear --c-me, the rest --c-other. bins: [(label, count)]."""
+    from markupsafe import Markup, escape
+    bins = [(str(lab), int(c or 0)) for lab, c in bins]
+    total = sum(c for _lab, c in bins)
+    if not bins or not total:
+        return Markup("")
+    top = max(c for _lab, c in bins)
+    per = per_dot or max(1, math_ceil(top / 12))
+    r, gap = 5, 3
+    n = len(bins)
+    colw = max(2 * r + 4, (width - 20) / n)
+    tall = max(int(round(c / per)) for _lab, c in bins)
+    H = 28 + max(1, tall) * (2 * r + gap) + 20
+    out = [f'<svg class="viz dotsh" viewBox="0 0 {width} {H}" role="img" aria-label="dot histogram, each dot {per} {escape(unit)}">']
+    for i, (lab, c) in enumerate(bins):
+        cx = 10 + colw * i + colw / 2
+        k = 0 if c == 0 else max(1, int(round(c / per)))
+        cls = "dcol on" if lab in hi else "dcol"
+        share = c / total * 100
+        circles = "".join(f'<circle cx="{cx:.1f}" cy="{H - 24 - j * (2 * r + gap):.1f}" r="{r}"/>' for j in range(k))
+        out.append(f'<g class="{cls}"><title>{escape(name(lab))}: {c:,} {escape(unit)} ({share:.0f}%)</title>'
+                   f'<rect class="hit" x="{cx - colw / 2:.1f}" y="0" width="{colw:.1f}" height="{H - 18}"/>{circles}</g>')
+        out.append(f'<text class="xl" x="{cx:.1f}" y="{H - 4}" text-anchor="middle">{escape(name(lab))}</text>')
+    out.append(f'<text class="yl" x="{width - 4}" y="12" text-anchor="end">each dot {per:,} {escape(unit)}</text></svg>')
+    table = [[name(lab), f"{c:,}", f"{c / total * 100:.1f}%"] for lab, c in bins]
+    return Markup("".join(out) + _tview(["", unit, "share"], table))
+
+
+def fan(labels, bands, unit="", width=640, height=220, nd=1):
+    """A fan chart: the 10th-90th and 25th-75th percentile bands (--c-seq-1, --c-seq-2) and the
+    median line (--c-me) over the x labels, on one scale with round ticks; a hover per x with
+    all five numbers. bands: [{p10, p25, p50, p75, p90}], one per label."""
+    from markupsafe import Markup, escape
+    keys = ("p10", "p25", "p50", "p75", "p90")
+    pts = [(i, b) for i, b in enumerate(bands) if b and all(b.get(k) is not None for k in keys)]
+    if len(pts) < 2:
+        return Markup("")
+    ticks = nice_ticks(min(b["p10"] for _i, b in pts), max(b["p90"] for _i, b in pts))
+    lo, hi = ticks[0], ticks[-1]
+    padl, padr, padt, padb = 40, 12, 12, 26
+    W, H = width, height
+    n = len(labels)
+
+    def x(i):
+        return round(padl + i * (W - padl - padr) / max(1, n - 1), 1)
+
+    def y(v):
+        return round(padt + (H - padt - padb) * (1 - (float(v) - lo) / (hi - lo)), 1)
+    out = [f'<svg class="viz fan" viewBox="0 0 {W} {H}" role="img" aria-label="range by {escape(str(labels[0]))} to {escape(str(labels[-1]))}">']
+    for t in ticks:
+        out.append(f'<line class="ax" x1="{padl}" y1="{y(t)}" x2="{W - padr}" y2="{y(t)}"/>'
+                   f'<text class="yl" x="{padl - 6}" y="{y(t) + 4}" text-anchor="end">{fnum(t, 0)}{escape(unit)}</text>')
+    for cls, a, b in (("band outer", "p10", "p90"), ("band inner", "p25", "p75")):
+        ring = [f"{x(i)},{y(bd[b])}" for i, bd in pts] + [f"{x(i)},{y(bd[a])}" for i, bd in reversed(pts)]
+        out.append(f'<polygon class="{cls}" points="{" ".join(ring)}"/>')
+    med = " ".join(f"{x(i)},{y(bd['p50'])}" for i, bd in pts)
+    out.append(f'<polyline class="med" points="{med}"/>')
+    step = (W - padl - padr) / max(1, n - 1)
+    for i, bd in pts:
+        lab = escape(str(labels[i]))
+        u = escape(unit)
+        out.append(f'<rect class="hit" x="{x(i) - step / 2:.1f}" y="{padt}" width="{step:.1f}" height="{H - padt - padb}">'
+                   f'<title>{lab}: median {fnum(bd["p50"], nd)}{u} · middle half {fnum(bd["p25"], nd)}–{fnum(bd["p75"], nd)} · '
+                   f'8 in 10 {fnum(bd["p10"], nd)}–{fnum(bd["p90"], nd)}</title></rect>')
+        out.append(f'<text class="xl" x="{x(i)}" y="{H - 8}" text-anchor="middle">{lab}</text>')
+    out.append("</svg>")
+    table = [[labels[i]] + [fnum(bd[k], nd) for k in keys] for i, bd in pts]
+    return Markup("".join(out) + _tview(["", "10th", "25th", "median", "75th", "90th"], table))
 
 
 def pctbar(p, nd=1):
-    return ""
+    """A percentage bar for a table cell: the bar clamped to 0-100%, the number always written."""
+    from markupsafe import Markup
+    try:
+        f = float(p)
+    except (TypeError, ValueError):
+        return "—"
+    w = max(0.0, min(1.0, f)) * 100
+    return Markup(f'<span class="pbar"><span class="trk"><i style="width:{w:.1f}%"></i></span><b>{f * 100:.{nd}f}%</b></span>')
