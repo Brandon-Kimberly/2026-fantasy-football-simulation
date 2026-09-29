@@ -1235,3 +1235,8 @@ def log_title(name):
             tail = stem[len(key):].strip("_").replace("_", " ")
             return (f"{title} {tail}".strip(), desc)
     return (stem.replace("_", " "), "")
+
+
+def strip(v, hi, history=None, width=160, height=26):
+    """UI-P2 characterisation stub."""
+    return ""
