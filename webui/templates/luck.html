@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
+{% block title %}Luck · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.lteams { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.lteams a { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px 3px 4px; border: 1px solid var(--grid); border-radius: 999px; text-decoration: none; color: var(--ink-2); font-size: 12.5px; background: var(--surface); }
+.lteams a.on { border-color: var(--turf); color: var(--turf); font-weight: 600; }
+table.luck td { vertical-align: top; } table.luck td.nm { white-space: normal; min-width: 18rem; } table.luck .what { font-size: 12.5px; color: var(--muted); max-width: 44ch; white-space: normal; }
+.way-lucky { color: var(--pos); font-weight: 600; } .way-unlucky { color: var(--neg); font-weight: 600; }
+</style>
+<div class="head">
+  <p class="eyebrow">luck · {{ r.weeks }} week{{ "s" if r.weeks != 1 }} played</p>
+  <h1>How the dice fell for {{ r.team|real }}</h1>
+  <p class="lede">Five measures of luck, each defined before the season began and each measured against the league rather than against the model, so the model's own misses are not called luck. They are shown side by side and never added into one number.</p>
+  <div class="lteams">{% for t in teams %}<a href="/luck?team={{ t|slug }}" class="{{ 'on' if t == r.team }}">{{ mark(t) }}{{ t|real }}</a>{% endfor %}</div>
+</div>
+<section>
+<div class="scroller"><table class="luck"><thead><tr><th>Measure</th><th class="num">Value</th><th>Which way</th><th>Can it be told from noise?</th></tr></thead><tbody>
+{% for m in r.rows %}<tr class="measure"><td class="nm"><b>{{ m.label }}</b><div class="what">{{ m.what }}</div></td>
+{% if m.metric %}<td class="num"><b>{{ m.metric.delta|signed(2) }}</b> <span class="small muted">{{ m.metric.se|se }}</span><div class="small muted">{{ m.unit }}</div></td>
+<td class="way-{{ m.way }}">{{ m.way }}</td>
+<td>{% if r.early %}<span class="muted">too early to test: fewer than {{ r.min_weeks }} weeks</span>{% elif m.p is not none %}{{ m.word }} <span class="small muted">(z {{ m.z|signed(2) }}, p {{ m.p|num(3) }})</span>{% else %}<span class="muted">no spread to test against</span>{% endif %}</td>
+{% else %}<td class="num muted">—</td><td colspan="2" class="small muted">{{ m.why_none }}</td>{% endif %}</tr>{% endfor %}
+</tbody></table></div>
+{% if r.early %}<p class="small muted" style="margin-top:8px">With {{ r.weeks }} week{{ "s" if r.weeks != 1 }} played, nothing here can be told from chance, so no test is shown until week {{ r.min_weeks }} — a threshold set before the season. The ± beside each value is the honest content now: it says how noisy each number still is.</p>{% endif %}
+{% if r.disagreement %}{% set d = r.disagreement %}<p class="small muted">The league banked {{ d.banked }} wins for {{ r.team|real }}, but today's box scores add up to {{ d.recomputed }} ({{ d.h2h_wins }} head-to-head and {{ d.median_wins }} against the median): Sleeper now scores finished weeks under the league's later settings. The two measures that depend on who won are withheld rather than shown on rewritten results.</p>{% endif %}
+</section>
+{% endblock %}

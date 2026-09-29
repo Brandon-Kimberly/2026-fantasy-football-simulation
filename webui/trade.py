@@ -37,15 +37,15 @@ def _slots(name, entry):
     return s
 
 
-def best_lineup(players, week=None, slots=REQUIRED_STARTING_SLOTS):
-    """(total, [names starting], empty slots) for {name: baseline entry}: the highest total
-    expected points an assignment to `slots` can reach, leaving out anyone on IR and, when
-    `week` is given, anyone on bye that week."""
+def _assign(players, week=None, slots=REQUIRED_STARTING_SLOTS):
+    """[(slot index, name, mean)] for the best assignment: the highest total expected points
+    an assignment of {name: baseline entry} to `slots` can reach, leaving out anyone on IR
+    and, when `week` is given, anyone on bye that week."""
     from scipy.optimize import linear_sum_assignment
     pool = [(n, e) for n, e in players.items()
             if isinstance(e, dict) and not e.get("on_ir") and not (week is not None and e.get("bye") == week)]
     if not pool:
-        return 0.0, [], len(slots)
+        return []
     big = 1e6
     cost = []
     for slot in slots:
@@ -55,12 +55,59 @@ def best_lineup(players, week=None, slots=REQUIRED_STARTING_SLOTS):
             row.append(-float(e.get("mean") or 0.0) if ok else big)
         cost.append(row)
     r, c = linear_sum_assignment(cost)
+    return [(int(i), pool[j][0], -cost[i][j]) for i, j in zip(r, c) if cost[i][j] < big]
+
+
+def best_lineup(players, week=None, slots=REQUIRED_STARTING_SLOTS):
+    """(total, [names starting], empty slots) for {name: baseline entry} -- see _assign."""
+    got = _assign(players, week, slots)
     total, used = 0.0, []
-    for i, j in zip(r, c):
-        if cost[i][j] < big:
-            total += -cost[i][j]
-            used.append(pool[j][0])
+    for _i, name, mean in got:
+        total += mean
+        used.append(name)
     return round(total, 2), used, len(slots) - len(used)
+
+
+def _slot_labels(slots=REQUIRED_STARTING_SLOTS):
+    """QB, RB 1, RB 2, WR 1, WR 2, FLEX 1... -- a slot the lineup has twice is numbered."""
+    seen, out = {}, []
+    for sl in slots:
+        seen[sl] = seen.get(sl, 0) + 1
+        out.append(f"{sl} {seen[sl]}" if slots.count(sl) > 1 else sl)      # "WR 1": "WR1" reads as an audit code (R1)
+    return out
+
+
+def factors(before, after, weeks):
+    """UI-T3: why a side's number moves, computed rather than narrated -- the starters that go
+    out and come in, the starting line slot by slot (season averages), the weeks two or more
+    of the new starters share a bye that fewer did before, and each position's active depth."""
+    labels = _slot_labels()
+    b_slots = {i: (n, m) for i, n, m in _assign(before)}
+    a_slots = {i: (n, m) for i, n, m in _assign(after)}
+    b_names = {n for n, _m in b_slots.values()}
+    a_names = {n for n, _m in a_slots.values()}
+    slots = []
+    for i, label in enumerate(labels):
+        bn, bm = b_slots.get(i, (None, 0.0))
+        an, am = a_slots.get(i, (None, 0.0))
+        if bn != an:
+            slots.append({"slot": label, "before": bn, "after": an, "before_mean": round(bm, 2) if bn else None,
+                          "after_mean": round(am, 2) if an else None, "delta": round(am - bm, 2)})
+    byes = []
+    for w in weeks:
+        a_off = sorted(n for n in a_names if (after.get(n) or {}).get("bye") == w)
+        b_off = [n for n in b_names if (before.get(n) or {}).get("bye") == w]
+        if len(a_off) >= 2 and len(a_off) > len(b_off):
+            byes.append({"week": w, "players": a_off})
+    depth = {}
+    for side, roster in (("before", before), ("after", after)):
+        for n, e in roster.items():
+            if e.get("on_ir"):
+                continue
+            pos = e.get("pos") or "?"
+            depth.setdefault(pos, {"before": 0, "after": 0})[side] += 1
+    return {"out": sorted(b_names - a_names), "in": sorted(a_names - b_names), "slots": slots, "byes": byes,
+            "depth": dict(sorted(depth.items()))}
 
 
 def _active(roster, base):
@@ -101,7 +148,8 @@ def estimate(root, team_a, a_gives, team_b, b_gives):
                        "per_week": round(sum(r["delta"] for r in rows) / len(rows), 2) if rows else 0.0,
                        "total": round(sum(r["delta"] for r in rows), 1), "new_holes": holes,
                        "active_after": active_after, "over": over,
-                       "drops": [{"name": n, "mean": m} for n, m in bench[:over]]}
+                       "drops": [{"name": n, "mean": m} for n, m in bench[:over]],
+                       "factors": factors(before, after, weeks)}                                    # UI-T3
     simulate = "/tools/evaluate_trade?" + urlencode({"team_a": team_a, "a_gives": ", ".join(a_gives),
                                                       "team_b": team_b, "b_gives": ", ".join(b_gives)})
     return {"sides": sides, "weeks": weeks, "simulate": simulate, "a": team_a, "b": team_b}
