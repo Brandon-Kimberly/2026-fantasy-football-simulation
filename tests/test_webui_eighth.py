@@ -218,8 +218,14 @@ class TestPages(unittest.TestCase):
         return r.get_data(as_text=True)
 
     def test_home_countdown_and_head_to_head_in_both_views(self):
+        # The clock is pinned inside the fixture's week: on the real clock this test failed for
+        # good once the fixture's last kickoff (2026-09-29T00:15Z) had passed.
+        from unittest.mock import patch
+        import webui.glance as glance_mod
+        real = glance_mod.kickoff_report
+        pinned = lambda root, week, now=None: real(root, week, now=now or utc("2026-09-24T22:15:00Z"))  # noqa: E731
         for mode in ("dev", "simple"):
-            with self.subTest(mode=mode):
+            with self.subTest(mode=mode), patch.object(glance_mod, "kickoff_report", pinned):
                 body = self.get("/", mode=mode)
                 self.assertIn('id="kick"', body)                                   # U6
                 self.assertIn('data-at="2026-09-', body)
