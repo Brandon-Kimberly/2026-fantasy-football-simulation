@@ -1878,14 +1878,10 @@ class FantasySimulationEngine:
                 batch_toilet_rates[t].append(b_toilets[t] / sims_per_batch)
 
         print("[SUCCESS] Markov simulation resolved across all batches. Rendering visual telemetry...")
-        self.export_and_visualize(
-            global_season_wins, global_season_points, batch_playoff_rates,
-            batch_champ_rates, batch_toilet_rates, global_trajectories,
-            h2h_matrix, points_against, all_play_wins, championship_player_shares,
-            max_single_week_score, max_score_team, max_score_week, audit_log, total_sims,
-            global_weekly_scores, seed_matrix
-        )
-        save_json(sim_outcomes_path(self.current_week), {
+        # Handed to export_and_visualize, which writes it with the rest: every file a run writes goes
+        # through that one method -- the contract the suite's hermeticity rests on (a test that patches
+        # it out writes nothing; tests.test_sim_outcomes.TestEveryWriteGoesThroughTheExport).
+        self._sim_outcomes = {
             "_meta": {"week": self.current_week, "sims": total_sims, "batches": num_batches,
                       "format": "one string per simulated season: '<week codes joined by |>;<seeds>;<champion>'. "
                                 "A week code is one character per scheduled game in `matchups` order -- 1 the "
@@ -1896,7 +1892,14 @@ class FantasySimulationEngine:
             "median_enabled": bool(SIM_CONFIG.get('MEDIAN_SCORING_ENABLED', True)),
             "matchups": {str(w): [list(p) for p in (self.league_schedule[w - 1] if w - 1 < len(self.league_schedule) else [])]
                          for w in outcome_weeks},
-            "seasons": outcome_rows})
+            "seasons": outcome_rows}
+        self.export_and_visualize(
+            global_season_wins, global_season_points, batch_playoff_rates,
+            batch_champ_rates, batch_toilet_rates, global_trajectories,
+            h2h_matrix, points_against, all_play_wins, championship_player_shares,
+            max_single_week_score, max_score_team, max_score_week, audit_log, total_sims,
+            global_weekly_scores, seed_matrix
+        )
 
     def export_and_visualize(self, wins, points, b_playoffs, b_champs, b_toilets, trajectories,
                              h2h, pts_against, all_play, champ_players, max_score, max_team, max_wk,
@@ -2386,6 +2389,10 @@ class FantasySimulationEngine:
         # leak an export-layer addition into the run_simulation hash.
         save_json(simulation_audit_log_path(self.current_week),
                   {**audit_log, 'warnings': _RUN_WARNINGS.since(self._warnings_seq_start)})
+        # Decision 1 / UI-E5: the per-season outcome record run_simulation left for this method.
+        outcome_record = self.__dict__.pop('_sim_outcomes', None)
+        if outcome_record is not None:
+            save_json(sim_outcomes_path(self.current_week), outcome_record)
 
         print(f"\n[EXPORT COMPLETE] Telemetry and 5 visual artifacts rendered for Week {self.current_week}.")
 
