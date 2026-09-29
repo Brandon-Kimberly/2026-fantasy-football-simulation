@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, luck as luckmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
+from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, lineups as lineupsmod, luck as luckmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -450,7 +450,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             abort(404)
         started = bool(kickoff_report(root, rep["week"]).get("started")) if rep["week"] == cur else False
         review = recapmod.week_recap(root, rep["week"], MY_TEAM)                     # UI-R1 / R2
-        return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, **rep)
+        lu = lineupsmod.latest(root, rep["week"], MY_TEAM) if rep["week"] == cur else None           # UI-L2
+        return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, lineups=lu, **rep)
 
     @app.route("/favicon.ico")
     def favicon():

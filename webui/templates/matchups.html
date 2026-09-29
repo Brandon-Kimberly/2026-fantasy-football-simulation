@@ -48,6 +48,18 @@
 </div>
 {% else %}<div class="note">No schedule on file for week {{ week }}.</div>{% endif %}
 
+{% if lineups and lineups.columns %}{% set lu = lineups %}
+<section>
+<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Three ways to set your lineup <span class="hint">from the matchup record of {{ lu.stamp|when }}{% if lu.opponent %} against {{ lu.opponent|real }}{% endif %}</span></h2>
+{% if lu.agree %}<p class="note">This week all three agree: the lineup with the most expected points is also the best bet against {{ (lu.opponent|real) if lu.opponent else "your opponent" }} and against the median.</p>{% endif %}
+<div class="scroller"><table class="lu3"><thead><tr><th>Slot</th>{% for c in lu.columns %}<th>{{ {"points": "Most expected points", "opponent": "Best chance to win the game", "median": "Best chance to beat the median"}[c.objective] }}<div class="small muted">{{ c.mean|num(1) }} points · {{ c.p_opponent|pct(0) }} to win · {{ c.p_median|pct(0) }} to beat the median</div></th>{% endfor %}</tr></thead><tbody>
+{% for r in lu.rows %}<tr class="{{ 'differs' if r.differs }}"><td class="muted">{{ r.slot }}</td>{% for n in r.names %}<td>{{ n or "—" }}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">{% if not lu.agree %}Highlighted rows are where the three differ. {% endif %}The median column is the best of the lineups the matchup tool built, judged on beating the median, not a lineup built for the median alone.</p>
+</section>
+<style>table.lu3 tr.differs td { background: var(--warn-bg); font-weight: 600; } table.lu3 th { vertical-align: bottom; } table.lu3 th .small { text-transform: none; letter-spacing: 0; font-weight: 400; font-family: inherit; }</style>
+{% endif %}
+
 {% if review and review.awards %}{% set rv = review %}
 <section>
 <h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review <span class="hint">results as the league counted them{% if rv.rescaled %} · the award points are Sleeper's re-scored box scores, under the league's later IDP settings{% endif %}</span></h2>
