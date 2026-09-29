@@ -108,6 +108,23 @@ class TestClearingPrices(Case):
                          ("Nick Bolton", 3, 5, 7, 7, "below"))
 
 
+class TestAUnionMergedLog(Case):
+    """The sync writes the failed-claims log and the scheduled run can race it, so it is
+    union-merged (.gitattributes, F87's rule), and a union merge can leave a row twice. Every
+    reader keeps the first row per transaction_id, as the decision log's readers do."""
+
+    def test_a_duplicated_row_is_counted_once(self):
+        p = os.path.join(self.td.name, "data", "logs", "failed_claims.jsonl")
+        with open(p, encoding="utf-8") as fh:
+            lines = [ln for ln in fh if ln.strip()]
+        with open(p, "a", encoding="utf-8") as fh:
+            fh.write(lines[1])                                  # f2 again, as a union merge leaves it
+        from webui.players_page import clearing_prices, waiver_run
+        bolton = next(c for c in clearing_prices(self.root, MY_TEAM)["claims"] if c["player"] == "Nick Bolton")
+        self.assertEqual(bolton["losing"], 2)
+        self.assertEqual(len(waiver_run(self.root, MY_TEAM)["claims"][0]["losing"]), 2)
+
+
 class TestTheBoard(Case):
     def test_the_waiver_run_shows_the_next_best_bid(self):
         from webui.players_page import waiver_run
