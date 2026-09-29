@@ -174,6 +174,8 @@ p { margin: .4em 0; }
 .rank { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-family: var(--display); font-size: 11px; font-weight: 800; color: var(--muted); background: var(--mid); }
 .rank.r1 { background: var(--g-gold); color: #2b2000; box-shadow: 0 2px 8px rgba(201,150,42,.45); } .rank.r2 { background: linear-gradient(135deg, #9aa3ad, #d4d9de); color: #fff; } .rank.r3 { background: linear-gradient(135deg, #a5602d, #d4906a); color: #fff; }
 img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
+/* UI-V4: an NFL team's colour as a swatch beside its code -- never the text's colour; neutral when none is cached */
+.nflsw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--team, var(--mid)); box-shadow: 0 0 0 1px var(--rule); }
 /* UI-P6: a player's face (the local headshot, or the NFL team's logo), after .mark so it wins */
 .face { display: inline-block; width: 22px; height: 22px; border-radius: 50%; vertical-align: middle; margin-right: 7px; flex: none; }
 img.face { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }

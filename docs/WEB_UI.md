@@ -957,6 +957,18 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### NFL team colours (2026-09-29, roadmap UI-V4)
+
+- **The cache.** `sync.fetch_nfl_team_colors` reads ESPN's teams endpoint and writes
+  `data/current/nfl_team_colors.json`, one `{color, alt}` pair per team under this repo's
+  codes. ESPN's WSH becomes WAS. A value that is not six hex digits is None, not guessed.
+  It is cosmetic: a failed fetch writes nothing and logs at INFO.
+- **The swatch.** A 10-pixel square beside the team code, with a 1-pixel ring so a dark
+  colour still reads on a dark page. It appears on the schedule grid and in the TV view's
+  games. The text keeps the theme's ink, and a team with no colour gets the neutral swatch.
+  The TV view's games carry the live scoreboard's ESPN codes, so its colour map is keyed by
+  those too.
+
 ### Small things: week 1, density, the crawl, inline styles (2026-09-29, roadmap UI-V8, V5, E10, E11)
 
 - **Week 1 teaches (V8).** Rendering every page against a clean week-1 fixture (no results,

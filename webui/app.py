@@ -228,6 +228,15 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["avatar"] = overlay.avatar
     app.jinja_env.filters["headshot"] = lambda pid: root.image("players", pid)          # UI-P6: local only, or None
     app.jinja_env.filters["logo"] = lambda team: root.image("teams", team)
+    # UI-V4: {NFL team: "#rrggbb"} from the sync's cache -- the primary colour, else the alternate; {} before a sync
+    def nfl_colors(espn=False):
+        out = {t: (c.get("color") or c.get("alt")) for t, c in (root.read_json("current/nfl_team_colors.json", {}) or {}).items()
+               if isinstance(c, dict) and (c.get("color") or c.get("alt"))}
+        if espn:                         # the live scoreboard names teams by ESPN's codes (webui.live.ABBR_ALIASES)
+            from webui.live import ABBR_ALIASES
+            out.update({e: out[r] for e, r in ABBR_ALIASES.items() if r in out})
+        return out
+    app.jinja_env.globals["nfl_colors"] = nfl_colors
     app.jinja_env.filters["pretty"] = render.pretty_url
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr

@@ -96,7 +96,7 @@ class TestThePages(unittest.TestCase):
         with open(os.path.join(self.td.name, "data", "weeks", "week_03", "strength_of_schedule.json"), "w", encoding="utf-8") as fh:
             json.dump(SOS, fh)
         with open(os.path.join(self.td.name, "data", "current", "nfl_team_colors.json"), "w", encoding="utf-8") as fh:
-            json.dump({"KC": {"color": "#e31837", "alt": "#ffb612"}}, fh)
+            json.dump({"KC": {"color": "#e31837", "alt": "#ffb612"}, "WAS": {"color": "#5a1414", "alt": "#ffb612"}}, fh)
         self.root = Root(self.td.name)
 
     def tearDown(self):
@@ -122,6 +122,8 @@ class TestThePages(unittest.TestCase):
     def test_the_tv_view_gets_the_colours(self):
         body = self.get("/gameday")
         self.assertIn('"KC": "#e31837"', body)
+        # its game rows carry the live scoreboard's ESPN codes, where Washington is WSH
+        self.assertIn('"WSH": "#5a1414"', body)
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@
 <style>
 :root { --bg:#0b0b0c; --panel:#141416; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#8f8e88; --rule:#2c2c2a; --mine:hsl({{ hue }} 62% 62%); --theirs:hsl({{ opp_hue or 28 }} 62% 62%); --live:#e66767; --pre:#5e8ae2; --display:"Archivo", "Segoe UI", system-ui, sans-serif; }
 * { box-sizing: border-box; }
+.sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; background: var(--team, var(--rule)); box-shadow: 0 0 0 1px var(--rule); }
 .face { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 10px; background: var(--panel); border: 1px solid var(--rule); }
 .face[src^="/img/teams/"] { object-fit: contain; padding: 3px; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--display); }
@@ -64,7 +65,7 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
 <script>
 (function () {
   var root = document.getElementById('gd'), body = document.getElementById('gd-body'), meta = document.getElementById('gd-meta'), liveEl = document.getElementById('gd-live');
-  var enabled = root.getAttribute('data-enabled') === '1', initial = {{ live|tojson }};
+  var enabled = root.getAttribute('data-enabled') === '1', initial = {{ live|tojson }}, teamColors = {{ nfl_colors(espn=True)|tojson }};   // UI-V4: keyed by the live scoreboard's ESPN codes too
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
   function n1(x) { return (x == null || isNaN(x)) ? '—' : Number(x).toFixed(1); }
   function pct(p) { return p == null ? '—' : Math.round(100 * p) + '%'; }
@@ -79,12 +80,13 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
     return '<table><thead><tr><th>' + esc(name) + '</th><th>Game</th><th class="num">Pts</th></tr></thead><tbody>' +
       st.rows.map(function (r) { return '<tr><td>' + (r.img ? '<img class="face" src="' + esc(r.img) + '" alt="">' : '') + esc(r.name) + '<span class="pos">' + esc(r.pos) + ' · ' + esc(r.nfl) + '</span></td><td>' + chip(r.status) + '</td><td class="num">' + n1(r.scored) + '</td></tr>'; }).join('') + '</tbody></table>';
   }
+  function sw(t) { var c = teamColors[t]; return '<i class="sw"' + (c ? ' style="--team:' + esc(c) + '"' : '') + '></i>'; }   // UI-V4
   function games(gs) {
     if (!gs || !gs.length) return '';
     var order = { 'in': 0, 'pre': 1, 'post': 2 };
     gs = gs.slice().sort(function (a, b) { return (order[a.state] || 0) - (order[b.state] || 0); });
     return '<h2>Every game</h2><div class="games">' + gs.map(function (g) {
-      return '<div class="game' + (g.state === 'in' ? ' on' : '') + '"><div class="t"><span>' + esc(g.away) + '</span><span>' + (g.away_score == null ? '' : g.away_score) + '</span></div><div class="t"><span>' + esc(g.home) + '</span><span>' + (g.home_score == null ? '' : g.home_score) + '</span></div><div class="c">' + chip(g.label) + '</div></div>';
+      return '<div class="game' + (g.state === 'in' ? ' on' : '') + '"><div class="t"><span>' + sw(g.away) + esc(g.away) + '</span><span>' + (g.away_score == null ? '' : g.away_score) + '</span></div><div class="t"><span>' + sw(g.home) + esc(g.home) + '</span><span>' + (g.home_score == null ? '' : g.home_score) + '</span></div><div class="c">' + chip(g.label) + '</div></div>';
     }).join('') + '</div>';
   }
   function dayline(hist) {
