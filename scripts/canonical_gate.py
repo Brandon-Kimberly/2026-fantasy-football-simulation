@@ -47,6 +47,13 @@ BENIGN_MARKERS = (
     # and the teams, the digest leads with the DEGRADED block, and the row's provenance
     # records the count. F38 tracks teaching sync to distinguish the two causes.
     "had no usable line and got the flat",
+    # F80's commissioner-adjustment watchdog: a budget the transaction history cannot
+    # explain. Benign for the forecast BY CONSTRUCTION -- every consumer reads Sleeper's own
+    # `waiver_budget_used`, which already folds the adjustment in (measured against the live
+    # league for F80), and the watchdog changes nothing; it reports for a human to judge.
+    # Classified 2026-09-29 (issue #17): unclassified, it refused Sunday's run2 and would
+    # have refused every window after, since an adjustment stays in the history all season.
+    "FAAB ADJUSTMENT:",
 )
 
 # Forecast-affecting classes with dedicated remediations.

@@ -29,7 +29,7 @@
 {% if windows.note %}<div class="note">{{ windows.note }}</div>{% endif %}
 {% if windows.result %}
 <div class="scroller"><table><thead><tr><th>Window</th><th>Opens</th><th>Closes</th><th>State</th><th>Covered by</th></tr></thead><tbody>
-{% for w in windows.result.windows %}<tr><td class="nm">{{ w.name|window_title }}</td><td class="tnum">{{ w.start|clock if w.start else "" }}</td><td class="tnum">{{ w.deadline|clock if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status|lower }}</span></td><td class="small muted">{{ w.covered_by or "" }}</td></tr>{% endfor %}
+{% for w in windows.result.windows %}<tr><td class="nm">{{ w.name|window_title }}</td><td class="tnum">{{ w.start|clock if w.start else "" }}</td><td class="tnum">{{ w.deadline|clock if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status|lower }}</span></td><td class="small muted">{{ w.covered_by or "" }}{% if w.adjudicated %} · {{ (w.adjudicated.late_by_seconds // 60) }} min late, ruled covered {{ w.adjudicated.ruled }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>A window is open:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h{% if not loop.last %}; {% endif %}{% endfor %}. <a href="/tools/weekly_report?canonical=1">Launch the canonical digest</a>, or from a terminal <code>py -3.10 -m scripts.weekly_report --canonical --embed</code>.</div>{% endif %}
 {% endif %}

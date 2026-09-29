@@ -181,5 +181,32 @@ class TestVegasPartialFallbackIsBenign(unittest.TestCase):
 
 
 
+class TestFaabAdjustmentIsBenign(unittest.TestCase):
+    """Found as issue #17 (2026-09-27): F80's commissioner-adjustment watchdog (added
+    2026-09-24) warns into the manifest, and the gate had never seen its text, so every
+    unattended fire from then on read it as blocking:unrecognized and refused a canonical row
+    -- Sunday's run2 and, left alone, every window after. It is benign for the forecast by
+    construction: the budgets every consumer reads are Sleeper's own `waiver_budget_used`,
+    which already folds the adjustment in (F80, measured against the live league), and the
+    watchdog changes nothing -- it reports that the transaction history cannot explain a
+    budget, for a human to judge. Written before the marker was added: the first assertion
+    failed with 'blocking:unrecognized'."""
+
+    ENTRY = ("WARNING | FAAB ADJUSTMENT: Rocket Pandas carries -1 FAAB that no transaction explains "
+             "(Sleeper says 35 used; bids and trades account for 34). A commissioner adjustment leaves "
+             "no transaction record, so this is the only place it shows up.")
+
+    def test_the_adjustment_warning_is_benign(self):
+        self.assertEqual(classify_degraded_entry(self.ENTRY), "benign")
+
+    def test_a_sync_carrying_one_quotes_canonically(self):
+        g = canonical_gate("DEGRADED", BENIGN + [self.ENTRY], "odds_api", baselines_count=888)
+        self.assertEqual(g["verdict"], CANONICAL_OK)
+
+    def test_a_real_blocker_beside_it_still_blocks(self):
+        g = canonical_gate("DEGRADED", BENIGN + [self.ENTRY, TYSON], "odds_api", baselines_count=888)
+        self.assertEqual(g["verdict"], REPORT_ONLY)
+
+
 if __name__ == "__main__":
     unittest.main()
