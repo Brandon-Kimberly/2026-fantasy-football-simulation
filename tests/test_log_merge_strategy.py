@@ -55,7 +55,6 @@ ATTRS = os.path.join(ROOT, ".gitattributes")
 # silently passing over them.
 NO_AUTOMATED_WRITER = {
     "data/logs/bid_ledger.jsonl",        # record_bid, at bid time, by hand
-    "data/logs/streamer_levels.jsonl",   # scripts.streamer_study, run by hand
 }
 
 
