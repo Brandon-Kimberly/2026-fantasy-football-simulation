@@ -1288,3 +1288,24 @@ def strip(v, hi, history=None, width=160, height=26):
         out.append(f'<circle class="wk" cx="{x(h)}" cy="{mid}" r="3"/>')
     out.append("</svg>")
     return Markup("".join(out))
+
+
+# ---- UI-V3 characterisation stubs
+def slope(rows, left, right, me=None, unit="", nd=1, width=420, height=None):
+    return ""
+
+
+def heat(rows, cols, values, fmt=str, me=None):
+    return ""
+
+
+def dots(bins, per_dot=None, width=420, unit="seasons"):
+    return ""
+
+
+def fan(labels, bands, unit="", width=640, height=220):
+    return ""
+
+
+def pctbar(p, nd=1):
+    return ""
