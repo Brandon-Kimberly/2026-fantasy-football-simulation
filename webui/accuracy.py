@@ -191,3 +191,8 @@ def report(root):
                  f"probabilities are calibrated first means something at week {ENOUGH_WEEKS} or "
                  f"{ENOUGH_WEEKS + 1}; until then these are counts, not conclusions."),
     }
+
+
+def backtest_read(root):
+    """UI-Q4 characterisation stub."""
+    return {}
