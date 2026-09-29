@@ -65,16 +65,16 @@ They measure different things -- a one-week horizon against weeks of it, this se
   <div class="scroller"><table><thead><tr><th>Matchup</th><th class="num">Said</th><th>Won</th><th>Call</th></tr></thead><tbody>
   {% for m in w.matchups %}<tr><td class="nm">{{ mark(m.a) }}{{ teamlink(m.a) }} <span class="muted">v</span> {{ teamlink(m.b) }}</td><td class="num">{{ (m.p * 100)|round(1) }}%</td><td>{{ teamlink(m.a if m.won else m.b) }}</td><td>{% if m.hit is none %}<span class="push">coin-flip</span>{% elif m.hit %}<span class="hit">hit</span>{% else %}<span class="miss">miss</span>{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
-  <div class="scroller" style="margin-top:10px"><table><thead><tr><th>Team</th><th class="num">Forecast</th><th class="num">Scored</th><th class="num">Miss</th><th class="num">Miss, in its own spread</th><th>Beat the median</th></tr></thead><tbody>
+  <div class="scroller u-mt-10px"><table><thead><tr><th>Team</th><th class="num">Forecast</th><th class="num">Scored</th><th class="num">Miss</th><th class="num">Miss, in its own spread</th><th>Beat the median</th></tr></thead><tbody>
   {% for t in w.teams %}<tr{% if t.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(t.team) }}{{ teamlink(t.team) }}</td><td class="num muted">{{ t.expected|num(1) }}</td><td class="num">{{ t.actual|num(1) }}</td><td class="num {{ 'pos' if t.error > 0 else 'neg' }}">{{ t.error|signed(1) }}</td><td class="num z">{{ t.z|signed(2) }}</td><td>{% if t.beat is not none %}<span class="{{ 'hit' if (t.p_median > 0.5) == t.beat else 'miss' }}">{{ (t.p_median * 100)|round(0)|int }}% said, {{ "beat it" if t.beat else "did not" }}</span>{% endif %}</td></tr>{% endfor %}
   </tbody></table></div>
 </details>
 {% endfor %}
 </section>
 
-<p class="small muted" style="margin-top:18px">Nothing on this page is a verdict. It counts what was said against what happened; with this many weeks the counts are still mostly noise, and they are shown so the record builds in the open rather than being assembled later.</p>
+<p class="small muted u-mt-18px">Nothing on this page is a verdict. It counts what was said against what happened; with this many weeks the counts are still mostly noise, and they are shown so the record builds in the open rather than being assembled later.</p>
 {% else %}
-<div class="note" style="margin-top:16px">Nothing to score yet. A week is scored once it has a result on file and a forecast that was committed before its first kickoff.</div>
+<div class="note u-mt-16px">Nothing to score yet. A week is scored once it has a result on file and a forecast that was committed before its first kickoff.</div>
 {% endif %}
 </div>
 {% endblock %}

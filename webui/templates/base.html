@@ -197,6 +197,8 @@ th[data-key] { cursor: pointer; user-select: none; }
 th[data-key]:hover { color: var(--ink); }
 th.sort-asc::after { content: " \25B2"; font-size: 9px; } th.sort-desc::after { content: " \25BC"; font-size: 9px; }
 td { padding: 6px 8px; border-bottom: 1px solid var(--grid); vertical-align: top; }
+/* UI-V5: compact density -- table rows only; set from this browser's choice before first paint */
+:root[data-density="compact"] td, :root[data-density="compact"] th { padding-top: 2px; padding-bottom: 2px; }
 td.num, th.num, .tnum, td.nm { white-space: nowrap; }
 td.tl, th.tl { text-align: left; }
 td.nm { font-weight: 500; } td.wrap { white-space: normal; overflow-wrap: anywhere; }
@@ -288,6 +290,7 @@ table.heat2 td.h0 { color: var(--muted); } table.heat2 tr.me th.nm { font-weight
 details.tview { margin-top: 6px; font-size: 12px; } details.tview summary { cursor: pointer; color: var(--muted); }
 [data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
 .themeform { display: inline-flex; gap: 0; margin-left: 12px; vertical-align: middle; } .themeform button { padding: 3px 9px; font-size: 10px; border-radius: 0; box-shadow: none; letter-spacing: .08em; }
+.densitybtn { padding: 3px 9px; font-size: 10px; letter-spacing: .08em; box-shadow: none; margin-left: 6px; vertical-align: middle; } .densitybtn[aria-pressed="true"] { background: var(--ink); color: var(--plane); }
 .themeform button:first-of-type { border-radius: 999px 0 0 999px; } .themeform button:last-of-type { border-radius: 0 999px 999px 0; } .themeform button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
 /* U3: the job bar while a job runs, and the toast when it ends */
 .jobbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80; background: var(--pos-bg); overflow: hidden; }
@@ -389,10 +392,67 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 
 @media (max-width: 720px) { .row { grid-template-columns: 1fr; gap: 2px; } form.tool .fields { grid-template-columns: 1fr; } .top .meta { margin-left: 0; } .hbar { grid-template-columns: 1fr; gap: 2px 0; } .hbar .v { text-align: left; } th { position: static; } }   /* after the base th rule: below tablet width a table scrolls in its box, where sticky would sit mid-table */
 @media (prefers-reduced-motion: reduce) { @view-transition { navigation: none; } *, *::before, *::after { animation: none !important; transition: none !important; } .viz .ln.me, .viz .ln.pos, .viz .ln.gold, .viz .ln.hue { stroke-dashoffset: 0; } }
+
+/* UI-E11: what were inline styles, now utilities. !important keeps the precedence the inline
+   style had over every stylesheet rule; tests.test_webui_no_inline_styles keeps them from coming back. */
+.u-background-var-rule { background: var(--rule) !important; }
+.u-background-var-turf { background: var(--turf) !important; }
+.u-d-block { display: block !important; }
+.u-d-block--font-weight-400 { display: block !important; font-weight: 400 !important; }
+.u-d-flex--align-items-center--gap-8px--mt-8px { display: flex !important; align-items: center !important; gap: 8px !important; margin-top: 8px !important; }
+.u-d-flex--gap-12px--align-items-center--flex-wrap-wrap--mt-8px { display: flex !important; gap: 12px !important; align-items: center !important; flex-wrap: wrap !important; margin-top: 8px !important; }
+.u-d-grid--gtc-repeat-auto-fit-minmax-240px-1fr--gap-12px--mt-6px { display: grid !important; grid-template-columns: repeat(auto-fit,minmax(240px,1fr)) !important; gap: 12px !important; margin-top: 6px !important; }
+.u-d-grid--gtc-repeat-auto-fit-minmax-280px-1fr--gap-12px--mt-10px { display: grid !important; grid-template-columns: repeat(auto-fit,minmax(280px,1fr)) !important; gap: 12px !important; margin-top: 10px !important; }
+.u-ff-var-sans { font-family: var(--sans) !important; }
+.u-fs-20px--ls-0 { font-size: 20px !important; letter-spacing: 0 !important; }
+.u-gcol-1-1 { grid-column: 1 / -1 !important; }
+.u-gtc-1fr { grid-template-columns: 1fr !important; }
+.u-gtc-auto-1fr { grid-template-columns: auto 1fr !important; }
+.u-gtc-repeat-auto-fit-minmax-240px-1fr { grid-template-columns: repeat(auto-fit,minmax(240px,1fr)) !important; }
+.u-jc-flex-start { justify-content: flex-start !important; }
+.u-m-0 { margin: 0 !important; }
+.u-m-0-0-10px { margin: 0 0 10px !important; }
+.u-m-0-0-8px { margin: 0 0 8px !important; }
+.u-m-10px-0-0 { margin: 10px 0 0 !important; }
+.u-m-16px-0-6px { margin: 16px 0 6px !important; }
+.u-m-6px-0-0 { margin: 6px 0 0 !important; }
+.u-m-6px-0-0-1-1em--p-0 { margin: 6px 0 0 1.1em !important; padding: 0 !important; }
+.u-m-6px-0-0-1-2em { margin: 6px 0 0 1.2em !important; }
+.u-m-8px-0-0 { margin: 8px 0 0 !important; }
+.u-m-8px-0-0--maxw-80ch { margin: 8px 0 0 !important; max-width: 80ch !important; }
+.u-maxw-80ch { max-width: 80ch !important; }
+.u-mb-8px { margin-bottom: 8px !important; }
+.u-ml-auto { margin-left: auto !important; }
+.u-mr-6px { margin-right: 6px !important; }
+.u-mt-0 { margin-top: 0 !important; }
+.u-mt-10px { margin-top: 10px !important; }
+.u-mt-12px { margin-top: 12px !important; }
+.u-mt-14px { margin-top: 14px !important; }
+.u-mt-16px { margin-top: 16px !important; }
+.u-mt-18px { margin-top: 18px !important; }
+.u-mt-28px { margin-top: 28px !important; }
+.u-mt-6px { margin-top: 6px !important; }
+.u-mt-8px { margin-top: 8px !important; }
+.u-mt-auto { margin-top: auto !important; }
+.u-p-12px-16px { padding: 12px 16px !important; }
+.u-p-12px-16px--mt-10px { padding: 12px 16px !important; margin-top: 10px !important; }
+.u-p-5px-10px--fs-11px { padding: 5px 10px !important; font-size: 11px !important; }
+.u-pos-absolute { position: absolute !important; }
+.u-w-120px--minw-120px { width: 120px !important; min-width: 120px !important; }
+.u-w-3-2em { width: 3.2em !important; }
+.u-w-3-4em { width: 3.4em !important; }
+.u-w-3-6em { width: 3.6em !important; }
+.u-w-4-4em { width: 4.4em !important; }
+.u-w-4-5em { width: 4.5em !important; }
+.u-w-7-2em { width: 7.2em !important; }
+.u-w-85em--h-85em--stroke-var-turf--tfc-initial { width: .85em !important; height: .85em !important; stroke: var(--turf) !important; -webkit-text-fill-color: initial !important; }
+.u-w-auto--maxw-20rem--d-inline-block { width: auto !important; max-width: 20rem !important; display: inline-block !important; }
+.u-ws-normal { white-space: normal !important; }
 </style>
+<script>try { if (localStorage.getItem("syn-density") === "compact") document.documentElement.dataset.density = "compact"; } catch (e) {}</script>
 </head>
 <body>
-<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<svg width="0" height="0" class="u-pos-absolute" aria-hidden="true">
   <defs>
     <linearGradient id="vizg-turf" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="vizg-turf-a"/><stop offset="1" class="vizg-turf-b"/></linearGradient>
     <linearGradient id="vizg-pos" x1="0" y1="0" x2="0" y2="1"><stop offset="0" class="vizg-pos-a"/><stop offset="1" class="vizg-pos-b"/></linearGradient>
@@ -456,11 +516,24 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 <footer class="foot">
   <form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
   <form method="post" action="/theme" class="themeform" title="light, dark, or follow the system"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}">{% for t in ("system", "light", "dark") %}<button type="submit" name="theme" value="{{ t }}" class="ghost{{ ' on' if theme == t }}">{{ t }}</button>{% endfor %}</form>
+  <button type="button" id="density" class="ghost densitybtn" aria-pressed="false" title="tighter table rows, remembered in this browser">compact</button>
   {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </footer>
 </div>
 <script>
 {{ table_js|safe }}
+(function () {
+  // UI-V5: the compact toggle -- table rows only, remembered in this browser (storage may be blocked: then it lasts the page)
+  var db = document.getElementById('density'), root = document.documentElement;
+  if (!db) return;
+  db.setAttribute('aria-pressed', root.dataset.density === 'compact' ? 'true' : 'false');
+  db.addEventListener('click', function () {
+    var on = root.dataset.density !== 'compact';
+    if (on) { root.dataset.density = 'compact'; } else { delete root.dataset.density; }
+    db.setAttribute('aria-pressed', on ? 'true' : 'false');
+    try { if (on) { localStorage.setItem('syn-density', 'compact'); } else { localStorage.removeItem('syn-density'); } } catch (e) {}
+  });
+})();
 (function () {
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   // numbers settle onto their value from just below it (B13: never a wrong-looking number); bars and rings grow to their value

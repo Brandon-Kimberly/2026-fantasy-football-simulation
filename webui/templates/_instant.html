@@ -19,5 +19,5 @@
 <td><span class="rng"><span class="bar"><i style="left:{{ (100 * p.p10 / mx)|round(1) }}%;width:{{ (100 * (p.p90 - p.p10) / mx)|round(1) }}%"></i><b style="left:{{ (100 * p.mean / mx)|round(1) }}%"></b></span><span class="n">{{ p.p10|num(0) }} · {{ p.p90|num(0) }}</span></span></td>
 <td class="num">{{ (100 * p.p_top)|round(0)|int }}%</td><td class="muted small">{{ "this week's " ~ p.source if p.source != "baseline" else "the season average" }}</td></tr>{% endfor %}
 </tbody></table>
-<p class="small muted" style="margin-top:8px">Quick estimate: each player on their own spread, priced the way the live panel prices a starter. It ignores same-game links (teammates in the same game rise and fall together) and the chance a player sits; the full comparison below prices both{% if not (inst and inst.joint) %} and takes about a minute{% endif %}.</p>
+<p class="small muted u-mt-8px">Quick estimate: each player on their own spread, priced the way the live panel prices a starter. It ignores same-game links (teammates in the same game rise and fall together) and the chance a player sits; the full comparison below prices both{% if not (inst and inst.joint) %} and takes about a minute{% endif %}.</p>
 {% endif %}

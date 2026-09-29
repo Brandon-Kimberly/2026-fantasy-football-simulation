@@ -50,7 +50,7 @@
 <div class="cards tidy">
 {% for t in engine %}<div class="card s-warm"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i c-warm"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
 </div>
-<p class="small muted" style="margin-top:14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
+<p class="small muted u-mt-14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
 </section>
 {% endif %}
 {% endblock %}

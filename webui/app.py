@@ -204,6 +204,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["real"] = overlay.text
     app.jinja_env.filters["stamp"] = render.human_time
     app.jinja_env.filters["num"] = _fmt_num
+    # UI-V8: a percentage that may not exist yet -- "—", never "—%" (Jinja's Undefined is "not none")
+    app.jinja_env.filters["pctn"] = lambda v, nd=1: (_fmt_num(v, nd) + "%") if isinstance(v, (int, float)) and v == v else "—"
     app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["wins"] = render.fwins                  # UI-O1: 2 wins, not "2.0"; a tie's half shows

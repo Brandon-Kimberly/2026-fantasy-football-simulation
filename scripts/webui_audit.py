@@ -31,6 +31,9 @@ import urllib.parse
 import urllib.request
 
 LEAKS = ("None", " nan", "NaN", "undefined", "[object Object]", "{{", "}}", "&amp;amp;", "()", "—%")
+# (kind, width, height, dark). UI-E10: "wide" is the owner's 2560-pixel desktop.
+SHOT_KINDS = (("desktop", 1280, 2200, False), ("phone", 520, 2600, False), ("dark", 1280, 2200, True),
+              ("wide", 2560, 1440, False))
 SKIP = ("/cancel", "/mode", "/sync/launch", "/sync/restore", "/api/", "/jobs/", ".png")
 SHOT_PAGES = ("/", "/league", "/forecasts", "/forecasts/week-3", "/decisions", "/records", "/records/week-3",
               "/tools", "/tools/compare_players", "/tools/weekly_report", "/jobs", "/logs", "/logs/decision-log",
@@ -48,6 +51,7 @@ class Page(html.parser.HTMLParser):
         self.h1, self.title, self.tables, self._in_title, self._in_tr, self._cols, self.max_cols = 0, "", 0, False, False, 0, 0
         self.text = []
         self._skip = 0
+        self._pre = 0            # UI-E10: <pre> holds verbatim engine output (a sync warning's "(CB, None)")
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -73,6 +77,8 @@ class Page(html.parser.HTMLParser):
             self._cols += 1
         if tag in ("script", "style"):
             self._skip += 1
+        if tag == "pre":
+            self._pre += 1
 
     def handle_endtag(self, tag):
         if tag == "title":
@@ -82,11 +88,13 @@ class Page(html.parser.HTMLParser):
             self._in_tr = False
         if tag in ("script", "style") and self._skip:
             self._skip -= 1
+        if tag == "pre" and self._pre:
+            self._pre -= 1
 
     def handle_data(self, data):
         if self._in_title:
             self.title += data
-        elif not self._skip:
+        elif not self._skip and not self._pre:
             self.text.append(data)
 
 
@@ -243,7 +251,7 @@ def main(argv=None):
                     name = "root" if path == "/" else re.sub(r"[^a-z0-9]+", "-", path.strip("/").lower()).strip("-")
                     # headless Chromium will not lay out narrower than ~504 px, so "phone" is 520: a large phone, and
                     # what every <=560/600 px breakpoint is judged against
-                    for kind, w, h, dark in (("desktop", 1280, 2200, False), ("phone", 520, 2600, False), ("dark", 1280, 2200, True)):
+                    for kind, w, h, dark in SHOT_KINDS:
                         png = os.path.join(sdir, f"{mode}-{name}-{kind}.png")
                         ok, console = screenshot(args.edge, args.base, path, png, w, h, dark, profile, args.settled)
                         shots[f"{mode} {path} {kind}"] = {"png": png if ok else None, "console": console}

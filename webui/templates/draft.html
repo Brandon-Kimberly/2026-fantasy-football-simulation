@@ -22,10 +22,10 @@ table.db td.pk.gone .n { color: var(--ink-2); }
 </div>
 {% if board %}
 <section>
-<div class="scroller"><table class="db"><thead><tr><th style="width:4.5em">Round</th>{% for t in board.teams %}<th>{% if t %}{{ mark(t) }}{{ teamlink(t) }}{% endif %}</th>{% endfor %}</tr></thead><tbody>
-{% for row in board.grid %}<tr><td class="muted">{{ loop.index }}</td>{% for c in row %}{% if c %}<td class="pk p-{{ c.pos }}{{ ' gone' if not c.kept }}"><span class="n">{{ playerlink(c.name, c.pid) }}</span><span class="m">{{ c.pos }} · #{{ c.pick }}{% if c.mean is not none %} · {{ c.mean|num(1) }} now{% endif %}</span>{% if not c.kept %}<span class="m" style="display:block">{% if c.now %}now with {{ c.now|real }}{% else %}not on a roster{% endif %}</span>{% endif %}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
+<div class="scroller"><table class="db"><thead><tr><th class="u-w-4-5em">Round</th>{% for t in board.teams %}<th>{% if t %}{{ mark(t) }}{{ teamlink(t) }}{% endif %}</th>{% endfor %}</tr></thead><tbody>
+{% for row in board.grid %}<tr><td class="muted">{{ loop.index }}</td>{% for c in row %}{% if c %}<td class="pk p-{{ c.pos }}{{ ' gone' if not c.kept }}"><span class="n">{{ playerlink(c.name, c.pid) }}</span><span class="m">{{ c.pos }} · #{{ c.pick }}{% if c.mean is not none %} · {{ c.mean|num(1) }} now{% endif %}</span>{% if not c.kept %}<span class="m u-d-block">{% if c.now %}now with {{ c.now|real }}{% else %}not on a roster{% endif %}</span>{% endif %}</td>{% else %}<td class="muted">—</td>{% endif %}{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">Colour marks the position: quarterbacks, running backs, receivers, tight ends, kickers, and the defensive players.</p>
+<p class="small muted u-mt-8px">Colour marks the position: quarterbacks, running backs, receivers, tight ends, kickers, and the defensive players.</p>
 </section>
 {% else %}<div class="note">No draft on file.</div>{% endif %}
 {% endblock %}

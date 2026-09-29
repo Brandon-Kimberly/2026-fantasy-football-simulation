@@ -36,7 +36,7 @@
 {% if run.bids_logged %}<td>{% if c.losing %}<b>{{ c.losing[0].bid }}</b> <span class="small muted">{{ c.losing[0].team|real }}{% if c.losing|length > 1 %} · {{ c.losing|length }} bids lost{% endif %}</span>{% else %}<span class="muted">no other bid</span>{% endif %}</td>{% endif %}
 <td>{% if c.grade %}<b class="{{ 'pos' if c.grade.delta > 0 else ('neg' if c.grade.delta < 0) }}">{{ c.grade.delta|signed(1) }}</b> <span class="small muted">playoff points {{ c.grade.se|se }}</span>{% if c.grade.verdict %} · {{ c.grade.verdict.text }}{% endif %}{% elif c.skipped %}<span class="muted">not graded: {{ c.skipped }}</span>{% else %}<span class="muted">not graded yet</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">{% if not run.bids_logged %}Losing bids are not recorded yet, so this lists the winners only. {% endif %}A grade is the change in that team's playoff odds from the claim, priced by a paired simulation after it went through.</p>
+<p class="small muted u-mt-8px">{% if not run.bids_logged %}Losing bids are not recorded yet, so this lists the winners only. {% endif %}A grade is the change in that team's playoff odds from the claim, priced by a paired simulation after it went through.</p>
 </section>
 {% endif %}
 
@@ -46,29 +46,29 @@
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Left</th><th class="num">Spent</th><th class="num">Spent a week</th><th></th></tr></thead><tbody>
 {% for r in faab.rows %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.left|num(0) }}</b></td><td class="num">{{ r.spent|num(0) }}</td><td class="num">{{ r.per_week|num(1) if r.per_week is not none else "—" }}</td><td>{% if r.outbids %}<span class="flag">can outbid you</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">{% if faab.outbid %}{{ faab.outbid|length }} team{{ "s" if faab.outbid|length != 1 }} can outbid you for any player: {% for t in faab.outbid %}{{ t|real }}{% if not loop.last %}, {% endif %}{% endfor %}.{% else %}No team has more budget left than you, so none can outbid you outright.{% endif %}</p>
+<p class="small muted u-mt-8px">{% if faab.outbid %}{{ faab.outbid|length }} team{{ "s" if faab.outbid|length != 1 }} can outbid you for any player: {% for t in faab.outbid %}{{ t|real }}{% if not loop.last %}, {% endif %}{% endfor %}.{% else %}No team has more budget left than you, so none can outbid you outright.{% endif %}</p>
 </section>
 {% endif %}
 
 {% if clearing %}
 <section>
 <h2><svg class="i c-gold"><use href="#i-tag"/></svg> What it took to win <span class="hint">every claim someone else also bid on, this season · newest first</span></h2>
-<p class="lede" style="margin:0 0 10px">Across {{ clearing.claims|length }} contested claim{{ "s" if clearing.claims|length != 1 }}, winners paid {{ clearing.median_above|num(1) }} more than the next bid (the median). The winner pays their own bid, so anything above the next bid plus one was more than winning needed.</p>
+<p class="lede u-m-0-0-10px">Across {{ clearing.claims|length }} contested claim{{ "s" if clearing.claims|length != 1 }}, winners paid {{ clearing.median_above|num(1) }} more than the next bid (the median). The winner pays their own bid, so anything above the next bid plus one was more than winning needed.</p>
 <div class="scroller"><table><thead><tr><th>Waiver run</th><th>Player</th><th>Won by</th><th class="num">Paid</th><th>Next best bid</th><th class="num">Paid above it</th></tr></thead><tbody>
 {% for c in clearing.claims %}<tr{% if c.winner == my_team %} class="me"{% endif %}><td>{{ c.run or "—" }}</td><td class="nm">{{ c.player }}</td><td class="nm">{{ mark(c.winner) }}{{ teamlink(c.winner) }}</td><td class="num"><b>{{ c.paid }}</b></td>
 <td><b>{{ c.next_bid }}</b> <span class="small muted">{{ c.next_team|real }}{% if c.losing > 1 %} · {{ c.losing }} bids lost{% endif %}</span></td><td class="num">{{ c.above }}</td></tr>{% endfor %}
 </tbody></table></div>
-<h3 class="small" style="margin:16px 0 6px">Paid above the next bid, by team</h3>
+<h3 class="small u-m-16px-0-6px">Paid above the next bid, by team</h3>
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Contested wins</th><th class="num">Paid above the next bid</th></tr></thead><tbody>
 {% for v in clearing.team_rows %}<tr{% if v.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(v.team) }}{{ teamlink(v.team) }}</td><td class="num">{{ v.contested }}</td><td class="num">{{ v.above }}</td></tr>{% endfor %}
 </tbody></table></div>
 {% if clearing.bands %}
-<h3 class="small" style="margin:16px 0 6px">Your suggested bids against what it took</h3>
+<h3 class="small u-m-16px-0-6px">Your suggested bids against what it took</h3>
 <div class="scroller"><table><thead><tr><th>Waiver run</th><th>Player</th><th class="num">Suggested</th><th class="num">You bid</th><th class="num">It took</th><th></th></tr></thead><tbody>
 {% for b in clearing.bands %}<tr><td>{{ b.run or "—" }}</td><td class="nm">{{ b.player }}</td><td class="num">{{ b.low }}–{{ b.high }}</td><td class="num">{{ b.placed if b.placed is not none else "—" }}</td><td class="num"><b>{{ b.price }}</b></td>
 <td class="small">{% if b.verdict == 'below' %}the whole suggested range was below it{% elif b.verdict == 'above' %}the whole suggested range was above it{% else %}inside the suggested range{% endif %}{{ " · you won" if b.won else " · you lost" }}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">"It took" is the best bid from anyone else, plus one. These are a handful of claims, so they show how the suggestion has done so far, not how good it is.</p>
+<p class="small muted u-mt-8px">"It took" is the best bid from anyone else, plus one. These are a handful of claims, so they show how the suggestion has done so far, not how good it is.</p>
 {% endif %}
 </section>
 {% endif %}
@@ -86,7 +86,7 @@
 {% if board %}<td class="num" data-sort="{{ r.vorp if r.vorp is not none else '' }}">{{ r.vorp|signed(1) if r.vorp is not none else "—" }}</td><td>{{ r.fills or "" }}</td><td class="num" data-sort="{{ r.bid if r.bid is not none else '' }}">{{ ("$" ~ r.bid) if r.bid is not none else "—" }}</td>{% endif %}
 <td>{% if r.status %}<span class="flag">{{ r.status }}</span>{% endif %}</td><td class="num">{{ r.bye or "—" }}</td></tr>{% endfor %}
 </tbody></table></div>
-{% if board %}<p class="small muted" style="margin-top:10px">The tell to trust over any clock: Sleeper shows a bid box for a player on waivers and an Add button for a free agent. A bid you lose is not always the player lost -- if nobody else claims the player, they can be added for free once they clear.</p>{% endif %}
+{% if board %}<p class="small muted u-mt-10px">The tell to trust over any clock: Sleeper shows a bid box for a player on waivers and an Add button for a free agent. A bid you lose is not always the player lost -- if nobody else claims the player, they can be added for free once they clear.</p>{% endif %}
 </section>
 <script>
 (function () {   // find a player among the rows on the page, as you type

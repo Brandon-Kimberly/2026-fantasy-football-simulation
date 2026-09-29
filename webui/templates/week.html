@@ -20,8 +20,8 @@
 <section>
 <h2><svg class="i"><use href="#i-trophy"/></svg> Playoff odds <span class="hint">every team, from this run</span></h2>
 <div class="viz2">
-  <div class="vizbox"><div class="k">playoff probability</div><div class="hbar">{% for r in rows %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.playoff or 0)|round(1) }}"></i></span><span class="v">{{ r.playoff|num(1) }}%</span>{% endfor %}</div></div>
-  <div class="vizbox"><div class="k">title probability</div><div class="hbar">{% for r in rows|sort(attribute='champ', reverse=true) %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.champ or 0)|round(1) }}"></i></span><span class="v">{{ r.champ|num(1) }}%</span>{% endfor %}</div></div>
+  <div class="vizbox"><div class="k">playoff probability</div><div class="hbar">{% for r in rows %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.playoff or 0)|round(1) }}"></i></span><span class="v">{{ r.playoff|pctn(1) }}</span>{% endfor %}</div></div>
+  <div class="vizbox"><div class="k">title probability</div><div class="hbar">{% for r in rows|sort(attribute='champ', reverse=true) %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.champ or 0)|round(1) }}"></i></span><span class="v">{{ r.champ|pctn(1) }}</span>{% endfor %}</div></div>
 </div>
 </section>
 
@@ -35,7 +35,7 @@
 {% for r in rows %}
 <tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm" data-sort="{{ r.team|real }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num" data-sort="{{ r.wins }}">{{ r.wins|num(0) }}</td><td class="num" data-sort="{{ r.points }}">{{ r.points|num(1) }}</td>
 <td class="num" data-sort="{{ r.exp_wins }}">{{ r.exp_wins|num(2) }}</td><td class="num muted" data-sort="{{ r.exp_points }}">{{ r.exp_points|num(0) }}</td>
-<td class="num" data-sort="{{ r.playoff }}">{{ pctbar((r.playoff or 0) / 100) }}{% if r.se %} <span class="muted tiny">{{ r.se|se }}</span>{% endif %}</td><td class="num" data-sort="{{ r.champ }}">{{ r.champ|num(1) }}%</td><td class="num muted" data-sort="{{ r.toilet }}">{{ r.toilet|num(1) }}%</td>
+<td class="num" data-sort="{{ r.playoff }}">{{ pctbar((r.playoff or 0) / 100) }}{% if r.se %} <span class="muted tiny">{{ r.se|se }}</span>{% endif %}</td><td class="num" data-sort="{{ r.champ }}">{{ r.champ|pctn(1) }}</td><td class="num muted" data-sort="{{ r.toilet }}">{{ r.toilet|pctn(1) }}</td>
 <td class="num" data-sort="{{ r.magic }}">{{ r.magic|num(0) }}</td><td class="num muted" data-sort="{{ r.faab }}">{{ r.faab|num(0) }}</td></tr>
 {% endfor %}
 </tbody></table></div>
@@ -47,7 +47,7 @@
 <section>
 <h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Roster value <span class="hint">the best starting lineup's projected points, plus a tenth of the bench</span></h2>
 <div class="vizbox"><div class="k">projected points a week</div><div class="hbar">{% for t, v in rv %}<span class="{{ 'me' if t == my_team }}">{{ mark(t) }}{{ teamlink(t) }}</span><span class="b" title="{{ t|real }}: {{ v|num(1) }} points"><i class="{{ 'me' if t == my_team }}" data-width="{{ (100 * v / rvmax)|round(1) }}"></i></span><span class="v">{{ v|num(1) }} pts</span>{% endfor %}</div></div>
-<p class="small muted" style="margin-top:8px">A measure of roster strength rather than a forecast: the most points the best legal lineup projects this week, with each bench player adding a tenth of their projection for depth.</p>
+<p class="small muted u-mt-8px">A measure of roster strength rather than a forecast: the most points the best legal lineup projects this week, with each bench player adding a tenth of their projection for depth.</p>
 </section>
 {% endif %}
 
@@ -60,7 +60,7 @@
 {% set n = series[0][1]|length %}{% set labels = [] %}{% for i in range(n) %}{% set _ = labels.append("wk " ~ (i + 1)) %}{% endfor %}
 {% set data = [] %}{% for t, v in series %}{% set _ = data.append({"name": t|real, "values": v, "cls": ("me" if t == my_team else "")}) %}{% endfor %}
 <div class="vizbox">{{ line_chart(data, labels, unit="", nd=1, y_min=0, height=280, marker=(week - 1) if week and week - 1 < n else None) }}
-<div class="legend"><span><i style="background:var(--turf)"></i>{{ my_team|real }}</span><span><i style="background:var(--rule)"></i>every other team</span><span>y = expected cumulative wins (two games a week)</span></div>
+<div class="legend"><span><i class="u-background-var-turf"></i>{{ my_team|real }}</span><span><i class="u-background-var-rule"></i>every other team</span><span>y = expected cumulative wins (two games a week)</span></div>
 </div>
 </section>
 {% endif %}
@@ -119,11 +119,11 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 <div class="scroller"><table class="sos"><thead><tr><th class="nm" data-key="t" data-type="text">NFL team</th><th data-key="a" data-type="number">Average</th>{% for w in sos.weeks %}<th{% if sos.playoff_weeks and w == sos.playoff_weeks[0] %} class="po"{% endif %} data-key="w{{ w }}" data-type="number">wk {{ w }}</th>{% endfor %}</tr></thead><tbody>
 {{ sosrows(sos.nfl, true) }}
 </tbody></table></div>
-{% if sos.fantasy %}<h3 style="margin-top:16px">Each roster's average</h3>
+{% if sos.fantasy %}<h3 class="u-mt-16px">Each roster's average</h3>
 <div class="scroller"><table class="sos"><thead><tr><th class="nm" data-key="t" data-type="text">Team</th><th data-key="a" data-type="number">Average</th>{% for w in sos.weeks %}<th{% if sos.playoff_weeks and w == sos.playoff_weeks[0] %} class="po"{% endif %} data-key="w{{ w }}" data-type="number">wk {{ w }}</th>{% endfor %}</tr></thead><tbody>
 {{ sosrows(sos.fantasy, false) }}
 </tbody></table></div>{% endif %}
-<p class="small muted" style="margin-top:8px">The average is over the window chosen above. A higher number is a better scoring environment for that team's offensive players; hover a cell for the opponent.</p>
+<p class="small muted u-mt-8px">The average is over the window chosen above. A higher number is a better scoring environment for that team's offensive players; hover a cell for the opponent.</p>
 </section>
 {% endif %}
 
@@ -149,7 +149,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 <p class="small muted">Highest single-week score seen: {{ insights.highest_single_week_score_observed }} by {{ (insights.team_with_highest_ceiling_game or "")|real }} in week {{ insights.week_of_highest_score }}.</p>
 {% set shares = insights.most_valuable_players_championship_shares %}{% set amax = [(shares.values()|map(attribute='championship_lineup_appearance_pct')|max)|float, 1.0]|max %}
 <div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number">In the champion's lineup</th><th data-key="p" data-type="number" class="num">Avg. points those weeks</th></tr></thead><tbody>
-{% for name, v in shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td data-sort="{{ v.championship_lineup_appearance_pct }}"><span class="bc" style="justify-content:flex-start"><span class="mini gold" style="width:120px;min-width:120px"><i data-width="{{ (100 * (v.championship_lineup_appearance_pct or 0) / amax)|round(0)|int }}"></i></span>{{ v.championship_lineup_appearance_pct|num(1) }}%</span></td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
+{% for name, v in shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td data-sort="{{ v.championship_lineup_appearance_pct }}"><span class="bc u-jc-flex-start"><span class="mini gold u-w-120px--minw-120px"><i data-width="{{ (100 * (v.championship_lineup_appearance_pct or 0) / amax)|round(0)|int }}"></i></span>{{ v.championship_lineup_appearance_pct|pctn(1) }}</span></td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}
@@ -157,7 +157,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 {% if dev %}
 <section>
 <details class="sec"><summary>Files from this run<span class="n">{{ jsons|length }}{% for sub, files in subdirs.items() %}{% if files %} + {{ files|length }} {{ sub|replace("_"," ") }}{% endif %}{% endfor %}</span></summary>
-<div class="rows" style="margin-top:8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
+<div class="rows u-mt-8px">{% for e in jsons %}{% set stem = e.name|replace("_week_" ~ week ~ ".json","") %}<div class="row"><span class="t">json</span><span><a class="main" href="{{ e.link }}">{{ nice.get(stem) or stem|replace("_"," ") }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}
 {% for sub, files in subdirs.items() %}{% for e in files %}<div class="row"><span class="t">{{ sub|replace("_"," ") }}</span><span><a class="main" href="{{ e.link }}">{{ e.name|replace("_"," ")|replace("." ~ e.ext, "")|real }}</a>{{ rawlink(e) }}</span><span class="r">{% if e.size %}{{ (e.size / 1024)|round(0)|int }} KB{% endif %}</span></div>{% endfor %}{% endfor %}</div>
 </details>
 </section>
@@ -166,7 +166,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 {% if dev and warnings %}
 <section>
 <details class="sec"><summary>Warnings from this run<span class="n">{{ warnings|length }}</span></summary>
-<div class="rows" style="margin-top:8px">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level|lower }}</span><span class="small" style="white-space:normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div>
+<div class="rows u-mt-8px">{% for w in warnings %}<div class="row"><span class="t {{ 'neg' if w.level == 'ERROR' }}">{{ w.level|lower }}</span><span class="small u-ws-normal">{{ w.message|real }}</span><span class="r"></span></div>{% endfor %}</div>
 </details>
 </section>
 {% endif %}

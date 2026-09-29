@@ -20,11 +20,11 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
 <h2><svg class="i c-violet"><use href="#i-dice"/></svg> Records only a model can keep <span class="hint">{{ current_season }} so far · measured against the model's own odds at the time</span></h2>
 <div class="recs">
 {% if md.least_likely_win %}{% set r = md.least_likely_win %}<div class="card"><div class="k">least likely win</div><div class="v">{{ r.p|pct(0) }}</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">week {{ r.week }} · its chance before kickoff</div></div>{% endif %}
-{% if md.comeback %}{% set r = md.comeback %}<div class="card"><div class="k">biggest comeback</div><div class="v">{{ r.low|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|num(1) }}% now, in a playoff place</div></div>{% endif %}
-{% if md.collapse %}{% set r = md.collapse %}<div class="card"><div class="k">biggest collapse</div><div class="v">{{ r.high|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|num(1) }}% now, outside the places</div></div>{% endif %}
-{% if md.champion %}{% set r = md.champion %}<div class="card"><div class="k">most improbable champion</div><div class="v">{{ r.p|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its title odds in the week-{{ r.week }} forecast</div></div>{% endif %}
+{% if md.comeback %}{% set r = md.comeback %}<div class="card"><div class="k">biggest comeback</div><div class="v">{{ r.low|pctn(1) }}</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|pctn(1) }} now, in a playoff place</div></div>{% endif %}
+{% if md.collapse %}{% set r = md.collapse %}<div class="card"><div class="k">biggest collapse</div><div class="v">{{ r.high|pctn(1) }}</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|pctn(1) }} now, outside the places</div></div>{% endif %}
+{% if md.champion %}{% set r = md.champion %}<div class="card"><div class="k">most improbable champion</div><div class="v">{{ r.p|pctn(1) }}</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its title odds in the week-{{ r.week }} forecast</div></div>{% endif %}
 </div>
-<p class="small muted" style="margin-top:8px">These fill in as the season goes: the comeback and collapse are "so far", measured against today's standings{% if not md.champion %}, and the champion arrives with the final{% endif %}.</p>
+<p class="small muted u-mt-8px">These fill in as the season goes: the comeback and collapse are "so far", measured against today's standings{% if not md.champion %}, and the champion arrives with the final{% endif %}.</p>
 </section>
 {% endif %}
 
@@ -59,5 +59,5 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
 </tbody></table></div>
 </section>
 {% endif %}
-{% if not book %}<div class="note">No games on file yet.</div>{% endif %}
+{% if not book %}<div class="note">No games on file yet. The record book starts once week 1 has been played: its highs, lows and rivalries fill in from the Tuesday after.</div>{% endif %}
 {% endblock %}

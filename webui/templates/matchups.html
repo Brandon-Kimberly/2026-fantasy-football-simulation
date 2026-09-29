@@ -55,7 +55,7 @@
 <div class="scroller"><table class="lu3"><thead><tr><th>Slot</th>{% for c in lu.columns %}<th>{{ {"points": "Most expected points", "opponent": "Best chance to win the game", "median": "Best chance to beat the median"}[c.objective] }}<div class="small muted">{{ c.mean|num(1) }} points · {{ c.p_opponent|pct(0) }} to win · {{ c.p_median|pct(0) }} to beat the median</div></th>{% endfor %}</tr></thead><tbody>
 {% for r in lu.rows %}<tr class="{{ 'differs' if r.differs }}"><td class="muted">{{ r.slot }}</td>{% for n in r.names %}<td>{{ n or "—" }}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">{% if not lu.agree %}Highlighted rows are where the three differ. {% endif %}The median column is the best of the lineups the matchup tool built, judged on beating the median, not a lineup built for the median alone.</p>
+<p class="small muted u-mt-8px">{% if not lu.agree %}Highlighted rows are where the three differ. {% endif %}The median column is the best of the lineups the matchup tool built, judged on beating the median, not a lineup built for the median alone.</p>
 </section>
 <style>table.lu3 tr.differs td { background: var(--warn-bg); font-weight: 600; } table.lu3 th { vertical-align: bottom; } table.lu3 th .small { text-transform: none; letter-spacing: 0; font-weight: 400; font-family: inherit; }</style>
 {% endif %}
@@ -69,26 +69,26 @@
 <td>{{ r.theirs }} <span class="small muted">{{ r.theirs_mean|num(1) }}</span></td>
 <td class="num"><span class="bc"><span class="mini turf"><i data-width="{{ (100 * r.share)|round(0)|int }}"></i></span>{{ r.share|pct(0) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted" style="margin-top:8px">Pairing the lineups position by position is a presentation choice, not a real contest: nobody's quarterback plays the other quarterback. Each chance treats both players as independent normal curves, with this week's projection as the middle and the forecast's spread for that player; the share is how much of the swing in the final margin sits in that pair, so the biggest shares are where the game is most likely to be won or lost.{% if sp.left_out %} {{ sp.left_out }} pair{{ "s" if sp.left_out != 1 }} left out: no spread on file for one of the players.{% endif %}</p>
+<p class="small muted u-mt-8px">Pairing the lineups position by position is a presentation choice, not a real contest: nobody's quarterback plays the other quarterback. Each chance treats both players as independent normal curves, with this week's projection as the middle and the forecast's spread for that player; the share is how much of the swing in the final margin sits in that pair, so the biggest shares are where the game is most likely to be won or lost.{% if sp.left_out %} {{ sp.left_out }} pair{{ "s" if sp.left_out != 1 }} left out: no spread on file for one of the players.{% endif %}</p>
 </section>
 {% endif %}
 
 {% if review and review.awards %}{% set rv = review %}
 <section>
 <h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review <span class="hint">results as the league counted them{% if rv.rescaled %} · the award points are Sleeper's re-scored box scores, under the league's later IDP settings{% endif %}</span></h2>
-<div class="mgames" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+<div class="mgames u-gtc-repeat-auto-fit-minmax-240px-1fr">
 {% for a in rv.awards %}<div class="mg"><div class="k">{{ a.label }}</div>
-<div class="side" style="grid-template-columns:auto 1fr">{{ mark(a.team) }}<span class="nm">{{ teamlink(a.team) }}</span></div>
+<div class="side u-gtc-auto-1fr">{{ mark(a.team) }}<span class="nm">{{ teamlink(a.team) }}</span></div>
 <div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }}; the model gave them {{ (100 * a.quote)|round(0)|int }}% before kickoff{% elif a.key == "median_miss" %}{{ a.points|num(1) }} points{% if a.short is not none %}, {{ a.short|num(1) }} short of the {{ a.cut|num(1) }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|num(1) }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|num(1) }} points, still a loss to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
 </div>
-{% if rv.movers %}<h3 style="margin-top:18px">Whose odds the week moved most</h3>
+{% if rv.movers %}<h3 class="u-mt-18px">Whose odds the week moved most</h3>
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Playoff odds</th><th class="num">Change</th></tr></thead><tbody>
-{% for m in rv.movers %}<tr{% if m.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(m.team) }}{{ teamlink(m.team) }}</td><td class="num">{{ m.playoff_was|num(1) }}% → <b>{{ m.playoff|num(1) }}%</b></td><td class="num {{ 'pos' if m.d_playoff > 0 else 'neg' }}">{{ m.d_playoff|signed(1) }}</td></tr>{% endfor %}
+{% for m in rv.movers %}<tr{% if m.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(m.team) }}{{ teamlink(m.team) }}</td><td class="num">{{ m.playoff_was|pctn(1) }} → <b>{{ m.playoff|pctn(1) }}</b></td><td class="num {{ 'pos' if m.d_playoff > 0 else 'neg' }}">{{ m.d_playoff|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
 {% if rv.best_move %}{% set d = rv.best_move %}{% set fx = d.actor_effect %}{% set v = fx.playoff|verdict(fx.playoff_se) %}
-<h3 style="margin-top:18px">The week's best move</h3>
+<h3 class="u-mt-18px">The week's best move</h3>
 <p>{{ mark(d.actor) }}{{ teamlink(d.actor) }}: {{ d.label }}{% for p in d.adds %} <b>+ {{ p.name }}</b>{% endfor %}{% for p in d.drops %} <span class="muted">− {{ p.name }}</span>{% endfor %} · {{ fx.playoff|signed(1) }} playoff points {{ fx.playoff_se|se }}{% if v %} · {{ v.text }}{% endif %}</p>{% endif %}
-{% if rv.surprises %}<h3 style="margin-top:18px">Who had the week <span class="hint">points against their own last projection before kickoff, less the league's average surprise that week ({{ rv.league_surprise|signed(1) }})</span></h3>
+{% if rv.surprises %}<h3 class="u-mt-18px">Who had the week <span class="hint">points against their own last projection before kickoff, less the league's average surprise that week ({{ rv.league_surprise|signed(1) }})</span></h3>
 <div class="scroller"><table><thead><tr><th>Player</th><th class="num">Projected</th><th class="num">Scored</th><th class="num">Beat the league by</th></tr></thead><tbody>
 {% for p in rv.surprises %}<tr><td class="nm"><a href="/player/{{ p.pid }}">{{ p.name }}</a></td><td class="num">{{ p.projected|num(1) }}</td><td class="num"><b>{{ p.points|num(1) }}</b></td><td class="num pos">{{ p.over_league|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
