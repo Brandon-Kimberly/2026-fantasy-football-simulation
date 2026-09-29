@@ -32,6 +32,21 @@ from zoneinfo import ZoneInfo
 PT = ZoneInfo("America/Los_Angeles")
 RUN2_DEADLINE_LOCAL = time(10, 0)   # Sunday 10:00 PT -- the owner's rule, not a kickoff
 
+# Windows the OWNER has ruled covered by a run that landed after the deadline, keyed by the
+# window's name and its deadline in UTC (unique across weeks and seasons). There is no
+# general grace period: each entry names one window, accepts runs up to one instant, and says
+# why; a window covered this way reports `adjudicated`. Timestamps are never rewritten.
+ADJUDICATED_WINDOWS = {
+    ("run2_sunday", "2026-09-27T17:00:00Z"): {
+        "accepted_until": "2026-09-27T17:08:09Z",
+        "ruled": "2026-09-29",
+        "why": ("week 3: the owner's canonical run started 09:57:24 PDT and landed 8 minutes "
+                "late (predictions row 17:08:02Z, digest 17:08:09Z); it skipped the sync and "
+                "ran on the 02:24 PDT one, so nothing after kickoff reached it. The runner had "
+                "refused earlier on an unclassified FAAB-adjustment warning (issue #17)."),
+    },
+}
+
 
 DIGEST_STAMP_RE = r"(\d{8}T\d{6}Z)"
 
@@ -196,6 +211,15 @@ def compute_windows(now_utc, kickoffs_by_week, canonical_stamps, state_week=None
         if win["name"] == "run3_tuesday":
             eligible += list(next_week_stamps or [])
         covering = [n for n, dt in eligible if win["start"] <= dt < win["deadline"]]
+        win["adjudicated"] = None
+        ruling = ADJUDICATED_WINDOWS.get(
+            (win["name"], win["deadline"].astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")))
+        if not covering and ruling:
+            until = datetime.strptime(ruling["accepted_until"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+            late = [(n, dt) for n, dt in eligible if win["deadline"] <= dt <= until]
+            if late:
+                covering = [n for n, _dt in late]          # every marker of the run, as an on-time window claims them
+                win["adjudicated"] = dict(ruling, late_by_seconds=int((late[-1][1] - win["deadline"]).total_seconds()))
         win["covered_by"] = covering[-1] if covering else None
         claimed.update(covering)
         if covering:

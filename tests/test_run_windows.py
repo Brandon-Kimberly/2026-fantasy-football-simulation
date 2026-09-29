@@ -313,3 +313,57 @@ class TestLocalCoverageSeesRunnerCanonicalRuns(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+W3 = [u("2026-09-25T00:15:00"), u("2026-09-27T17:00:00"), u("2026-09-29T00:15:00")]
+
+
+class TestAnAdjudicatedWindow(unittest.TestCase):
+    """Issue #17 (owner ruling 2026-09-29): week 3's run2_sunday closed at 10:00:00 PDT
+    (17:00:00Z), and the owner's canonical run -- started 09:57:24 PDT on a sync from 02:24
+    PDT, so nothing after kickoff reached it -- landed 8 minutes late: its predictions row at
+    17:08:02Z, its digest stamped 17:08:09Z. The owner ruled it covered. The ruling is a named
+    record for that one window, accepting runs up to 17:08:09Z; there is no general grace
+    period, and a window covered this way says so. Written before the record existed."""
+
+    NOW = u("2026-09-29T18:00:00")
+
+    def run2(self, stamps, kicks=None):
+        r = compute_windows(self.NOW, kicks or {3: W3}, stamps)
+        return next(w for w in r["windows"] if w["name"] == "run2_sunday"), r
+
+    def test_the_late_run_covers_it_by_the_digest_and_by_the_predictions_row(self):
+        for marker, at in (("weekly_report_week3_20260927T170809Z.md", u("2026-09-27T17:08:09")),
+                           ("predictions@2026-09-27T17:08:02Z", u("2026-09-27T17:08:02"))):
+            with self.subTest(marker=marker):
+                w, r = self.run2([(marker, at)])
+                self.assertEqual((w["status"], w["covered_by"]), ("COVERED", marker))
+                self.assertEqual(w["adjudicated"]["ruled"], "2026-09-29")
+                self.assertNotIn(marker, r["outside_windows"], "it covered something now")
+
+    def test_both_markers_of_the_one_run_are_claimed(self):
+        """The local tool sees the run twice -- its digest and its predictions row -- and an
+        on-time window claims every marker inside it; an adjudicated one must too, or the
+        same run is reported as covering the window AND as covering nothing."""
+        _w, r = self.run2([("predictions@2026-09-27T17:08:02Z", u("2026-09-27T17:08:02")),
+                           ("weekly_report_week3_20260927T170809Z.md", u("2026-09-27T17:08:09"))])
+        self.assertEqual(r["outside_windows"], [])
+
+    def test_it_says_how_late(self):
+        w, _r = self.run2([("weekly_report_week3_20260927T170809Z.md", u("2026-09-27T17:08:09"))])
+        self.assertEqual(w["adjudicated"]["late_by_seconds"], 489)
+
+    def test_a_run_one_second_later_still_missed(self):
+        w, _r = self.run2([("weekly_report_week3_20260927T170810Z.md", u("2026-09-27T17:08:10"))])
+        self.assertEqual(w["status"], "MISSED")
+
+    def test_an_on_time_run_is_plainly_covered(self):
+        w, _r = self.run2([("weekly_report_week3_20260927T165000Z.md", u("2026-09-27T16:50:00"))])
+        self.assertEqual(w["status"], "COVERED")
+        self.assertIsNone(w.get("adjudicated"))
+
+    def test_no_other_window_gets_a_grace_period(self):
+        """Week 2's Sunday, missed by the same eight minutes, stays missed."""
+        r = compute_windows(u("2026-09-22T18:00:00"), KICKS, [("late", u("2026-09-20T17:08:02"))])
+        w = next(w for w in r["windows"] if w["name"] == "run2_sunday")
+        self.assertEqual(w["status"], "MISSED")
