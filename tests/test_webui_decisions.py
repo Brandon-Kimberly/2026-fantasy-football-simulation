@@ -133,8 +133,8 @@ class TestPicks(Case):
 
     def test_saving_writes_only_the_local_picks_file(self):
         target = os.path.join(self.td.name, "data", "local", "webui", "picks.json")
+        c = self.app("simple")                          # setting the view writes settings.json: before the snapshot
         before = digest_except(self.td.name, target)
-        c = self.app("simple")
         r = c.post("/picks", data={"_csrf": "tok", "week": "4", f"p:{QF}|Iron Wombats": "65"})
         self.assertIn(r.status_code, (200, 302, 303))
         self.assertTrue(os.path.exists(target))

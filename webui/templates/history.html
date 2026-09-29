@@ -12,7 +12,7 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
 <div class="head">
   <p class="eyebrow">history · {{ seasons|join(", ") }}</p>
   <h1>History</h1>
-  <p class="lede">Every regular-season game on file. Playoff games are left out: the 2025 archive does not record which post-season games were for the title and which were consolation, so counting them would mix the two. This season's results are as the league counted them.{% if drafts %} <a href="/draft">The draft board</a>.{% endif %}</p>
+  <p class="lede">Every regular-season game on file. Playoff games are left out: the 2025 archive does not record which post-season games were for the title and which were consolation, so counting them would mix the two. This season's results are as the league counted them.{% if drafts %} <a href="/draft">The draft board</a>.{% endif %}{% if archived %} Each past season: {% for y in archived %}<a href="/history/{{ y }}">{{ y }}</a>{% if not loop.last %} · {% endif %}{% endfor %}.{% endif %}</p>
 </div>
 
 {% set md = model %}{% if md and (md.least_likely_win or md.comeback or md.collapse or md.champion) %}

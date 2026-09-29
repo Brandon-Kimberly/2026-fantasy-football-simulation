@@ -286,6 +286,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV + NAV_DEV_MORE if mode == "dev" else NAV_SIMPLE)]
         items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
         items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how the dice fell, five measures"})     # UI-R6: pulled, never on Home
+        items.append({"k": "page", "t": "Your picks", "h": "/picks", "d": "your picks against the model"})     # UI-Q3
         for name, t in TOOLS.items():
             if mode == "dev" or name in SIMPLE_TOOLS:
                 items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}", "d": t.question})
@@ -391,7 +392,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         cur = str(state.get("season") or (root.read_json("current/sync_manifest.json", {}) or {}).get("season") or "")
         return render_template("history.html", book=historymod.record_book(gs), n_games=len(gs), pairs=pairs,
                                teams=teams, mine=mine, seasons=sorted({g["season"] for g in gs}), current_season=cur,
-                               drafts=historymod.seasons_available(root), model=historymod.model_records(root))     # UI-H4
+                               drafts=historymod.seasons_available(root), model=historymod.model_records(root),     # UI-H4
+                               archived=sorted(s for s, _b in historymod._archives(root)))                            # UI-H6
 
     @app.route("/playoffs")
     def playoffs_page():
@@ -411,7 +413,48 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         team = objects.team_for_slug(root, want) if want else MY_TEAM
         if not team:
             abort(404)
-        return render_template("luck.html", r=luckmod.report(root, team), teams=objects._teams(root))
+        return render_template("luck.html", r=luckmod.report(root, team), teams=objects._teams(root),
+                               late=luckmod.late_measures(root, team), swap=luckmod.swap_matrix(root))     # Decision 2
+
+    @app.route("/picks", methods=["GET", "POST"])
+    def picks_page():
+        """UI-Q3 (Decision 8): the owner's chances against the model's, stored only under data/local/webui."""
+        from webui import picks as picksmod
+        cur = objects._current_week(root) or 1
+        saved = refused = False
+        if request.method == "POST":
+            require_csrf()
+            week = _int_or_none(request.form.get("week")) or cur
+            chances = {}
+            for k, v in request.form.items():
+                if k.startswith("p:") and "|" in k:
+                    try:
+                        chances[k[2:]] = max(0.0, min(100.0, float(v))) / 100.0 if str(v).strip() != "" else None
+                    except ValueError:
+                        continue
+            saved = picksmod.save(root, week, chances)
+            refused = not saved
+            if saved:
+                return redirect("/picks?saved=1")
+        mine = (picksmod.load(root).get("weeks") or {}).get(str(cur)) or {}
+        locked = picksmod.locked(root, cur)
+        from webui.accuracy import quoted_week
+        q = quoted_week(root, cur) or {} if locked else {}
+        quotes = {(m.get("a"), m.get("b")): m.get("p_a") for m in q.get("matchups") or []}
+        quotes.update({(m.get("b"), m.get("a")): m.get("p_b") for m in q.get("matchups") or []})
+        sched = objects._schedule(root)
+        games = [{"a": p[0], "b": p[1], "mine": mine.get(f"{p[0]}|{p[1]}"), "model": quotes.get((p[0], p[1]))}
+                 for p in (sched[cur - 1] if 0 < cur <= len(sched) else []) if isinstance(p, (list, tuple)) and len(p) == 2]
+        return render_template("picks.html", week=cur, games=games, locked=locked, sc=picksmod.scores(root),
+                               saved=saved or request.args.get("saved") == "1", refused=refused)
+
+    @app.route("/history/<int:season>")
+    def season_history(season):
+        """UI-H6 (Decision 7): an archived season's final standings and weekly scores."""
+        s = historymod.season_page(root, season)
+        if not s:
+            abort(404)
+        return render_template("season.html", s=s)
 
     @app.route("/draft")
     def draft_page():

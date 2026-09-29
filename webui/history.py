@@ -207,3 +207,39 @@ def model_records(root):
         champ = (first.get(final["winner"]) or {}).get("champ")
         out["champion"] = {"team": final["winner"], "p": champ, "week": first_w}
     return out
+
+
+def season_page(root, season):
+    """UI-H6: one archived season -- final standings (the league's own record for the season)
+    and every regular-season week's scores with their head-to-head results, paired by
+    matchup_id. The archives record no bracket, so no champion is claimed. None when the
+    season is not archived."""
+    bundle = next((b for s, b in _archives(root) if s == str(season)), None)
+    if not bundle:
+        return None
+    names = {str(k): v for k, v in (bundle.get("roster_map") or {}).items()}
+    last = int((bundle.get("settings") or {}).get("playoff_week_start") or 15) - 1
+    fs = bundle.get("final_standings") or {}
+    standings = sorted(({"team": t, "w": int(v.get("wins") or 0), "l": int(v.get("losses") or 0), "t": int(v.get("ties") or 0),
+                         "pts": float(v.get("points_scored") or 0.0)} for t, v in fs.items()),
+                       key=lambda r: (-r["w"], -r["pts"]))
+    for i, r in enumerate(standings):
+        r["rank"] = i + 1
+    weeks = []
+    for wk in sorted((int(k) for k in (bundle.get("matchups") or {})), key=int):
+        if wk > last:
+            continue
+        rows = bundle["matchups"][str(wk)] or []
+        pts = {names.get(str(e.get("roster_id")), f"roster {e.get('roster_id')}"): e.get("points") for e in rows}
+        by_mid = {}
+        for e in rows:
+            if e.get("matchup_id") is not None:
+                by_mid.setdefault(e["matchup_id"], []).append(names.get(str(e.get("roster_id")), f"roster {e.get('roster_id')}"))
+        res = {}
+        for pair in by_mid.values():
+            if len(pair) == 2 and pts.get(pair[0]) is not None and pts.get(pair[1]) is not None:
+                a, b = pair
+                res[a] = "W" if pts[a] > pts[b] else ("L" if pts[a] < pts[b] else "T")
+                res[b] = {"W": "L", "L": "W", "T": "T"}[res[a]]
+        weeks.append({"week": wk, "points": pts, "result": res})
+    return {"season": str(season), "standings": standings, "weeks": weeks, "status": bundle.get("status")}
