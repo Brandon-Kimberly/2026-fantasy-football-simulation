@@ -603,6 +603,25 @@ class TestStarterCategories(BrowserCase):
         self.assertEqual(self.errors, [])
 
 
+class TestSundayChangeable(BrowserCase):
+    """UI-L3: during the games the live panel says what can still change, locked slots greyed."""
+    live_enabled = True
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def test_the_panel_lists_locked_and_changeable_slots(self):
+        pay = live_payload(False, 0.7)
+        pay["snapshot"]["changeable"] = [
+            {"slot": "QB", "name": "A Passer", "locked": True, "changeable": False, "alternative": None, "cost": None, "label": "Q3 5:12"},
+            {"slot": "WR", "name": "E Catcher", "locked": False, "changeable": True, "alternative": "F Receiver", "cost": 2.5, "label": ""}]
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/", "simple")
+        self.page.wait_for_selector("#live-body .changeable")
+        box = self.page.inner_text("#live-body .changeable")
+        self.assertIn("F Receiver", box)
+        self.assertEqual(self.page.locator("#live-body .changeable tr.locked").count(), 1)
+        self.assertEqual(self.errors, [])
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

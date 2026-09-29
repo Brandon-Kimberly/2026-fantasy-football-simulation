@@ -554,3 +554,8 @@ def add_categories(snap, scoring):
             parts = stat_parts({}, stats.get(str(r.get("pid"))) or {}, scoring or {}, limit=12)
             r["cats"] = [{"text": p["text"], "pts": p["pts"]} for p in parts]
     return snap
+
+
+def changeable(record, clocks, teams):
+    """UI-L3 characterisation stub."""
+    return []
