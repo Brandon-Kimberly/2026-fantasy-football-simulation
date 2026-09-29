@@ -130,6 +130,21 @@ class TestEveryRacingLogIsUnioned(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(_has_union(path, lines))
 
+    def test_a_log_the_weekly_report_writes_is_not_excused_as_hand_run(self):
+        """Found 2026-09-29, re-applying a local sync's logs over the Actions runner's push:
+        streamer_levels.jsonl conflicted. The exclusion set says `scripts.streamer_study` is
+        run by hand, but since C5 (2026-09-23) every weekly_report run -- including the
+        canonical-run workflow's -- calls it with --record. So the log races like the rest,
+        and must be unioned; its only reader is the log viewer, so a duplicated row (one
+        timestamped reading, twice) is harmless."""
+        import inspect
+        from fantasy_sim import weekly_report
+        src = inspect.getsource(weekly_report.build_steps)
+        self.assertIn('m(["--record"])', src, "the weekly report records a streamer reading every run")
+        path = "data/logs/streamer_levels.jsonl"
+        self.assertNotIn(path, NO_AUTOMATED_WRITER)
+        self.assertTrue(_has_union(path, _attr_lines()))
+
     def test_whole_document_json_is_NOT_unioned(self):
         """`data/logs` also holds whole-document .json (draft_2026, season_2025, ...).
         Union-merging those concatenates two JSON documents into an unparseable file, so the
