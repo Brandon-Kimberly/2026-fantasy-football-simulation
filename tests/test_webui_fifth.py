@@ -232,7 +232,9 @@ class TestPages(unittest.TestCase):
 
     def test_seed_heat_map_scales_to_its_max(self):
         body = self.get("/forecasts/week-3")
-        self.assertIn("rgba(107,91,210,0.85)", body, "the likeliest seed is fully tinted")          # B15
+        # B15: scaled to the grid's own maximum, so the likeliest seed takes the darkest step (the
+        # validated heat grid since UI-V2; this pinned the old literal tint until then)
+        self.assertIn('<td class="hc h4"', body, "the likeliest seed is fully tinted")
 
     def test_the_audit_hook_renders_only_when_asked(self):
         self.assertNotIn("data-audit-scroll", self.get("/"))

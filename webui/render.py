@@ -1365,7 +1365,7 @@ def heat(rows, cols, values, fmt=str, me=None, row_name=str, col_name=str, corne
             if v is None:
                 out.append('<td class="hc h0">—</td>')
                 continue
-            k = 2 if hi == lo else 1 + min(3, int((float(v) - lo) / (hi - lo) * 4))
+            k = 4 if hi == lo else 1 + min(3, int((float(v) - lo) / (hi - lo) * 4))      # all equal: each is the max (B15)
             text = escape(fmt(v))
             out.append(f'<td class="hc h{k}" title="{escape(row_name(r))} · {escape(col_name(c))}: {text}">{text}</td>')
         out.append("</tr>")

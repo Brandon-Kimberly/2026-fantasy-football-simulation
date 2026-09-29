@@ -124,6 +124,9 @@ def week_report(root, week):
                      "exp_points": o.get("Expected_Points"), "magic": fc.get("approximate_magic_number"), "faab": cs.get("remaining_faab")})
     return {"week": n, "forecast": forecast, "teams": teams, "outcomes": outcomes, "rows": rows,
             "metadata": matrix.get("metadata") or {}, "seeds": matrix.get("finishing_seed_probabilities") or {},
+            "seed_vals": {(t, str(k).replace("Seed ", "#")): float(v) / 100.0                          # UI-V2
+                          for t, ks in (matrix.get("finishing_seed_probabilities") or {}).items() if isinstance(ks, dict)
+                          for k, v in ks.items() if v is not None},
             "h2h": matrix.get("h2h_win_probability_matrix") or {}, "wins_dist": matrix.get("win_distributions") or {},
             "traj": matrix.get("weekly_trajectories") or {}, "score_pct": matrix.get("weekly_score_percentiles") or {},
             "insights": insights, "warnings": audit.get("warnings") or [],
@@ -226,6 +229,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.globals["line_chart"] = render.line_chart
     app.jinja_env.globals["sparkline"] = render.sparkline
     app.jinja_env.globals["strip"] = render.strip                 # UI-P2
+    for _n in ("heat", "slope", "dots", "fan", "pctbar"):             # UI-V3 primitives
+        app.jinja_env.globals[_n] = getattr(render, _n)
+    app.jinja_env.globals["pct0"] = lambda v: render.fpct(v, 0)
+    app.jinja_env.globals["realname"] = overlay.text
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
     app.jinja_env.filters["tool_icon"] = render.tool_icon

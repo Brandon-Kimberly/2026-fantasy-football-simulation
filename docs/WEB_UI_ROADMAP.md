@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 70 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 72 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -43,6 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
 | UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
+| UI-V3 / V2 | Chart primitives in `render.py`: a slope chart, a heat grid that writes every value, a dot histogram, a fan chart and a percentage bar. Each has a hover and a table view, and draws only from `--c-*` tokens, whose values passed the dataviz validator in both themes. That validation moved gains and losses to blue and red, stepped the dark turf down and cut the ramp to four steps. The forecast week page drops every image with a native section; Power Rankings stays. The seed grid uses the heat grid, and the odds bars lost their per-team hues. |
 | UI-R5 | Four more opt-in alerts on Home beside the kickoff one: a player's injury status changes, a lineup change worth 2+ points of win chance, playoff odds moving beyond two standard errors, and the waiver run 30 minutes away. Each fires once, keyed to the change, and only while the page is open, as the row says. |
 | UI-L3 / Q4 | During the games the live panel says what you can still change: locked slots dimmed, the rest with an alternative who hasn't kicked off either. The developer Accuracy page reconciles the two calibration readings. This season's same-week quotes put 96% of 24 team-weeks inside the 80% range, 1.9 SE above; the 2025 backtest's newest logged run put 75% of 240 inside, 1.9 SE below, at horizons up to eleven weeks. Both are read from their sources. `docs/LUCK_LEDGER.md` still cites an older run's 0.654. |
 | UI-M4 / E3 / M3 / A7 | Every category the league scores has a readable feed label, and a starter's live row lists its categories in a tooltip. There is a read-only JSON API (team, player, week, odds). Matchups shows where the game is decided: pairs slot by slot, each pair's chance and its share of the margin's variance, with the presentation caveat. Developer Records are grouped by run, with headlines, a tool filter and "compare with the previous" for lineups. |
