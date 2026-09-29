@@ -194,5 +194,20 @@ def report(root):
 
 
 def backtest_read(root):
-    """UI-Q4 characterisation stub."""
-    return {}
+    """UI-Q4: the points backtest's own figure, read from the newest line of its log
+    (data/logs/points_backtest.jsonl) -- never a number copied into a page or a doc, which is
+    how docs/LUCK_LEDGER.md came to cite an older run's 0.654. The 80% band's coverage, its
+    sample, the checkpoints it was forecast from, and the standard error a coverage rate has
+    at that sample if the band were exactly right. None when no run is logged."""
+    try:
+        rows, _n = root.tail_jsonl("logs/points_backtest.jsonl", 1)
+    except (FileNotFoundError, ValueError):
+        return None
+    row = rows[0] if rows and isinstance(rows[0], dict) else None
+    overall = (row or {}).get("overall") or {}
+    if overall.get("cover80") is None or not overall.get("n"):
+        return None
+    n = int(overall["n"])
+    return {"cover80": float(overall["cover80"]), "n": n, "checkpoints": row.get("checkpoints") or [],
+            "at": row.get("timestamp_utc"), "commit": (row.get("git_commit") or "")[:7],
+            "se": (0.8 * 0.2 / n) ** 0.5}

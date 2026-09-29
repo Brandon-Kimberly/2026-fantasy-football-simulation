@@ -676,7 +676,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/accuracy")
     def accuracy_page():
         """W17: what the model quoted before each week's games, against what happened."""
-        return render_template("accuracy.html", **accuracymod.report(root))
+        return render_template("accuracy.html", backtest=accuracymod.backtest_read(root), **accuracymod.report(root))
 
     @app.route("/decisions")
     def decisions_tab():
