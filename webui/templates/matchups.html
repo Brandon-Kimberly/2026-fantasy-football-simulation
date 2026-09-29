@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink with context %}
+{% from "_macros.html" import mark, teamlink, toolshere with context %}
 {% block title %}Week {{ week }} matchups · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -27,6 +27,7 @@
   <p class="eyebrow">matchups · week {{ week }}{% if week == current %} · this week{% endif %}</p>
   <h1>Week {{ week }}</h1>
   <p class="lede">{% if played %}Every game as the league counted it, beside the chance the model gave each side before kickoff.{% elif week == current %}This week's games, with the chance the model gives each side.{% else %}The chance each side wins, from the latest forecast.{% endif %}</p>
+  {{ toolshere(["matchup_lineup", "live_matchup"] + (["matchup_watch"] if dev else [])) }}
   <nav class="weeks" aria-label="weeks">{% for w in weeks %}<a href="/matchups/week-{{ w }}" class="{{ 'on' if w == week }}{{ ' cur' if w == current }}"{% if w == current %} title="this week"{% endif %}>{{ w }}</a>{% endfor %}</nav>
 </div>
 
@@ -35,7 +36,7 @@
 {% for g in games %}
   <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}">
     {% for side in ("a", "b") %}{% set t = g[side] %}{% set pts = g["pts_" ~ side] %}{% set med = g["med_" ~ side] %}{% set p = g["p_" ~ side] %}
-    <div class="side{{ ' lose' if g.winner and g.winner != t }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
+    <div class="side{{ ' lose' if g.winner and g.winner != t }}" id="t-{{ t|slug }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">

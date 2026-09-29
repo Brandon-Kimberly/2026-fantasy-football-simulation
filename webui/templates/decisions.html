@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, teamlink with context %}
+{% from "_macros.html" import tiles, mark, teamlink, toolshere with context %}
 {% block title %}Decisions · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -34,6 +34,7 @@
   <p class="eyebrow">decisions · every move in the league, scored</p>
   <h1>Decisions</h1>
   <p class="lede">Every add, claim and trade the league has made this season, and what it did to that team's playoff and title chances — the same roster simulated with and without the move, on the same seeds.{% if dev %} The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them.{% endif %}</p>
+  {{ toolshere(["evaluate_move"] + (["decision_scorecard", "bid_review"] if dev else [])) }}
 </div>
 
 {{ tiles([

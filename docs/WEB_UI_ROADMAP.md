@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 59 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-28): waves 1–5 under way; 61 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -43,6 +43,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-P1 / W1 | The Players page and the Waiver board, with waiver clearing times. |
 | UI-A6 | Tool cards lead with their latest answer. |
 | UI-A1 / A2 / A3 | Team, player and matchup pages. Every game is live in the current week. Every team link opens its team page. |
+| UI-A4 / A5 | League has the season as a grid of fourteen weeks by eight teams: each cell is the opponent, the result once played or the chance to win before, and it opens that game; the run-in is shaded. In the developer view, Records, Jobs, Logs, System and Sync sit under one "More" menu (Decision 6). Every tool that answers a question is linked from the page where the question comes up. The three operations tools stay under System. |
 | UI-W3 / T3 / R6 | The waiver board opens with the last run's winning claims (bid and paired-simulation grade; losing bids are not logged, and it says so). The trade builder computes what changes: starters out and in, slot by slot, new bye collisions and depth. A Luck page shows the ledger's five pre-registered measures, built from the files on disk and reached from team pages and the palette, never from Home. The DNP measure is not measurable there, because no per-team starters are on disk. |
 | UI-A9 / P5 | Players in the command palette, by name, linking to their pages. The player card draws the distribution strip for a rostered player and Sleeper's injury detail (body part, practice, last update); it measures itself before it places. Not built: "rostered by N of 8", because each player is on one roster or none in this league. |
 | UI-P2 | The distribution strip (`render.strip`) on the team roster and the player page: histogram, 10th–90th line, 25th–75th box, mean tick and the weeks played, on one scale per table. Not yet in the hover card or compare. The waiver board has no strips because free agents are not simulated. There is no zero pip: nothing on disk is the chance of a zero in a week played. |

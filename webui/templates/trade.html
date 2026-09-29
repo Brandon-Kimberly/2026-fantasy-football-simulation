@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink, playerlink with context %}
+{% from "_macros.html" import mark, teamlink, playerlink, toolshere with context %}
 {% block title %}Trade builder · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -18,6 +18,7 @@
   <p class="eyebrow">trade builder</p>
   <h1>Trade builder</h1>
   <p class="lede">Pick a team, tick what you would give and what you would get, and see at once what the deal does to each side's best lineup for the rest of the regular season. For what it does to your playoff and title chances, send it to the full simulation.</p>
+  {{ toolshere(["evaluate_trade"] + (["find_trades", "trade_leverage"] if dev else [])) }}
 </div>
 
 <form method="get" action="/trade" id="tform">

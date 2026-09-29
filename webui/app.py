@@ -48,8 +48,9 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
 NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
-           ("/records", "Records"), ("/tools", "Tools"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"),
-           ("/sync", "Sync"))
+           ("/tools", "Tools"))
+# UI-A5 / Decision 6: the machinery under one developer menu, so the bar is the league's objects
+NAV_DEV_MORE = (("/records", "Records"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"), ("/sync", "Sync"))
 NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
@@ -127,6 +128,11 @@ def week_report(root, week):
             "charts": charts, "jsons": jsons, "subdirs": listing["subdirs"]}
 
 
+def _my_team():
+    from fantasy_sim.config import MY_TEAM
+    return MY_TEAM
+
+
 def current_report(root):
     standings = root.read_json("current/league_standings.json", {}) or {}
     rosters = root.read_json("current/live_rosters.json", {}) or {}
@@ -153,7 +159,8 @@ def current_report(root):
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
             "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins,
-            "srows": standingsmod.table(root), "rescored_weeks": sorted(rescaled_weeks(root))}
+            "srows": standingsmod.table(root), "rescored_weeks": sorted(rescaled_weeks(root)),
+            "grid": objects.season_grid(root, _my_team())}                                  # UI-A4
 
 
 # ------------------------------------------------------------------------- factory
@@ -230,6 +237,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
                 "audit": request.args.get("audit") == "1",      # the harness's overflow probe (scripts.webui_audit)
                 "mode": mode, "dev": mode == "dev", "nav": NAV_DEV if mode == "dev" else NAV_SIMPLE,
+                "nav_more": NAV_DEV_MORE if mode == "dev" else (),
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
@@ -264,7 +272,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def _palette(mode):
         """U4: what the command palette can jump to in THIS view -- its pages, its tools,
         the teams. Pseudonyms in; the page applies the overlay before showing them."""
-        items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV if mode == "dev" else NAV_SIMPLE)]
+        items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV + NAV_DEV_MORE if mode == "dev" else NAV_SIMPLE)]
         items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
         items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how the dice fell, five measures"})     # UI-R6: pulled, never on Home
         for name, t in TOOLS.items():

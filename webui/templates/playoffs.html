@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink with context %}
+{% from "_macros.html" import mark, teamlink, toolshere with context %}
 {% block title %}Playoffs · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -57,6 +57,7 @@ table.lev tr.me td.nm { font-weight: 700; }
   <p class="eyebrow">playoffs{% if r.available %} · week {{ r.week }}'s forecast · {{ "{:,}".format(r.o.n) }} simulated seasons{% endif %}</p>
   <h1>The playoff machine</h1>
   <p class="lede">Pick who wins any remaining game, or who beats the weekly median, and see every team's playoff and title odds in the seasons where those results happened. Nothing is simulated again: each number is a share of the forecast's own {% if r.available %}{{ "{:,}".format(r.o.n) }} {% endif %}simulated seasons, with the count behind it and its standard error.</p>
+  {{ toolshere(["odds_history"] if dev else []) }}
 </div>
 
 {% if not r.available %}

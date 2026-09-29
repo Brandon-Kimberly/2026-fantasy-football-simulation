@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import mark, teamlink, playerlink, rangebar with context %}
+{% from "_macros.html" import mark, teamlink, playerlink, rangebar, toolshere with context %}
 {% block title %}{{ "Waiver board" if board else "Players" }} · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -16,6 +16,7 @@
   <p class="eyebrow">{{ "waiver board" if board else "players" }}{% if week %} · week {{ week }}{% endif %}</p>
   <h1>{{ "Waiver board" if board else "Players" }}</h1>
   <p class="lede">{% if board %}Everyone you could add right now, {% if targets_stamp %}ranked by the waiver-targets run of {{ targets_stamp|when }} and then {% endif %}by this week's projection. A free agent is an instant $0 add; a player dropped in the last two days is on waivers until the next 9:00 am (Pacific) run after that, and needs a bid.{% else %}Every player the model prices, with this week's number beside the season average and where each one stands in this league.{% endif %}</p>
+  {{ toolshere(((["waiver_targets", "evaluate_move"] + (["market_sweep", "bid_review"] if dev else [])) if board else [])) }}
   <nav class="ptabs" aria-label="views"><a href="/players" class="{{ 'on' if not board }}">All players</a><a href="/waivers" class="{{ 'on' if board }}">Waiver board{% if n_waivers %} · {{ n_waivers }} on waivers{% endif %}</a></nav>
   <div class="pfind">
     <div class="chips2" aria-label="position">{% for p in positions %}<a href="?pos={{ p }}&show={{ show }}{{ qs }}" class="{{ 'on' if pos == p }}">{{ "All" if p == "all" else p }}</a>{% endfor %}</div>
