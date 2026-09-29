@@ -210,7 +210,7 @@ def team_report(root, team, my_team):
         roster.append({"name": e.get("name"), "pid": b.get("player_id"), "pos": b.get("pos") or e.get("pos"),
                        "nfl": b.get("team") or e.get("team"), "mean": b.get("mean"), "bye": b.get("bye"),
                        "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or ""),
-                       "p10": rg.get("p10"), "p50": rg.get("p50"), "p90": rg.get("p90"),
+                       "p10": rg.get("p10"), "p50": rg.get("p50"), "p90": rg.get("p90"), "dist": rg or None,
                        "vorp": (vorp.get(e.get("name")) or {}).get("vorp")})
     roster.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
     moves = [dict(d, fx=d["effect"].get(team)) for d in decisions_report(root, my_team)["decisions"] if team in d["teams"]]

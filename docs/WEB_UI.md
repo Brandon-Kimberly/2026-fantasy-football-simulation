@@ -855,6 +855,28 @@ measures the panes' boxes at 2560 and the stacking at 1280 and 1920.
 - **A chance to win is never shown as certain until it is decided** (UI-M8): "over 99.9%"
   or "under 0.1%" while anyone on either side has a game left.
 
+### The distribution strip (2026-09-28, roadmap UI-P2)
+
+`render.strip(v, hi, history)` draws one player's week as the simulation sees it, from
+`player_variance.json`, on ONE scale (0 to `hi`, shared down a table so strips compare):
+- the histogram, faint, behind everything;
+- the 10th-to-90th line and the 25th-to-75th box;
+- a mean tick;
+- a dot for each week already played (first recorded scores).
+
+Every number is also the SVG's title and aria-label, and the player page writes the
+percentiles out beneath the strip. It is on the team roster and the player page.
+
+The histogram is what separates a handcuff from a steady player with the same range: two
+humps against one (`tests.test_webui_strip`).
+
+**Not built:**
+- **The roadmap's "chance of scoring zero" pip.** The variance export leaves bye and injury
+  weeks out by design, and its first histogram bin runs from 0 to 5.3, so nothing on disk
+  is that chance.
+- **Strips in the hover card and compare.** They are next.
+- **The waiver board.** It cannot have strips: free agents are not simulated.
+
 ### One standings table (2026-09-28, roadmap UI-O1)
 
 `webui/standings.py` builds every standings row, and League, Home and the team page render

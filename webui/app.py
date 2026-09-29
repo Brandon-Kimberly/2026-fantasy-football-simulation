@@ -216,6 +216,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
     app.jinja_env.globals["sparkline"] = render.sparkline
+    app.jinja_env.globals["strip"] = render.strip                 # UI-P2
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
     app.jinja_env.filters["tool_icon"] = render.tool_icon

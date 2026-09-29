@@ -43,6 +43,13 @@
 </div>
 </section>
 
+{% if range and range.p25 is not none %}{% set played = history|map(attribute='points')|select('number')|list %}{% set shi = ((([range.p90 * 1.3] + played)|max / 5)|round(0, 'ceil') * 5) %}
+<section>
+<h2><svg class="i"><use href="#i-chart"/></svg> One week's points <span class="hint">the week-{{ odds_week }} forecast's spread for a week played · 0 to {{ shi|int }} points</span></h2>
+<div class="dwide">{{ strip(range, shi, played, width=520, height=34) }}</div>
+<p class="small muted">The line runs from the 10th to the 90th percentile, the box from the 25th to the 75th, the tick is the mean, and the faint bars are how often each score came up.{% if played %} The dots are the weeks played so far.{% endif %} 10th {{ range.p10|num(1) }} · 25th {{ range.p25|num(1) }} · median {{ range.p50|num(1) }} · 75th {{ range.p75|num(1) }} · 90th {{ range.p90|num(1) }}{% if range.mean is not none %} · mean {{ range.mean|num(1) }}{% endif %}. Weeks the player does not play are left out of this spread.</p>
+</section>
+{% endif %}
 <section>
 <h2><svg class="i"><use href="#i-chart"/></svg> Week by week <span class="hint">the last projection logged before each week's first kickoff, against the points first recorded</span></h2>
 {% if history %}
