@@ -307,6 +307,11 @@ def syndicate_comprehensive_matrix_path(week):
     return _week(week, f"syndicate_comprehensive_matrix_week_{week}.json")
 
 
+def sim_outcomes_path(week):
+    """Decision 1 / UI-E5 (2026-09-28): one compact record per simulated season."""
+    return _week(week, f"sim_outcomes_week_{week}.json")
+
+
 # F10 (2026-08-31): the sim-0 audit log is retained per week like the four weekly JSON exports
 # above. It was SIMULATION_AUDIT_LOG_FILE = _current("simulation_audit_log_sim0.json") -- a
 # single always-overwritten path -- until F10 threaded `week` through its one write site.

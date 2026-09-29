@@ -33,9 +33,9 @@ except ImportError:
     HAS_DEPS = False
 
 # the pages each view links from its top bar; every one must load without a script error
-PAGES = {"dev": ("/", "/league", "/forecasts", "/accuracy", "/decisions", "/records", "/tools", "/jobs",
+PAGES = {"dev": ("/", "/league", "/playoffs", "/forecasts", "/accuracy", "/decisions", "/records", "/tools", "/jobs",
                  "/logs", "/system", "/sync", "/gameday"),
-         "simple": ("/", "/league", "/forecasts", "/decisions", "/tools", "/gameday")}
+         "simple": ("/", "/league", "/playoffs", "/forecasts", "/decisions", "/tools", "/gameday")}
 
 
 def launch(pw):
@@ -508,6 +508,25 @@ class TestInstantCompareSuggestions(BrowserCase):
         p.wait_for_function("(document.querySelector('#s_b div') || {}).textContent && document.querySelector('#s_b div').textContent.indexOf('Xavier Worthy') === 0")
         p.keyboard.press("Enter")
         p.wait_for_function("document.querySelectorAll('#instant-body table.inst tbody tr').length === 2")
+
+
+def _plant_export(root):
+    from tests.test_webui_outcomes import plant_export
+    plant_export(root)
+
+
+class TestPlayoffMachine(BrowserCase):
+    """UI-O7: a pick redraws the odds in place -- the old result stays on screen until the new
+    one arrives -- and the address follows, so the view can be shared or reloaded."""
+    plant = staticmethod(_plant_export)
+
+    def test_a_pick_redraws_the_result_and_the_address(self):
+        p = self.open("/playoffs", "simple")
+        self.assertIn("All 1,000", p.inner_text("#pm-result").replace("all 1,000", "All 1,000"))
+        p.click("fieldset.gm >> nth=0 >> label.a")
+        p.wait_for_function("document.querySelector('#pm-result').innerText.indexOf('600 of 1,000 seasons match') >= 0")
+        self.assertIn("g3.0=a", p.url)
+        self.assertEqual(self.errors, [])
 
 
 class TestThreePaneHome(BrowserCase):
