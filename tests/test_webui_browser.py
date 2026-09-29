@@ -589,6 +589,20 @@ class TestHomeOtherGamesLive(BrowserCase):
         self.assertEqual(self.errors, [])
 
 
+class TestStarterCategories(BrowserCase):
+    """UI-M4: a starter's live row carries its scored categories as a tooltip."""
+    live_enabled = True
+    plant = staticmethod(kickoffs("2026-01-01T17:00:00Z"))
+
+    def test_the_row_title_lists_the_categories(self):
+        pay = live_payload(False, 0.7)
+        pay["snapshot"]["mine"]["rows"][0]["cats"] = [{"text": "4 solo tackles", "pts": 6.0}, {"text": "sack", "pts": 4.0}]
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=pay))
+        self.open("/", "simple")
+        self.page.wait_for_selector('#live-body tr[title*="4 solo tackles"]', state="attached")
+        self.assertEqual(self.errors, [])
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

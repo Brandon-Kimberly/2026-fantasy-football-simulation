@@ -78,3 +78,9 @@
 {# UI-A5: the tools whose question this page raises, beside the page as well as under Tools #}
 {% if names %}<p class="toolshere small"><span class="muted">Tools for this:</span>{% for n in names %} <a href="/tools/{{ n }}">{{ n|tool_title }}</a>{% if not loop.last %} <span class="muted">·</span>{% endif %}{% endfor %}</p>{% endif %}
 {%- endmacro %}
+
+{% macro runlist(runs, prev) -%}
+{# UI-A7: records grouped by run, each with its headline and a link to compare it with the previous record of its tool #}
+{% if runs %}{% for run in runs %}<div class="run"><div class="rh"><b>{{ run.start|when if run.start else "undated" }}</b> <span class="muted small">{{ run.tools|map('tool_title')|join(" · ") }}</span></div>
+<div class="rows">{% for e in run.entries|pair_digests %}<div class="row"><span class="t">{{ e.stamp|when if e.stamp else e.ext }}</span><span><svg class="i c-turf" style="margin-right:6px"><use href="#{{ e.tool|tool_icon }}"/></svg><a class="main" href="{{ e|pretty }}">{{ e|entry_title|real }}</a>{% if e.md_link %} <a class="raw" href="{{ e.md_link }}" title="the same digest as markdown">markdown</a>{% endif %}{{ rawlink(e) }}{% if e.headline %}<span class="hl">{{ e.headline|real }}</span>{% endif %}</span><span class="r">{% if prev and prev.get(e.rel) %}<a href="/records/compare?a={{ prev[e.rel]|urlencode }}&amp;b={{ e.rel|urlencode }}">compare with the previous</a>{% endif %}</span></div>{% endfor %}</div></div>{% endfor %}{% else %}<p class="muted small">nothing here</p>{% endif %}
+{%- endmacro %}

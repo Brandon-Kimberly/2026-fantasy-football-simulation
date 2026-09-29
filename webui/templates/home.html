@@ -422,7 +422,8 @@
     var mark = !started ? '<span class="d">—</span>'
       : (d >= 0 ? '<span class="d pos">+' + d.toFixed(1) + '</span>' : '<span class="d neg">' + d.toFixed(1) + '</span>');
     var tone = !started ? 'pre' : (d >= 0.75 ? 'up' : (d <= -0.75 ? 'dn' : ''));
-    return '<tr class="' + tone + '"><td class="nm">' + esc(r.name) + '<i>' + esc(r.pos) + ' · ' + esc(r.nfl) + '</i></td>' +
+    var cats = (r.cats || []).map(function (c) { return c.text + ' ' + (c.pts > 0 ? '+' : '') + Number(c.pts).toFixed(1); }).join(' · ');   // UI-M4
+    return '<tr class="' + tone + '"' + (cats ? ' title="' + esc(cats) + '"' : '') + '><td class="nm">' + esc(r.name) + '<i>' + esc(r.pos) + ' · ' + esc(r.nfl) + '</i></td>' +
       '<td>' + chip(r.status) + '</td><td class="num proj">' + n1(r.expected) + '</td>' +
       '<td class="num now">' + n1(r.scored) + '</td><td class="num">' + mark + '</td></tr>';
   }

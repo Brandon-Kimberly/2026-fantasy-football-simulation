@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_macros.html" import filelist with context %}
+{% from "_macros.html" import filelist, runlist with context %}
 {% block title %}Records · {{ brand }}{% endblock %}
 {% block body %}
 <style>
@@ -16,8 +16,9 @@
 </div>
 
 {% if listing %}
-<section><h2>Canonical <span class="hint">the runs the season is scored on</span></h2>{{ filelist(listing.canonical) }}</section>
-<section><h2>Archive <span class="hint">exploratory, mid-week and development runs</span></h2>{{ filelist(listing.archive) }}</section>
+<div class="wknav" aria-label="tool">{% for t in tools %}<a href="?tool={{ t }}"{% if t == tool %} class="on"{% endif %}>{{ t|tool_title }}</a>{% endfor %}{% if tool %}<a href="?">every tool</a>{% endif %}</div>
+<section><h2>Canonical <span class="hint">the runs the season is scored on · records written within two minutes are one run</span></h2>{{ runlist(canon_runs, prev) }}</section>
+<section><h2>Archive <span class="hint">exploratory, mid-week and development runs</span></h2>{{ runlist(archive_runs, prev) }}</section>
 {% endif %}
 
 {% if adhoc is not none %}
