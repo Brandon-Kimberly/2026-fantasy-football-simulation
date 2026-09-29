@@ -106,3 +106,26 @@ def week_recap(root, week, my_team):
     surprises, mean = _surprises(root, week)
     return {"awards": awards, "surprises": surprises, "movers": movers, "best_move": best, "league_surprise": mean,
             "rescaled": week in rescaled_weeks(root)}
+
+
+def chat_text(rv, week):
+    """UI-R3: the week in review as plain text for the league chat -- the awards, the movers,
+    the players who most beat their projection. Pseudonymous here; the page applies the
+    owner's overlay before copying, and nothing is written."""
+    lines = [f"Week {week} in review"]
+    for a in rv.get("awards") or []:
+        if a["key"] == "upset":
+            tail = f"beat {a['opponent']}, given {round(100 * a['quote'])}% before kickoff"
+        elif a["key"] == "median_miss":
+            tail = f"{a['points']:.1f} points" + (f", {a['short']:.1f} short of the {a['cut']:.1f} median" if a.get("short") is not None else "")
+        elif a["key"] == "low_win":
+            tail = f"{a['points']:.1f} points, enough to beat {a['opponent']}"
+        else:
+            tail = f"{a['points']:.1f} points, still a loss to {a['opponent']}"
+        lines.append(f"{a['label']}: {a['team']} -- {tail}")
+    movers = [m for m in rv.get("movers") or [] if m.get("d_playoff") is not None]
+    if movers:
+        lines.append("Playoff odds moved most: " + ", ".join(f"{m['team']} {m['d_playoff']:+.1f}" for m in movers))
+    for p in (rv.get("surprises") or [])[:3]:
+        lines.append(f"{p['name']} scored {p['points']:.1f} against a projection of {p['projected']:.1f}")
+    return "\n".join(lines)

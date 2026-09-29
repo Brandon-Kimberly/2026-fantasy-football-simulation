@@ -213,6 +213,11 @@ td.wrap { white-space: normal; max-width: 34ch; }
 /* ---- cards / lists ---- */
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 4px; }
 .cards.wide { grid-template-columns: repeat(auto-fit, minmax(440px, 1fr)); }
+/* UI-F7: three across on a desktop, and a group that would end on one card ends on two pairs */
+@media (min-width: 960px) {
+  .cards.tidy { grid-template-columns: repeat(6, minmax(0, 1fr)); } .cards.tidy > * { grid-column: span 2; }
+  .cards.tidy > :nth-child(3n+1):nth-last-child(4), .cards.tidy > :nth-child(3n+1):nth-last-child(4) ~ * { grid-column: span 3; }
+}
 @media (max-width: 600px) { .cards.wide { grid-template-columns: 1fr; } }
 .card { background: var(--surface); border: 1px solid var(--grid); border-radius: var(--r-card); padding: 16px 18px 14px; transition: border-color .15s, transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s; }
 .card:hover { border-color: var(--rule); transform: translateY(-2px); box-shadow: var(--shadow); }
@@ -426,7 +431,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 <div class="keys" id="keys" hidden><div class="box"><h3>Keyboard shortcuts</h3><dl>
 <dt><kbd>Ctrl</kbd> <kbd>K</kbd></dt><dd>open the palette (pages, tools, teams; "compare A vs B")</dd>
 <dt><kbd>g</kbd> <kbd>h</kbd></dt><dd>home</dd><dt><kbd>g</kbd> <kbd>m</kbd></dt><dd>matchups</dd><dt><kbd>g</kbd> <kbd>l</kbd></dt><dd>league</dd><dt><kbd>g</kbd> <kbd>f</kbd></dt><dd>forecasts</dd>
-<dt><kbd>g</kbd> <kbd>d</kbd></dt><dd>decisions</dd><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>tools</dd><dt><kbd>g</kbd> <kbd>g</kbd></dt><dd>game day</dd>
+<dt><kbd>[</kbd> <kbd>]</kbd></dt><dd>previous / next game (Matchups)</dd><dt><kbd>g</kbd> <kbd>d</kbd></dt><dd>decisions</dd><dt><kbd>g</kbd> <kbd>t</kbd></dt><dd>tools</dd><dt><kbd>g</kbd> <kbd>g</kbd></dt><dd>game day</dd>
 <dt><kbd>?</kbd></dt><dd>this list</dd><dt><kbd>Esc</kbd></dt><dd>close</dd></dl></div></div>
 <div class="pcard" id="pcard" hidden></div>
 <div class="wrap">

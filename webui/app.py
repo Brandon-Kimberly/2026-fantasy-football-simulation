@@ -233,6 +233,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     for _n in ("heat", "slope", "dots", "fan", "pctbar"):             # UI-V3 primitives
         app.jinja_env.globals[_n] = getattr(render, _n)
     app.jinja_env.globals["pct0"] = lambda v: render.fpct(v, 0)
+    app.jinja_env.globals["chat_parts"] = render.chat_parts             # UI-R3
     app.jinja_env.globals["realname"] = overlay.text
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
@@ -463,8 +464,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         review = recapmod.week_recap(root, rep["week"], MY_TEAM)                     # UI-R1 / R2
         lu = lineupsmod.latest(root, rep["week"], MY_TEAM) if rep["week"] == cur else None           # UI-L2
         sp = splitmod.for_week(root, rep["week"], MY_TEAM) if rep["week"] == cur else None          # UI-M3
+        post = recapmod.chat_text(review, rep["week"]) if review and review.get("awards") else None      # UI-R3
         return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, lineups=lu,
-                               split=sp, **rep)
+                               split=sp, post=post, **rep)
 
     @app.route("/favicon.ico")
     def favicon():

@@ -1477,5 +1477,25 @@ SLEEPER_CHAT_LIMIT = 1000     # UNVERIFIED: a conservative message length, not r
 
 
 def chat_parts(text, limit=SLEEPER_CHAT_LIMIT):
-    """UI-R3 characterisation stub."""
-    return []
+    """UI-R3: a post as parts no longer than `limit`, split at line breaks; a single line
+    longer than the limit is cut at a space (or hard, when it has none). Nothing is lost."""
+    pieces = []
+    for line in str(text or "").split("\n"):
+        while len(line) > limit:
+            cut = line.rfind(" ", 0, limit + 1)
+            cut = cut if cut > 0 else limit
+            pieces.append(line[:cut].rstrip())
+            line = line[cut:].lstrip()
+        pieces.append(line)
+    parts, cur = [], None
+    for piece in pieces:
+        if cur is None:
+            cur = piece
+        elif len(cur) + 1 + len(piece) <= limit:
+            cur += "\n" + piece
+        else:
+            parts.append(cur)
+            cur = piece
+    if cur is not None:
+        parts.append(cur)
+    return [p for p in parts if p.strip()] or ([] if not str(text or "").strip() else [str(text)])
