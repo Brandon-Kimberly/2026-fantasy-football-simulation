@@ -653,6 +653,43 @@ class TestAlertsFireOnce(BrowserCase):
         self.assertEqual(self.errors, [])
 
 
+class TestP3Polish(BrowserCase):
+    """UI-M10: [ and ] step between the week's games, and the shortcut sheet lists them.
+    UI-F7: no single-item final row among the League roster chips or the Tools cards at 1280.
+    UI-F8: at 520 the Home standings fit, nothing past the edge."""
+
+    ROWS = """(sel) => { const out = []; document.querySelectorAll(sel).forEach(g => {
+      const tops = {}; Array.from(g.children).filter(e => e.offsetParent).forEach(k => { const t = Math.round(k.getBoundingClientRect().top); tops[t] = (tops[t] || 0) + 1; });
+      out.push(Object.keys(tops).sort((a, b) => a - b).map(t => tops[t])); }); return out; }"""
+
+    def test_brackets_step_between_games(self):
+        p = self.open("/matchups/week-3", "simple")
+        p.keyboard.press("]")
+        first = p.evaluate("document.activeElement && document.activeElement.classList.contains('mg') ? Array.prototype.indexOf.call(document.querySelectorAll('.mg'), document.activeElement) : -1")
+        p.keyboard.press("]")
+        second = p.evaluate("Array.prototype.indexOf.call(document.querySelectorAll('.mg'), document.activeElement)")
+        p.keyboard.press("[")
+        back = p.evaluate("Array.prototype.indexOf.call(document.querySelectorAll('.mg'), document.activeElement)")
+        self.assertEqual((first, second, back), (0, 1, 0))
+        self.assertIn("next game", p.inner_text("#keys"))
+
+    def test_no_orphan_rows_at_1280(self):
+        p = self.open("/league", "dev")
+        for rows in p.evaluate(self.ROWS, ".roster-nav"):
+            self.assertNotEqual(rows[-1], 1, rows)
+        p = self.open("/tools", "dev")
+        for rows in p.evaluate(self.ROWS, ".cards"):
+            self.assertTrue(len(rows) == 1 or rows[-1] != 1, rows)
+
+    def test_home_standings_fit_at_520(self):
+        self.page.set_viewport_size({"width": 520, "height": 900})
+        p = self.open("/", "simple")
+        over = p.evaluate("""() => { const W = document.documentElement.clientWidth; let n = 0;
+          document.querySelectorAll('table.mini-standings td, table.mini-standings th').forEach(e => { if (e.getBoundingClientRect().right > W + 1) n++; }); return n; }""")
+        self.assertEqual(over, 0)
+        self.assertTrue(p.is_visible("table.mini-standings"))
+
+
 class TestThreePaneHome(BrowserCase):
     """UI-V1 (owner's choice, 2026-09-28): at 4K widths Home is three panes -- standings and
     the week's games on the left, the matchup and live panel in the centre, the season and

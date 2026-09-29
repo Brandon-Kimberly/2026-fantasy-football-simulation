@@ -39,6 +39,16 @@
 </section>
 {% endif %}
 
+{% if faab and faab.rows %}
+<section>
+<h2><svg class="i c-gold"><use href="#i-tag"/></svg> Budgets <span class="hint">of the 100 each team started with · pace over {{ faab.weeks_done }} week{{ "s" if faab.weeks_done != 1 }}</span></h2>
+<div class="scroller"><table><thead><tr><th>Team</th><th class="num">Left</th><th class="num">Spent</th><th class="num">Spent a week</th><th></th></tr></thead><tbody>
+{% for r in faab.rows %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.left|num(0) }}</b></td><td class="num">{{ r.spent|num(0) }}</td><td class="num">{{ r.per_week|num(1) if r.per_week is not none else "—" }}</td><td>{% if r.outbids %}<span class="flag">can outbid you</span>{% endif %}</td></tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted" style="margin-top:8px">{% if faab.outbid %}{{ faab.outbid|length }} team{{ "s" if faab.outbid|length != 1 }} can outbid you for any player: {% for t in faab.outbid %}{{ t|real }}{% if not loop.last %}, {% endif %}{% endfor %}.{% else %}No team has more budget left than you, so none can outbid you outright.{% endif %}</p>
+</section>
+{% endif %}
+
 <section>
 <h2><svg class="i"><use href="#i-users"/></svg> {{ total }} player{{ 's' if total != 1 }}{% if shown < total %} <span class="hint">the top {{ shown }} by this week's projection · <a href="?pos={{ pos }}&show={{ show }}{{ qs }}&all=1">show all {{ total }}</a></span>{% else %} <span class="hint">click a column to sort</span>{% endif %}</h2>
 {% set pmax = [(rows|map(attribute='p90')|select|max) if rows|map(attribute='p90')|select|list else 1, 1]|max %}

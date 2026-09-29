@@ -163,3 +163,47 @@ def draft_board(root, season):
 
 def seasons_available(root):
     return sorted({m.group(1) for e in root.logs() for m in [re.match(r"^draft_(\d{4})\.json$", e.get("name") or "")] if m})
+
+
+def model_records(root):
+    """UI-H4: records only a model can keep -- this season so far, from the quoted forecasts
+    and the weekly exports.
+      least_likely_win  the lowest quoted pre-game chance that won (the league's result, F83)
+      comeback          the lowest playoff odds in any forecast for a team now in a playoff place
+      collapse          the highest playoff odds in any forecast for a team now out of one
+      champion          the title winner's odds in the season's first forecast, once there is one
+    Each is None until the season supplies it."""
+    from webui.accuracy import chances_in, quoted_week
+    from webui.glance import odds_at
+    from webui.standings import table
+    out = {"least_likely_win": None, "comeback": None, "collapse": None, "champion": None}
+    for w, teams in sorted(week_results(root).items()):
+        q = quoted_week(root, w)
+        for team, r in teams.items():
+            if r.get("h2h_win") is None or float(r["h2h_win"]) < 1:
+                continue
+            p = (chances_in(q, team) or {}).get("h2h")
+            if p is not None and (out["least_likely_win"] is None or float(p) < out["least_likely_win"]["p"]):
+                out["least_likely_win"] = {"team": team, "p": float(p), "week": w}
+    forecasts = [(w, odds_at(root, w)) for w in root.weeks()]
+    forecasts = [(w, f) for w, f in forecasts if f]
+    places = table(root)
+    inside = {r["team"] for r in places if r["in_places"]}
+    for team in {r["team"] for r in places}:
+        seen = [(w, f[team]["playoff"]) for w, f in forecasts if (f.get(team) or {}).get("playoff") is not None]
+        if not seen:
+            continue
+        low = min(seen, key=lambda x: x[1])
+        high = max(seen, key=lambda x: x[1])
+        if team in inside and (out["comeback"] is None or low[1] < out["comeback"]["low"]):
+            out["comeback"] = {"team": team, "low": float(low[1]), "week": low[0], "now": float(seen[-1][1])}
+        if team not in inside and (out["collapse"] is None or high[1] > out["collapse"]["high"]):
+            out["collapse"] = {"team": team, "high": float(high[1]), "week": high[0], "now": float(seen[-1][1])}
+    bracket = root.read_json("current/playoff_bracket.json", {}) or {}
+    rounds = [r for r in bracket.get("rounds") or [] if isinstance(r, dict) and r.get("winner")]
+    final = max(rounds, key=lambda r: r.get("round") or 0) if rounds else None
+    if final and final.get("round") == max((r.get("round") or 0) for r in bracket.get("rounds") or []) and forecasts:
+        first_w, first = forecasts[0]
+        champ = (first.get(final["winner"]) or {}).get("champ")
+        out["champion"] = {"team": final["winner"], "p": champ, "week": first_w}
+    return out

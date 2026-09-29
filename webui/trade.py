@@ -153,3 +153,27 @@ def estimate(root, team_a, a_gives, team_b, b_gives):
     simulate = "/tools/evaluate_trade?" + urlencode({"team_a": team_a, "a_gives": ", ".join(a_gives),
                                                       "team_b": team_b, "b_gives": ", ".join(b_gives)})
     return {"sides": sides, "weeks": weeks, "simulate": simulate, "a": team_a, "b": team_b}
+
+
+def needs(root):
+    """UI-T6: each team's positional need -- the position whose starters (its best lineup from
+    season averages) fall furthest below the league's average for that position. None for a
+    team at or above the league everywhere."""
+    base = root.read_json("current/player_baselines.json", {}) or {}
+    rosters = root.read_json("current/live_rosters.json", {}) or {}
+    by_team = {}
+    for team, roster in rosters.items():
+        active = _active(roster, base)
+        tot = {}
+        for _i, name, mean in _assign(active):
+            pos = (active.get(name) or {}).get("pos") or "?"
+            tot[pos] = tot.get(pos, 0.0) + float(mean)
+        by_team[team] = tot
+    positions = {p for t in by_team.values() for p in t}
+    avg = {p: sum(t.get(p, 0.0) for t in by_team.values()) / max(1, len(by_team)) for p in positions}
+    out = {}
+    for team, tot in by_team.items():
+        short = {p: avg[p] - tot.get(p, 0.0) for p in positions}
+        worst = max(short, key=lambda p: short[p]) if short else None
+        out[team] = worst if worst is not None and short[worst] > 0 else None
+    return out

@@ -34,7 +34,7 @@
 {% if games %}
 <div class="mgames">
 {% for g in games %}
-  <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}">
+  <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}" tabindex="-1">
     {% for side in ("a", "b") %}{% set t = g[side] %}{% set pts = g["pts_" ~ side] %}{% set med = g["med_" ~ side] %}{% set p = g["p_" ~ side] %}
     <div class="side{{ ' lose' if g.winner and g.winner != t }}" id="t-{{ t|slug }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
     {% endfor %}
@@ -92,6 +92,11 @@
 <div class="scroller"><table><thead><tr><th>Player</th><th class="num">Projected</th><th class="num">Scored</th><th class="num">Beat the league by</th></tr></thead><tbody>
 {% for p in rv.surprises %}<tr><td class="nm"><a href="/player/{{ p.pid }}">{{ p.name }}</a></td><td class="num">{{ p.projected|num(1) }}</td><td class="num"><b>{{ p.points|num(1) }}</b></td><td class="num pos">{{ p.over_league|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
+{% if post %}{% set parts = chat_parts(post|real) %}
+<div class="copybox"><span class="muted small">Copy for the Sleeper chat{% if parts|length > 1 %}, in {{ parts|length }} messages{% endif %}:</span>
+{% for part in parts %}<button type="button" class="copyp" data-text="{{ part }}">{{ "Copy" if parts|length == 1 else "Copy part " ~ loop.index }}</button>{% endfor %}
+<span class="copied small muted" hidden>copied</span></div>
+{% endif %}
 </section>
 {% endif %}
 
@@ -144,4 +149,29 @@
 })();
 </script>
 {% endif %}
+<style>.copybox { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; } .mg:focus { outline: 2px solid var(--turf); outline-offset: 2px; }</style>
+<script>
+(function () {
+  // UI-R3: copy a part of the recap to the clipboard; the text already carries the overlay
+  document.querySelectorAll('.copyp').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var done = function () { var c = document.querySelector('.copied'); if (c) { c.hidden = false; setTimeout(function () { c.hidden = true; }, 1500); } };
+      if (navigator.clipboard) { navigator.clipboard.writeText(b.getAttribute('data-text')).then(done).catch(function () {}); }
+    });
+  });
+  // UI-M10: [ and ] step to the previous and next game on the page
+  document.addEventListener('keydown', function (ev) {
+    var t = ev.target;
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable))) return;
+    if (ev.key !== '[' && ev.key !== ']') return;
+    var games = Array.prototype.slice.call(document.querySelectorAll('.mg[tabindex]'));
+    if (!games.length) return;
+    var at = games.indexOf(document.activeElement);
+    var next = at < 0 ? 0 : Math.max(0, Math.min(games.length - 1, at + (ev.key === ']' ? 1 : -1)));
+    ev.preventDefault();
+    games[next].focus();
+    games[next].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
+})();
+</script>
 {% endblock %}

@@ -506,16 +506,31 @@ def _roster_grades(d):
                                teams, me_key="team")]}
 
 
+def _acceptable_first(rows, who, needs):
+    """UI-T6: a deal the other side loses on will not happen -- ideas ordered by the SMALLER of
+    the two sides' gains, each with the other side's positional need (trade.needs)."""
+    out = []
+    for r in rows or []:
+        g = [v for v in (r.get("my_gain"), r.get("their_gain")) if v is not None]
+        out.append(dict(r, both_gain=min(g) if len(g) == 2 else None, their_need=(needs or {}).get(r.get(who))))
+    out.sort(key=lambda r: (r["both_gain"] is None, -(r["both_gain"] or 0.0)))
+    return out
+
+
 def _find_trades(d):
+    d = dict(d, buy=_acceptable_first(d.get("buy"), "with", d.get("_needs")),
+             sell=_acceptable_first(d.get("sell"), "buyer", d.get("_needs")))
     return {"title": "Trade targets", "subtitle": f"{d.get('team')} · week {d.get('week')}",
             "tiles": [tile("buy ideas", str(len(d.get("buy") or [])), "buried players who would start for me"),
                       tile("sell ideas", str(len(d.get("sell") or [])), "my surplus with a buyer"),
                       tile("excluded (pending)", str(len(d.get("excluded_pending") or [])), "players in a pending trade (T3)")],
-            "sections": [table("Buy", [col("with", link="team"), col("target"), col("fills_my_slot", "fills"), col("i_give"), col("i_get"), col("my_gain", kind="signed"),
+            "sections": [table("Buy", [col("with", link="team"), col("target"), col("fills_my_slot", "fills"), col("i_give"), col("i_get"),
+                                       col("both_gain", "both sides gain at least", "signed"), col("their_need", "their need"), col("my_gain", kind="signed"),
                                        col("their_gain", kind="signed"), col("worth_proposing", "worth it", "bool"), col("acceptable", kind="bool"),
                                        col("their_playoff_pct", "their playoff %", "num"), col("willingness", kind="num", nd=2), col("simulated", kind="bool")],
                                d.get("buy"), me_key="with"),
-                         table("Sell", [col("buyer", link="team"), col("they_want"), col("they_give"), col("my_gain", kind="signed"), col("their_gain", kind="signed"),
+                         table("Sell", [col("buyer", link="team"), col("they_want"), col("they_give"), col("both_gain", "both sides gain at least", "signed"),
+                                        col("their_need", "their need"), col("my_gain", kind="signed"), col("their_gain", kind="signed"),
                                         col("worth_proposing", "worth it", "bool"), col("acceptable", kind="bool"), col("their_playoff_pct", "their playoff %", "num"),
                                         col("willingness", kind="num", nd=2), col("simulated", kind="bool")], d.get("sell")),
                          text("Who counts as a seller", d.get("contention_note")), text("How this was computed", d.get("note"))]}
@@ -1455,3 +1470,32 @@ def pctbar(p, nd=1):
         return "—"
     w = max(0.0, min(1.0, f)) * 100
     return Markup(f'<span class="pbar"><span class="trk"><i style="width:{w:.1f}%"></i></span><b>{f * 100:.{nd}f}%</b></span>')
+
+
+
+SLEEPER_CHAT_LIMIT = 1000     # UNVERIFIED: a conservative message length, not read from Sleeper docs
+
+
+def chat_parts(text, limit=SLEEPER_CHAT_LIMIT):
+    """UI-R3: a post as parts no longer than `limit`, split at line breaks; a single line
+    longer than the limit is cut at a space (or hard, when it has none). Nothing is lost."""
+    pieces = []
+    for line in str(text or "").split("\n"):
+        while len(line) > limit:
+            cut = line.rfind(" ", 0, limit + 1)
+            cut = cut if cut > 0 else limit
+            pieces.append(line[:cut].rstrip())
+            line = line[cut:].lstrip()
+        pieces.append(line)
+    parts, cur = [], None
+    for piece in pieces:
+        if cur is None:
+            cur = piece
+        elif len(cur) + 1 + len(piece) <= limit:
+            cur += "\n" + piece
+        else:
+            parts.append(cur)
+            cur = piece
+    if cur is not None:
+        parts.append(cur)
+    return [p for p in parts if p.strip()] or ([] if not str(text or "").strip() else [str(text)])

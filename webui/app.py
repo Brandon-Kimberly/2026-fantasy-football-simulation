@@ -233,6 +233,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     for _n in ("heat", "slope", "dots", "fan", "pctbar"):             # UI-V3 primitives
         app.jinja_env.globals[_n] = getattr(render, _n)
     app.jinja_env.globals["pct0"] = lambda v: render.fpct(v, 0)
+    app.jinja_env.globals["chat_parts"] = render.chat_parts             # UI-R3
     app.jinja_env.globals["realname"] = overlay.text
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
@@ -370,7 +371,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         return render_template("players.html", board=board, rows=shown_rows, total=total, shown=len(shown_rows),
                                positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
                                week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"],
-                               run=playersmod.waiver_run(root, MY_TEAM) if board else None)         # UI-W3
+                               run=playersmod.waiver_run(root, MY_TEAM) if board else None,         # UI-W3
+                               faab=playersmod.faab_table(root, MY_TEAM) if board else None)        # UI-W6
 
     # ---- UI-H1 / H2 / H3: the league's history
     @app.route("/history")
@@ -389,7 +391,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         cur = str(state.get("season") or (root.read_json("current/sync_manifest.json", {}) or {}).get("season") or "")
         return render_template("history.html", book=historymod.record_book(gs), n_games=len(gs), pairs=pairs,
                                teams=teams, mine=mine, seasons=sorted({g["season"] for g in gs}), current_season=cur,
-                               drafts=historymod.seasons_available(root))
+                               drafts=historymod.seasons_available(root), model=historymod.model_records(root))     # UI-H4
 
     @app.route("/playoffs")
     def playoffs_page():
@@ -462,8 +464,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         review = recapmod.week_recap(root, rep["week"], MY_TEAM)                     # UI-R1 / R2
         lu = lineupsmod.latest(root, rep["week"], MY_TEAM) if rep["week"] == cur else None           # UI-L2
         sp = splitmod.for_week(root, rep["week"], MY_TEAM) if rep["week"] == cur else None          # UI-M3
+        post = recapmod.chat_text(review, rep["week"]) if review and review.get("awards") else None      # UI-R3
         return render_template("matchups.html", live_enabled=live.enabled, started=started, review=review, lineups=lu,
-                               split=sp, **rep)
+                               split=sp, post=post, **rep)
 
     @app.route("/favicon.ico")
     def favicon():
@@ -767,8 +770,9 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             if raw:
                 return Response(body, mimetype="application/json")
             if isinstance(data, dict) and data.get("tool"):      # a decision tool's record: tables, not a dump
+                shown = dict(data, _needs=trademod.needs(root)) if data.get("tool") in ("find_trades", "trade_targets") else data   # UI-T6
                 return render_template("record.html", rel=normalize(rel), body=body, link=root.link(rel),
-                                       view=render.record_view(data), pretty=render.pretty_url(root.entry(rel)))
+                                       view=render.record_view(shown), pretty=render.pretty_url(root.entry(rel)))
             return render_template("file.html", rel=rel, body=body, kind="json", link=root.link(rel))
         if ext == ".jsonl":
             if raw:                                            # the whole file, as written

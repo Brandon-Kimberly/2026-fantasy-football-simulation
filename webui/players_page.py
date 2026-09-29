@@ -155,3 +155,26 @@ def waiver_run(root, my_team=None):
                        "grade": grade, "skipped": d.get("skipped"), "is_mine": bool(d.get("is_mine")), "created": d.get("created")})
     claims.sort(key=lambda c: (-(c["bid"] or 0), c["team"] or ""))
     return {"date": latest, "claims": claims}
+
+
+FAAB_BUDGET = 100          # docs/WAIVER_MECHANICS.md: the league's waiver_budget, per team per season
+
+
+def faab_table(root, my_team):
+    """UI-W6: every team's budget -- left (the league's standings), spent, spent per completed
+    week -- and the teams that can outbid the owner: every team with more left."""
+    st = root.read_json("current/league_standings.json", {}) or {}
+    wk = freshness_report(root).get("week")
+    done = max(0, int(wk) - 1) if wk else 0
+    rows = []
+    for team, s in st.items():
+        if not isinstance(s, dict) or s.get("remaining_faab") is None:
+            continue
+        left = float(s["remaining_faab"])
+        spent = FAAB_BUDGET - left
+        rows.append({"team": team, "left": left, "spent": spent, "per_week": round(spent / done, 2) if done else None})
+    rows.sort(key=lambda r: (-r["left"], r["team"]))
+    mine = next((r["left"] for r in rows if r["team"] == my_team), None)
+    for r in rows:
+        r["outbids"] = mine is not None and r["team"] != my_team and r["left"] > mine
+    return {"rows": rows, "outbid": [r["team"] for r in rows if r["outbids"]], "weeks_done": done, "mine": mine}
