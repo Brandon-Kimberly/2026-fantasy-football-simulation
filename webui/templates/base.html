@@ -26,6 +26,10 @@
   --turf:#2e7d4f; --turf-bg:rgba(46,125,79,0.10); --turf-line:rgba(46,125,79,0.16);
   --warm:#d9772b; --warm-bg:rgba(217,119,43,0.12); --gold:#c9962a; --gold-bg:rgba(201,150,42,0.14);
   --violet:#6b5bd2; --violet-bg:rgba(107,91,210,0.12);
+  /* UI-V3 chart palette, run through the dataviz validator in both themes (tests.test_webui_primitives) */
+  --c-me:#2e7d4f; --c-other:#9a9891; --c-up:var(--pos); --c-down:var(--neg);
+  --c-seq-1:#95bca5; --c-seq-2:#73a788; --c-seq-3:#50926c; --c-seq-4:#2e7d4f;
+  --c-seq-ink-1:var(--ink); --c-seq-ink-2:var(--ink); --c-seq-ink-3:var(--surface); --c-seq-ink-4:var(--surface);
   --g-brand: linear-gradient(100deg, #2e7d4f 0%, #2a78d6 55%, #6b5bd2 100%);
   --g-turf: linear-gradient(135deg, #2e7d4f, #4fae7b); --g-pos: linear-gradient(135deg, #1f66bd, #4a90e2);
   --g-gold: linear-gradient(135deg, #c9962a, #f0c24e); --g-warm: linear-gradient(135deg, #d9772b, #f2a25c); --g-violet: linear-gradient(135deg, #6b5bd2, #9a8cf0);
@@ -43,6 +47,9 @@
   --turf:#4fae7b; --turf-bg:rgba(79,174,123,0.14); --turf-line:rgba(79,174,123,0.18);
   --warm:#eb8d45; --warm-bg:rgba(235,141,69,0.16); --gold:#dcae45; --gold-bg:rgba(220,174,69,0.16);
   --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45; --line-l:62%;
+  --c-me:#45a071; --c-other:#5a5954; --c-up:var(--pos); --c-down:var(--neg);
+  --c-seq-1:#305d45; --c-seq-2:#377354; --c-seq-3:#3e8a62; --c-seq-4:#45a071;
+  --c-seq-ink-1:var(--ink); --c-seq-ink-2:var(--ink); --c-seq-ink-3:var(--ink); --c-seq-ink-4:var(--plane);
   --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
   --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); } }
 :root[data-theme="dark"] {
@@ -53,6 +60,9 @@
   --turf:#4fae7b; --turf-bg:rgba(79,174,123,0.14); --turf-line:rgba(79,174,123,0.18);
   --warm:#eb8d45; --warm-bg:rgba(235,141,69,0.16); --gold:#dcae45; --gold-bg:rgba(220,174,69,0.16);
   --violet:#8f82e6; --violet-bg:rgba(143,130,230,0.16); --warm-ink:#eb8d45; --gold-ink:#dcae45; --line-l:62%;
+  --c-me:#45a071; --c-other:#5a5954; --c-up:var(--pos); --c-down:var(--neg);
+  --c-seq-1:#305d45; --c-seq-2:#377354; --c-seq-3:#3e8a62; --c-seq-4:#45a071;
+  --c-seq-ink-1:var(--ink); --c-seq-ink-2:var(--ink); --c-seq-ink-3:var(--ink); --c-seq-ink-4:var(--plane);
   --g-brand: linear-gradient(100deg, #4fae7b 0%, #3987e5 55%, #8f82e6 100%);
   --glow-turf: 0 8px 28px rgba(79,174,123,0.28); --glow-pos: 0 8px 28px rgba(57,135,229,0.28); --shadow: 0 10px 30px rgba(0,0,0,0.45), 0 1px 2px rgba(0,0,0,0.4); }
 :root[data-theme="dark"] { color-scheme: dark; } :root[data-theme="light"] { color-scheme: light; }
@@ -249,6 +259,21 @@ th[data-key]:focus-visible { outline: 2px solid var(--pos); outline-offset: -2px
 .dcell { display: flex; align-items: center; gap: 8px; } .dwide { max-width: 100%; } .dwide .dstrip { max-width: 100%; height: auto; }
 .run { margin-top: 12px; border: 1px solid var(--grid); border-radius: var(--r-card); background: var(--surface); padding: 8px 12px 4px; }
 .run .rh { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; margin-bottom: 4px; } .row .hl { display: block; font-size: 12px; color: var(--muted); margin: 2px 0 0 22px; }
+/* UI-V3 primitives: colour only through the --c-* tokens */
+.viz .sl { stroke: var(--c-other); stroke-width: 2; } .viz circle.sl { fill: var(--c-other); stroke: none; }
+.viz .sl.me { stroke: var(--c-me); stroke-width: 3; } .viz circle.sl.me { fill: var(--c-me); stroke: none; }
+.viz .vl, .viz .nl { font-size: 11px; fill: var(--ink-2); } .viz .nl.me { fill: var(--ink); font-weight: 700; }
+.viz .dcol circle { fill: var(--c-other); } .viz .dcol.on circle { fill: var(--c-me); } .viz .hit { fill: transparent; }
+.viz .dcol:hover circle { stroke: var(--ink); stroke-width: 1; }
+.viz .band.outer { fill: var(--c-seq-1); opacity: .7; } .viz .band.inner { fill: var(--c-seq-2); opacity: .85; }
+.viz .med { fill: none; stroke: var(--c-me); stroke-width: 2; stroke-linejoin: round; }
+.viz .hit:hover { fill: var(--ink); opacity: .05; }
+table.heat2 td.hc { text-align: center; font-variant-numeric: tabular-nums; font-size: 12.5px; padding: 6px 8px; border: 2px solid var(--surface); }
+table.heat2 td.h1 { background: var(--c-seq-1); color: var(--c-seq-ink-1); } table.heat2 td.h2 { background: var(--c-seq-2); color: var(--c-seq-ink-2); }
+table.heat2 td.h3 { background: var(--c-seq-3); color: var(--c-seq-ink-3); } table.heat2 td.h4 { background: var(--c-seq-4); color: var(--c-seq-ink-4); font-weight: 600; }
+table.heat2 td.h0 { color: var(--muted); } table.heat2 tr.me th.nm { font-weight: 700; }
+.pbar { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pbar .trk { display: inline-block; width: 56px; height: 6px; border-radius: 3px; background: var(--mid); overflow: hidden; } .pbar .trk i { display: block; height: 100%; background: var(--c-seq-3); }
 details.tview { margin-top: 6px; font-size: 12px; } details.tview summary { cursor: pointer; color: var(--muted); }
 [data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
 .themeform { display: inline-flex; gap: 0; margin-left: 12px; vertical-align: middle; } .themeform button { padding: 3px 9px; font-size: 10px; border-radius: 0; box-shadow: none; letter-spacing: .08em; }
@@ -292,6 +317,7 @@ details.tview { margin-top: 6px; font-size: 12px; } details.tview summary { curs
 .hbar .b i { display: block; height: 100%; width: 0; transition: width .9s cubic-bezier(.2,.8,.2,1); border-radius: 999px; background-image: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,.28)); }
 .hbar .v { text-align: right; font-variant-numeric: tabular-nums; font-weight: 500; }
 .hbar .me { font-weight: 600; }
+.hbar .b i { background-color: var(--c-other); } .hbar .b i.me { background-color: var(--c-me); }   /* UI-V2: no generated hue per team */
 .heat td, .heat th { text-align: center; padding: 5px 4px; font-size: 12.5px; } .heat td.nm, .heat th.nm { text-align: left; }
 .heat td span { display: block; border-radius: 4px; padding: 3px 4px; font-variant-numeric: tabular-nums; }
 .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12px; color: var(--muted); margin-top: 8px; } .legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 6px; border-radius: 2px; }
