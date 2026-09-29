@@ -22,8 +22,9 @@ SEASON_2026_EVALUATION.sha256 -text
 #                          guarantee. Readers are first-row-wins as of F87, same treatment
 #                          decision_log got; pinned by tests.
 #
-# NOT unioned, deliberately: bid_ledger.jsonl and streamer_levels.jsonl have no automated
-# writer (owner-run only), so they cannot race. data/logs also holds whole-document .json
+# NOT unioned, deliberately: bid_ledger.jsonl has no automated writer (owner-run only), so
+# it cannot race. streamer_levels.jsonl was excused the same way until 2026-09-29, when it
+# conflicted: weekly_report records a reading on every run since C5, the runner's included. data/logs also holds whole-document .json
 # (draft_*, season_*) -- union there would concatenate two documents into unparseable JSON,
 # which is why the patterns are *.jsonl and never data/logs/*.
 # tests/test_log_merge_strategy.py guards this list: a new tracked jsonl log must carry the
@@ -46,3 +47,7 @@ data/logs/faab_adjustments.jsonl merge=union
 #                          transaction_id, so a duplicate from a union merge is absorbed;
 #                          pinned by tests.test_webui_bids
 data/logs/failed_claims.jsonl merge=union
+#   streamer_levels     -- one timestamped C5 reading per weekly_report run (2026-09-29). Its
+#                          only reader is the log viewer, so a duplicate from a union merge
+#                          is one reading shown twice, never a wrong number
+data/logs/streamer_levels.jsonl merge=union
