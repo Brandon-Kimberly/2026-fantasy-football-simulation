@@ -957,6 +957,33 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### Headshots and team logos (2026-09-29, roadmap Decision 3; UI-E7, P6)
+
+The owner ruled "cache at sync".
+- **The cache (`fantasy_sim/images.py`).** The last step of the sync downloads each
+  rostered player's Sleeper headshot and the 32 NFL logos into `data/images/players/<id>.jpg`
+  and `data/images/teams/<code>.png`. It fetches a file only when it is not already there.
+- **Cosmetic, so it cannot fail a sync.**
+  - A missing headshot (Sleeper answers 403), a network error, or a body that is not a JPEG
+    or PNG is counted and skipped.
+  - The tally is logged at INFO, not WARNING, so it never marks the manifest degraded.
+  - Each file is written under a temporary name and renamed.
+- **Serving.** `/img/<kind>/<file>` goes through `Root.image_file`, which accepts only a
+  digits-only id as .jpg or a lower-case team code as .png, and only when the file exists.
+  The roadmap had said `data/local/`; that folder is never served, and it holds the
+  secrets, so the images live beside it instead.
+- **Where they show.**
+  - Player page: the headshot, else the NFL team's logo, else the lettered mark.
+  - Roster and player lists, the hover card and the TV view: the headshot or logo, else
+    nothing.
+
+**What it does not claim:**
+- A headshot is fetched once and never refreshed. A player's new photo appears only after
+  its file is deleted.
+- Free agents are not cached, so on the Players page they show their team's logo.
+- Team avatars are outside this. They identify accounts the way real names do, so they
+  stay in memory with the overlay and load from Sleeper.
+
 ---
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate

@@ -9,8 +9,12 @@
 <a href="/team/{{ team|slug }}" class="tl">{{ team|real }}</a>
 {%- endmacro %}
 
-{% macro playerlink(name, pid) -%}
-{% if pid %}<a href="/player/{{ pid }}" class="pl" data-player="{{ name }}">{{ name }}</a>{% else %}<span data-player="{{ name }}">{{ name }}</span>{% endif %}
+{% macro face(pid, nfl=None, size='', name=None) -%}
+{% set src = (pid|headshot) or (nfl|logo) %}{% if src %}<img class="face{{ ' ' ~ size if size }}" src="{{ src }}" alt="" loading="lazy">{% elif name %}<span class="face{{ ' ' ~ size if size }} mark" style="background:hsl({{ name|hue }} 30% 40%)">{{ name|initials }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro playerlink(name, pid, nfl=None) -%}
+{{ face(pid, nfl) }}{% if pid %}<a href="/player/{{ pid }}" class="pl" data-player="{{ name }}">{{ name }}</a>{% else %}<span data-player="{{ name }}">{{ name }}</span>{% endif %}
 {%- endmacro %}
 
 {% macro tiles(items) -%}

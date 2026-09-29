@@ -1,19 +1,20 @@
 {% extends "base.html" %}
-{% from "_macros.html" import tiles, mark, teamlink, rangebar with context %}
+{% from "_macros.html" import tiles, mark, teamlink, rangebar, face with context %}
 {% block title %}{{ name }} · {{ brand }}{% endblock %}
 {% block body %}
 <style>
+.phead { display: flex; align-items: center; gap: 18px; } .phead > div { min-width: 0; }
 .facts2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px 24px; margin-top: 10px; }
 .facts2 div { display: flex; flex-direction: column; gap: 2px; } .facts2 .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); } .facts2 b { font-weight: 600; }
 .diff.pos { color: var(--turf); } .diff.neg { color: var(--neg); }
 .verdict { font-size: 11px; font-weight: 600; } .verdict.pos { color: var(--turf); } .verdict.neg { color: var(--neg); } .verdict.none { color: var(--muted); }
 </style>
 {% set hin = (height|int) if (height and height|string|trim|int(-1) > 0) else None %}
-<div class="head">
+<div class="head phead">{{ face(pid, nfl, 'lg', name) }}<div>
   <p class="eyebrow">player · {{ pos or "?" }} · {{ nfl|nflteam }}{% if number is not none %} · #{{ number }}{% endif %}{% if depth %} · {{ depth }} on the depth chart{% endif %}</p>
   <h1>{{ name }}</h1>
   <p class="lede">{% if owner %}{{ mark(owner) }}On {{ teamlink(owner) }}{% if is_mine %} (mine){% endif %}{% else %}A free agent in this league{% endif %}{% if bye %} · bye week {{ bye }}{% endif %}. <a href="/tools/compare_players?a={{ name|urlencode }}">Compare with…</a></p>
-</div>
+</div></div>
 
 {{ tiles([
   {"k": ("week " ~ week) if week else "this week", "v": week_mean|num(1) if week_mean is not none else "—", "s": ("from this week's " ~ week_source) if week_source else "not priced for this week yet", "tone": ""},

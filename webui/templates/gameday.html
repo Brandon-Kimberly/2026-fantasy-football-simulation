@@ -10,6 +10,8 @@
 <style>
 :root { --bg:#0b0b0c; --panel:#141416; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#8f8e88; --rule:#2c2c2a; --mine:hsl({{ hue }} 62% 62%); --theirs:hsl({{ opp_hue or 28 }} 62% 62%); --live:#e66767; --pre:#5e8ae2; --display:"Archivo", "Segoe UI", system-ui, sans-serif; }
 * { box-sizing: border-box; }
+.face { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 10px; background: var(--panel); border: 1px solid var(--rule); }
+.face[src^="/img/teams/"] { object-fit: contain; padding: 3px; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--display); }
 body { padding: 20px clamp(16px, 3vw, 40px) 32px; min-height: 100vh; }
 a { color: var(--ink-2); }
@@ -75,7 +77,7 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
   function chip(st) { var c = st === 'final' ? 'final' : (/^(Q|OT)/.test(st || '') ? 'on' : 'pre'); return '<span class="gc ' + c + '">' + esc(st) + '</span>'; }
   function rows(st, name) {
     return '<table><thead><tr><th>' + esc(name) + '</th><th>Game</th><th class="num">Pts</th></tr></thead><tbody>' +
-      st.rows.map(function (r) { return '<tr><td>' + esc(r.name) + '<span class="pos">' + esc(r.pos) + ' · ' + esc(r.nfl) + '</span></td><td>' + chip(r.status) + '</td><td class="num">' + n1(r.scored) + '</td></tr>'; }).join('') + '</tbody></table>';
+      st.rows.map(function (r) { return '<tr><td>' + (r.img ? '<img class="face" src="' + esc(r.img) + '" alt="">' : '') + esc(r.name) + '<span class="pos">' + esc(r.pos) + ' · ' + esc(r.nfl) + '</span></td><td>' + chip(r.status) + '</td><td class="num">' + n1(r.scored) + '</td></tr>'; }).join('') + '</tbody></table>';
   }
   function games(gs) {
     if (!gs || !gs.length) return '';
