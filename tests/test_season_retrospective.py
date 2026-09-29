@@ -126,5 +126,35 @@ class TestSolverSlotsParameter(unittest.TestCase):
         self.assertEqual(len(unfilled), 13)
 
 
+class TestThePrintout(unittest.TestCase):
+    """Found archiving 2024 (2026-09-29): a team whose lineup-efficiency percentage is None --
+    the 2024 abandoned roster, which scored nothing, so its optimum is 0 -- crashed the
+    script's printout on a float format, after the bundle was written. The row must print."""
+
+    def test_a_team_with_no_efficiency_percentage_prints(self):
+        import io
+        import json
+        import os
+        import tempfile
+        from contextlib import redirect_stdout
+        from unittest.mock import patch
+        import scripts.season_retrospective as sr
+        r = {"season": "2024", "regular_season_weeks": [1], "slots": [], "context_note": "", "position_unknown": [],
+             "schedule_luck": {}, "absence_note": "", "absences": {"A": {"zero_point_player_weeks": 0, "player_weeks": 1, "rate": 0.0, "starter_zeros": 0}},
+             "high_scorer_losses": {},
+             "lineup_efficiency": {"A": {"actual": 100.0, "optimal": 110.0, "points_lost": 10.0, "pct": 90.91, "weeks": []},
+                                   "Abandoned": {"actual": 0.0, "optimal": 0.0, "points_lost": 0.0, "pct": None, "weeks": []}}}
+        with tempfile.TemporaryDirectory() as td:
+            path = os.path.join(td, "season_2024.json")
+            with open(path, "w", encoding="utf-8") as fh:
+                json.dump({}, fh)
+            out = io.StringIO()
+            with patch.object(sr, "season_log_file", lambda s: path), patch.object(sr, "season_retrospective", lambda *a, **k: r), \
+                 patch.object(sr, "load_json", lambda p: {}), patch.object(sr, "save_json"), redirect_stdout(out):
+                sr.main(["--season", "2024", "--team", "A"])
+        line = next(ln for ln in out.getvalue().splitlines() if "Abandoned" in ln)
+        self.assertIn("—", line)
+
+
 if __name__ == "__main__":
     unittest.main()

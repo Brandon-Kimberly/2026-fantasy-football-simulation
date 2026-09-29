@@ -17,6 +17,7 @@ The inputs are the ones scripts.luck_ledger fetches, read from disk instead:
 fantasy_sim.luck_ledger is pure (it imports only math); the engine is not imported.
 """
 import json
+import math
 
 from fantasy_sim.luck_ledger import MIN_WEEKS_FOR_INFERENCE, direction, ledger, two_sided_p
 
@@ -98,3 +99,94 @@ def report(root, team):
         rows.append(row)
     return {"team": team, "weeks": n, "early": early, "min_weeks": MIN_WEEKS_FOR_INFERENCE, "rows": rows,
             "disagreement": res.get("banked_disagreement")}
+
+
+# ---- Decision 2 (owner ruling 2026-09-29): the three measures pre-registered in
+# docs/LUCK_LEDGER.md's addendum (aaf9807), implemented exactly as defined there.
+
+def _late_rows(root):
+    """{week: {team: (won, quoted_h2h, median_won, quoted_median)}} for the weeks with both a
+    result as the league counted it (F83) and a canonical pre-kickoff quote."""
+    from webui.accuracy import chances_in, quoted_week
+    from webui.results import week_results
+    out, left_out = {}, []
+    for w, teams in sorted(week_results(root).items()):
+        if w > REGULAR_WEEKS:
+            continue
+        q = quoted_week(root, w)
+        if not q:
+            left_out.append(w)
+            continue
+        row = {}
+        for t, r in teams.items():
+            ch = chances_in(q, t) or {}
+            row[t] = (r.get("h2h_win"), ch.get("h2h"), r.get("median_win"), ch.get("median"))
+        out[w] = row
+    return out, left_out
+
+
+def _stat(delta, var, n, key):
+    se = math.sqrt(var) if var > 0 else 0.0
+    early = n < MIN_WEEKS_FOR_INFERENCE
+    z = (delta / se) if se > 0 else None
+    p = two_sided_p(z) if (z is not None and not early) else None
+    return {"delta": delta, "se": se, "n": n, "way": direction("schedule_luck", delta),
+            "z": None if early else (round(z, 2) if z is not None else None), "p": p,
+            "word": None if p is None else ("significant" if p < 0.05 else ("suggestive" if p < 0.20 else "noise"))}
+
+
+def late_measures(root, team):
+    """forecast_luck and median_luck for `team`, as pre-registered. Each None without a quote."""
+    rows, left_out = _late_rows(root)
+    out = {}
+    wins = [(float(v[0]), float(v[1])) for wk in rows.values() for t, v in wk.items()
+            if t == team and v[0] is not None and v[1] is not None]
+    out["forecast_luck"] = None if not wins else dict(
+        _stat(sum(a - p for a, p in wins), sum(p * (1 - p) for _a, p in wins), len(wins), "forecast"),
+        left_out=len(left_out) + sum(1 for wk in rows.values() if team in wk and (wk[team][0] is None or wk[team][1] is None)))
+    raw = {}
+    for wk in rows.values():
+        for t, v in wk.items():
+            if v[2] is not None and v[3] is not None:
+                a, p = float(v[2]), float(v[3])
+                d = raw.setdefault(t, [0.0, 0.0, 0])
+                d[0] += a - p
+                d[1] += p * (1 - p)
+                d[2] += 1
+    if team in raw:
+        league = sum(v[0] for v in raw.values()) / len(raw)
+        out["median_luck"] = dict(_stat(raw[team][0] - league, raw[team][1], raw[team][2], "median"), league=league)
+    else:
+        out["median_luck"] = None
+    return out
+
+
+def swap_matrix(root):
+    """Each team's head-to-head record on each other team's schedule (pre-registered as
+    descriptive): A's score against B's opponent each played week; in the week B met A, A meets
+    B. Box scores, like all-play; `rescored` when a counted week is one Sleeper re-scores."""
+    from webui.results import rescaled_weeks, week_results
+    sched = root.read_json("current/league_schedule.json", []) or []
+    scaled = rescaled_weeks(root)
+    pts = {}
+    for w, teams in week_results(root).items():
+        if w > REGULAR_WEEKS:
+            continue
+        row = {t: float(r["points_scored"]) for t, r in teams.items() if r.get("points_scored") is not None}
+        if row and 0 < w <= len(sched):
+            pts[w] = row
+    teams = sorted({t for row in pts.values() for t in row})
+    cells = {a: {} for a in teams}
+    for a in teams:
+        for b in teams:
+            wlt = [0, 0, 0]
+            for w, row in pts.items():
+                opp = next((x for pair in sched[w - 1] if b in pair for x in pair if x != b), None)
+                if opp is None or a not in row:
+                    continue
+                other = b if opp == a else opp
+                if other not in row:
+                    continue
+                wlt[0 if row[a] > row[other] else (1 if row[a] < row[other] else 2)] += 1
+            cells[a][b] = tuple(wlt)
+    return {"teams": teams, "cells": cells, "weeks": sorted(pts), "rescored": any(w in scaled for w in pts)}

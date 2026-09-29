@@ -90,7 +90,8 @@ def main(argv=None):
     print("\n(2) Lineup efficiency -- actual started points vs Hungarian-optimal on realized scores:")
     print(f"  {'team':18s} {'actual':>8s} {'optimal':>8s} {'lost':>7s} {'pct':>6s}")
     for t, d in sorted(r["lineup_efficiency"].items(), key=lambda kv: -(kv[1]["pct"] or 0)):
-        print(f"  {t:18s} {d['actual']:8.2f} {d['optimal']:8.2f} {d['points_lost']:7.2f} {d['pct']:6.2f}")
+        pct = f"{d['pct']:6.2f}" if d["pct"] is not None else f"{'—':>6s}"     # None: an optimum of 0 (2024's abandoned roster)
+        print(f"  {t:18s} {d['actual']:8.2f} {d['optimal']:8.2f} {d['points_lost']:7.2f} {pct}")
     mine = r["lineup_efficiency"].get(args.team)
     if mine:
         worst = sorted(mine["weeks"], key=lambda w: -w["lost"])[:3]

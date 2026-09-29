@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% from "_macros.html" import mark, teamlink with context %}
+{% block title %}{{ s.season }} season · {{ brand }}{% endblock %}
+{% block body %}
+<style>table.sw td, table.sw th { text-align: center; padding: 4px 6px; font-variant-numeric: tabular-nums; font-size: 12.5px; } table.sw td.nm, table.sw th.nm { text-align: left; white-space: nowrap; }
+table.sw td.W { color: var(--pos); font-weight: 600; } table.sw td.L { color: var(--ink-2); } table.sw td.T { color: var(--muted); }</style>
+<div class="head">
+  <p class="eyebrow">history · <a href="/history">every season</a></p>
+  <h1>The {{ s.season }} season</h1>
+  <p class="lede">Final standings as the league recorded them, and every regular-season week's scores. The archive does not record the playoff bracket, so this page names no champion.</p>
+</div>
+<section>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Final standings <span class="hint">the league's record for the season</span></h2>
+<div class="scroller"><table><thead><tr><th></th><th>Team</th><th class="num">Record</th><th class="num">Points for</th></tr></thead><tbody>
+{% for r in s.standings %}<tr class="fs{{ ' me' if r.team == my_team }}"><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.w }}–{{ r.l }}{% if r.t %}–{{ r.t }}{% endif %}</b></td><td class="num">{{ r.pts|num(1) }}</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% if s.weeks %}
+<section>
+<h2><svg class="i"><use href="#i-cal"/></svg> Week by week <span class="hint">each team's score, bold where it won its game</span></h2>
+<div class="scroller"><table class="sw"><thead><tr><th class="nm">Team</th>{% for w in s.weeks %}<th title="Week {{ w.week }}">Week {{ w.week }}</th>{% endfor %}</tr></thead><tbody>
+{% for r in s.standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td>{% for w in s.weeks %}{% set p = w.points.get(r.team) %}<td class="{{ w.result.get(r.team, '') }}">{{ p|num(1) if p is not none else "—" }}</td>{% endfor %}</tr>{% endfor %}
+</tbody></table></div>
+</section>
+{% endif %}
+{% endblock %}
