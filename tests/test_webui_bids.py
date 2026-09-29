@@ -92,6 +92,7 @@ class TestClearingPrices(Case):
         by = {r["player"]: r for r in self.c["claims"]}
         b = by["Nick Bolton"]
         self.assertEqual((b["winner"], b["paid"], b["next_bid"], b["next_team"], b["above"], b["losing"]), (MY_TEAM, 7, 6, TEAMS[3], 1, 2))
+        self.assertEqual(b["run"], "Sep 16", "labelled by the run's Pacific date (19:00Z is noon PT), not the submission leg")
         s = by["Somebody Else"]
         self.assertEqual((s["winner"], s["paid"], s["next_bid"], s["above"]), (TEAMS[4], 20, 12, 8))
         self.assertNotIn("Roster Squeeze", by, "a full roster is not a bid anyone beat")

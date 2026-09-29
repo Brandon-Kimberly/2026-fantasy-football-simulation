@@ -33,7 +33,7 @@ landed (2026-09-01). **Golden master:** three scenarios
 | F3 | 1 prerequisite | 2 | 0 | 0 | 0 |
 | **phase-era total** | **~46 findings** | **33 fixed** | **2** | **5 open, all tracked with numeric criteria** | **8 reported** |
 | F9–F35 (2026-08-30 → 09-03; see the F9–F35 section below) | 27 | 11 fixed / built | 6 measured & cleared | 10 open, tracked | 0 |
-| **grand total** | **~128 findings and tracked follow-ups** | **94 fixed or built** | — | open set enumerated in the table below | — |
+| **grand total** | **~129 findings and tracked follow-ups** | **94 fixed or built** | — | open set enumerated in the table below | — |
 
 "Open" means tracked with an acceptance criterion and a stated blocker.
 Fixed defects were verified by tests that failed against the old behaviour. Where a fix
@@ -228,6 +228,7 @@ Plus two wrong-direction predictions recorded as information (F6's null result; 
 | F25 | team-week interval under-dispersion, bracketed r ∈ [1.15, 1.34] | quoted-vs-realized calibration from the predictions log, ~week 5–6 |
 | F15 / F26 | draft realized-value row; the ten untested sync handler bodies | season data; fake-HTTP layer respectively |
 | R1 | **machine-level fault under multi-core load — verdict: RMA.** MemTest86 clean, AV excluded, BIOS/microcode updated to 0x133 with Intel Default Settings — Arm D still fails 9/12 and 11/12, so the chip itself is degraded (Vmin Shift class). Load threshold is not safe even at 3 concurrent real engine processes (1/3 silent death, 2026-09-01, no Reliability Monitor trace). Rules: one engine process at a time; a crashed or impossible-error run is void. CI on a cloud Windows runner now provides an independent, fault-free machine certifying every commit. Re-test = Arm D 12/12 after the CPU is replaced. | AUDIT_PLAN.md R1 carries the full probe history |
+| F88 | the bid ledger can resolve losses and rival bids from the failed-claims log (B14's "a lost claim never becomes a transaction" was false) | not blocked; tests-first change to `bid_ledger.reconcile` |
 | Phase 8 | engineering / decomposition | only with the golden master — which now exists |
 
 ## F9–F35 — follow-ups and measurements (2026-08-30 → 2026-09-03)
@@ -389,6 +390,15 @@ than "fixed": the measurement said the code was right.
   DEFAULT ARGUMENT, so the patch did nothing and two rows went to the real log; correct values,
   but written by a harness and claiming to be sync readings, so the file was deleted rather
   than kept. Same class as H2. `check_test_isolation` CLEAN.
+- **F88** lost waiver claims ARE in Sleeper's feed — OPEN (the F31 half measured and cleared):
+  B14 built the bid ledger on "a lost claim never becomes a transaction", and it is false. The
+  feed returns each lost claim as a `failed` waiver with its bid and reason: 13 in 2026 through
+  week 3, and 25 in 2025. Every outbid claim shares its winner's `status_updated` to the
+  millisecond (11/11 and 19/19), so the sync now logs them to `failed_claims.jsonl`, paired by
+  the run and never the leg (three cross a leg boundary). F31's bid curve was fitted to winning
+  bids only, but every 2025 bid placed has median 4 / mean 7.46 against the winners' 4 / 7.35:
+  cleared, nothing to refit. Open: the bid ledger can now resolve losses and rival bids
+  automatically.
 - **F87** the union-merge list went stale because nothing guarded it — RESOLVED:
   `.gitattributes` gave `merge=union` to four append-only logs on 2026-09-04, each verified
   against its readers; every log added since was not, because no test checked. `evaluate-moves`

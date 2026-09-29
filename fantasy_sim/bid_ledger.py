@@ -8,6 +8,13 @@ recorded *suggested vs placed vs winning vs outcome*. Without that record F61 ca
 settled -- and F61 is the finding that says settling it is the ONLY way to know whether
 any bid heuristic here works.
 
+**CORRECTION (F88, 2026-09-29): a lost claim DOES become a transaction.** Sleeper returns it
+as a `waiver` with `status: "failed"`, and the sync now logs those to
+`data/logs/failed_claims.jsonl`, each paired with the claim that beat it. The paragraph below
+is left as written. Its conclusion, a ledger written at bid time, still holds, because the
+suggestion must be recorded before the outcome. Its premise does not. Reading losses and
+rival bids from the new log is F88's open half.
+
 **WHY THIS IS NOT MORE FIELDS ON THE DECISION LOG.** Measured before building it: all 26
 waiver rows in `decision_log.jsonl` are COMPLETED transactions, because a lost waiver
 claim never becomes a transaction at all. That log is a record of WINS ONLY. It can never

@@ -374,7 +374,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                                positions=POSITIONS, pos=pos, shows=shows, show=show, q=request.args.get("q", ""),
                                week=t["week"], targets_stamp=t["targets_stamp"], n_waivers=t["n_waivers"],
                                run=playersmod.waiver_run(root, MY_TEAM) if board else None,         # UI-W3
-                               faab=playersmod.faab_table(root, MY_TEAM) if board else None)        # UI-W6
+                               faab=playersmod.faab_table(root, MY_TEAM) if board else None,        # UI-W6
+                               clearing=playersmod.clearing_prices(root, MY_TEAM) if board else None)   # UI-W4
 
     # ---- UI-H1 / H2 / H3: the league's history
     @app.route("/history")

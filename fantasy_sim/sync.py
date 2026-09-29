@@ -32,7 +32,7 @@ from fantasy_sim.storage import (
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
-    PENDING_TRADES_FILE, draft_log_file, season_log_file,
+    PENDING_TRADES_FILE, draft_log_file, season_log_file, FAILED_CLAIMS_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1535,6 +1535,7 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
     now = _now_ms()
     appended = 0
     records = []
+    fetched = []                               # every transaction seen, for the lost-claim pairing
     for wk in range(1, max(1, int(current_week)) + 1):
         try:
             resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/transactions/{wk}", timeout=10)
@@ -1543,6 +1544,7 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
             logging.warning("DECISION LOG: transactions for week %d could not be fetched (%s); "
                             "they will be picked up by a later sync.", wk, ex)
             continue
+        fetched.extend((wk, tx) for tx in txs or [] if isinstance(tx, dict))
         for tx in txs or []:
             txid = tx.get("transaction_id")
             if not txid or txid in seen or tx.get("status") != "complete":
@@ -1566,6 +1568,10 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                 "adds": [player_entry(pid, rid) for pid, rid in (tx.get("adds") or {}).items()],
                 "drops": [player_entry(pid, rid) for pid, rid in (tx.get("drops") or {}).items()],
             })
+    # Decision 4: the lost claims, beside the log (FAILED_CLAIMS_FILE for the real one, a
+    # sibling of a test's path for a test's). Never allowed to cost the decision log.
+    ingest_failed_claims(fetched, roster_map, players_db, my_team,
+                         os.path.join(os.path.dirname(path) or ".", os.path.basename(FAILED_CLAIMS_FILE)))
     if not records:
         return 0
     try:
@@ -1581,7 +1587,83 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
     return appended
 
 
-DEFAULT_WAIVER_BUDGET = 100.0   # Sleeper's default, and what every pre-2026-09-24 record
+FAILED_CLAIM_REASONS = (("claimed by another owner", "outbid"), ("too many players", "roster_full"))
+
+
+def _iso_ms(ms):
+    return datetime.utcfromtimestamp(int(ms) / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def ingest_failed_claims(fetched, roster_map, players_db, my_team, path):
+    """Decision 4 (UI-W4): append each LOST waiver claim not already logged, one JSON line
+    each -- the team, the player, the bid, Sleeper's reason ("outbid" when the player was
+    claimed by another owner, "roster_full" when the claimant's roster had no room, "other"
+    with the note kept), and `won_by`, the claim that beat it.
+
+    The pairing is by the moment the waiver run PROCESSED both claims (`status_updated`), which
+    is identical to the millisecond for a claim and the one that beat it -- measured on all 11
+    outbid claims in the live league on 2026-09-29 -- and never by the week: two of those 11
+    were submitted in leg 3 and beaten by claims submitted in leg 2 (F65). It happens here
+    because the decision log does not keep the processing time. `won_by` is None when no
+    completed claim for the player shares the run (a full roster, or a winner not in the feed).
+
+    `fetched` is [(week fetched, transaction)] across every week the sync read. A failure warns
+    into the manifest and returns 0; it never raises. Returns the number of rows appended."""
+    try:
+        seen = set()
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as handle:
+                seen = {json.loads(line).get("transaction_id") for line in handle if line.strip()}
+        winners = {}
+        for _, tx in fetched:
+            if tx.get("type") == "waiver" and tx.get("status") == "complete" and tx.get("status_updated"):
+                for pid in (tx.get("adds") or {}):
+                    winners[(str(pid), int(tx["status_updated"]))] = tx
+
+        def name(pid):
+            pdb = players_db.get(str(pid), {})
+            return f"{pdb.get('first_name', '')} {pdb.get('last_name', '')}".strip() or str(pid)
+
+        def team_of(t):
+            return next((roster_map.get(r, f"roster_{r}") for r in (t.get("roster_ids") or [])), None)
+
+        rows = []
+        for wk, tx in fetched:
+            txid = tx.get("transaction_id")
+            if tx.get("type") != "waiver" or tx.get("status") != "failed" or not txid or txid in seen:
+                continue
+            seen.add(txid)
+            note = (tx.get("metadata") or {}).get("notes") or ""
+            reason = next((key for text, key in FAILED_CLAIM_REASONS if text in note.lower()), "other")
+            team = team_of(tx)
+            pid = next(iter(tx.get("adds") or {}), None)
+            run = tx.get("status_updated")
+            win = winners.get((str(pid), int(run))) if pid is not None and run else None
+            rows.append({
+                "transaction_id": txid, "type": "waiver", "week": tx.get("leg", wk),
+                "created": _iso_ms(tx["created"]) if tx.get("created") else None,
+                "processed": _iso_ms(run) if run else None,
+                "team": team, "is_mine": team == my_team,
+                "player_id": str(pid) if pid is not None else None, "name": name(pid) if pid is not None else None,
+                "faab_bid": (tx.get("settings") or {}).get("waiver_bid"), "reason": reason, "note": note,
+                "won_by": ({"transaction_id": win.get("transaction_id"), "team": team_of(win),
+                            "faab_bid": (win.get("settings") or {}).get("waiver_bid")} if win else None),
+                "drops": [{"player_id": str(p), "name": name(p)} for p in (tx.get("drops") or {})],
+            })
+        if not rows:
+            return 0
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "a", encoding="utf-8") as handle:
+            for r in rows:
+                handle.write(json.dumps(r, sort_keys=True) + "\n")
+        return len(rows)
+    except Exception as ex:
+        logging.warning("FAILED CLAIMS: the lost waiver claims could not be logged to %s (%s); "
+                        "a later sync will pick them up.", path, ex)
+        return 0
+
+
+DEFAULT_WAIVER_BUDGET = 100.0  # Sleeper's default, and what every pre-2026-09-24 record
 #                                 in this repo was written under. Used only when the league
 #                                 payload states no `waiver_budget` at all.
 FAAB_ADJUSTMENT_TOLERANCE = 0.5  # below this, it is rounding, not a commissioner acting

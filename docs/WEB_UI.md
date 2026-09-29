@@ -957,6 +957,37 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### What it took to win a claim (2026-09-29, roadmap Decision 4; UI-W4)
+
+The owner ruled "extend the sync".
+
+**The sync side.** Sleeper's feed returns a lost claim as a waiver with status `failed`.
+`ingest_transactions` still keeps completed transactions only. From the same fetch,
+`ingest_failed_claims` appends each lost claim to `data/logs/failed_claims.jsonl`, deduped
+on `transaction_id`. Each row carries:
+- the team, the player, the bid;
+- the reason: `outbid`, `roster_full`, or `other` with the note kept;
+- `won_by`, the claim that beat it.
+
+The pairing is by the waiver run's processing time, never the week (F88 has the
+measurement). The log is union-merged, and the board keeps the first row per transaction.
+
+**The Waiver board.**
+- **What it took to win:** every contested claim, with the winning bid, the next best bid,
+  and what the winner paid above it. Sleeper's auction is first-price, so the next bid plus
+  one is what winning took.
+- **By team:** contested wins, and the total paid above the next bid.
+- **The median:** what winners paid above the next bid, league-wide.
+- **Your suggested bids against what it took:** the owner's bid-ledger ranges laid against
+  the price.
+- **The last waiver run:** now shows the next best bid beside each winning one.
+
+**What it does not claim:**
+- A claim nobody else bid on has no next bid, so it is not on the table. Its price is
+  unknown, not zero.
+- A handful of claims says how the suggestion has done so far, not how good it is.
+- The bid ledger itself does not read the new log yet (F88's open half).
+
 ### Headshots and team logos (2026-09-29, roadmap Decision 3; UI-E7, P6)
 
 The owner ruled "cache at sync".

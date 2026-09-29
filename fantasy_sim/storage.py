@@ -210,6 +210,12 @@ DECISION_LOG_FILE = _log("decision_log.jsonl")
 # so a claim I LOST never appears there, and the losses are the half that
 # calibrates a bid.
 BID_LEDGER_FILE = _log("bid_ledger.jsonl")
+# Decision 4 (2026-09-29): every LOST waiver claim in the league, from the same feed -- Sleeper
+# returns a lost claim as a waiver with status "failed" -- with its bid, Sleeper's reason and
+# the claim that beat it, paired at sync by the run's processing time. Append-only, deduped by
+# transaction_id. The decision log keeps completed transactions only; these are the losing
+# bids, the half that says what a claim actually had to beat.
+FAILED_CLAIMS_FILE = _log("failed_claims.jsonl")
 # B19: the FIRST score recorded for each player in each completed week, written
 # once and never touched again. weekly_actuals.json is regenerated every sync, so a
 # Tuesday stat correction overwrites the number it corrected; this is the only copy
