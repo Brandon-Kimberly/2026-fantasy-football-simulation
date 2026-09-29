@@ -224,6 +224,8 @@ seeing this season's data is exactly the "story instead of a test" the ledger wa
 against. Either pre-register them now, with definitions frozen in `docs/LUCK_LEDGER.md`
 before they are ever computed, or leave them out.
 
+
+**Owner ruling (2026-09-29): pre-register now.** Forecast luck, median luck and the schedule-swap matrix are defined in `docs/LUCK_LEDGER.md`'s addendum. That commit comes before any code computes them, and it states that weeks 1–3 had been visible, so they are registered late but not after the fact.
 ### Decision 3: player headshots and team logos
 
 **Unlocks:** UI-P6, UI-E7, and the richer versions of UI-M9 and UI-A2.
@@ -235,6 +237,8 @@ browser at view time does not break the rule that the server never fetches at re
 but it sends a request to a third party on every page view and fails offline. Caching
 them locally at sync time avoids both.
 
+
+**Owner ruling (2026-09-29): cache at sync.** Sync downloads the rostered players' headshots and the 32 team logos under `data/`, once. Pages load them locally, with no third-party request per view.
 ### Decision 4: log failed waiver claims
 
 **Unlocks:** UI-W4, and the calibration half of UI-W5.
@@ -245,6 +249,8 @@ only: 133 of them, none with a status field, no failed claims. Capturing losing 
 means extending the sync. That touches the sync-stage golden (`tests.golden_sync`), so
 it is its own piece of work.
 
+
+**Owner ruling (2026-09-29): extend the sync.** It gets a branch of its own with the sync golden checked, and anything that moves the golden's baselines is flagged before merging.
 ### Decision 5: the shape of the 4K layout
 
 **Unlocks:** UI-V1.
@@ -262,6 +268,8 @@ The developer view has eleven tabs. Records, Jobs, Logs, System and Sync could m
 one "Developer" menu, leaving a top bar of Home, Matchups, League, Players, Forecasts,
 Accuracy, Decisions and Tools.
 
+
+**Built with UI-A5 (2026-09-28):** Records, Jobs, Logs, System and Sync sit under one "More" menu in the developer view.
 ### Decision 7: 2024 in the history pages
 
 **Unlocks:** the full versions of UI-H1 and UI-H6.
@@ -270,6 +278,8 @@ The 2025 season is archived in `data/logs/season_2025.json`. The 2024 league is 
 only through `KNOWN_LEAGUE_IDS` because the renewal chain is broken (B20). Bringing it in
 needs an ingest like the 2025 one.
 
+
+**Owner ruling (2026-09-29): ingest 2024,** with a one-off archive like 2025's, through `SLEEPER_LEAGUE_ID_2024`.
 ### Decision 8: can the UI keep anything of the owner's
 
 **Unlocks:** UI-Q3.
@@ -278,6 +288,8 @@ Today the UI writes only its own settings, job logs and backups under `data/loca
 A pick'em against the model would store the owner's picks. That belongs in the same
 local directory, never in `data/logs`, but it is still a new kind of write.
 
+
+**Owner ruling (2026-09-29): yes, locally.** Picks go under `data/local/webui` only, never `data/logs` and never committed, with a test that nothing else is touched.
 ---
 
 ## 4. Guardrails every item inherits
