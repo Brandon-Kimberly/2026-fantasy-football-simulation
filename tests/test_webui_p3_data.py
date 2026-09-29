@@ -44,9 +44,13 @@ class TestTradeOrder(unittest.TestCase):
                        {"with": "D", "target": "z", "my_gain": 1.0, "their_gain": 4.0}]}
         view = render.record_view(rec)
         buy = next(s for s in view["sections"] if s and s.get("title") == "Buy")
-        self.assertEqual([r["with"] for r in buy["rows"]], ["C", "D", "B"])
-        self.assertEqual([r["their_need"] for r in buy["rows"]], ["RB", "WR", "QB"])
-        self.assertEqual([r["both_gain"] for r in buy["rows"]], [2.0, 1.0, -1.0])
+        keys = [c["key"] for c in buy["columns"]]
+
+        def column(key):
+            return [r["cells"][keys.index(key)]["text"] for r in buy["rows"]]
+        self.assertEqual(column("with"), ["C", "D", "B"])
+        self.assertEqual(column("their_need"), ["RB", "WR", "QB"])
+        self.assertEqual(column("both_gain"), ["+2.0", "+1.0", "-1.0"])
 
 
 @unittest.skipUnless(HAS_FLASK, "flask not installed")

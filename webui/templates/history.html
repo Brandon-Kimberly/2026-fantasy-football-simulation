@@ -15,6 +15,19 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
   <p class="lede">Every regular-season game on file. Playoff games are left out: the 2025 archive does not record which post-season games were for the title and which were consolation, so counting them would mix the two. This season's results are as the league counted them.{% if drafts %} <a href="/draft">The draft board</a>.{% endif %}</p>
 </div>
 
+{% set md = model %}{% if md and (md.least_likely_win or md.comeback or md.collapse or md.champion) %}
+<section>
+<h2><svg class="i c-violet"><use href="#i-dice"/></svg> Records only a model can keep <span class="hint">{{ current_season }} so far · measured against the model's own odds at the time</span></h2>
+<div class="recs">
+{% if md.least_likely_win %}{% set r = md.least_likely_win %}<div class="card"><div class="k">least likely win</div><div class="v">{{ r.p|pct(0) }}</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">week {{ r.week }} · its chance before kickoff</div></div>{% endif %}
+{% if md.comeback %}{% set r = md.comeback %}<div class="card"><div class="k">biggest comeback</div><div class="v">{{ r.low|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|num(1) }}% now, in a playoff place</div></div>{% endif %}
+{% if md.collapse %}{% set r = md.collapse %}<div class="card"><div class="k">biggest collapse</div><div class="v">{{ r.high|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its playoff odds after week {{ r.week }}; {{ r.now|num(1) }}% now, outside the places</div></div>{% endif %}
+{% if md.champion %}{% set r = md.champion %}<div class="card"><div class="k">most improbable champion</div><div class="v">{{ r.p|num(1) }}%</div><div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }}</div><div class="when">its title odds in the week-{{ r.week }} forecast</div></div>{% endif %}
+</div>
+<p class="small muted" style="margin-top:8px">These fill in as the season goes: the comeback and collapse are "so far", measured against today's standings{% if not md.champion %}, and the champion arrives with the final{% endif %}.</p>
+</section>
+{% endif %}
+
 {% if book %}
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Record book <span class="hint">regular season, {{ n_games }} games</span></h2>
