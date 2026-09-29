@@ -455,21 +455,17 @@ def home_report(root, my_team, runner=None):
     champ = (now["teams"].get(my_team) or {}).get("champ")
 
     # ---- standings, with each team's odds through the season and its move since the last forecast
-    standings = root.read_json("current/league_standings.json", {}) or {}
     race = odds_race(root, my_team)
     sparks = {s["name"]: s["values"] for s in race["playoff"]}
     prev_week = max((w for w in root.weeks() if ow and w < ow), default=None)
     prev_odds = {t: v["playoff"] for t, v in odds_at(root, prev_week).items()} if prev_week else {}
-    table = []
-    for team, s in standings.items():
-        fc = now["teams"].get(team) or {}
-        table.append({"team": team, "wins": s.get("h2h_wins"), "points": s.get("points_scored"),
-                      "faab": s.get("remaining_faab"), "playoff": fc.get("playoff"),
-                      "champ": fc.get("champ"), "hue": team_hue(team),
-                      "spark": sparks.get(team) or [], "rank_delta": None})
-    table.sort(key=lambda r: (-(float(r["wins"] or 0)), -(float(r["points"] or 0))))
-    for i, r in enumerate(table):
-        r["rank"] = i + 1
+    # UI-O1: the rows come from the one standings helper League and the team page use
+    from webui.standings import table as standings_table
+    table = [{"team": r["team"], "rank": r["rank"], "wins": r["wins"], "points": r["points_for"], "faab": r["faab"],
+              "playoff": r["playoff"], "champ": r["champ"], "all_play": r["all_play"], "gb": r["gb"],
+              "cushion": r["cushion"], "mark": r["mark"], "hue": team_hue(r["team"]),
+              "spark": sparks.get(r["team"]) or [], "rank_delta": None}
+             for r in standings_table(root)]
     if prev_odds:
         now_rank = {r["team"]: i for i, r in enumerate(sorted(table, key=lambda r: -(float(r["playoff"] or 0))))}
         then_rank = {t: i for i, (t, _v) in enumerate(sorted(prev_odds.items(), key=lambda kv: -(float(kv[1] or 0))))}

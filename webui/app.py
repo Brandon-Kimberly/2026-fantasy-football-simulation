@@ -22,7 +22,7 @@ import sys
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
 from webui import accuracy as accuracymod
-from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, trade as trademod
+from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
                           odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
@@ -31,6 +31,7 @@ from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
 from webui.names import Overlay
 from webui.paths import PathRefused, Root, normalize
+from webui.results import rescaled_weeks
 from webui.settings import MODES, THEMES, Settings
 from webui.players import PlayerIndex
 from webui.tools import (ENGINE, SIMPLE_TOOLS, TOOLS, FormError, get as get_tool, label_for, resolve_form,
@@ -151,7 +152,8 @@ def current_report(root):
         rows.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
         roster_rows[team] = rows
     return {"standings": table, "rosters": roster_rows, "pending": pending, "state": state, "odds": odds, "odds_week": odds_week,
-            "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins}
+            "manifest": manifest, "files": root.current(), "records": records(root), "wins": wins,
+            "srows": standingsmod.table(root), "rescored_weeks": sorted(rescaled_weeks(root))}
 
 
 # ------------------------------------------------------------------------- factory
@@ -191,6 +193,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["num"] = _fmt_num
     app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
+    app.jinja_env.filters["wins"] = render.fwins                  # UI-O1: 2 wins, not "2.0"; a tie's half shows
     app.jinja_env.filters["signed"] = render.fsigned
     app.jinja_env.filters["se"] = render.fse                   # UI-V6: the only way a ± is printed
     app.jinja_env.filters["nflteam"] = lambda v: "no NFL team" if (not v or str(v).upper() == "FA") else v   # UI-F9
@@ -213,6 +216,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["sabbr"] = render.status_abbr
     app.jinja_env.globals["line_chart"] = render.line_chart
     app.jinja_env.globals["sparkline"] = render.sparkline
+    app.jinja_env.globals["strip"] = render.strip                 # UI-P2
     app.jinja_env.filters["state_label"] = render.state_label
     app.jinja_env.filters["sentence"] = render.sentence
     app.jinja_env.filters["tool_icon"] = render.tool_icon

@@ -161,6 +161,12 @@ def injury_report(root, team):
     return rows
 
 
+def _standings_row(root, team):
+    """UI-O1: the team's row from the one standings helper League and Home use."""
+    from webui.standings import by_team
+    return by_team(root).get(team)
+
+
 def team_report(root, team, my_team):
     """UI-A1: one team -- where it stands, its season week by week, its roster, its moves."""
     now = odds_now(root)
@@ -204,12 +210,13 @@ def team_report(root, team, my_team):
         roster.append({"name": e.get("name"), "pid": b.get("player_id"), "pos": b.get("pos") or e.get("pos"),
                        "nfl": b.get("team") or e.get("team"), "mean": b.get("mean"), "bye": b.get("bye"),
                        "status": "IR" if (b.get("on_ir") or e.get("on_ir")) else (b.get("injury_status") or e.get("injury_status") or ""),
-                       "p10": rg.get("p10"), "p50": rg.get("p50"), "p90": rg.get("p90"),
+                       "p10": rg.get("p10"), "p50": rg.get("p50"), "p90": rg.get("p90"), "dist": rg or None,
                        "vorp": (vorp.get(e.get("name")) or {}).get("vorp")})
     roster.sort(key=lambda r: -(float(r["mean"]) if r["mean"] is not None else -1))
     moves = [dict(d, fx=d["effect"].get(team)) for d in decisions_report(root, my_team)["decisions"] if team in d["teams"]]
     return {"team": team, "hue": team_hue(team), "is_mine": team == my_team, "rank": rank, "of": len(order),
             "standing": standings.get(team) or {}, "record": records(root).get(team), "odds": now["teams"].get(team) or {},
+            "row": _standings_row(root, team),
             "odds_week": now["week"], "move": odds_moves(root)["teams"].get(team), "prev_week": odds_moves(root)["prev"],
             "schedule": schedule, "roster": roster, "moves": moves, "week": cur, "injuries": injury_report(root, team),
             "h2h": h2h_report(root, my_team, team) if team != my_team else None}

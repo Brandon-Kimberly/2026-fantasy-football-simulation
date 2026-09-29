@@ -195,6 +195,17 @@ def fpct(v, nd=1):
     return f"{f:.{nd}f}%"
 
 
+def fwins(v):
+    """A win total: whole numbers bare, a tie's half kept (2 -> "2", 2.5 -> "2.5")."""
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return "—"
+    if f != f:
+        return "—"
+    return f"{f:.0f}" if f == int(f) else f"{f:.1f}"
+
+
 def fsigned(v, nd=2):
     try:
         f = float(v)
@@ -1224,3 +1235,56 @@ def log_title(name):
             tail = stem[len(key):].strip("_").replace("_", " ")
             return (f"{title} {tail}".strip(), desc)
     return (stem.replace("_", " "), "")
+
+
+def strip(v, hi, history=None, width=160, height=26):
+    """UI-P2: one player's projection drawn as a distribution, on ONE scale 0..hi across `width`
+    pixels (a table passes the same hi to every row, so strips compare): the simulation's
+    histogram faint behind, the 10th-90th line, the 25th-75th box, a mean tick, and a dot for
+    each week already played. A value past the scale sits at its edge. The numbers are also the
+    SVG's text (title and aria-label), so the strip never carries a value only as geometry.
+    No "chance of zero" pip: nothing on disk is that (player_variance excludes absent weeks and
+    its first bin is 0-5.3; tests.test_webui_strip). '' when there is nothing to draw."""
+    from markupsafe import Markup, escape
+    v = v or {}
+    try:
+        q = {k: float(v[k]) for k in ("p10", "p25", "p75", "p90")}
+        hi = float(hi)
+    except (KeyError, TypeError, ValueError):
+        return Markup("")
+    if hi <= 0:
+        return Markup("")
+    W, H, mid = float(width), float(height), height / 2.0
+
+    def x(val):
+        return round(max(0.0, min(float(val), hi)) / hi * W, 1)
+    mean = v.get("mean")
+    words = [f"10th {q['p10']:.1f}", f"25th {q['p25']:.1f}"]
+    if v.get("p50") is not None:
+        words.append(f"median {float(v['p50']):.1f}")
+    words += [f"75th {q['p75']:.1f}", f"90th {q['p90']:.1f}"]
+    if mean is not None:
+        words.append(f"mean {float(mean):.1f}")
+    played = [float(h) for h in (history or []) if h is not None]
+    if played:
+        words.append("weeks played " + ", ".join(f"{h:.1f}" for h in played))
+    label = escape(" · ".join(words))
+    out = [f'<svg class="dstrip" viewBox="0 0 {width} {height}" width="{width}" height="{height}" role="img" aria-label="{label}"><title>{label}</title>']
+    hist = v.get("histogram") or {}
+    edges, counts = hist.get("bin_edges") or [], hist.get("counts") or []
+    if counts and len(edges) == len(counts) + 1 and max(counts) > 0:
+        top = float(max(counts))
+        for i, c in enumerate(counts):
+            if edges[i] >= hi:
+                break
+            x0, x1 = x(edges[i]), x(edges[i + 1])
+            h = round(c / top * (H - 2), 1)
+            out.append(f'<rect class="h" x="{x0}" y="{round(H - h, 1)}" width="{round(max(x1 - x0 - 0.5, 0.5), 1)}" height="{h}"/>')
+    out.append(f'<line class="rng" x1="{x(q["p10"])}" y1="{mid}" x2="{x(q["p90"])}" y2="{mid}"/>')
+    out.append(f'<rect class="box" x="{x(q["p25"])}" y="{mid - 5}" width="{round(x(q["p75"]) - x(q["p25"]), 1)}" height="10" rx="3"/>')
+    if mean is not None:
+        out.append(f'<line class="mean" x1="{x(mean)}" y1="{mid - 8}" x2="{x(mean)}" y2="{mid + 8}"/>')
+    for h in played:
+        out.append(f'<circle class="wk" cx="{x(h)}" cy="{mid}" r="3"/>')
+    out.append("</svg>")
+    return Markup("".join(out))

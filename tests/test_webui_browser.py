@@ -243,7 +243,7 @@ class TestKeyboardAndExport(BrowserCase):
             p.click(btn)
         with open(dl.value.path(), encoding="utf-8") as fh:
             rows = list(csv.reader(io.StringIO(fh.read().lstrip("﻿"))))
-        self.assertIn("Points", rows[0])
+        self.assertIn("Points for", rows[0])
         self.assertEqual(len(rows), 9, "the header and eight teams")
 
 
