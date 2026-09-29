@@ -10,7 +10,8 @@ native section renders, and the sections use the validated primitives (UI-V3):
   H2H_Heatmap                                              -> the head-to-head grid
   Season_Outcomes                                          -> the playoff and title odds
   Weekly_Scoring_Density                                   -> floors and ceilings
-Power_Rankings has no native section yet and stays. The playoff and title bars stop giving
+Power_Rankings -- the roster value baseline (best lineup plus 10% of the bench) -- is drawn
+as the same bar list as the odds (the owner's request, 2026-09-29). The playoff and title bars stop giving
 each team a generated hue (the dataviz rule for eight series): the owner's bar in --c-me,
 the rest in --c-other, the names doing the identifying. The digest keeps its images.
 """
@@ -56,6 +57,7 @@ class TestWeekPage(unittest.TestCase):
         mx["finishing_seed_probabilities"] = {t: {f"Seed {k}": (12.5 + (i - k) * 1.5) for k in range(1, 9)} for i, t in enumerate(TEAMS)}
         mx["win_distributions"] = {t: {"p10_floor": 8, "p50_median": 12, "p90_ceiling": 16} for t in TEAMS}
         mx["weekly_score_percentiles"] = {t: {"mean": 150, "p10_floor": 115, "p90_ceiling": 190} for t in TEAMS}
+        mx["roster_value_baseline_pts"] = {t: 160.0 + 5 * i for i, t in enumerate(TEAMS)}
         with open(m, "w", encoding="utf-8") as fh:
             json.dump(mx, fh)
 
@@ -76,13 +78,21 @@ class TestWeekPage(unittest.TestCase):
         for mode in ("dev", "simple"):
             with self.subTest(mode=mode):
                 shown = re.findall(r'<img src="[^"]*/([A-Za-z_]+)\.png"', self.get(mode))
-                self.assertEqual(shown, ["Power_Rankings"])
+                self.assertEqual(shown, [], "Power_Rankings too, once the roster value is drawn natively")
 
     def test_the_seed_grid_is_the_validated_heat_grid(self):
         body = self.get("simple")
         seeds = body[body.index("Where each team finishes"):]
         self.assertIn('class="heat2"', seeds[:4000])
         self.assertEqual(len(re.findall(r'<td class="hc h\d"', seeds[:20000])), 64)
+
+    def test_the_roster_value_is_drawn_natively(self):
+        body = self.get("simple")
+        sec = body[body.index("Roster value"):]
+        sec = sec[:sec.index("</section>")]
+        self.assertEqual(sec.count('class="b"'), 8, "a bar per team")
+        self.assertIn("195.0 pts", visible_text(sec), "the best roster's value written")
+        self.assertNotIn("hsl(", re.sub(r'<span class="mark[^"]*"[^>]*>[^<]*</span>', "", sec))
 
     def test_no_generated_hue_for_eight_teams(self):
         body = self.get("dev")
