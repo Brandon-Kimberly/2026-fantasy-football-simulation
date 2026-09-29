@@ -312,7 +312,8 @@ def player_report(root, pid, my_team):
             "news_updated": _epoch_iso(c.get("news_updated")), "season_mean": b.get("mean"), "bye": b.get("bye"),
             "week": cur, "week_mean": wk_price.get("mean") if wk_price.get("source") not in (None, "baseline") else None,
             "week_source": wk_price.get("source") if wk_price.get("source") not in (None, "baseline") else None,
-            "range": rg, "odds_week": now["week"], "history": history, "moves": moves}
+            "range": rg, "odds_week": now["week"], "history": history, "moves": moves,
+            "landings": _landings_for(root, name)}
 
 
 def league_extras(root, my_team):
@@ -404,3 +405,9 @@ def week_games(root, week, my_team):
     return {"week": week, "current": cur, "weeks": list(range(1, len(sched) + 1)), "games": games,
             "played": bool(games) and all(g["winner"] or g["pts_a"] is not None for g in games),
             "quoted_at": (quote or {}).get("logged_at")}
+
+
+def _landings_for(root, name):
+    """UI-P3: {week: percentile} -- where each week's points landed in that week's range."""
+    from webui.calibration import player_landings
+    return player_landings(root, name) if name else {}

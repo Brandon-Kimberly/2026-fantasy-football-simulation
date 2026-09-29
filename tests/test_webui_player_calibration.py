@@ -108,9 +108,7 @@ class Case(unittest.TestCase):
         os.makedirs(d, exist_ok=True)
         with open(os.path.join(d, "player_variance.json"), "w", encoding="utf-8") as fh:
             json.dump({QF: [spread]}, fh)
-        with open(os.path.join(self.td.name, "data", "logs", "first_recorded_scores.jsonl"), "a", encoding="utf-8") as fh:
-            fh.write(json.dumps({"name": "Player 0 O'Neil", "player_id": "100", "points": 18.5, "week": 1,
-                                 "recorded_at": "2026-09-15T10:00:00Z"}) + "\n")
+        # the fixture already records week 1 at 24.3 (and week 2 at 9.8, which has no spread on file)
 
     def tearDown(self):
         self.td.cleanup()
@@ -129,11 +127,12 @@ class Case(unittest.TestCase):
 class TestPlayerPage(Case):
     def test_the_landing_and_its_count(self):
         from tests.test_webui_modes import DEV_TERMS, visible_text
-        self.assertEqual(calibration.player_landings(self.root, "Player 0 O'Neil"), {1: 82.5})
+        # 24.3 lies between p90 (22) and max (80): 90 + 10 * 2.3 / 58 = 90.4
+        self.assertEqual(calibration.player_landings(self.root, "Player 0 O'Neil"), {1: 90.4})
         for mode in ("dev", "simple"):
             with self.subTest(mode=mode):
                 text = visible_text(self.get("/player/100", mode))
-                self.assertIn("83rd", text, "18.5 lands at the 82.5th percentile")
+                self.assertIn("90th", text)
                 self.assertIn("1 week", text)
                 self.assertIn("not a verdict", text)
                 if mode == "simple":
@@ -148,7 +147,7 @@ class TestAccuracyPage(Case):
         body = self.get("/accuracy")
         self.assertIn("Where players' weeks landed", body)
         self.assertIn("draws from week 5", body, "gated: one scored week")
-        self.assertNotIn('class="relia"', body)
+        self.assertNotRegex(body, r'class="[^"]*\brelia\b')
 
     def test_past_the_gate_the_diagram_draws(self):
         from webui import accuracy
@@ -158,7 +157,7 @@ class TestAccuracyPage(Case):
             body = self.get("/accuracy")
         finally:
             accuracy.ENOUGH_WEEKS = old
-        self.assertIn('class="relia"', body)
+        self.assertRegex(body, r'class="[^"]*\brelia\b', "the chart classes read 'viz relia', as every primitive's do")
         self.assertIn('class="diag"', body, "the line a calibrated forecast sits on")
 
 
