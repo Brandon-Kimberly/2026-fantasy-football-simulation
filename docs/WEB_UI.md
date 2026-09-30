@@ -375,7 +375,9 @@ more safeguards, as `webui/sync.py` and the Sync page:
    HKCU\Environment) first and this process's environment only as a fallback; the page
    says which. It is probed against the-odds-api (the same verdicts as
    `fantasy_sim.sync.verify_odds_key`, copied because that module is one the web
-   process must never import) and the launch goes ahead only on `ok`. Rejected, absent
+   process must never import) and the launch goes ahead only on `ok`. Rejected, out of
+   credits (`exhausted`: the same 401 as a bad key, told apart by the reply's error code and
+   `x-requests-remaining`; the key is fine and there is nothing to fix -- 2026-09-30), absent
    and unreachable all stop with nothing written and nothing launched; the fallback
    sync stays a deliberate terminal act (`--allow-fallback`). The page renders without
    probing -- the probe spends an API request, so it runs only on launch.
@@ -1221,7 +1223,9 @@ the export would have to catch fails tests.test_public_site, so each is left out
 **When.** `canonical-run` keeps its data as the `site-data` artifact after a canonical weekly
 report; `pages-site` runs when canonical-run finishes (and on a push that changes the site's
 code), downloads the latest official run's data, builds, and deploys. Before any official run has
-kept its data it syncs and simulates on its own runner instead.
+kept its data it syncs and simulates on its own runner instead -- without the odds key, so a
+rebuild never spends the monthly odds credits (they ran out on 2026-09-30); those builds use the
+ratings model's game environments until the next official run's data replaces them.
 
 **The gate.** `scripts.build_public_site` takes every real team name, username and league name
 from Sleeper for each league id in the environment, plus the ESPN id and the private-legend

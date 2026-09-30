@@ -67,6 +67,18 @@ def user_scope_key(name="ODDS_API_KEY", read_user=None):
     return (v or None), ("this server's environment" if v else "nowhere")
 
 
+def _out_of_credits(resp, remaining):
+    """A 401 that is the account out of credits, not the key (2026-09-30: the-odds-api answers
+    both with 401; the body's error_code and x-requests-remaining tell them apart)."""
+    if str(remaining or "").strip() == "0":
+        return True
+    try:
+        body = resp.json()
+    except Exception:
+        return False
+    return isinstance(body, dict) and body.get("error_code") == "OUT_OF_USAGE_CREDITS"
+
+
 def probe_key(key, fetch=None):
     """{verdict, detail, remaining, used} -- H5's verdicts, and NEVER the key."""
     if not (key or "").strip():
@@ -85,6 +97,11 @@ def probe_key(key, fetch=None):
         return {"verdict": "unreachable", "detail": f"could not reach the-odds-api ({type(ex).__name__}); nothing was written. Try again in a minute.",
                 "remaining": None, "used": None}
     remaining, used = headers.get("x-requests-remaining"), headers.get("x-requests-used")
+    if status in (401, 403) and _out_of_credits(resp, remaining):
+        return {"verdict": "exhausted", "detail": f"the-odds-api has no credits left this month ({used or 'all'} used). The key is fine, so "
+                                                   "there is nothing to fix, and nothing was written. Credits come back at the plan's monthly "
+                                                   "reset (00:00 UTC on the 1st on this account's plan). To sync before then without real lines, "
+                                                   "run the sync from a terminal with --allow-fallback.", "remaining": remaining, "used": used}
     if status in (401, 403):
         return {"verdict": "rejected", "detail": f"the-odds-api REJECTED the key (HTTP {status}). That is not the API being down: the key "
                                                   "has been rotated or revoked. Nothing was written. Fix the key in the Windows User scope "

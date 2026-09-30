@@ -264,13 +264,39 @@ _STALE_SHELL_HINT = (
 )
 
 
+# 2026-09-30: the account used its monthly credits, and this check called it a REJECTED key
+# and prescribed the stale-shell remedy. The-odds-api answers both with HTTP 401; the body's
+# error_code (OUT_OF_USAGE_CREDITS vs INVALID_KEY) and x-requests-remaining (0 vs absent) tell
+# them apart -- the real replies, captured that day.
+_OUT_OF_CREDITS_HINT = (
+    "the-odds-api has no credits left: {used} (HTTP {status}, OUT_OF_USAGE_CREDITS). The key "
+    "itself is fine -- there is nothing to rotate or re-inject. Credits come back at the plan's "
+    "monthly reset (00:00 UTC on the 1st on this account's plan). To sync before then on the flat "
+    "21.5 fallback, pass --allow-fallback (F67 keeps this week's real lines if any are already "
+    "on disk)."
+)
+
+
+def _out_of_credits(resp):
+    """Is this 401/403 the account's credits running out, not the key? Never raises."""
+    headers = getattr(resp, "headers", None) or {}
+    if str(headers.get("x-requests-remaining", "")).strip() == "0":
+        return True
+    try:
+        body = resp.json()
+    except Exception:
+        return False
+    return isinstance(body, dict) and body.get("error_code") == "OUT_OF_USAGE_CREDITS"
+
+
 def verify_odds_key(key, fetch=None):
     """Is this key usable? Returns (verdict, detail) and NEVER the key itself.
 
-    H5. Verdicts: `ok`, `rejected` (401/403 -- it will not start working), `unreachable`
-    (5xx, timeout, DNS -- a transient), `absent` (no key configured, which is a supported
-    state, not an error). Only `rejected` is worth stopping a sync for; see
-    `should_stop_for_odds_key`.
+    H5. Verdicts: `ok`, `rejected` (401/403 -- it will not start working), `exhausted` (a
+    401/403 that is the account out of credits, not the key: it works again at the monthly
+    reset), `unreachable` (5xx, timeout, DNS -- a transient), `absent` (no key configured,
+    which is a supported state, not an error). Only `rejected` and `exhausted` are worth
+    stopping a sync for; see `should_stop_for_odds_key`.
 
     The detail string is printed and gets pasted into chats and issues, so it must never
     carry the credential.
@@ -292,6 +318,10 @@ def verify_odds_key(key, fetch=None):
                                f"proceeding, and F67 keeps this week's real lines if any "
                                f"are already on disk")
     if status in (401, 403):
+        if _out_of_credits(resp):
+            used = (getattr(resp, "headers", None) or {}).get("x-requests-used")
+            return "exhausted", _OUT_OF_CREDITS_HINT.format(
+                status=status, used=f"{used} used, 0 remaining" if used else "this month's are all used")
         return "rejected", _STALE_SHELL_HINT.format(status=status)
     if status == 200:
         return "ok", "ODDS_API_KEY accepted"
@@ -300,12 +330,13 @@ def verify_odds_key(key, fetch=None):
 
 
 def should_stop_for_odds_key(verdict, allow_fallback=False):
-    """Only a rejected key stops a sync, and only when the operator has not opted in.
+    """Only a rejected key or an account out of credits stops a sync, and only when the
+    operator has not opted in -- either way the real lines cannot be fetched this run.
 
     A transient must never block the scheduled runner, and an absent key is the documented
     no-key path -- refusing there would break the preseason gate and every hermetic run.
     """
-    return verdict == "rejected" and not allow_fallback
+    return verdict in ("rejected", "exhausted") and not allow_fallback
 
 
 def _is_fallback(source):
