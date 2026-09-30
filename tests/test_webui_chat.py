@@ -278,6 +278,67 @@ class TestTheService(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestTheFirstMessageIsNotAWait(unittest.TestCase):
+    """Found trying the page on the real data: the first message sat silent for seconds while
+    the whole data tree (170 MB, most of it charts) was copied inside the request, and the saved
+    answer kept the narration Claude writes between tool calls ("Better to use the live matchup
+    tool."). The copy skips images and charts and is made on the turn's own thread, shown as a
+    step; the saved answer is Claude's final reply."""
+
+    def setUp(self):
+        self.td = tempfile.TemporaryDirectory()
+        plant(self.td.name)
+        png = os.path.join(self.td.name, "data", "weeks", "week_03", "Chart.png")
+        with open(png, "wb") as fh:
+            fh.write(bytes([0x89]) + b"PNG" + b"0" * 64)
+        self.root = Root(self.td.name)
+        lines = [{"type": "system", "subtype": "init", "session_id": "s-1"},
+                 {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Let me check the board."}}},
+                 {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "mcp__syndicate__league_snapshot", "input": {}}]}},
+                 {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}},
+                 {"type": "stream_event", "event": {"type": "content_block_start", "content_block": {"type": "text"}}},
+                 {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Claim Allen."}}},
+                 {"type": "result", "subtype": "success", "is_error": False, "result": "Claim Allen.", "session_id": "s-1"}]
+        self.gate = threading.Event()
+        from webui.chat import ChatService
+        self.svc = ChatService(self.root, Overlay({}), claude="claude",
+                               popen=lambda *a, **k: _FakeProc(lines, hold=self.gate), base=tempfile.mkdtemp())
+
+    def tearDown(self):
+        self.gate.set()
+        self.td.cleanup()
+
+    def test_no_charts_in_the_copy(self):
+        ws = self.svc.workspace()
+        self.assertTrue(os.path.isdir(os.path.join(ws, "data", "weeks", "week_03")))
+        self.assertEqual([f for d, _s, fs in os.walk(ws) for f in fs if f.lower().endswith((".png", ".jpg"))], [])
+
+    def test_send_returns_at_once_and_the_copy_is_a_step(self):
+        cid = self.svc.new()
+        t0 = time.time()
+        self.svc.send(cid, "who should I claim?", "fast")
+        self.assertLess(time.time() - t0, 0.5)
+        st = self.svc.state(cid)
+        self.assertTrue(st["running"])
+        self.assertEqual(st["live"]["tools"][0]["label"], "Getting the latest league data")
+        self.gate.set()
+        for _ in range(200):
+            if not self.svc.state(cid)["running"]:
+                break
+            time.sleep(0.02)
+        self.assertEqual(self.svc.store.get(cid)["messages"][-1]["text"], "Claim Allen.", "the final reply, without the narration")
+
+    def test_opening_the_page_warms_the_copy(self):
+        self.assertIsNone(self.svc._ws)
+        self.svc.prewarm()
+        for _ in range(200):
+            if self.svc._ws:
+                break
+            time.sleep(0.02)
+        self.assertTrue(self.svc._ws and os.path.isdir(self.svc._ws))
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
 class TestThePage(unittest.TestCase):
     def setUp(self):
         self.td = tempfile.TemporaryDirectory()
