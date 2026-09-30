@@ -209,8 +209,7 @@ except ImportError:
     HAS_FLASK = False
 
 
-@unittest.skipUnless(HAS_FLASK, "flask not installed")
-class TestTheSiteShowsTheBankedScores(unittest.TestCase):
+class _BankedCase(unittest.TestCase):
     """The fixture's week 1 box score reads Quantum Ferrets 180.0; the league banked 181.5.
     Week 2's reads 148.52-144.19, and the commissioner's override made Cosmic Badgers 150.41."""
 
@@ -233,6 +232,10 @@ class TestTheSiteShowsTheBankedScores(unittest.TestCase):
         doc["week_2"][CB].update(points=150.41, override=True)
         with open(os.path.join(self.td.name, "data", "current", "banked_scores.json"), "w", encoding="utf-8") as fh:
             json.dump(doc, fh)
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestTheSiteShowsTheBankedScores(_BankedCase):
 
     def test_the_points_are_the_leagues(self):
         from webui.results import rescaled_weeks, week_results
@@ -262,6 +265,47 @@ class TestTheSiteShowsTheBankedScores(unittest.TestCase):
         self.assertEqual({g["a"]: g["pts_a"], g["b"]: g["pts_b"]}[CB], 150.41)
         scores = _inputs(self.root)[0]
         self.assertEqual(scores[1][QF], 181.5)
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestScoresReadLikeSleepers(_BankedCase):
+    """Sleeper shows a score to the cent (187.36); the site rounded it to 187.4, so the owner
+    could not check one against the other. A played score, and a season's points for and
+    against, print to the cent; projections keep one decimal. And the week in review's median
+    is the median of the week's scores as shown, not the one the recomputed box scores gave."""
+
+    def client(self):
+        from fantasy_sim.config import MY_TEAM
+        from tests.test_webui_launch import FakeRunner
+        from webui.app import create_app
+        from webui.live import LiveBoard
+        from webui.settings import Settings
+        st = Settings(self.root)
+        st.set_mode("simple")
+        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
+                         live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
+        app.testing = True
+        return app.test_client()
+
+    def test_the_pages_print_scores_to_the_cent(self):
+        from tests.test_webui_modes import visible_text
+        from webui.render import slug
+        self.bank()
+        c = self.client()
+        for path in ("/matchups/week-2", f"/team/{slug(QF)}", "/"):
+            with self.subTest(path=path):
+                text = visible_text(c.get(path).get_data(as_text=True))
+                self.assertIn("148.52", text)
+                self.assertIn("150.41", text)
+        self.assertIn("181.50", visible_text(c.get("/matchups/week-1").get_data(as_text=True)))
+
+    def test_the_review_median_is_the_weeks_as_shown(self):
+        from webui.recap import week_recap
+        from fantasy_sim.config import MY_TEAM
+        self.bank()
+        miss = next(a for a in week_recap(self.root, 2, MY_TEAM)["awards"] if a["key"] == "median_miss")
+        # week 2 as shown: 126, 142, 148.52, 150.41 | 159, 160, 170, 182 -> (150.41 + 159) / 2
+        self.assertEqual((miss["team"], miss["cut"]), (CB, 154.705))
 
 
 class TestTheLuckToolReadsThem(unittest.TestCase):
