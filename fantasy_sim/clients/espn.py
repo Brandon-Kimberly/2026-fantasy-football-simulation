@@ -133,7 +133,7 @@ def fetch_espn_projection_data(year, week, league_scoring_settings=None):
         # survived a fortnight.
         # The league id is deliberately NOT in this message. F37 made league ids env-only,
         # and this warning lands in the sync manifest's `degraded` list -- which
-        # make_sample_report scans as forbidden content. Relying on that downstream leak
+        # the public site's build (scripts.build_public_site) scans as forbidden content. Relying on that downstream leak
         # check to scrub a value this line chose to emit is backwards; there is exactly
         # one ESPN league, so naming it adds nothing an operator does not already know.
         logging.warning("ESPN: could not open the projection league for %s (%s). Falling "

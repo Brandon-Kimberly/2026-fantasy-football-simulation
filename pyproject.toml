@@ -31,5 +31,5 @@ packages = ["fantasy_sim", "fantasy_sim.clients"]
 
 [project.urls]
 Repository = "https://github.com/Brandon-Kimberly/syndicate-football"
-"Sample report" = "https://brandon-kimberly.github.io/syndicate-football/sample/weekly_report_sample.html"
+Website = "https://brandon-kimberly.github.io/syndicate-football/"
 Changelog = "https://github.com/Brandon-Kimberly/syndicate-football/blob/main/CHANGELOG.md"

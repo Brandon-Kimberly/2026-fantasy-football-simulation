@@ -13,7 +13,7 @@
 <div class="head phead">{{ face(pid, nfl, 'lg', name) }}<div>
   <p class="eyebrow">player · {{ pos or "?" }} · {{ nfl|nflteam }}{% if number is not none %} · #{{ number }}{% endif %}{% if depth %} · {{ depth }} on the depth chart{% endif %}</p>
   <h1>{{ name }}</h1>
-  <p class="lede">{% if owner %}{{ mark(owner) }}On {{ teamlink(owner) }}{% if is_mine %} (mine){% endif %}{% else %}A free agent in this league{% endif %}{% if bye %} · bye week {{ bye }}{% endif %}. <a href="/tools/compare_players?a={{ name|urlencode }}">Compare with…</a></p>
+  <p class="lede">{% if owner %}{{ mark(owner) }}On {{ teamlink(owner) }}{% if is_mine %} (mine){% endif %}{% else %}A free agent in this league{% endif %}{% if bye %} · bye week {{ bye }}{% endif %}.{% if not static_site %} <a href="/tools/compare_players?a={{ name|urlencode }}">Compare with…</a>{% endif %}</p>
 </div></div>
 
 {{ tiles([

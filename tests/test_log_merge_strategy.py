@@ -15,7 +15,7 @@ was rejected the same way during the v9.0.0 release. The evaluation work itself 
 succeeded every time -- only the push died.
 
 **`run_sync` is invoked by four workflows** (canonical-run, data-capture, evaluate-moves,
-pages-sample) and appends to `designations.jsonl`, `sync_provenance.jsonl`,
+pages-site) and appends to `designations.jsonl`, `sync_provenance.jsonl`,
 `first_recorded_scores.jsonl` and `projection_log.jsonl`. Any two of those runs overlapping
 produces exactly this collision. `bid_ledger.jsonl` and `streamer_levels.jsonl` have no
 automated writer at all, so they cannot race -- they are excluded ON PURPOSE below, with

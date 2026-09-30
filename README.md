@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/syndicate-football)](LICENSE)
-![tests](https://img.shields.io/badge/tests-2264%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-2253%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -51,17 +51,13 @@ trustworthy. The audit trail above is the evidence either way.
 **Identity note:** manager and team identities in this repository are pseudonymized
 (F37): fictional team names, roster-id keys, league IDs in environment variables only.
 Every number is real — projections, transactions, results — and the pseudonymization is
-itself test-pinned (a leak check gates the published sample; goldens and a behavioral
+itself test-pinned (a leak check gates the public site; goldens and a behavioral
 baseline proved the rename changed nothing).
 
-**[View a full sanitized sample report](https://brandon-kimberly.github.io/syndicate-football/sample/weekly_report_sample.html)**.
-Team names are fictional; players and projections are real. `scripts.make_sample_report`
-builds it from live data on every renderer change (a Pages workflow -- the sample is a
-build product, never committed) and refuses to publish unless a leak check for every
-real team name, username and league ID comes back clean.
+**[Open the public site](https://brandon-kimberly.github.io/syndicate-football/)** -- the web UI itself, as anyone can see it: the week's matchup and odds, the standings, every team and player, the playoff picture, the history. It is a static snapshot of the simple view from my team's point of view, rebuilt after each week's official model run (`scripts.build_public_site`, the `pages-site` workflow). Team names are stand-ins and there are no images; nothing that needs a server is on it (no tools, no chat, no live scores). Before anything is published, a leak check takes every real team name, username and league id from Sleeper and refuses to publish on a single match. It replaced the legacy sample report.
 
 ![Per-player simulated weekly-score distributions: one violin per starter, colored by position, with quartile lines and the bust tail visible](docs/sample_boom_bust.png)
-*From that sample report. Each violin is one starter's simulated week: the upside, the
+*From the weekly digest. Each violin is one starter's simulated week: the upside, the
 bust tail, and the quartiles in one look. Seeing the whole distribution is the point of
 simulating instead of projecting.*
 
@@ -202,6 +198,7 @@ py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync 
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
 py -3.10 -m scripts.as_played_record           # F83: weeks 1-2 results as the league played them (old IDP scoring), verified vs banked wins; --write
 py -3.10 -m scripts.banked_scores              # every past week's score as the league banked it, checked to the cent vs its totals and records; --write
+py -3.10 -m scripts.build_public_site          # the public site into _site/ (leak-checked; needs SLEEPER_LEAGUE_ID); pages-site deploys it
 py -3.10 -m scripts.readme_shots               # retake the README's web UI screenshots (pseudonyms, no photos); the docs guard requires it after a page change
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
@@ -279,7 +276,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 2264 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 2253 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

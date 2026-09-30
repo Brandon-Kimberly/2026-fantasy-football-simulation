@@ -123,7 +123,8 @@ class TestTheExport(unittest.TestCase):
 
     def test_every_link_resolves_and_none_escapes_the_site(self):
         for rel, html in self.pages.items():
-            for attr, url in re.findall(r'\b(href|src|action)="([^"]*)"', html):
+            markup = re.sub(r"<script\b.*?</script>", "", html, flags=re.S | re.I)    # a script's links go through window.siteUrl
+            for attr, url in re.findall(r'\b(href|src|action)="([^"]*)"', markup):
                 if url.startswith(("http://", "https://", "#", "mailto:", "data:", "javascript:")) or url == "":
                     continue
                 with self.subTest(page=rel, url=url):
@@ -135,11 +136,12 @@ class TestTheExport(unittest.TestCase):
     def test_no_server_features_and_no_images(self):
         for rel, html in self.pages.items():
             with self.subTest(page=rel):
-                self.assertNotIn("/img/", html)
+                self.assertNotRegex(html, r'src="[^"]*/img/', "no player photo, no team logo")
                 self.assertNotRegex(html, r'<form[^>]*method="post"', "nothing to post to")
                 self.assertNotIn('id="live-body"', html)
                 self.assertNotIn('id="alertrow"', html)
                 self.assertNotIn('id="chat-input"', html)
+                self.assertNotIn('<span class="off">', html, "a link to a private page must be left out by its template, not caught by the export")
                 self.assertIn("window.SITE", html)
         home = self.pages["index.html"]
         self.assertIn(QF, home, "the owner's team's point of view")

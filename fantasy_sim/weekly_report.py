@@ -111,7 +111,7 @@ def real_name_overlay():
     environment; when set, the mapping is fetched LIVE from Sleeper (users + rosters
     joined through config.TEAM_NAME_MAP's roster_id keys) and exists only in the
     rendered digest -- never in any log or committed artifact. Runners never set the
-    flag; make_sample_report force-clears it and forbids the legend's marker string."""
+    flag; scripts.build_public_site force-clears it and forbids the legend's marker string."""
     if not real_names_enabled():
         return {}
     try:

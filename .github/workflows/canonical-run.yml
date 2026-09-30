@@ -128,6 +128,21 @@ jobs:
         if: steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict == 'CANONICAL_OK' && env.MODE != 'force-report'
         run: python -m scripts.weekly_report --canonical --skip-sync --embed
 
+      - name: Keep this run's data for the public site (pages-site builds from it)
+        # Only an official run's data becomes the public site (owner, 2026-09-30): the forecast
+        # a visitor sees is the week's canonical one. JSON only -- no charts, no images.
+        if: steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict == 'CANONICAL_OK' && env.MODE != 'force-report'
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-data
+          path: |
+            data/current/**
+            data/weeks/**/*.json
+            data/decisions/**/*.json
+            data/logs/**
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Weekly report (report-only -- artifact for the human, no canonical row)
         if: steps.watch.outputs.proceed == 'true' && (steps.gate.outputs.verdict == 'REPORT_ONLY' || (steps.gate.outputs.verdict == 'CANONICAL_OK' && env.MODE == 'force-report'))
         run: python -m scripts.weekly_report --skip-sync --embed

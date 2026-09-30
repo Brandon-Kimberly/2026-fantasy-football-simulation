@@ -72,10 +72,11 @@ venv/
 # is otherwise unrecoverable -- the same reason every other log here is tracked.
 !data/logs/weekly_actuals_new_idp_scale_*.json
 
-# The sanitized sample is a BUILD PRODUCT since 2026-09-05: generated and deployed to
-# Pages by .github/workflows/pages-sample.yml, never committed (9MB per copy was
-# growing the repo permanently). Local generations land here and stay untracked.
+# The retired sample report's old output folder (2026-09-05 to 2026-09-30), kept ignored so a
+# stale local copy never gets committed.
 docs/sample/
+# the public site's build (scripts.build_public_site); deployed by pages-site, never committed
+_site/
 
 # H3: stray run logs. A `git add -A` after `py -3.10 -m ... > foo.log` sweeps these up;
 # it has happened three times (w.log, collins.log, ev.log). ROOT-ANCHORED on purpose --
