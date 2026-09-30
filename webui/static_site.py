@@ -125,7 +125,7 @@ def _rewrite_markup(html, base, found, page="/"):
     return ATTR_RE.sub(attr, html)
 
 
-def export(real_root, out_dir, base, start=("/",), max_pages=6000):
+def export(real_root, out_dir, base, start=("/",), max_pages=6000, origin=None):
     """Render the public site from `real_root`'s data into `out_dir`. Returns a report."""
     from fantasy_sim.config import MY_TEAM
     from webui.app import create_app
@@ -145,7 +145,8 @@ def export(real_root, out_dir, base, start=("/",), max_pages=6000):
         overlay = Overlay()                                     # pseudonyms, always
         app = create_app(root, overlay=overlay, csrf_token="static", settings=settings,
                          runner=JobRunner(root), live=LiveBoard(root, MY_TEAM, league_id=None, fetch=None),
-                         chat=ChatService(root, overlay, claude=None), static_site=base.rstrip("/"))
+                         chat=ChatService(root, overlay, claude=None), static_site=base.rstrip("/"),
+                         site_origin=origin)                  # each page's link preview names its own address
         app.testing = True
         client = app.test_client()
         os.makedirs(out_dir, exist_ok=True)
