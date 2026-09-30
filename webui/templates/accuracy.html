@@ -60,7 +60,8 @@ They measure different things -- a one-week horizon against weeks of it, this se
 <section>
 <h2><svg class="i c-turf"><use href="#i-chart"/></svg> Are the chances right? <span class="hint">every quoted matchup and beat-the-median call, by how likely the model said it was</span></h2>
 {% if enough %}
-<div class="grid2"><div>{{ reliability_chart(reliability) }}</div>
+<style>.relgrid { display: grid; grid-template-columns: minmax(240px, 380px) 1fr; gap: 24px; align-items: start; } .relgrid .viz { max-width: 380px; } @media (max-width: 720px) { .relgrid { grid-template-columns: 1fr; } }</style>
+<div class="relgrid"><div>{{ reliability_chart(reliability) }}</div>
 <div><p class="small">{{ n_calls }} calls in five bins. The dashed line is where a calibrated forecast sits: of the calls given about 70%, about 70% happen. The grey band around it is two standard errors at each bin's count, so a dot inside its band is inside the noise.</p>
 {% if brier_weeks %}<table><thead><tr><th>Week</th><th class="num">Brier, matchups</th><th class="num">Brier, the median</th></tr></thead><tbody>{% for b in brier_weeks %}<tr><td>Week {{ b.week }}</td><td class="num">{{ b.matchups|num(3) }}</td><td class="num">{{ b.median|num(3) }}</td></tr>{% endfor %}</tbody></table>
 <p class="small muted u-mt-8px">Brier is the squared distance between the chance and what happened: 0 is perfect, 0.25 is a coin flip every time.</p>{% endif %}</div></div>

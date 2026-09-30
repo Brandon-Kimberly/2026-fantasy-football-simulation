@@ -19,19 +19,26 @@ from webui.glance import decisions_report
 
 
 def _scores(root):
-    out = {}
+    """({(week, id): points}, {(week, name): points}): a player with no baseline is recorded under a
+    null id, so the name is the fallback (audit 2026-09-29). First row wins: the log is union-merged."""
+    by_id, by_name = {}, {}
     try:
         text = root.read_text("logs/first_recorded_scores.jsonl")
     except (FileNotFoundError, ValueError):
-        return out
+        return by_id, by_name
     for line in text.splitlines():
         try:
             r = json.loads(line)
-            key = (int(r["week"]), str(r["player_id"]))
+            wk = int(r["week"])
         except (ValueError, KeyError, TypeError):
             continue
-        out.setdefault(key, r.get("points"))              # first row wins: the log is union-merged
-    return out
+        if not isinstance(r, dict):
+            continue
+        if r.get("player_id"):
+            by_id.setdefault((wk, str(r["player_id"])), r.get("points"))
+        if r.get("name"):
+            by_name.setdefault((wk, r["name"]), r.get("points"))
+    return by_id, by_name
 
 
 def _started(lineups):
@@ -50,14 +57,15 @@ def trade_results(root):
     """[{id, week, created, sides: {team: {got, gave, got_pts, gave_pts, net, decision,
     decision_se}}}], newest first, for every trade in the decision log."""
     started = _started(root.read_json("current/weekly_lineups.json", {}) or {})
-    scores = _scores(root)
+    scores, by_name = _scores(root)
     weeks = sorted({w for w, _t in started})
 
-    def while_started(pid, team, from_week):
+    def while_started(pid, team, from_week, name=None):
         pts, n = 0.0, 0
         for wk in weeks:
             if wk >= from_week and pid in started.get((wk, team), set()):
-                pts += float(scores.get((wk, pid)) or 0.0)
+                got = scores.get((wk, pid))
+                pts += float(got if got is not None else (by_name.get((wk, name)) or 0.0))
                 n += 1
         return round(pts, 2), n
 
@@ -75,10 +83,10 @@ def trade_results(root):
                 if not p.get("pid"):
                     continue
                 if to == team:
-                    pts, n = while_started(p["pid"], team, wk)
+                    pts, n = while_started(p["pid"], team, wk, p.get("name"))
                     got.append({"name": p.get("name"), "pos": p.get("pos"), "pts": pts, "weeks_started": n})
                 elif len(teams) == 2:                              # two sides: what one received, the other gave
-                    pts, n = while_started(p["pid"], to, wk)
+                    pts, n = while_started(p["pid"], to, wk, p.get("name"))
                     gave.append({"name": p.get("name"), "pos": p.get("pos"), "to": to, "pts": pts, "weeks_started": n})
             fx = (d.get("effect") or {}).get(team) or {}
             got_pts = round(sum(g["pts"] for g in got), 2)

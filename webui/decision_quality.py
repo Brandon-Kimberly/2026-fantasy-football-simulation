@@ -92,16 +92,30 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
         if (wk, pid) not in first or at >= first[(wk, pid)]:
             first[(wk, pid)] = at
             proj[(wk, pid)] = r.get("sleeper_mean")
-    scores = {}
+    scores, by_name = {}, {}
     for r in _rows(root, "logs/first_recorded_scores.jsonl"):
         try:
-            key = (int(r["week"]), str(r["player_id"]))
+            wk = int(r["week"])
         except (KeyError, TypeError, ValueError):
             continue
-        scores.setdefault(key, r.get("points"))                 # first row wins: the log is union-merged
+        if r.get("player_id"):
+            scores.setdefault((wk, str(r["player_id"])), r.get("points"))   # first row wins: the log is union-merged
+        if r.get("name"):
+            by_name.setdefault((wk, r["name"]), r.get("points"))
     cache = root.read_json("current/sleeper_players_cache.json", {}) or {}
     base = {str(e.get("player_id")): e for e in (root.read_json("current/player_baselines.json", {}) or {}).values()
             if isinstance(e, dict) and e.get("player_id")}
+
+    names = {pid: n for n, pid in ((n, str(e.get("player_id"))) for n, e in
+                                   (root.read_json("current/player_baselines.json", {}) or {}).items() if isinstance(e, dict))}
+    for pid, c in cache.items():
+        if isinstance(c, dict) and pid not in names:
+            names[pid] = c.get("full_name") or f"{c.get('first_name', '')} {c.get('last_name', '')}".strip()
+
+    def score(wk, pid):
+        """By id, else by name: the log records a player with no baseline under a null id (audit 2026-09-29)."""
+        got = scores.get((wk, pid))
+        return got if got is not None else by_name.get((wk, names.get(pid)))
 
     def entry(pid):
         c = cache.get(pid) or {}
@@ -124,7 +138,7 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
         # pre-game number, since he could only be started before his own game -- and flagged.
         late_priced = sorted(pid for pid in players if pid not in projected and late.get((wk, pid)) is not None)
         projected.update({pid: late[(wk, pid)] for pid in late_priced})
-        scored = {pid: scores.get((wk, pid)) for pid in players if scores.get((wk, pid)) is not None}
+        scored = {pid: score(wk, pid) for pid in players if score(wk, pid) is not None}
         row = judge([str(p) for p in lu.get("starters") or []], roster, projected, scored, slots)
         row["week"] = wk
         row["late_priced"] = late_priced

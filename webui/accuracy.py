@@ -141,13 +141,13 @@ def report(root):
                 continue
             p, won = float(p), float(won)
             briers.append((p - won) ** 2)
-            pairs.append((p, 1.0 if won >= 0.5 else 0.0))
+            pairs.append((p, won))                          # a tie is half a win, as the Brier above scores it (audit)
             call = None if abs(p - 0.5) < 1e-9 else (p > 0.5)
             hit = None if call is None else (call == (won >= 0.5))
             if call is not None:
                 calls += 1
                 hits += 1 if hit else 0
-            w["matchups"].append({"a": a, "b": b, "p": round(p, 4), "won": won >= 0.5, "hit": hit})
+            w["matchups"].append({"a": a, "b": b, "p": round(p, 4), "won": won >= 0.5, "outcome": won, "hit": hit})
         for team, q in (row.get("median") or {}).items():
             got = results.get(team) or {}
             actual, expected, sd = got.get("points_scored"), q.get("expected_total"), q.get("sd_total")
@@ -162,18 +162,18 @@ def report(root):
             if pm is not None and beat is not None:
                 pm, beat = float(pm), float(beat)
                 med_briers.append((pm - beat) ** 2)
-                pairs.append((pm, 1.0 if beat >= 0.5 else 0.0))
+                pairs.append((pm, beat))
                 if abs(pm - 0.5) > 1e-9:
                     med_calls += 1
                     med_hits += 1 if ((pm > 0.5) == (beat >= 0.5)) else 0
             w["teams"].append({"team": team, "expected": round(float(expected), 1), "actual": round(float(actual), 1),
                                "error": round(err, 1), "z": None if z is None else round(z, 2),
                                "p_median": None if pm is None else round(float(pm), 4),
-                               "beat": None if beat is None else beat >= 0.5})
+                               "beat": None if beat is None else beat >= 0.5, "beat_value": beat})
         w["teams"].sort(key=lambda t: -abs(t["error"]))
         weeks.append(w)
-        mb = [(m["p"] - (1.0 if m["won"] else 0.0)) ** 2 for m in w["matchups"]]
-        db = [(t["p_median"] - (1.0 if t["beat"] else 0.0)) ** 2 for t in w["teams"] if t["p_median"] is not None and t["beat"] is not None]
+        mb = [(m["p"] - m["outcome"]) ** 2 for m in w["matchups"]]
+        db = [(t["p_median"] - t["beat_value"]) ** 2 for t in w["teams"] if t["p_median"] is not None and t.get("beat_value") is not None]
         brier_weeks.append({"week": week, "matchups": round(sum(mb) / len(mb), 6) if mb else None,
                             "median": round(sum(db) / len(db), 6) if db else None})
 
