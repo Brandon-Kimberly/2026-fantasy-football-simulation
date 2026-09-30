@@ -139,12 +139,14 @@ class TestTheExport(unittest.TestCase):
     def test_the_shared_assets_are_published_once(self):
         """UI-E2 on the public site: one stylesheet and one script for every page, under the
         site's base, instead of ~93 KB of both inline on each of them."""
-        files = sorted(os.listdir(os.path.join(self.out, "assets")))
-        self.assertEqual(len(files), 3, files)
+        stems = lambda names: sorted(re.sub(r"\.[0-9a-f]{10}\.", ".", n) for n in names)   # noqa: E731
+        files = os.listdir(os.path.join(self.out, "assets"))
+        # the three every page links, and the public playoff machine's script (test_public_machine)
+        self.assertEqual(stems(files), ["machine.js", "site.css", "site.js", "table.js"], files)
         for rel, html in self.pages.items():
             with self.subTest(page=rel):
-                links = re.findall(r'(?:href|src)="(' + re.escape(BASE) + r'/assets/[^"]+)"', html)
-                self.assertEqual(len(set(links)), 3, links)
+                links = set(re.findall(r'(?:href|src)="' + re.escape(BASE) + r'/assets/([^"]+)"', html))
+                self.assertEqual([x for x in stems(links) if x != "machine.js"], ["site.css", "site.js", "table.js"], links)
                 self.assertFalse("--plane:#f9f9f7" in html, "the stylesheet is still inline")
 
     def test_no_server_features_and_no_images(self):
