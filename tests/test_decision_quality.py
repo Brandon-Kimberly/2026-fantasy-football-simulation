@@ -105,6 +105,23 @@ class TestTheTeamPage(unittest.TestCase):
     def tearDown(self):
         self.td.cleanup()
 
+    def test_a_player_acquired_after_the_first_kickoff_is_priced_from_his_first_projection(self):
+        """Found on real data (2026-09-29): weeks 2 and 3 went unjudged, each over one starter
+        picked up after Thursday's kickoff and started on Sunday -- no projection of his was
+        logged before the week's FIRST kickoff. A lineup locks per game, not per week, so he is
+        priced from his earliest projection that week, and the week says so."""
+        with open(os.path.join(self.td.name, "data", "current", "weekly_lineups.json"), "w", encoding="utf-8") as fh:
+            json.dump({"week_1": {QF: {"starters": ["100", "102"], "players": ["100", "101", "102"]}}}, fh)
+        with open(os.path.join(self.td.name, "data", "logs", "projection_log.jsonl"), "a", encoding="utf-8") as fh:
+            for at, mean in (("2026-09-12T10:00:00Z", 7.0), ("2026-09-13T10:00:00Z", 8.0)):        # both after Thursday's kickoff
+                fh.write(json.dumps({"player_id": "102", "name": "Player 2 O'Neil", "week": 1, "sleeper_mean": mean,
+                                     "synced_at": at}) + "\n")
+        from webui.decision_quality import season
+        (row,) = season(self.root, QF, slots=("QB", "QB"))
+        self.assertIsNotNone(row["before"])
+        self.assertEqual(row["late_priced"], ["102"])
+        self.assertEqual(row["unpriced"], [])
+
     def test_the_section_in_both_views(self):
         from webui.decision_quality import season
         rows = season(self.root, QF, slots=("QB",))
