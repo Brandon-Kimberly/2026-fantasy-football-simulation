@@ -746,7 +746,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         chart = render.line_chart([{"name": "my playoff odds, cumulative effect of my moves", "values": [x["value"] for x in series], "cls": "me"}],
                                   [render.short_date(x["at"]) for x in series],
                                   unit=" pts", nd=1, y_min=None, height=200) if len(series) > 1 else ""
-        return render_template("decisions.html", chart=chart, **rep_)
+        from webui.trade_results import trade_results
+        return render_template("decisions.html", chart=chart, trades_done=trade_results(root), **rep_)      # UI-T4
 
     @app.route("/results")
     def results():

@@ -58,6 +58,19 @@
 </section>
 {% endif %}
 
+{% if trades_done %}
+<section>
+<h2><svg class="i c-violet"><use href="#i-swap"/></svg> Trades: the decision and what happened <span class="hint">side by side, never one grade</span></h2>
+<div class="scroller"><table><thead><tr><th>Week</th><th>Team</th><th>Got</th><th>Gave</th><th class="num" title="the paired simulation's change in playoff odds, priced before the fact">The decision</th><th class="num" title="points the incoming players scored while started, minus the outgoing players' while started for their new team">What happened</th></tr></thead><tbody>
+{% for t in trades_done %}{% for team, s in t.sides.items() %}<tr{% if team == my_team %} class="me"{% endif %}><td>{% if loop.first %}{{ t.week }}{% endif %}</td><td class="nm">{{ mark(team) }}{{ teamlink(team) }}</td>
+<td class="small">{% for g in s.got %}{{ g.name }} <span class="muted">{{ g.pts|num(1) }} in {{ g.weeks_started }} start{{ "s" if g.weeks_started != 1 }}</span>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+<td class="small">{% for g in s.gave %}{{ g.name }} <span class="muted">{{ g.pts|num(1) }} in {{ g.weeks_started }} start{{ "s" if g.weeks_started != 1 }}</span>{% if not loop.last %}<br>{% endif %}{% else %}<span class="muted">—</span>{% endfor %}</td>
+<td class="num">{% if s.decision is not none %}<b class="{{ 'pos' if s.decision > 0 else ('neg' if s.decision < 0) }}">{{ s.decision|signed(1) }}</b> <span class="muted small">{{ s.decision_se|se }} playoff pts</span>{% else %}<span class="muted">not graded</span>{% endif %}</td>
+<td class="num"><b class="{{ 'pos' if s.net > 0 else ('neg' if s.net < 0) }}">{{ s.net|signed(1) }}</b> <span class="muted small">points</span></td></tr>{% endfor %}{% endfor %}
+</tbody></table></div>
+<p class="small muted u-mt-8px">The decision is what the trade did to each side's playoff chances, priced before the fact by a paired simulation. What happened is the points each side's new players scored while it started them, minus what the players it sent away scored while their new team started them. A good trade can lose points and a bad one can win them, so the two are never added together. Not built yet: a replay of each week with the trade undone, which needs the lineups each side would have started instead.</p>
+</section>
+{% endif %}
 {% if chart %}
 <section>
 <h2><svg class="i"><use href="#i-chart"/></svg> My moves, added up <span class="hint">cumulative change in my playoff probability, in percentage points, move by move</span></h2>

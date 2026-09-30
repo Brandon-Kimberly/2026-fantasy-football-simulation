@@ -957,6 +957,22 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### Trades: the decision and what happened (2026-09-29, roadmap UI-T4)
+
+`webui.trade_results` puts two columns beside every completed trade on the Decisions page,
+and never merges them:
+- **The decision:** the paired simulation's change in each side's playoff odds, priced
+  before the fact.
+- **What happened:** the points the side's incoming players scored while it started them,
+  minus what its outgoing players scored while their new team started them.
+
+"Started" comes from `data/current/weekly_lineups.json` (UI-L4), and the points from the
+first-recorded scores.
+
+**What it does not claim:** it is not a replay of each week with the trade undone. That needs
+the lineups each side would have started instead, and it is not built. With a handful of
+weeks, what happened is mostly the dice.
+
 ### Lineup calls judged before the games; the season as a story (2026-09-29, roadmap UI-L4, H5)
 
 - **The lineups as played (a sync change).** The roadmap listed L4 as "on disk", but the

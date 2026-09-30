@@ -755,7 +755,8 @@ def _tx_teams(tx):
 
 def _pl(p):
     pr = p.get("projection") or {}
-    return {"name": p.get("name"), "pos": pr.get("pos") or "", "mean": pr.get("mean"), "to": p.get("to_team")}
+    return {"name": p.get("name"), "pos": pr.get("pos") or "", "mean": pr.get("mean"), "to": p.get("to_team"),
+            "pid": str(p["player_id"]) if p.get("player_id") else None}
 
 
 def decisions_report(root, my_team):
