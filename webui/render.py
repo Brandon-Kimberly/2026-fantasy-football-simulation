@@ -1047,7 +1047,7 @@ def _series_colour(sr):
 
 
 def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, y_max=None, marker=None,
-               value_labels=True, legend=False):
+               value_labels=True, legend=False, notes=None):
     """The one SVG line chart, drawn to one scale. `series` is a list of {name, values,
     cls, hue}: cls 'me' | 'pos' | 'gold' | '' (the quiet grey), and a team `hue` draws the
     line in that team's colour (a race). `labels` are the x labels, one per point.
@@ -1059,6 +1059,8 @@ def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, 
     `marker` is an x index for a dashed 'now' line. The svg carries data-* the hover
     layer in base.html reads (labels, x positions, every series' values and colour);
     `legend=True` appends a <div class="legend"> naming every series in its colour.
+    `notes` (UI-H5) are [{x, series, n, title}]: a numbered marker on that series' point at x,
+    with the title as its hover; a note whose point is missing is skipped.
     Returns markup (escapes only names and labels)."""
     import json
     from markupsafe import Markup, escape
@@ -1169,6 +1171,18 @@ def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, 
             t[0] -= shift
     for yy, xx, txt, anchor, style in end_labels:
         out.append(f'<text class="vl"{style} x="{xx:.1f}" y="{yy:.1f}" text-anchor="{anchor}">{txt}</text>')
+    by_name = {sr.get("name"): sr.get("values") or [] for sr in series}
+    stacked = {}
+    for nt in notes or []:                                              # UI-H5: numbered story markers
+        vals = by_name.get(nt.get("series")) or []
+        i = nt.get("x")
+        if i is None or i >= len(vals) or vals[i] is None:
+            continue
+        k = stacked.get((nt.get("series"), i), 0)                       # two notes on one point stack upward
+        stacked[(nt.get("series"), i)] = k + 1
+        cx, cy = xs[i], y(vals[i]) - 18 * k
+        out.append(f'<g class="note"><title>{escape(nt.get("title") or "")}</title><circle cx="{cx:.1f}" cy="{cy:.1f}" r="8"/>'
+                   f'<text x="{cx:.1f}" y="{cy + 3.5:.1f}" text-anchor="middle">{int(nt.get("n") or 0)}</text></g>')
     out.append("</svg>")
     if legend:
         out.append('<div class="legend">' + "".join(f'<span><i style="background:{_series_colour(sr)}"></i>{escape(sr.get("name") or "")}</span>' for sr in series) + "</div>")
@@ -1417,6 +1431,12 @@ def dots(bins, per_dot=None, width=420, unit="seasons", hi=(), name=str):
     out.append(f'<text class="yl" x="{width - 4}" y="12" text-anchor="end">each dot {per:,} {escape(unit)}</text></svg>')
     table = [[name(lab), f"{c:,}", f"{c / total * 100:.1f}%"] for lab, c in bins]
     return Markup("".join(out) + _tview(["", unit, "share"], table))
+
+
+def possessive(name):
+    """UI-H5: "Cosmic Badgers'" and "Rocket Panda's"."""
+    name = str(name or "")
+    return name + ("'" if name.endswith("s") else "'s")
 
 
 def reliability_chart(rows, width=360, height=320):

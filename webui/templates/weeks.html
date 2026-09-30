@@ -22,7 +22,9 @@
 <section>
 <h2><svg class="i c-turf"><use href="#i-trend"/></svg> Playoff-odds race <span class="hint">every team, forecast by forecast · mine is the thick line · hover for every team's number</span></h2>
 {% set po = [] %}{% for s in race.playoff %}{% set _ = po.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
-<div class="vizbox">{{ line_chart(po, race.labels, unit="%", nd=1, y_min=0, y_max=100, height=280, value_labels="last", legend=True) }}</div>
+{% set notes = [] %}{% for n in story %}{% set what = ((n.team|real) ~ " " ~ (n.delta|signed(1)) ~ " playoff points, the biggest move that step") if n.kind == "mover" else ((n.team|real|possessive) ~ " " ~ n.move ~ " in week " ~ n.week ~ ", graded " ~ (n.delta|signed(1)) ~ " playoff points") %}{% set _ = notes.append({"x": n.x, "series": n.team|real, "n": n.n, "title": n.n ~ ". " ~ n.label ~ ": " ~ what}) %}{% endfor %}
+<div class="vizbox">{{ line_chart(po, race.labels, unit="%", nd=1, y_min=0, y_max=100, height=280, value_labels="last", legend=True, notes=notes) }}</div>
+{% if story %}<ol class="story">{% for n in story %}<li><span class="sn">{{ n.n }}</span> <span class="muted">{{ n.label }}</span> · {% if n.kind == "mover" %}{{ mark(n.team) }}{{ teamlink(n.team) }} <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> playoff points, the biggest move that step{% else %}{{ mark(n.team) }}<a href="/team/{{ n.team|slug }}" class="tl">{{ n.team|real|possessive }}</a> {{ n.move }} in week {{ n.week }}{% if n.players %} ({{ n.players|join(", ") }}){% endif %}, graded <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> {{ n.se|se }} playoff points by the paired simulation{% endif %}</li>{% endfor %}</ol>{% endif %}
 </section>
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Title-odds race <span class="hint">the same, for winning it all</span></h2>

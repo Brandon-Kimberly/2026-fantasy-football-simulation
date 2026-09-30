@@ -27,7 +27,7 @@ from webui import alerts as alertsmod
 from webui import brand, charts as chartsmod, compare as comparemod, history as historymod, lineups as lineupsmod, luck as luckmod, matchup_split as splitmod, objects, outcomes as outcomesmod, players_page as playersmod, recap as recapmod, render, standings as standingsmod, trade as trademod
 from webui import sync as syncmod
 from webui.glance import (decisions_report, freshness_report, home_report, kickoff_report, latest_answers, latest_digests, logs_git_report,
-                          odds_at, odds_moves, odds_now, odds_race, records, roster_vorp, team_hue, windows_report,
+                          odds_at, odds_moves, odds_now, odds_race, race_story, records, roster_vorp, team_hue, windows_report,
                           TOOL_RECORD)
 from webui.jobs import RUNNING, JobRefused, JobRunner
 from webui.live import LiveBoard, expectations
@@ -239,6 +239,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.globals["nfl_colors"] = nfl_colors
     from webui.calibration import ordinal as _ordinal
     app.jinja_env.globals["ordinal"] = _ordinal                       # UI-P3: "83rd"
+    app.jinja_env.filters["possessive"] = render.possessive           # UI-H5
     app.jinja_env.filters["pretty"] = render.pretty_url
     app.jinja_env.filters["job_url"] = render.job_url
     app.jinja_env.filters["sabbr"] = render.status_abbr
@@ -655,7 +656,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                          "exp_wins": mine.get("exp_wins"), "champ": mine.get("champ"), "banked": mine.get("banked"),
                          "sims": (m.get("metadata") or {}).get("simulations"),
                          "mtime": root.mtime(f"weeks/week_{n:02d}/syndicate_comprehensive_matrix_week_{n}.json")})
-        return render_template("weeks.html", rows=rows, race=odds_race(root, MY_TEAM), moves=odds_moves(root))
+        race = odds_race(root, MY_TEAM)
+        return render_template("weeks.html", rows=rows, race=race, story=race_story(root, race), moves=odds_moves(root))   # UI-H5
 
     @app.route("/forecasts/week-<int:week>")
     @app.route("/weeks/<int:week>")

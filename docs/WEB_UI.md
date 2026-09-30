@@ -957,6 +957,31 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### Lineup calls judged before the games; the season as a story (2026-09-29, roadmap UI-L4, H5)
+
+- **The lineups as played (a sync change).** The roadmap listed L4 as "on disk", but the
+  lineups each team started were not kept anywhere. The sync already fetched every completed
+  week's matchups, starters included, and kept only the points. `_extract_weekly_lineups` now
+  writes `data/current/weekly_lineups.json` from the same fetch, as current state. The engine
+  never reads it, and `tests.golden_sync` matched.
+- **The measure (`webui.decision_quality`).** It prices the lineup started, and the best one
+  that roster could have started, on the last projection logged before the week's first
+  kickoff:
+  - "before the games" is the one over the other;
+  - "in hindsight" is the same with the points scored;
+  - "not a decision" is the difference, what the dice did.
+  Lineups lock per game, so a player picked up after the first kickoff is priced from his
+  earliest projection that week (marked *). A starter with no projection at all leaves the
+  week unjudged.
+- **The story (H5, `glance.race_story`).** The playoff-odds race carries numbered markers:
+  - each step's biggest mover;
+  - the three highest-graded moves, on the week they were made.
+  A key lists them under the chart. Two notes on one point stack.
+
+**What it does not claim:** "before the games" uses one projection per player per week, not
+the lineup-lock moment of each game. A player already ruled out counts as available when the
+week's projection still priced him.
+
 ### How the model has done on each player; Accuracy's second version (2026-09-29, roadmap UI-P3, Q1)
 
 - **Where a week landed (P3, `webui.calibration`).** A player's points as a percentile of that
