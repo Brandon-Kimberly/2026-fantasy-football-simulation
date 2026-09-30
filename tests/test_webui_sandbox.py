@@ -79,10 +79,30 @@ class TestCreateAndDiscard(Case):
         self.assertTrue(os.path.isdir(self.real.data), "the real tree is untouched")
 
 
+class TestAnInterruptedDiscard(Case):
+    @unittest.skipUnless(os.name == "nt", "only Windows refuses to delete a file that is open")
+    def test_a_failed_discard_keeps_its_marker_so_it_can_be_retried(self):
+        """Found building this: a job still writing when a discard ran left a half-deleted copy
+        whose marker was already gone, so discard then refused to finish it. The data goes
+        first and the marker last."""
+        from webui import sandbox
+        sb = sandbox.create(self.real)
+        self.made.append(sb)
+        held = open(os.path.join(sb.data, "logs", "decision_log.jsonl"), "rb")
+        try:
+            with self.assertRaises(OSError):
+                sandbox.discard(sb)
+            self.assertTrue(sandbox.is_sandbox(sb), "still marked: it can be discarded again")
+        finally:
+            held.close()
+        sandbox.discard(sb)
+        self.assertFalse(os.path.exists(sb.root))
+
+
 class TestARunInTheSandbox(Case):
     def test_a_job_writes_the_copy_and_the_real_digest_does_not_move(self):
         from webui import sandbox
-        from webui.jobs import JobRunner, OK
+        from webui.jobs import JobRunner, OK, RUNNING
         before = self.real.tree_digest()
         sb = sandbox.create(self.real)
         self.made.append(sb)
@@ -90,7 +110,7 @@ class TestARunInTheSandbox(Case):
         code = "import webui, os; open(os.path.join('data', 'current', 'probe.json'), 'w').write('{}')"
         job = runner.launch([sys.executable, "-c", code], "probe")
         for _ in range(200):
-            if (runner.read(job) or {}).get("state") != "running":
+            if (runner.read(job) or {}).get("state") != RUNNING:
                 break
             time.sleep(0.05)
         meta = runner.read(job)
