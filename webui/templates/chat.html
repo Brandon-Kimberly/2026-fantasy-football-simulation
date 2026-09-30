@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block title %}Chat · {{ brand }}{% endblock %}
+{% block body %}
+<style>
+.chatwrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 22px; margin-top: 18px; align-items: start; }
+@media (max-width: 860px) { .chatwrap { grid-template-columns: 1fr; } .convs { order: 2; } }
+.convs { position: sticky; top: calc(var(--head-h, 0px) + 14px); display: flex; flex-direction: column; gap: 6px; }
+.convs form { margin: 0; }
+.convs .newbtn { width: 100%; }
+.convs .delbtn { width: 100%; font-size: 10.5px; }
+.chatmain { margin-top: 0; }
+.convs a.cv { display: block; padding: 8px 10px; border-radius: 10px; color: var(--ink-2); font-size: 13px; line-height: 1.35; text-decoration: none; border: 1px solid transparent;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: background .15s, border-color .15s, color .15s; }
+.convs a.cv:hover { background: var(--surface); border-color: var(--grid); color: var(--ink); }
+.convs a.cv.on { background: color-mix(in srgb, var(--pos) 9%, var(--surface)); border-color: color-mix(in srgb, var(--pos) 30%, transparent); color: var(--ink); font-weight: 600; }
+.convs .none { font-size: 12.5px; color: var(--muted); padding: 4px 2px; }
+.thread { display: flex; flex-direction: column; gap: 16px; min-height: 42vh; padding-bottom: 8px; }
+.msg { max-width: 860px; line-height: 1.6; font-size: 14.5px; animation: rise .35s cubic-bezier(.2,.8,.2,1) both; }
+.msg.me { align-self: flex-end; background: var(--g-brand); color: #fff; padding: 10px 15px; border-radius: 16px 16px 4px 16px; max-width: 640px; white-space: pre-wrap; box-shadow: var(--glow-pos); }
+.msg.ai { align-self: stretch; background: var(--surface); border: 1px solid var(--grid); border-radius: 4px 16px 16px 16px; padding: 14px 18px; position: relative; }
+.msg.ai.err { border-color: var(--neg); background: var(--neg-bg); }
+.msg.ai > :first-child { margin-top: 0; } .msg.ai > :last-child { margin-bottom: 0; }
+.msg.ai p { margin: .5em 0; } .msg.ai ul, .msg.ai ol { margin: .4em 0; padding-left: 1.3em; } .msg.ai li { margin: .15em 0; }
+.msg.ai h3, .msg.ai h4, .msg.ai h5, .msg.ai h6 { font-family: var(--display); font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); margin: 1em 0 .4em; }
+.msg.ai table.mdt { font-size: 13px; margin: .4em 0; } .msg.ai table.mdt th { position: static; }
+.msg.ai pre { background: var(--mid); border-radius: 8px; padding: 10px 12px; overflow: auto; font-size: 12.5px; }
+.msg.ai blockquote { margin: .5em 0; padding-left: 12px; border-left: 3px solid var(--rule); color: var(--ink-2); }
+.msg .who { font-family: var(--display); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; display: flex; gap: 8px; align-items: center; }
+.msg .who .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--g-brand); }
+.used { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.used span { font-size: 11.5px; color: var(--ink-2); background: var(--mid); border-radius: 999px; padding: 2px 9px; }
+.used span.run { background: var(--pos-bg); color: var(--pos); }
+.used code { font-size: 11px; }
+.live .steps { display: flex; flex-direction: column; gap: 5px; margin-bottom: 8px; }
+.live .step { font-size: 12.5px; color: var(--ink-2); display: flex; align-items: center; gap: 8px; }
+.live .step.done { color: var(--muted); }
+.live .step .spin { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--pos-bg); border-top-color: var(--pos); animation: spin .8s linear infinite; flex: none; }
+.live .step.done .spin { animation: none; border-color: var(--turf); background: var(--turf); }
+.live .body { white-space: pre-wrap; }
+.live .thinking { display: inline-flex; gap: 4px; align-items: center; color: var(--muted); font-size: 13px; }
+.live .thinking i { width: 6px; height: 6px; border-radius: 50%; background: var(--pos); opacity: .35; animation: blip 1.2s ease-in-out infinite; }
+.live .thinking i:nth-child(2) { animation-delay: .15s; } .live .thinking i:nth-child(3) { animation-delay: .3s; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes blip { 50% { opacity: 1; transform: translateY(-2px); } }
+.composer { position: sticky; bottom: 0; background: color-mix(in srgb, var(--plane) 92%, transparent); backdrop-filter: blur(8px); padding: 12px 0 14px; border-top: 1px solid var(--grid); margin-top: 8px; }
+.composer .box { display: flex; gap: 10px; align-items: flex-end; background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 8px 8px 8px 14px; transition: border-color .15s, box-shadow .2s; }
+.composer .box:focus-within { border-color: var(--pos); box-shadow: 0 0 0 3px color-mix(in srgb, var(--pos) 18%, transparent); }
+.composer textarea { flex: 1; border: 0; background: transparent; color: var(--ink); font: 15px/1.5 var(--sans); resize: none; outline: none; min-height: 24px; max-height: 220px; padding: 6px 0; }
+.composer .row2 { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 8px; font-size: 12px; color: var(--muted); }
+.composer select { font-size: 12px; padding: 3px 6px; border-radius: 8px; border: 1px solid var(--rule); background: var(--surface); color: var(--ink); }
+.composer .msgline { color: var(--neg); }
+.sugg { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; margin-top: 6px; }
+.sugg button { text-transform: none; letter-spacing: 0; font-family: var(--sans); font-size: 13.5px; font-weight: 500; text-align: left; background: var(--surface); color: var(--ink); border: 1px solid var(--grid); border-radius: 12px; padding: 12px 14px; box-shadow: none; }
+.sugg button:hover { border-color: var(--pos); color: var(--pos); }
+.chatnote { font-size: 12.5px; color: var(--muted); margin-top: 6px; }
+</style>
+
+<div class="head">
+  <p class="eyebrow">chat{% if dev %} · Claude Code on your subscription, read-only{% endif %}</p>
+  <h1>Ask about your league</h1>
+  <p class="lede">{% if dev %}Headless <code>claude -p</code> with every built-in tool off; its only tools are <code>webui.chat_tools</code>, which read a copy of <code>data/</code> outside the repo and run the allowlisted analysis tools there, one at a time. Nothing it does touches the real files.{% else %}Ask about waivers, lineups, trades or the standings. Claude reads your league's data and can run the site's tools to answer, but it can't change anything.{% endif %}</p>
+</div>
+
+{% if not available %}
+<div class="note bad">Claude Code isn't installed on this computer, so the chat can't start.{% if dev %} Install it and sign in with your subscription (<code>claude</code> in a terminal), then restart the site.{% endif %}</div>
+{% endif %}
+
+<div class="chatwrap">
+  <aside class="convs" aria-label="conversations">
+    <form method="post" action="/chat/new"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button class="newbtn" type="submit">New chat</button></form>
+    {% for c in convs %}<a class="cv{{ ' on' if c.id == cid }}" href="/chat/{{ c.id }}" title="{{ c.title }}">{{ c.title }}</a>{% else %}<p class="none">No chats yet.</p>{% endfor %}
+    {% if cid %}<form method="post" action="/chat/{{ cid }}/delete" onsubmit="return confirm('Delete this chat?')"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><button class="ghost delbtn" type="submit">Delete this chat</button></form>{% endif %}
+  </aside>
+
+  <section class="chatmain">
+    <div class="thread" id="thread" aria-live="polite">
+      {% if not st or not st.messages %}
+      <div id="empty">
+        <p class="chatnote">Try one of these, or ask your own.</p>
+        <div class="sugg">
+          <button type="button" data-q="Who should I claim on waivers this week, and what should I bid?">Who should I claim on waivers this week, and what should I bid?</button>
+          <button type="button" data-q="Who should I start this week? Flag anyone questionable.">Who should I start this week? Flag anyone questionable.</button>
+          <button type="button" data-q="How are my playoff odds looking, and what would move them most?">How are my playoff odds looking, and what would move them most?</button>
+          <button type="button" data-q="Which of my players would be worth selling high, and to whom?">Which of my players would be worth selling high, and to whom?</button>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="composer">
+      <div class="box">
+        <textarea id="chat-input" rows="1" placeholder="Ask about your team or the league…" aria-label="your question"{% if not available %} disabled{% endif %}></textarea>
+        <button type="button" id="chat-send"{% if not available %} disabled{% endif %}>Send</button>
+        <button type="button" id="chat-stop" class="ghost" hidden>Stop</button>
+      </div>
+      <div class="row2">
+        <label>Answer <select id="chat-model"><option value="deep">thorough</option><option value="fast">quick</option></select></label>
+        <span>Enter sends · Shift+Enter for a new line</span>
+        <span class="msgline" id="chat-msg" role="status"></span>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+(function () {
+  var cid = {{ cid|tojson }}, csrf = {{ csrf_token|tojson }}, dev = {{ 'true' if dev else 'false' }};
+  var thread = document.getElementById('thread'), input = document.getElementById('chat-input');
+  var sendBtn = document.getElementById('chat-send'), stopBtn = document.getElementById('chat-stop');
+  var model = document.getElementById('chat-model'), msgline = document.getElementById('chat-msg');
+  var polling = false, rendered = -1;
+  try { var saved = localStorage.getItem('chat-model'); if (saved) model.value = saved; } catch (e) {}
+  model.addEventListener('change', function () { try { localStorage.setItem('chat-model', model.value); } catch (e) {} });
+
+  function post(url, fields) {
+    var fd = new FormData(); fd.append('_csrf', csrf);
+    Object.keys(fields || {}).forEach(function (k) { fd.append(k, fields[k]); });
+    return fetch(url, { method: 'POST', body: fd });
+  }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function who(label) { var w = el('div', 'who'); w.appendChild(el('span', 'dot')); w.appendChild(document.createTextNode(label)); return w; }
+  function usedRow(tools) {
+    if (!tools || !tools.length) return null;
+    var row = el('div', 'used');
+    tools.forEach(function (t) {
+      var s = el('span', t.name === 'run_tool' ? 'run' : '', t.label);
+      if (dev && t.input && Object.keys(t.input).length) { s.title = JSON.stringify(t.input); }
+      row.appendChild(s);
+    });
+    return row;
+  }
+  function render(st) {
+    var empty = document.getElementById('empty');
+    if (empty && (st.messages.length || st.running)) empty.remove();
+    // keep what is already on screen; add new messages; redraw the live answer
+    var nodes = thread.querySelectorAll('.msg:not(.live)');
+    for (var i = nodes.length; i < st.messages.length; i++) {
+      var m = st.messages[i], d;
+      if (m.role === 'user') { d = el('div', 'msg me', m.text); }
+      else {
+        d = el('div', 'msg ai' + (m.error ? ' err' : ''));
+        d.appendChild(who('Claude'));
+        var body = el('div', 'md'); body.innerHTML = m.html || ''; d.appendChild(body);
+        var u = usedRow(m.tools); if (u) d.appendChild(u);
+      }
+      thread.appendChild(d);
+    }
+    var live = thread.querySelector('.msg.live');
+    if (st.running && st.live) {
+      if (!live) { live = el('div', 'msg ai live'); thread.appendChild(live); }
+      live.innerHTML = '';
+      live.appendChild(who('Claude · working' + (st.live.seconds > 4 ? ' · ' + st.live.seconds + 's' : '')));
+      if (st.live.tools.length) {
+        var steps = el('div', 'steps');
+        st.live.tools.forEach(function (t) {
+          var s = el('div', 'step' + (t.done ? ' done' : '')); s.appendChild(el('span', 'spin'));
+          s.appendChild(document.createTextNode(t.label + (t.done ? '' : (t.seconds > 5 ? ' · ' + t.seconds + 's' : '…'))));
+          steps.appendChild(s);
+        });
+        live.appendChild(steps);
+      }
+      if (st.live.text) { live.appendChild(el('div', 'body', st.live.text)); }
+      else { var th = el('span', 'thinking'); th.appendChild(el('i')); th.appendChild(el('i')); th.appendChild(el('i')); th.appendChild(document.createTextNode(' thinking')); live.appendChild(th); }
+    } else if (live) { live.remove(); }
+    sendBtn.hidden = !!st.running; stopBtn.hidden = !st.running; input.disabled = !!st.running;
+    if (rendered !== st.messages.length) { rendered = st.messages.length; window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }); }
+  }
+  function poll() {
+    if (!cid) return;
+    fetch('/chat/' + cid + '/state', { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (st) {
+      render(st);
+      if (st.running) { setTimeout(poll, 600); } else { polling = false; input.disabled = false; input.focus(); }
+    }).catch(function () { setTimeout(poll, 1500); });
+  }
+  function ensureChat() {
+    if (cid) return Promise.resolve(cid);
+    return post('/chat/new').then(function (r) { var m = /\/chat\/([A-Za-z0-9_\-]+)/.exec(r.url); cid = m ? m[1] : null; if (cid) history.replaceState(null, '', '/chat/' + cid); return cid; });
+  }
+  function send(text) {
+    text = (text || '').trim();
+    if (!text) return;
+    msgline.textContent = '';
+    ensureChat().then(function (id) {
+      if (!id) { msgline.textContent = 'Could not start a chat.'; return; }
+      return post('/chat/' + id + '/send', { text: text, model: model.value }).then(function (r) {
+        return r.json().then(function (j) {
+          if (!r.ok || !j.ok) { msgline.textContent = (j && j.error) || 'That did not go through.'; return; }
+          input.value = ''; grow();
+          if (!polling) { polling = true; poll(); }
+        });
+      });
+    });
+  }
+  function grow() { input.style.height = 'auto'; input.style.height = Math.min(220, input.scrollHeight) + 'px'; }
+  input.addEventListener('input', grow);
+  input.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input.value); } });
+  sendBtn.addEventListener('click', function () { send(input.value); });
+  stopBtn.addEventListener('click', function () { if (cid) post('/chat/' + cid + '/stop'); });
+  document.querySelectorAll('.sugg button').forEach(function (b) { b.addEventListener('click', function () { send(b.getAttribute('data-q')); }); });
+  {% if st %}render({{ st|tojson }}); if ({{ 'true' if st.running else 'false' }}) { polling = true; poll(); }{% endif %}
+  input.focus();
+})();
+</script>
+{% endblock %}

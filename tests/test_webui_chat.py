@@ -137,8 +137,8 @@ class TestTheToolServer(unittest.TestCase):
     def rpc(self, method, params=None, id=1):
         return self.srv.handle({"jsonrpc": "2.0", "id": id, "method": method, "params": params or {}})
 
-    def call(self, name, **args):
-        r = self.rpc("tools/call", {"name": name, "arguments": args})
+    def call(self, tool, **args):
+        r = self.rpc("tools/call", {"name": tool, "arguments": args})
         text = "".join(c.get("text", "") for c in r["result"]["content"])
         return r["result"].get("isError", False), text
 

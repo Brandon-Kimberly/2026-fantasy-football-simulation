@@ -81,7 +81,7 @@ class Quiet(WSGIRequestHandler if HAS_DEPS else object):
 class Served:
     """The fixture tree behind a real HTTP server on an ephemeral loopback port."""
 
-    def __init__(self, plant=None, live_enabled=False):
+    def __init__(self, plant=None, live_enabled=False, chat=None):
         self.td = tempfile.TemporaryDirectory()
         build_tree(self.td.name)
         enrich(self.td.name)
@@ -94,7 +94,8 @@ class Served:
         self.runner = FakeRunner()                          # kept, so a test can finish a job mid-page (UI-E8)
         app = create_app(self.root, runner=self.runner, csrf_token="tok", settings=self.settings,
                          live=LiveBoard(self.root, MY_TEAM, league_id="L" if live_enabled else None,
-                                        fetch=_never if live_enabled else None))
+                                        fetch=_never if live_enabled else None),
+                         chat=chat(self.root) if chat else None)
         self.srv = make_server("127.0.0.1", 0, app, threaded=True, request_handler=Quiet)
         self.base = f"http://127.0.0.1:{self.srv.server_port}"
         threading.Thread(target=self.srv.serve_forever, daemon=True).start()
@@ -120,7 +121,7 @@ class BrowserCase(unittest.TestCase):
         if cls.browser is None:
             cls.pw.stop()
             raise unittest.SkipTest("no browser Playwright can launch (Edge, Chrome, or its own)")
-        cls.served = Served(cls.plant, cls.live_enabled)
+        cls.served = Served(cls.plant, cls.live_enabled, chat=getattr(cls, "chat", None))
 
     @classmethod
     def tearDownClass(cls):
@@ -642,6 +643,60 @@ class TestTheAlertBoxesTick(BrowserCase):
         self.page.wait_for_timeout(200)
         self.assertFalse(box.is_checked())
         self.assertEqual(self.errors, [])
+
+
+def _fake_chat(root):
+    """A ChatService whose Claude is a script: a tool call, then the answer in two pieces."""
+    import json as _json
+    import time as _time
+    from webui.chat import ChatService
+    from webui.names import Overlay
+
+    class Proc:
+        pid, returncode = 1, None
+
+        @property
+        def stdout(self):
+            lines = [{"type": "system", "subtype": "init", "session_id": "s-1"},
+                     {"type": "assistant", "message": {"content": [{"type": "tool_use", "id": "t1", "name": "mcp__syndicate__run_tool",
+                                                                   "input": {"name": "waiver_targets"}}]}},
+                     {"type": "user", "message": {"content": [{"type": "tool_result", "tool_use_id": "t1", "content": "ok"}]}},
+                     {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "Claim **Braelon Allen** "}}},
+                     {"type": "stream_event", "event": {"type": "content_block_delta", "delta": {"type": "text_delta", "text": "for $28."}}},
+                     {"type": "result", "subtype": "success", "is_error": False, "result": "Claim **Braelon Allen** for $28.", "session_id": "s-1"}]
+            for ln in lines:
+                _time.sleep(0.15)
+                yield (_json.dumps(ln) + chr(10)).encode("utf-8")
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            pass
+    return ChatService(root, Overlay(), claude="claude", popen=lambda *a, **k: Proc(), base=tempfile.mkdtemp())
+
+
+class TestTheChatPage(BrowserCase):
+    """The chat page's script, checked after it was written (not a regression test: nothing
+    was broken before it). Enter sends; the tool in use shows while it runs; the answer arrives
+    rendered, and the box is ready for the next question."""
+    chat = staticmethod(_fake_chat)
+
+    def test_ask_and_get_an_answer(self):
+        for mode in ("dev", "simple"):
+            with self.subTest(mode=mode):
+                self.open("/chat", mode)
+                box = self.page.locator("#chat-input")
+                box.fill("Who should I claim?")
+                box.press("Enter")
+                self.page.locator(".msg.me").last.wait_for()
+                self.assertIn("Who should I claim?", self.page.locator(".msg.me").last.inner_text())
+                self.page.locator(".msg.ai:not(.live) strong").last.wait_for(timeout=10000)
+                answer = self.page.locator(".msg.ai:not(.live)").last
+                self.assertIn("Braelon Allen", answer.inner_text())
+                self.assertIn("Running waiver targets", answer.inner_text())
+                self.assertFalse(self.page.locator("#chat-input").is_disabled())
+                self.assertEqual(self.errors, [])
 
 
 def _plant_started_week(root):
