@@ -1226,7 +1226,9 @@ kept its data it syncs and simulates on its own runner instead.
 **The gate.** `scripts.build_public_site` takes every real team name, username and league name
 from Sleeper for each league id in the environment, plus the ESPN id and the private-legend
 markers, and `leak_check` refuses to publish on any whole-word match, naming the file but never
-the identity. With no league id to check against it builds nothing.
+the identity. It builds nothing unless all four ids are present (`SLEEPER_LEAGUE_ID`, `_2025`,
+`_2024`, `ESPN_LEAGUE_ID`): the first deploy ran with only the current league's id on the runner
+and its check silently skipped every 2024 and 2025 team name.
 
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
 

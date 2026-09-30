@@ -10,8 +10,8 @@ The Pages workflow runs this after each week's official model run, on that run's
 Before anything is written for publishing it must pass the leak check: every real team name,
 username and league name, taken live from Sleeper for every league id in the environment
 (SLEEPER_LEAGUE_ID, SLEEPER_LEAGUE_ID_2025, SLEEPER_LEAGUE_ID_2024, and the ESPN id), must be
-absent from every page. A hit deletes the build and exits non-zero; with no league id to check
-against it refuses to build at all. Real names are never on in this process
+absent from every page. A hit deletes the build and exits non-zero; with any one of those ids
+missing it refuses to build at all. Real names are never on in this process
 (SHOW_REAL_TEAM_NAMES=0), and the pages carry no images.
 """
 import argparse
@@ -21,6 +21,10 @@ import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BASE_URL = "https://api.sleeper.app/v1"
+# Every league whose names can reach a page. All four are required: the first deploy (2026-09-30)
+# ran with only the current one on the runner and silently skipped the 2024 and 2025 team names,
+# which the history pages carry.
+LEAGUE_VARS = ("SLEEPER_LEAGUE_ID", "SLEEPER_LEAGUE_ID_2025", "SLEEPER_LEAGUE_ID_2024", "ESPN_LEAGUE_ID")
 
 
 def _default_base():
@@ -36,10 +40,10 @@ def main(argv=None):
     a = ap.parse_args(argv)
     os.environ["SHOW_REAL_TEAM_NAMES"] = "0"
 
-    ids = [os.environ.get(k) for k in ("SLEEPER_LEAGUE_ID", "SLEEPER_LEAGUE_ID_2025", "SLEEPER_LEAGUE_ID_2024")]
-    ids = [x for x in ids if x]
-    if not ids:
-        sys.exit("No SLEEPER_LEAGUE_ID in the environment: the leak check has nothing to check against, so nothing is built.")
+    missing = [k for k in LEAGUE_VARS if not os.environ.get(k)]
+    if missing:
+        sys.exit(f"Missing {', '.join(missing)}: the leak check would skip that league's names, so nothing is built.")
+    ids = [os.environ[k] for k in LEAGUE_VARS[:3]]
 
     import requests
     from fantasy_sim.weekly_report import PRIVATE_MARKER
@@ -52,8 +56,7 @@ def main(argv=None):
         return r.json()
 
     forbidden = forbidden_identities(ids, fetch)
-    espn = os.environ.get("ESPN_LEAGUE_ID")
-    forbidden += [x for x in (espn, PRIVATE_MARKER, "LOCAL VIEW") if x]
+    forbidden += [os.environ["ESPN_LEAGUE_ID"], PRIVATE_MARKER, "LOCAL VIEW"]
 
     if os.path.isdir(a.out):
         shutil.rmtree(a.out)
