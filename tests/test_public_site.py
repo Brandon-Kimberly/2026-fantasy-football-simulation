@@ -213,6 +213,14 @@ class TestTheWorkflows(unittest.TestCase):
                          "the legacy sample report is retired")
         self.assertFalse(os.path.exists(os.path.join(REPO, "scripts", "make_sample_report.py")))
 
+    def test_the_pages_workflow_spends_no_odds_credits(self):
+        """2026-09-30: the account ran out of its monthly odds credits. Until an official run has
+        kept its data, every site rebuild synced here with the key -- a push to webui/ cost
+        credits. The public site does without real lines on those rebuilds; the official run's
+        data (with them) replaces the stand-in at the next weekly run."""
+        wf = self.read("pages-site.yml")
+        self.assertNotIn("secrets.ODDS_API_KEY", wf)
+
 
 if __name__ == "__main__":
     unittest.main()
