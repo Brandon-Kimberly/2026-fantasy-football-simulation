@@ -11,6 +11,10 @@ The inputs are the ones scripts.luck_ledger fetches, read from disk instead:
   pairs           current/league_schedule.json
   projections     logs/predictions_2026.jsonl, the median block (as the script reads it)
   banked wins     current/league_standings.json h2h_wins (the league's total, both legs)
+  who won         webui.results.week_results: the as-played record where it covers a week, so a
+                  re-scored week keeps the result the league counted (audit 2026-09-29)
+  points against  current/league_standings.json points_against, the league's own totals, when
+                  every team has one (the sync stores them from 2026-09-29); else the box scores
   starters        NOT on disk: weekly_actuals keeps each player's points, not who started,
                   so "starters who did not play" is not measurable here and says so.
 
@@ -35,16 +39,10 @@ MEASURES = (
 
 
 def _inputs(root):
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    from webui.results import week_results
     scores = {}
-    for key, wk in actuals.items():
-        if not str(key).startswith("week_") or not isinstance(wk, dict):
-            continue
-        try:
-            n = int(str(key)[5:])
-        except ValueError:
-            continue
-        row = {t: float(r["points_scored"]) for t, r in (wk.get("team_results") or {}).items()
+    for n, teams in week_results(root).items():             # the league's banked points where known
+        row = {t: float(r["points_scored"]) for t, r in teams.items()
                if isinstance(r, dict) and r.get("points_scored") is not None}
         if n <= REGULAR_WEEKS and row:
             scores[n] = row
@@ -67,13 +65,18 @@ def _inputs(root):
         pass
     standings = root.read_json("current/league_standings.json", {}) or {}
     banked = {t: int(float(s["h2h_wins"])) for t, s in standings.items() if isinstance(s, dict) and s.get("h2h_wins") is not None}
-    return scores, pairs, (proj or None), banked
+    results = {w: {t: (r.get("h2h_win"), r.get("median_win")) for t, r in teams.items()}
+               for w, teams in week_results(root).items() if w in scores}
+    pa = {t: s.get("points_against") for t, s in standings.items() if isinstance(s, dict)}
+    pa = {t: float(v) for t, v in pa.items() if v is not None} if pa and all(v is not None for v in pa.values()) else None
+    return scores, pairs, (proj or None), banked, results, pa
 
 
 def report(root, team):
-    scores, pairs, proj, banked = _inputs(root)
+    scores, pairs, proj, banked, results, pa = _inputs(root)
     n = len(scores)
-    res = ledger(scores, pairs, team, starter_points=None, projections=proj, banked_wins=banked.get(team)) if n else {}
+    res = ledger(scores, pairs, team, starter_points=None, projections=proj, banked_wins=banked.get(team),
+                 results=results, points_against=pa) if n else {}
     early = n < MIN_WEEKS_FOR_INFERENCE
     withheld = bool(res.get("banked_disagreement"))
     rows = []

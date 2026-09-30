@@ -100,6 +100,16 @@ def _fmt_num(v, nd=1):
 
 
 # ------------------------------------------------------------------------- readers
+def _banked_trajs(root, trajs, n):
+    """Every team's curve with the weeks this export banked (1..n-1) taken from the league's
+    record rather than its re-scored box scores (webui.results.banked_curve)."""
+    from webui.results import banked_curve, week_results
+    res = week_results(root)
+    return {t: dict(v, expected_cumulative_wins_by_week=banked_curve(root, t, v.get("expected_cumulative_wins_by_week"), before=n, results=res))
+            if isinstance(v, dict) and v.get("expected_cumulative_wins_by_week") else v
+            for t, v in trajs.items()}
+
+
 def week_report(root, week):
     n = int(week)
     d = f"weeks/week_{n:02d}"
@@ -130,7 +140,7 @@ def week_report(root, week):
                           for t, ks in (matrix.get("finishing_seed_probabilities") or {}).items() if isinstance(ks, dict)
                           for k, v in ks.items() if v is not None},
             "h2h": matrix.get("h2h_win_probability_matrix") or {}, "wins_dist": matrix.get("win_distributions") or {},
-            "traj": matrix.get("weekly_trajectories") or {}, "score_pct": matrix.get("weekly_score_percentiles") or {},
+            "traj": _banked_trajs(root, matrix.get("weekly_trajectories") or {}, n), "score_pct": matrix.get("weekly_score_percentiles") or {},
             "insights": insights, "warnings": audit.get("warnings") or [],
             "charts": charts, "jsons": jsons, "subdirs": listing["subdirs"]}
 
@@ -205,6 +215,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["real"] = overlay.text
     app.jinja_env.filters["stamp"] = render.human_time
     app.jinja_env.filters["num"] = _fmt_num
+    # a played score, or a season's points for or against: to the cent, as Sleeper prints it, so
+    # a number here can be checked against the league's (owner report 2026-09-29). Projections
+    # and other estimates keep `num`.
+    app.jinja_env.filters["score"] = lambda v: _fmt_num(v, 2)
     # UI-V8: a percentage that may not exist yet -- "—", never "—%" (Jinja's Undefined is "not none")
     app.jinja_env.filters["pctn"] = lambda v, nd=1: (_fmt_num(v, nd) + "%") if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v else "—"
     app.jinja_env.filters["ts"] = render.human_time

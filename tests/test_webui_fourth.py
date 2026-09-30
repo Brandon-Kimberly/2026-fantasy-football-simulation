@@ -289,7 +289,10 @@ class TestPages(unittest.TestCase):
         css = self.get("/")
         head = css.split("</style>")[0]
         rules = [ln for ln in head.splitlines() if "overflow-x: auto" in ln]
-        self.assertTrue(all("@media (max-width" in ln for ln in rules), rules)
+        # one exception, by the owner's report of 2026-09-29: `.scroller.xscroll`, which the
+        # page's script sets only on a table measured wider than its column -- the page clips
+        # what spills, so without it the standings' last columns were unreadable, not scrolled
+        self.assertTrue(all("@media (max-width" in ln or ln.startswith(".scroller.xscroll {") for ln in rules), rules)
         self.assertNotIn("white-space: nowrap; }", [ln for ln in head.splitlines() if ln.startswith("td.nm")])
 
 

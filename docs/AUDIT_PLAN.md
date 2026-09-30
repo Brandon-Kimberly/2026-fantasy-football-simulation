@@ -6189,6 +6189,23 @@ entry's transferable rule warns about -- and are not yet corrected: the reconstr
 as-played points match today's banked totals only to within 0-7.5 points per team over two
 weeks (the league's totals moved again after 2026-09-24), so they are not claimed.
 
+**CORRECTION AND FOLLOW-UP, 2026-09-29 (owner report).** The owner's past matchup pages read
+185.9 for a week-1 score Sleeper shows as 187.36, and 144.2 for a week-2 score Sleeper shows as
+150.41. Two causes. (1) The sync ignored Sleeper's commissioner override (`custom_points`): the
+one week-2 override, Cosmic Badgers 150.41, is what keeps the result as played. (2) Week 2 was
+banked on the NEW scale, not restored to the old -- the ruling above's "149.02" for Quantum
+Ferrets was never banked; its banked score is 148.52 (docs/EVALUATION_BOUNDARIES.md, boundary
+1 correction). Measured: current stat lines scored under the settings in force when each week
+was banked, plus the override, reproduce every team's banked points for and against to the
+cent and all 48 results against Sleeper's record strings; exactly one of the eight old/new
+assignments to weeks 1-3 does. `fantasy_sim.banked_scores` now finds and checks that
+assignment from a log of the league's scoring settings the sync appends to on every change,
+and the site shows those scores for every past week (verified only). This also answers the
+paragraph above's open item for Accuracy's week-1 points, which now compare the banked
+old-scale score against the old-scale forecast; week 2's forecast was made before the change
+and its banked score is on the new scale, so that one week stays a cross-scale comparison.
+Engine inputs unchanged: `weekly_actuals.json` is still the recomputed new-scale scores.
+
 ### F84 — The engine banked a record the league does not recognise — RESOLVED (2026-09-24)
 
 **Origin.** F70's recorded follow-up, made live by F83. `actual_wins_banked` and

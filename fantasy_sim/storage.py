@@ -176,6 +176,15 @@ WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
 # {"week_N": {team: {"starters": [player ids], "players": [player ids]}}}. Current state, rewritten
 # each sync from the same matchups fetch as the actuals. Read by the web UI only; never the engine.
 WEEKLY_LINEUPS_FILE = _current("weekly_lineups.json")
+# Each completed week's score as the league BANKED it (fantasy_sim.banked_scores): current stat
+# lines under the settings in force when the week was banked, commissioner overrides winning,
+# verified to the cent against the league's own totals. Written by the sync; the web UI reads
+# it for every past week's points and results. weekly_actuals.json stays Sleeper's recomputed
+# scores on the CURRENT settings, which is what the engine learns from (owner, 2026-09-29).
+BANKED_SCORES_FILE = _current("banked_scores.json")
+# The league's scoring settings over time: one row per change, appended by the sync, so a
+# week banked under earlier settings can still be scored as it was.
+SCORING_SETTINGS_FILE = _log("scoring_settings.jsonl")
 # F7 (AUDIT_PLAN.md): append-only log of the projections each sync used for rostered players,
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.

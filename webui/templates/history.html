@@ -32,7 +32,7 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Record book <span class="hint">regular season, {{ n_games }} games</span></h2>
 <div class="recs">
-{% for r in book %}<div class="card"><div class="k">{{ r.label }}</div><div class="v">{{ r.value|num(1) }}{% if r.key in ("margin", "close") %} <span class="small muted">points</span>{% endif %}</div>
+{% for r in book %}<div class="card"><div class="k">{{ r.label }}</div><div class="v">{{ r.value|score }}{% if r.key in ("margin", "close") %} <span class="small muted">points</span>{% endif %}</div>
 <div class="who">{{ mark(r.team) }}{{ teamlink(r.team) }} <span class="muted">vs</span> {{ teamlink(r.opponent) }}</div>
 <div class="when">{{ r.season }} · {% if r.season == current_season %}<a href="/matchups/week-{{ r.week }}">week {{ r.week }}</a>{% else %}week {{ r.week }}{% endif %}{% if r.rescored or r.rescaled %} · <span title="Sleeper now re-scores this week under the league's later IDP settings; the league played it under the earlier ones">re-scored box score</span>{% endif %}</div></div>{% endfor %}
 </div>
@@ -46,7 +46,7 @@ table.rv td.pos { color: var(--turf); font-weight: 600; } table.rv td.neg { colo
 {% for o in mine %}<tr><td class="nm" data-sort="{{ o.opponent|real }}">{{ mark(o.opponent) }}{{ teamlink(o.opponent) }}</td>
 <td class="num" data-sort="{{ o.w - o.l }}"><b>{{ o.w }}–{{ o.l }}{% if o.t %}–{{ o.t }}{% endif %}</b></td>
 <td class="num {{ 'pos' if o.margin > 0 else ('neg' if o.margin < 0) }}" data-sort="{{ o.margin }}">{{ o.margin|signed(1) }}</td>
-<td class="small">{% set g = o.last %}{{ g.season }} week {{ g.week }}: {{ 'won' if g.winner == my_team else ('tied' if not g.winner else 'lost') }} {{ (g.pa if g.a == my_team else g.pb)|num(1) }}–{{ (g.pb if g.a == my_team else g.pa)|num(1) }}{% if g.rescored or g.rescaled %} <span class="muted">(re-scored)</span>{% endif %}</td></tr>{% endfor %}
+<td class="small">{% set g = o.last %}{{ g.season }} week {{ g.week }}: {{ 'won' if g.winner == my_team else ('tied' if not g.winner else 'lost') }} {{ (g.pa if g.a == my_team else g.pb)|score }}–{{ (g.pb if g.a == my_team else g.pa)|score }}{% if g.rescored or g.rescaled %} <span class="muted">(re-scored)</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 </section>
 {% endif %}

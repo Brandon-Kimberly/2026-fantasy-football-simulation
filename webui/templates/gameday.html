@@ -59,9 +59,9 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
 <div class="bar"><span><a href="/">← {{ brand }}</a> · <b>Week {{ week or '?' }}</b> · game day</span><span id="gd-meta">{% if not live.enabled %}live scores are not connected{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}loading…{% endif %}</span><span class="live" id="gd-live" hidden>● LIVE</span><span>auto-refresh every minute</span></div>
 {% if opponent %}
 <div class="who">
-  <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ my_team|real }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|num(1) }} pts{% endif %}</div></div></div>
+  <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ my_team|real }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|score }} pts{% endif %}</div></div></div>
   <div class="vs">VS</div>
-  <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ opponent|real }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|num(1) }} pts{% endif %}</div></div></div>
+  <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ opponent|real }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|score }} pts{% endif %}</div></div></div>
 </div>
 {% endif %}
 <div id="gd-body">
