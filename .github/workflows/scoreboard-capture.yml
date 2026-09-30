@@ -1,0 +1,44 @@
+# Records ESPN's live NFL scoreboard during Sunday's games (owner request 2026-09-30), so UI-M5 --
+# red-zone and possession markers on the live panel -- is built and tested from real `situation`
+# blocks, which exist only while a game is live. scripts.capture_scoreboard keeps each distinct
+# live snapshot; this keeps them as an artifact:
+#   gh run download <run id> -n scoreboard-live-<run id>
+#
+# Fire times sit inside a game window in both DST regimes (tests/test_capture_scoreboard.py):
+#   18:30 UTC -- 1:00 pm ET games run ~17:00-20:15 UTC in EDT and ~18:00-21:15 in EST
+#   21:45 UTC -- the late games run ~20:25-23:40 in EDT and ~21:25-00:40 in EST
+# A public endpoint: no secret, no credits, and nothing is committed.
+name: scoreboard-capture
+on:
+  schedule:
+    - cron: "30 18 * * 0"
+    - cron: "45 21 * * 0"
+  workflow_dispatch:
+    inputs:
+      minutes:
+        description: how long to poll
+        default: "25"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.10"
+      - name: Install requests
+        run: python -m pip install "requests>=2.34.2"
+      - name: Record the live scoreboard
+        run: python -m scripts.capture_scoreboard --out scoreboard_capture --minutes "${{ inputs.minutes || '25' }}" --every 60
+      - name: Keep the snapshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: scoreboard-live-${{ github.run_id }}
+          path: scoreboard_capture/
+          if-no-files-found: warn
+          retention-days: 90
