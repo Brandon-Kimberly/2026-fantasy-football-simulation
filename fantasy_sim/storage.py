@@ -176,6 +176,11 @@ WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
 # {"week_N": {team: {"starters": [player ids], "players": [player ids]}}}. Current state, rewritten
 # each sync from the same matchups fetch as the actuals. Read by the web UI only; never the engine.
 WEEKLY_LINEUPS_FILE = _current("weekly_lineups.json")
+# UI-P8 (2026-09-30): each defender's projected stat line for the sync week, from the same
+# Sleeper projection payload the baselines are built from, scored under the league's settings:
+# {"_meta": {week, source, synced_at}, "players": {pid: {pos, stats, points, total}}}. Current
+# state, rewritten each sync. Read by the web UI only; never the engine.
+IDP_PROJECTIONS_FILE = _current("idp_projections.json")
 # Each completed week's score as the league BANKED it (fantasy_sim.banked_scores): current stat
 # lines under the settings in force when the week was banked, commissioner overrides winning,
 # verified to the cent against the league's own totals. Written by the sync; the web UI reads

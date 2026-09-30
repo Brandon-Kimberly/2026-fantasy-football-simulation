@@ -15,6 +15,7 @@ import datetime as _dt
 import json
 import math
 
+from webui import idp as idpmod
 from webui import render
 from webui.accuracy import _first_kickoff, chances_in, quoted_week
 from webui.glance import (decisions_report, freshness_report, h2h_report, odds_moves, odds_now, records,
@@ -314,7 +315,7 @@ def player_report(root, pid, my_team):
             "week": cur, "week_mean": wk_price.get("mean") if wk_price.get("source") not in (None, "baseline") else None,
             "week_source": wk_price.get("source") if wk_price.get("source") not in (None, "baseline") else None,
             "range": rg, "odds_week": now["week"], "history": history, "moves": moves,
-            "landings": _landings_for(root, name)}
+            "landings": _landings_for(root, name), "idp": idpmod.line(root, pid)}       # UI-P8
 
 
 def league_extras(root, my_team):
