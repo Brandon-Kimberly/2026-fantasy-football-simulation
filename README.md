@@ -198,8 +198,9 @@ py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync 
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
 py -3.10 -m scripts.as_played_record           # F83: weeks 1-2 results as the league played them (old IDP scoring), verified vs banked wins; --write
 py -3.10 -m scripts.banked_scores              # every past week's score as the league banked it, checked to the cent vs its totals and records; --write
-py -3.10 -m scripts.build_public_site          # the public site into _site/ (leak-checked; needs SLEEPER_LEAGUE_ID); pages-site deploys it
+py -3.10 -m scripts.build_public_site          # the public site into _site/ (leak-checked; needs all four league ids); pages-site deploys it
 py -3.10 -m scripts.readme_shots               # retake the README's web UI screenshots (pseudonyms, no photos); the docs guard requires it after a page change
+py -3.10 -m scripts.capture_scoreboard         # record ESPN's live scoreboard during games (for the red-zone markers); scoreboard-capture runs it on Sundays
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data

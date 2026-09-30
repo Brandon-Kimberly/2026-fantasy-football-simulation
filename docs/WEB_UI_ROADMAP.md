@@ -884,6 +884,10 @@ and a possession marker on the game strip.
 **Done when.** A recorded live scoreboard payload renders the markers, and a payload
 without `situation` renders none and raises nothing.
 
+**The data (2026-09-30).** `scripts.capture_scoreboard` and the `scoreboard-capture` workflow record
+every distinct live snapshot during Sunday's early and late windows and keep them as an artifact
+(`gh run download <run id> -n scoreboard-live-<run id>`). Build this from the first Sunday's capture.
+
 #### UI-M6 · The other three league games, live
 `P2 · M · live read · both`
 
