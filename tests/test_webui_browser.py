@@ -739,6 +739,39 @@ class TestThreePaneHome(BrowserCase):
                 self.assertLessEqual(over, 0)
 
 
+class TestTheTvViewSecondVersion(BrowserCase):
+    """UI-M9, end to end: the recorded week-4 scoreboard, through the real parser, into the TV
+    view -- each game's line, total and weather, a swatch in the scoreboard's colour, and on a
+    2560-pixel screen three panes: my starters, the games, theirs."""
+    live_enabled = True
+
+    def payload(self):
+        from tests.test_webui_tv import fetch_recorded
+        from webui.live import scoreboard
+        pay = live_payload(False, 0.6)
+        pay["snapshot"]["games"] = scoreboard(4, fetch_recorded)[1]
+        return pay
+
+    def test_lines_weather_and_colours_render(self):
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=self.payload()))
+        self.open("/gameday")
+        self.page.wait_for_selector(".games .game")
+        text = self.page.inner_text(".games")
+        for s in ("PIT -2.5", "O/U 38.5", "Cloudy, 77°", "IND -3.5"):
+            self.assertIn(s, text)
+        self.assertTrue(self.page.eval_on_selector_all('.games .sw', "els => els.some(e => e.getAttribute('style') === '--team:#472a08')"))
+        self.assertEqual(self.errors, [])
+
+    def test_three_panes_on_a_wide_screen(self):
+        self.page.set_viewport_size({"width": 2560, "height": 1440})
+        self.page.route("**/api/live*", lambda route: route.fulfill(json=self.payload()))
+        self.open("/gameday")
+        self.page.wait_for_selector(".tvgrid .pg .game")
+        xs = self.page.evaluate("['.pm', '.pg', '.pt'].map(s => document.querySelector('.tvgrid ' + s).getBoundingClientRect().left)")
+        self.assertLess(xs[0], xs[1])
+        self.assertLess(xs[1], xs[2])
+
+
 class TestCompactDensity(BrowserCase):
     """UI-V5: the compact toggle tightens table rows and nothing else, and the browser
     remembers it across pages."""
