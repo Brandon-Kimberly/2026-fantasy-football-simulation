@@ -482,7 +482,10 @@ def home_report(root, my_team, runner=None):
     mine_cs = (forecast.get(my_team) or {}).get("current_state") or {}
     matrix = root.read_json(f"{od}/syndicate_comprehensive_matrix_week_{ow}.json", {}) if od else {}
     matrix = matrix or {}
-    traj = ((matrix.get("weekly_trajectories") or {}).get(my_team) or {}).get("expected_cumulative_wins_by_week") or []
+    # completed weeks from the league's record, not the export's re-scored box scores; the weeks
+    # to come stay the forecast's, which already starts from the banked total (F84)
+    from webui.results import banked_curve
+    traj = banked_curve(root, my_team, ((matrix.get("weekly_trajectories") or {}).get(my_team) or {}).get("expected_cumulative_wins_by_week"))
     seed = seed_report((matrix.get("finishing_seed_probabilities") or {}).get(my_team) or {},
                        (((forecast.get(my_team) or {}).get("forecast")) or {}).get("playoff_probability_pct"))
     champ = (now["teams"].get(my_team) or {}).get("champ")

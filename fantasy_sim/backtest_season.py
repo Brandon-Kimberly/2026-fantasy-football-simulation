@@ -140,7 +140,7 @@ def fetch_league_roster_data(league_id, players_db):
         final_standings_payload[sim_name] = {
             "wins": int(settings.get("wins", 0)),
             "losses": int(settings.get("losses", 0)),
-            "points_scored": float(f"{settings.get('fpts', 0)}.{settings.get('fpts_decimal', 0)}"),
+            "points_scored": sync.sleeper_points(settings),        # hundredths, not text (audit 2026-09-29)
         }
         # Reuses sync._build_roster_player_entry -- the same helper production uses, fixed
         # after this exact bug crashed a live backtest run (a player with Sleeper's real

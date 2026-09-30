@@ -4,7 +4,8 @@
 {% block body %}
 <style>
 .pm { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr); gap: 20px; align-items: start; margin-top: 12px; }
-.pm > .res { position: sticky; top: 12px; min-width: 0; overflow-x: auto; }
+.pm > .res { position: sticky; top: calc(var(--head-h, 0px) + 12px); min-width: 0; overflow-x: auto; }
+.pm > .res th { position: static; }   /* the box scrolls sideways, so a sticky header measured its offset from the box and covered the first row (owner report 2026-09-29) */
 .pm > form { min-width: 0; }
 @media (max-width: 960px) { .pm { grid-template-columns: minmax(0, 1fr); } .pm > .res { position: static; } }
 #pm-result { transition: opacity .15s; } #pm-result.updating { opacity: .55; }

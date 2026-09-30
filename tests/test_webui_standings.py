@@ -5,7 +5,7 @@ In this league half the wins come from the median game, and the standings fold t
 number. `webui.standings.table` is the one place a standings row is built, and League, Home
 and a team page all render from it: the combined record and its two halves (shown only when
 the results reconcile with the league's total, UI-F4), all-play, points for and against, the
-head-to-head streak, games back of the last playoff place (or the cushion over the first team
+streak (both games a week, as Sleeper counts it -- audit 2026-09-29), games back of the last playoff place (or the cushion over the first team
 out), playoff and title odds, and a clinch mark when one is proven (UI-O10).
 
 The fixture season (tests.test_webui_objects.plant): weeks 1 and 2, week 2 counted as played
@@ -14,8 +14,9 @@ median. Worked by hand:
   order          TL 4 wins, CM 3, then the 2-win teams by points CB 304, RP 302, NW 301, QF 300,
                  then PY 1, IW 0
   Quantum Ferrets  head-to-head 1-1, median 1-1, combined 2-2; all-play 7-0 then 3-4 = 10-4;
-                 against 140 + 144.19 = 284.19; streak L1 (the week-2 loss as played)
-  Cosmic Badgers   streak W2
+                 against 140 + 144.19 = 284.19; streak L2 (week 2's two losses as played;
+                 head-to-head only it read L1 until 2026-09-29)
+  Cosmic Badgers   streak L1 (W L / W L; head-to-head only it read W2)
   Iron Wombats     median 0-1-1; all-play 0-14
   games back     fourth is RP on 2: NW and QF 0 back (out on points), PY 1, IW 2;
                  cushion over fifth (NW, 2): TL +2, CM +1
@@ -92,7 +93,7 @@ class TestTheHelper(Case):
     def test_points_against_and_the_streak(self):
         r = self.rows()
         self.assertAlmostEqual(r[QF]["points_against"], 284.19, places=2)
-        self.assertEqual((r[QF]["streak"], r[CB]["streak"]), ("L1", "W2"))
+        self.assertEqual((r[QF]["streak"], r[CB]["streak"]), ("L2", "L1"))
 
     def test_games_back_and_the_cushion(self):
         r = self.rows()
@@ -112,14 +113,14 @@ class TestPages(Case):
         for mode in ("dev", "simple"):
             with self.subTest(mode=mode):
                 text = visible_text(self.get("/league", mode))
-                for s in ("All-play", "10–4", "284.2", "L1", "Games back", "0–1–1", "re-scored"):
+                for s in ("All-play", "10–4", "284.2", "L2", "Games back", "0–1–1", "re-scored"):
                     self.assertIn(s, text)
                 if mode == "simple":
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
     def test_a_team_page_shows_its_row(self):
         text = visible_text(self.get("/team/quantum-ferrets", "simple"))
-        for s in ("10–4", "all-play", "L1", "284.2"):
+        for s in ("10–4", "all-play", "streak L2", "284.2"):
             self.assertIn(s, text)
 
     def test_home_takes_its_numbers_from_the_same_helper(self):

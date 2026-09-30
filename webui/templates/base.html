@@ -192,6 +192,9 @@ img.face[src^="/img/teams/"] { object-fit: contain; background: var(--surface); 
    above it the page never scrolls sideways and sticky headers sit below the app header */
 @media (max-width: 720px) { .scroller { overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: thin; } }
 .wrap { overflow-x: clip; }
+.scroller { max-width: 100%; }
+.scroller.xscroll { overflow-x: auto; scrollbar-width: thin; } .scroller.xscroll th { position: static; }   /* a table wider than its column scrolls in its box at any width, not just a phone's; the page clips what spills (owner report 2026-09-29) */
+@media (min-width: 1800px) { .wrap { max-width: 1680px; } }
 .st { display: inline-block; min-width: 1.6em; text-align: center; font-family: var(--display); font-size: 10.5px; font-weight: 700; letter-spacing: .04em; line-height: 1; padding: 3px 5px; border-radius: 3px; background: var(--neg-bg); color: var(--neg); vertical-align: middle; }
 .st.ir, .st.pup, .st.sus { background: var(--mid); color: var(--ink-2); } .st.q { background: var(--warm-bg); color: var(--warm-ink); } .st.bye { background: var(--violet-bg); color: var(--violet); }
 table { border-collapse: collapse; width: 100%; font-size: 13.5px; font-variant-numeric: tabular-nums; }
@@ -801,6 +804,16 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
   var top = document.querySelector('header.top');
   function headH() { if (top) document.documentElement.style.setProperty('--head-h', top.offsetHeight + 'px'); }
   headH(); window.addEventListener('resize', headH);
+  // a table wider than its column gets a sideways scrollbar (.xscroll) instead of losing its
+  // right-hand columns to the page's clip; re-measured on resize
+  function fit() {
+    document.querySelectorAll('.scroller').forEach(function (s) {
+      s.classList.remove('xscroll');
+      var t = s.firstElementChild && s.querySelector('table');
+      if (t && t.getBoundingClientRect().width > s.clientWidth + 1) s.classList.add('xscroll');
+    });
+  }
+  fit(); window.addEventListener('resize', fit);
 })();
 {% if audit %}
 (function () {   // scripts.webui_audit's overflow probe: which elements reach past the viewport, and by how much

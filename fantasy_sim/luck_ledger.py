@@ -97,7 +97,15 @@ def _mean_sd(vals):
     return m, math.sqrt(var), n
 
 
-def banked_disagreement(weekly_scores, pairs, team, banked_wins):
+def _result(results, week, team):
+    """(h2h_win, median_win) as the league counted them, or None when `results` does not cover it."""
+    got = ((results or {}).get(week) or {}).get(team)
+    if not got or got[0] is None:
+        return None
+    return float(got[0]), (float(got[1]) if got[1] is not None else None)
+
+
+def banked_disagreement(weekly_scores, pairs, team, banked_wins, results=None):
     """Does the RECOMPUTED record match what the league actually banked? (C4)
 
     Every score here is what Sleeper serves TODAY, and Sleeper re-scores completed weeks
@@ -125,6 +133,11 @@ def banked_disagreement(weekly_scores, pairs, team, banked_wins):
             continue
         weeks += 1
         cut = _median(played)
+        rec = _result(results, week, team)
+        if rec is not None:                       # the league's own result for this week (audit 2026-09-29)
+            h2h += rec[0]
+            med += rec[1] or 0
+            continue
         for a, b in ps:
             sa, sb = row.get(a), row.get(b)
             if sa is None or sb is None or team not in (a, b):
@@ -155,13 +168,20 @@ def _median(vals):
 
 
 def ledger(weekly_scores, pairs, team, starter_points=None, projections=None,
-           banked_wins=None):
+           banked_wins=None, results=None, points_against=None):
     """Five measurements for one team.
 
     weekly_scores  {week: {team: points}}
     pairs          {week: [(team_a, team_b), ...]}   H2H pairings only
     starter_points {week: {team: [per-starter points]}}   optional, for dnp_luck
     projections    {week: {team: (expected_total, sd)}}   optional, for scoring_luck
+    results        {week: {team: (h2h_win, median_win)}}  optional: who WON, as the league
+                   counted it. Sleeper re-scores finished weeks under later settings, so a box
+                   score can name a different winner than the league did (week 2 of 2026: a
+                   0.24-point loss now reads a 4.33-point win). With it, results come from the
+                   record and margins from the scores (audit 2026-09-29).
+    points_against {team: total}  optional: the league's own points against, as counted, in
+                   place of the re-scored box scores (opponent luck).
 
     Every value carries its own standard error. A metric whose inputs are absent comes
     back as None rather than silently defaulting -- 2024/2025 have no contemporaneous
@@ -172,7 +192,7 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None,
     # are re-scored history. Metrics that depend on WHO WON are withheld; metrics that do
     # not (points against, DNP counts) still report, because withholding them would throw
     # away good evidence.
-    disagreement = banked_disagreement(weekly_scores, pairs, team, banked_wins)
+    disagreement = banked_disagreement(weekly_scores, pairs, team, banked_wins, results)
     if disagreement:
         out["banked_disagreement"] = disagreement
 
@@ -196,12 +216,13 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None,
                 played += 1
                 pa_mine += theirs
                 margins.append(mine - theirs)
-                if mine > theirs:
-                    actual += 1
+                rec = _result(results, week, team)
+                won = rec[0] if rec is not None else (1.0 if mine > theirs else 0.0)
+                actual += won
                 if abs(mine - theirs) < CLOSE_MARGIN:
-                    if mine > theirs:
+                    if won >= 1.0:
                         cw += 1
-                    else:
+                    elif won <= 0.0:
                         cl += 1
     exp_w = rate * played
     # variance of a sum of independent Bernoulli(rate) draws
@@ -214,6 +235,9 @@ def ledger(weekly_scores, pairs, team, starter_points=None, projections=None,
     }
 
     # --- opponent luck -------------------------------------------------------
+    if points_against and played and all(points_against.get(t) is not None for t in pa_by_team):
+        pa_by_team = {t: float(points_against[t]) for t in pa_by_team}
+        pa_mine = float(points_against.get(team, pa_mine))
     if pa_by_team and played:
         per_game = {t: v / max(sum(1 for wk, ps in pairs.items()
                                    for x in ps if t in x), 1)

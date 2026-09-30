@@ -79,6 +79,10 @@ def week_recap(root, week, my_team):
         loser = g["b"] if g["winner"] == g["a"] else g["a"]
         wp = g["pts_a"] if g["winner"] == g["a"] else g["pts_b"]
         lp = g["pts_b"] if g["winner"] == g["a"] else g["pts_a"]
+        if wp is None or lp is None or wp < lp:
+            # the box score (re-scored since) names the other winner: "lost with 148.5 to a team
+            # that scored 144.2" is the contradiction a points award must not print (audit 2026-09-29)
+            continue
         wins.append((wp, g["winner"], loser))
         losses.append((lp, loser, g["winner"]))
     if wins:
@@ -90,7 +94,8 @@ def week_recap(root, week, my_team):
     actuals = root.read_json("current/weekly_actuals.json", {}) or {}
     cut = (actuals.get(f"week_{week}") or {}).get("median_cutoff")
     missed = [(float(r.get("points_scored") or 0.0), t) for t, r in res.items() if r and r.get("median_win") is not None
-              and float(r["median_win"]) <= 0]
+              and float(r["median_win"]) <= 0
+              and (cut is None or float(r.get("points_scored") or 0.0) < float(cut))]   # not a re-scored contradiction
     if missed:
         p, t = max(missed)
         awards.append({"key": "median_miss", "label": "Closest miss against the median", "team": t, "points": p,
@@ -117,7 +122,7 @@ def chat_text(rv, week):
         if a["key"] == "upset":
             tail = f"beat {a['opponent']}, given {round(100 * a['quote'])}% before kickoff"
         elif a["key"] == "median_miss":
-            tail = f"{a['points']:.1f} points" + (f", {a['short']:.1f} short of the {a['cut']:.1f} median" if a.get("short") is not None else "")
+            tail = f"{a['points']:.1f} points" + (f", {a['short']:.{2 if a['short'] < 1 else 1}f} short of the {a['cut']:.1f} median" if a.get("short") is not None else "")
         elif a["key"] == "low_win":
             tail = f"{a['points']:.1f} points, enough to beat {a['opponent']}"
         else:

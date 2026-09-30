@@ -80,6 +80,14 @@ def _side(g, team):
     return (g["pa"], g["pb"], g["b"]) if team == g["a"] else (g["pb"], g["pa"], g["a"])
 
 
+def _contradicted(g):
+    """True when the winner the league counted scored less in today's box score."""
+    if not g.get("winner"):
+        return False
+    mine, theirs = (g["pa"], g["pb"]) if g["winner"] == g["a"] else (g["pb"], g["pa"])
+    return mine < theirs
+
+
 def record_book(gs):
     """The game records: [{key, label, team, value, season, week, opponent, rescored}]."""
     scores = [(t, *_side(g, t), g) for g in gs for t in (g["a"], g["b"])]      # (team, mine, theirs, opp, game)
@@ -91,7 +99,10 @@ def record_book(gs):
                 "week": g["week"], "opponent": opp, "rescored": g["rescored"], "rescaled": g.get("rescaled", False)}
     hi = max(scores, key=lambda s: s[1])
     lo = min(scores, key=lambda s: s[1])
-    decided = [g for g in gs if g["winner"]]
+    # a game whose box score now names the other winner (Sleeper re-scores finished weeks) keeps
+    # its points for the points records and sits out the result records (audit 2026-09-29)
+    agree = [g for g in gs if not _contradicted(g)]
+    decided = [g for g in agree if g["winner"]]
     out = [row("high", "Highest score", hi[0], hi[1], hi[4], hi[3]),
            row("low", "Lowest score", lo[0], lo[1], lo[4], lo[3])]
     if decided:
@@ -103,7 +114,7 @@ def record_book(gs):
         lw = min(decided, key=lambda g: max(g["pa"], g["pb"]))
         out.append(row("low_win", "Lowest score in a win", lw["winner"], max(lw["pa"], lw["pb"]), lw,
                        lw["b"] if lw["winner"] == lw["a"] else lw["a"]))
-    close = min(gs, key=lambda g: g["margin"])
+    close = min(agree or gs, key=lambda g: g["margin"])
     out.append(row("close", "Closest game", close["winner"] or close["a"], close["margin"], close,
                    close["b"] if (close["winner"] or close["a"]) == close["a"] else close["a"]))
     return out

@@ -8,8 +8,12 @@ the league's own standings fold them into one total. A row carries:
   h2h, median,       the two halves and their sum, from the results as the league counted
   combined           them (F83); None unless they add up to the league's total (UI-F4)
   all_play           each played week against every other team's score, ties counted
-  points_against     each opponent's score, from the schedule pairs
-  streak             the head-to-head run, as played ("W2", "L1")
+  points_against     the league's own total (league_standings points_against, Sleeper's
+                     fpts_against, audit 2026-09-29); a standings file written before the sync
+                     kept it falls back to each opponent's box score, from the schedule pairs
+  streak             the run as the league counts it ("W2", "L1"): both games a week, head-to-head
+                     then median, the order of Sleeper's own record string -- so it reads what
+                     Sleeper's streak reads (a head-to-head-only run disagreed; audit 2026-09-29)
   gb / cushion       games back of fourth for a team outside the places; for one inside, wins
                      over the first team out. Level on wins still loses on points (the
                      league's tiebreak), so 0 back is not "in"
@@ -90,7 +94,15 @@ def table(root):
             h = _num(r.get("h2h_win"))
             if h is not None and t in h2h_seq:
                 h2h_seq[t].append(h)
+                m = _num(r.get("median_win"))
+                if m is not None:
+                    h2h_seq[t].append(m)
 
+    # the league's own points against when the sync kept it for every team: a sum of box scores
+    # re-scored under later settings disagrees with what the league counted (7 of 8 teams did)
+    pa_counted = bool(order) and all(_num(s.get("points_against")) is not None for _t, s in order)
+    if pa_counted:
+        against = {t: _num(s.get("points_against")) for t, s in order}
     wins = [(_num(s.get("h2h_wins")) or 0.0) for _t, s in order]
     fourth = wins[PLAYOFF_SPOTS - 1] if len(wins) >= PLAYOFF_SPOTS else None
     fifth = wins[PLAYOFF_SPOTS] if len(wins) > PLAYOFF_SPOTS else None
@@ -109,6 +121,7 @@ def table(root):
             "combined": r.get("combined") if agrees else None,
             "all_play": _wlt(*ap) if sum(ap) else None,
             "points_against": round(against[team], 2) if against[team] is not None else None,
+            "pa_counted": pa_counted,                               # the league's own figure, not box scores
             "streak": _streak(h2h_seq[team]),
             "in_places": inside,
             "gb": None if inside or fourth is None else fourth - w,

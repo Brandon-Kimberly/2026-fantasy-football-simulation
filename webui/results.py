@@ -26,6 +26,23 @@ def as_played(root):
     return out
 
 
+def banked_curve(root, team, traj, before=None, results=None):
+    """A forecast's expected-cumulative-wins curve with its COMPLETED weeks taken from the
+    league's record (h2h + median, as counted). The export counts Sleeper's re-scored box
+    scores, so a re-scored week read as a win the league counted as a loss (2, 3, 3 where the
+    league banked 2, 2, 3 -- owner report 2026-09-29). `before`: only weeks before it (an
+    export for week n banks weeks 1..n-1); the weeks to come stay the forecast's."""
+    out = list(traj or [])
+    banked = 0.0
+    for played, teams in sorted((results if results is not None else week_results(root)).items()):
+        mine = teams.get(team) or {}
+        if mine.get("h2h_win") is None or not 0 < played <= len(out) or (before is not None and played >= before):
+            continue
+        banked += float(mine["h2h_win"]) + float(mine.get("median_win") or 0.0)
+        out[played - 1] = banked
+    return out
+
+
 def rescaled_weeks(root):
     """The weeks whose box scores Sleeper now re-scores under later settings -- the weeks the
     as-played record covers (its _meta.weeks, else its week keys). Their POINTS are on the new

@@ -1770,8 +1770,16 @@ DEFAULT_WAIVER_BUDGET = 100.0  # Sleeper's default, and what every pre-2026-09-2
 FAAB_ADJUSTMENT_TOLERANCE = 0.5  # below this, it is rounding, not a commissioner acting
 
 
+def sleeper_points(settings, key="fpts"):
+    """A Sleeper points total from its two fields: whole points (`fpts`) and HUNDREDTHS
+    (`fpts_decimal`, 0-99). They used to be joined as text, so 509 and 5 read 509.5 rather than
+    509.05 (audit 2026-09-29; latent then -- no team's hundredths were one digit)."""
+    st = settings or {}
+    return round(float(st.get(key, 0) or 0) + float(st.get(f"{key}_decimal", 0) or 0) / 100.0, 2)
+
+
 def build_standings(league_settings, rosters, roster_map):
-    """{team: {h2h_wins, points_scored, remaining_faab}} from Sleeper's roster payload.
+    """{team: {h2h_wins, points_scored, points_against, remaining_faab}} from Sleeper's roster payload.
 
     THE BUDGET IS A LEAGUE SETTING, not 100. It happens to be 100 in this league, but
     `waiver_budget` is configurable per season, and hardcoding it fails silently: every
@@ -1796,7 +1804,10 @@ def build_standings(league_settings, rosters, roster_map):
         st = r.get("settings") or {}
         out[name] = {
             "h2h_wins": int(st.get("wins", 0)),
-            "points_scored": float(f"{st.get('fpts', 0)}.{st.get('fpts_decimal', 0)}"),
+            "points_scored": sleeper_points(st),
+            # the league's own points against, as counted -- a sum of box scores re-scored under
+            # later settings disagrees with it (audit 2026-09-29: 7 of 8 teams)
+            "points_against": sleeper_points(st, "fpts_against"),
             "remaining_faab": max(0.0, budget - float(st.get("waiver_budget_used", 0))),
         }
     return out
@@ -2158,7 +2169,7 @@ def ingest_season(league_id, path_fn=None):
             final_standings[roster_map[str(r["roster_id"])]] = {
                 "wins": int(st.get("wins", 0)), "losses": int(st.get("losses", 0)),
                 "ties": int(st.get("ties", 0)),
-                "points_scored": float(f"{st.get('fpts', 0)}.{st.get('fpts_decimal', 0)}"),
+                "points_scored": sleeper_points(st),
             }
         matchups = {}
         for wk in range(1, 19):
