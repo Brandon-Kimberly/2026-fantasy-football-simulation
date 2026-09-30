@@ -4,7 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{% block title %}{{ brand }}{% endblock %}</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='16' rx='14' ry='9' transform='rotate(-35 16 16)' fill='%238a4b1f'/%3E%3Cpath d='M10 20 L22 12 M13 15 l2 2 M15.5 13.5 l2 2 M18 12 l2 2' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+{% if static_site %}{% set preview_title %}{{ self.title() }}{% endset %}{% set preview_text %}{{ brand }}: an eight-team fantasy football league, simulated thousands of times each week. Every matchup's odds, the standings, the playoff race, and each team and player.{% endset %}
+<meta name="description" content="{{ preview_text }}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{ brand }}">
+<meta property="og:title" content="{{ preview_title|trim }}">
+<meta property="og:description" content="{{ preview_text }}">
+{% if page_url %}<meta property="og:url" content="{{ page_url }}">
+{% endif %}<meta name="twitter:card" content="summary">
+{% endif %}<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cellipse cx='16' cy='16' rx='14' ry='9' transform='rotate(-35 16 16)' fill='%238a4b1f'/%3E%3Cpath d='M10 20 L22 12 M13 15 l2 2 M15.5 13.5 l2 2 M18 12 l2 2' stroke='%23fff' stroke-width='1.6' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#2e7d4f">
 <meta name="apple-mobile-web-app-capable" content="yes">

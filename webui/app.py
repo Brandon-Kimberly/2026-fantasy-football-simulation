@@ -194,7 +194,8 @@ def _int_or_none(v):
 
 
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
-               settings=None, default_mode=None, hostnames=(), code_root=None, chat=None, static_site=None):
+               settings=None, default_mode=None, hostnames=(), code_root=None, chat=None, static_site=None,
+               site_origin=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -295,7 +296,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if static_site is not None:
             nav = tuple((h, label) for h, label in nav if _public(h))
             pal = [p for p in pal if _public(p["h"])]
-        return {"static_site": static_site, "site_base": static_site or "","overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
+        page_url = None
+        if static_site is not None and site_origin:           # the link preview's own address (public site only)
+            from webui.static_site import static_path
+            q = request.query_string.decode("utf-8", "replace")
+            page_url = site_origin.rstrip("/") + static_path(request.path + ("?" + q if q else ""), static_site)
+        return {"page_url": page_url, "static_site": static_site, "site_base": static_site or "","overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
                 "audit": request.args.get("audit") == "1",      # the harness's overflow probe (scripts.webui_audit)
                 "mode": mode, "dev": mode == "dev", "nav": nav,
                 "nav_more": NAV_DEV_MORE if mode == "dev" else (),
@@ -1069,7 +1075,22 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
             if m.get("state") == "OK" and m.get("seconds") is not None:
                 durations.setdefault(m.get("tool"), []).append(m["seconds"])
         durations = {t: v[-12:] for t, v in durations.items() if len(v) >= 2}
-        return render_template("jobs.html", jobs=jobs, current=runner.current(), durations=durations)
+        # UI-A8: filter by tool and state (a GET form), then one heading per local day, newest first
+        want_tool, want_state = request.args.get("tool") or "", request.args.get("state") or ""
+        tools = sorted({m.get("tool") for m in jobs if m.get("tool")})
+        shown = sorted((m for m in jobs if (not want_tool or m.get("tool") == want_tool)
+                        and (not want_state or m.get("state") == want_state)),
+                       key=lambda m: m.get("started_at") or "", reverse=True)
+        days = []
+        for m in shown:
+            dt = render.parse_time(m.get("started_at"))
+            local = dt.astimezone() if dt else None
+            label = f"{local:%A}, {local:%b} {local.day}" if local else "Undated"
+            if not days or days[-1][0] != label:
+                days.append((label, []))
+            days[-1][1].append(m)
+        return render_template("jobs.html", jobs=jobs, days=days, tools=tools, want_tool=want_tool,
+                               want_state=want_state, current=runner.current(), durations=durations)
 
     @app.route("/jobs/<slug>/<stamp>")
     def job_pretty(slug, stamp):

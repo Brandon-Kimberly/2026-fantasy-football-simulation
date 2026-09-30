@@ -1234,6 +1234,12 @@ base.html: the palette (`window.PALETTE`), the site address, the density and the
 the audit probe. `tests/webui_served.py` puts the served files back where a page links them, so
 the tests that read CSS or script text read what a browser gets.
 
+**Link previews (2026-09-30).** A link pasted into a chat shows a text card, not a bare URL: every
+public page carries Open Graph tags (its own `<title>`, the site's description, the site's name,
+and its absolute address from `build_public_site --origin`, which defaults to
+`https://<owner>.github.io` from `GITHUB_REPOSITORY`) and `twitter:card summary`. No image, by the
+owner's rule for the public site. The local UI carries none.
+
 **When.** `canonical-run` keeps its data as the `site-data` artifact after a canonical weekly
 report; `pages-site` runs when canonical-run finishes (and on a push that changes the site's
 code), downloads the latest official run's data, builds, and deploys. Before any official run has

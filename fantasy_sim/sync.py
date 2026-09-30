@@ -792,7 +792,7 @@ def resolve_player_keys(pids, players_db, rostered_pids=None):
             keys[group[0]] = name
             continue
         records = ", ".join(
-            "pid %s (%s, %s)" % (p, players_db[p].get("position"), players_db[p].get("team"))
+            "pid %s (%s, %s)" % (p, players_db[p].get("position"), players_db[p].get("team") or "no team")   # UI-F10
             for p in group)
         rostered = [p for p in group if p in rostered_pids]
         if len(rostered) > 1:

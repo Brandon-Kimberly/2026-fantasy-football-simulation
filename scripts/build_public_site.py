@@ -32,11 +32,19 @@ def _default_base():
     return "/" + (repo.split("/", 1)[1] if "/" in repo else "syndicate-football")
 
 
+def _default_origin():
+    """https://<owner>.github.io, from GITHUB_REPOSITORY on the runner (Pages hosts are lower case)."""
+    repo = os.environ.get("GITHUB_REPOSITORY", "")
+    owner = repo.split("/", 1)[0] if "/" in repo else "Brandon-Kimberly"
+    return f"https://{owner.lower()}.github.io"
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--out", default=os.path.join(ROOT, "_site"))
     ap.add_argument("--base", default=_default_base(), help="the site's path on Pages, e.g. /syndicate-football")
     ap.add_argument("--root", default=ROOT, help="the checkout (or copy) whose data/ to render")
+    ap.add_argument("--origin", default=_default_origin(), help="the site's scheme and host, for each page's link preview")
     a = ap.parse_args(argv)
     os.environ["SHOW_REAL_TEAM_NAMES"] = "0"
 
@@ -60,7 +68,7 @@ def main(argv=None):
 
     if os.path.isdir(a.out):
         shutil.rmtree(a.out)
-    report = export(Root(a.root), a.out, a.base)
+    report = export(Root(a.root), a.out, a.base, origin=a.origin)
     try:
         n = leak_check(a.out, forbidden)
     except LeakFound as ex:
