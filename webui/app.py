@@ -615,7 +615,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         """The TV view: a full-screen live scoreboard, both views, from the cached
         snapshot (the page's own script refreshes it through /api/live)."""
         rep = home_report(root, MY_TEAM, runner)
-        return render_template("gameday.html", live=_live_payload(live.peek()), **rep)
+        # UI-M9: each NFL team's local logo, keyed by the scoreboard's ESPN codes too
+        from fantasy_sim.config import NFL_TEAMS
+        from webui.live import ABBR_ALIASES
+        logos = {t: root.image("teams", t) for t in NFL_TEAMS}
+        logos.update({e: logos.get(r) for e, r in ABBR_ALIASES.items()})
+        return render_template("gameday.html", live=_live_payload(live.peek()), logos={t: u for t, u in logos.items() if u}, **rep)
 
     @app.route("/api/live")
     def api_live():
