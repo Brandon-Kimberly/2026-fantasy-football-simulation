@@ -10,6 +10,7 @@
 <style>
 :root { --bg:#0b0b0c; --panel:#141416; --ink:#ffffff; --ink-2:#c3c2b7; --muted:#8f8e88; --rule:#2c2c2a; --mine:hsl({{ hue }} 62% 62%); --theirs:hsl({{ opp_hue or 28 }} 62% 62%); --live:#e66767; --pre:#5e8ae2; --display:"Archivo", "Segoe UI", system-ui, sans-serif; }
 * { box-sizing: border-box; }
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .sw { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 8px; vertical-align: -1px; background: var(--team, var(--rule)); box-shadow: 0 0 0 1px var(--rule); }
 .face { width: 30px; height: 30px; border-radius: 50%; object-fit: cover; vertical-align: middle; margin-right: 10px; background: var(--panel); border: 1px solid var(--rule); }
 .face[src^="/img/teams/"] { object-fit: contain; padding: 3px; }
@@ -53,6 +54,7 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
 </style>
 </head>
 <body>
+<h1 class="vh">Game day, week {{ week or "?" }}</h1>
 <div id="gd" data-week="{{ week or '' }}" data-enabled="{{ '1' if live.enabled else '0' }}">
 <div class="bar"><span><a href="/">← {{ brand }}</a> · <b>Week {{ week or '?' }}</b> · game day</span><span id="gd-meta">{% if not live.enabled %}live scores are not connected{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}loading…{% endif %}</span><span class="live" id="gd-live" hidden>● LIVE</span><span>auto-refresh every minute</span></div>
 {% if opponent %}

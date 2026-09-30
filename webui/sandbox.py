@@ -1,8 +1,8 @@
 """webui.sandbox -- copy data/, run there, throw it away (docs/WEB_UI_ROADMAP.md UI-E6; W5).
 
 A sandbox is a fresh temporary root holding a copy of the served directories (current, weeks,
-decisions, logs, results). Never data/local -- the secrets and the identity map stay where
-they are -- and never the image cache, which nothing runs against. A marker file names it a
+decisions, logs, results) and the image cache, which the pages show and a sync reuses. Never
+data/local -- the secrets and the identity map stay where they are. A marker file names it a
 sandbox, and `discard` refuses to remove anything without one, so a mistyped path can never
 delete the real tree.
 
@@ -26,7 +26,7 @@ def create(real, base=None):
     top = tempfile.mkdtemp(prefix="syn-sandbox-", dir=base)
     data = os.path.join(top, "data")
     os.makedirs(data)
-    for d in TOP_DIRS:
+    for d in TOP_DIRS + ("images",):          # the image cache too (audit 2026-09-29): the pages show it and a sync reuses it
         src = os.path.join(real.data, d)
         if os.path.isdir(src):
             shutil.copytree(src, os.path.join(data, d))

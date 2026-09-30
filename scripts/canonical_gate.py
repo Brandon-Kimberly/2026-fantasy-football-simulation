@@ -54,6 +54,10 @@ BENIGN_MARKERS = (
     # Classified 2026-09-29 (issue #17): unclassified, it refused Sunday's run2 and would
     # have refused every window after, since an adjustment stays in the history all season.
     "FAAB ADJUSTMENT:",
+    # The lost-waiver-claims log (Decision 4) failing to write: a web-UI-only log the forecast
+    # never reads, so it cannot affect a quote. Classified 2026-09-29 by the post-roadmap review,
+    # which showed one torn line could otherwise refuse every window.
+    "FAILED CLAIMS:",
 )
 
 # Forecast-affecting classes with dedicated remediations.

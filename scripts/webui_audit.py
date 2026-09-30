@@ -37,7 +37,9 @@ SHOT_KINDS = (("desktop", 1280, 2200, False), ("phone", 520, 2600, False), ("dar
 SKIP = ("/cancel", "/mode", "/sync/launch", "/sync/restore", "/api/", "/jobs/", ".png")
 SHOT_PAGES = ("/", "/league", "/forecasts", "/forecasts/week-3", "/decisions", "/records", "/records/week-3",
               "/tools", "/tools/compare_players", "/tools/weekly_report", "/jobs", "/logs", "/logs/decision-log",
-              "/system", "/sync", "/results")
+              "/system", "/sync", "/results",
+              # the pages built after the list was written (post-roadmap crawl, 2026-09-29)
+              "/waivers", "/players", "/gameday", "/accuracy", "/playoffs", "/history", "/luck", "/matchups")
 EDGE_DEFAULT = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 
 
@@ -52,6 +54,7 @@ class Page(html.parser.HTMLParser):
         self.text = []
         self._skip = 0
         self._pre = 0            # UI-E10: <pre> holds verbatim engine output (a sync warning's "(CB, None)")
+        self._label = 0          # an input inside <label> is labelled as surely as one named by for=
 
     def handle_starttag(self, tag, attrs):
         a = dict(attrs)
@@ -62,7 +65,9 @@ class Page(html.parser.HTMLParser):
         if tag == "img" and not a.get("alt", None) and a.get("alt") != "":
             self.imgs_no_alt += 1
         if tag in ("input", "select", "textarea") and a.get("type") != "hidden":
-            self.inputs.append((a.get("id"), a.get("name"), a.get("aria-label")))
+            self.inputs.append((a.get("id"), a.get("name"), a.get("aria-label"), self._label > 0))
+        if tag == "label":
+            self._label += 1
         if tag == "label" and a.get("for"):
             self.labels_for.add(a["for"])
         if tag == "h1":
@@ -90,6 +95,8 @@ class Page(html.parser.HTMLParser):
             self._skip -= 1
         if tag == "pre" and self._pre:
             self._pre -= 1
+        if tag == "label" and self._label:
+            self._label -= 1
 
     def handle_data(self, data):
         if self._in_title:
@@ -127,6 +134,11 @@ def set_mode(base, token, mode):
     return status in (302, 200)
 
 
+def unlabelled_inputs(p):
+    """Inputs no label names: not wrapped in a <label>, no for= pointing at them, no aria-label."""
+    return [n or i for i, n, aria, wrapped in p.inputs if not aria and not wrapped and (not i or i not in p.labels_for)]
+
+
 def audit_page(base, path):
     status, body, ms, ctype = fetch(base, path)
     rec = {"path": path, "status": status, "ms": ms, "kb": round(len(body) / 1024, 1), "type": ctype.split(";")[0]}
@@ -140,7 +152,7 @@ def audit_page(base, path):
         "title": p.title.strip(), "h1": p.h1, "tables": p.tables, "max_cols": p.max_cols,
         "dup_ids": sorted(k for k, v in p.ids.items() if v > 1),
         "imgs_no_alt": p.imgs_no_alt,
-        "unlabeled_inputs": [n or i for i, n, aria in p.inputs if not aria and (not i or i not in p.labels_for)],
+        "unlabeled_inputs": unlabelled_inputs(p),
         "leaks": sorted({t for t in LEAKS if t in visible}),
         "words": len(visible.split()),
         "links": len(p.links),

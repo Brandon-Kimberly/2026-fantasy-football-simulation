@@ -90,7 +90,7 @@ def _first_scores(root):
         path = root.resolve_file("logs/first_recorded_scores.jsonl")
     except Exception:
         return out
-    with open(path, encoding="utf-8") as fh:
+    with open(path, encoding="utf-8", errors="replace") as fh:
         for line in fh:
             try:
                 r = json.loads(line)
@@ -108,7 +108,11 @@ def _landings(root, only=None):
         if only is not None and name != only:
             continue
         q = (spreads.get(week) or {}).get(name)
-        if q is None or pts is None or float(pts) == 0.0:
+        try:
+            pts = float(pts)
+        except (TypeError, ValueError):
+            continue                                            # a malformed row is left out, never raised (audit)
+        if q is None or pts == 0.0:
             continue
         pct = landing(q, pts)
         if pct is not None:

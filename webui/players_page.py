@@ -140,7 +140,10 @@ def waiver_run(root, my_team=None):
     rows = [d for d in decisions_report(root, my_team)["decisions"] if d.get("type") == "waiver" and _parse(d.get("created"))]
     if not rows:
         return None
-    day = lambda d: _parse(d["created"]).astimezone(_pt()).date().isoformat()          # noqa: E731
+    # the run is the Pacific date Sleeper PROCESSED the claim; a claim is submitted up to days
+    # before its run, so the submission date splits one run (audit 2026-09-29). Older rows
+    # carry no processing time and fall back to it.
+    day = lambda d: _parse(d.get("processed") or d["created"]).astimezone(_pt()).date().isoformat()          # noqa: E731
     latest = max(day(d) for d in rows)
     contested = _contested(root)
     claims = []

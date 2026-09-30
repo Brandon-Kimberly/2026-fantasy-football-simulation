@@ -206,7 +206,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["stamp"] = render.human_time
     app.jinja_env.filters["num"] = _fmt_num
     # UI-V8: a percentage that may not exist yet -- "—", never "—%" (Jinja's Undefined is "not none")
-    app.jinja_env.filters["pctn"] = lambda v, nd=1: (_fmt_num(v, nd) + "%") if isinstance(v, (int, float)) and v == v else "—"
+    app.jinja_env.filters["pctn"] = lambda v, nd=1: (_fmt_num(v, nd) + "%") if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v else "—"
     app.jinja_env.filters["ts"] = render.human_time
     app.jinja_env.filters["pct"] = render.fpct
     app.jinja_env.filters["wins"] = render.fwins                  # UI-O1: 2 wins, not "2.0"; a tie's half shows
@@ -564,7 +564,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def _headers(resp):
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["Referrer-Policy"] = "no-referrer"
-        resp.headers["Cache-Control"] = "no-store"
+        if not request.path.startswith("/img/"):              # a headshot or logo keeps its day (audit 2026-09-29)
+            resp.headers["Cache-Control"] = "no-store"
         return resp
 
     def require_csrf():
@@ -620,7 +621,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         from fantasy_sim.config import NFL_TEAMS
         from webui.live import ABBR_ALIASES
         logos = {t: root.image("teams", t) for t in NFL_TEAMS}
-        logos.update({e: logos.get(r) for e, r in ABBR_ALIASES.items()})
+        # only a code the league does not already use: "LV" is live and must not become the legacy "OAK" (audit)
+        logos.update({e: logos.get(r) for e, r in ABBR_ALIASES.items() if e not in logos})
         return render_template("gameday.html", live=_live_payload(live.peek()), logos={t: u for t, u in logos.items() if u}, **rep)
 
     @app.route("/api/live")

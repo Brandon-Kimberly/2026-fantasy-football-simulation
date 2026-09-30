@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import time
 
 TOP_DIRS = ("current", "weeks", "decisions", "logs", "results")
 EXTENSIONS = (".json", ".jsonl", ".png", ".html", ".md", ".txt", ".log")
@@ -75,18 +76,23 @@ class Root:
         self._images = {}
 
     # ------------------------------------------------------------------ images (UI-P6)
+    IMAGE_LIST_TTL_S = 5     # audit 2026-09-29: a file written in the same Windows clock tick as a listing
+    #                          leaves the folder's mtime unchanged, so the listing also expires after this
+
     def _image_names(self, kind):
-        """The cached file names of one kind, re-listed only when the folder changes."""
+        """The cached file names of one kind, re-listed when the folder changes or the listing is
+        IMAGE_LIST_TTL_S old."""
         d = os.path.join(self.data, "images", kind)
         try:
             m = os.stat(d).st_mtime_ns
         except OSError:
             return frozenset()
+        now = time.monotonic()
         hit = self._images.get(kind)
-        if not hit or hit[0] != m:
-            hit = (m, frozenset(os.listdir(d)))
+        if not hit or hit[0] != m or now - hit[1] > self.IMAGE_LIST_TTL_S:
+            hit = (m, now, frozenset(os.listdir(d)))
             self._images[kind] = hit
-        return hit[1]
+        return hit[2]
 
     def image_file(self, kind, name):
         """The full path of a cached image, or None: the kind is known, the name is a valid

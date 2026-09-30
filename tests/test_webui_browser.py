@@ -799,6 +799,26 @@ class TestJobPagesListen(BrowserCase):
         self.assertTrue(self.watch(drop_stream=True), "the page polled once the stream failed")
 
 
+class TestTheJobBarPolls(BrowserCase):
+    """Post-roadmap audit: every page's job bar and the job page each held an event stream, and
+    a browser allows six connections per host -- a few tabs stalled every page load. The bar
+    polls (the old way); only the job's own page streams, and it shows no bar."""
+
+    def test_the_bar_polls_and_holds_no_stream(self):
+        jid = self.served.runner.launch(["py", "-m", "scripts.weekly_report"], "weekly_report")
+        self.served.runner.busy = self.served.runner.metas[jid]
+        streams, polls = [], []
+        self.page.on("request", lambda req: streams.append(req.url) if "/events" in req.url else
+                     (polls.append(req.url) if req.url.endswith(f"/jobs/{jid}.json") else None))
+        try:
+            self.open("/league")
+            self.page.wait_for_timeout(4000)
+        finally:
+            self.served.runner.busy = None
+        self.assertEqual(streams, [], "no stream from the job bar")
+        self.assertTrue(polls, "the bar polled")
+
+
 class TestCompactDensity(BrowserCase):
     """UI-V5: the compact toggle tightens table rows and nothing else, and the browser
     remembers it across pages."""

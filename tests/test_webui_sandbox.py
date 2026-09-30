@@ -2,8 +2,8 @@
 tests.test_webui_sandbox -- the sandbox root (docs/WEB_UI_ROADMAP.md UI-E6; docs/WEB_UI.md W5).
 
 Copy data/, run there, throw it away. webui.sandbox.create copies the served directories
-(current, weeks, decisions, logs, results) into a fresh temporary root marked as a sandbox --
-never data/local (the secrets and the identity map) and never the image cache -- and discard
+(current, weeks, decisions, logs, results) and the image cache into a fresh temporary root marked
+as a sandbox -- never data/local (the secrets and the identity map) -- and discard
 removes a sandbox and refuses anything not marked as one. The job runner takes a code root: a
 job launched against a sandbox runs with its working directory there (every relative data/
 write lands in the copy) and imports the real checkout's code. `py -3.10 -m webui --sandbox`
@@ -65,7 +65,9 @@ class TestCreateAndDiscard(Case):
         for d in ("current", "weeks", "decisions", "logs"):
             self.assertTrue(os.path.isdir(os.path.join(sb.data, d)), d)
         self.assertFalse(os.path.exists(os.path.join(sb.data, "local", "env.sh")), "data/local is never copied")
-        self.assertFalse(os.path.exists(os.path.join(sb.data, "images")))
+        # the image cache IS copied (audit 2026-09-29): without it a sandbox showed no faces and a
+        # sync run there fetched every image again
+        self.assertTrue(os.path.isfile(os.path.join(sb.data, "images", "teams", "gb.png")))
         self.assertTrue(sandbox.is_sandbox(sb))
         self.assertFalse(sandbox.is_sandbox(self.real))
 

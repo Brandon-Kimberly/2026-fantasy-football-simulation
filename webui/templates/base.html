@@ -174,6 +174,8 @@ p { margin: .4em 0; }
 .rank { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-family: var(--display); font-size: 11px; font-weight: 800; color: var(--muted); background: var(--mid); }
 .rank.r1 { background: var(--g-gold); color: #2b2000; box-shadow: 0 2px 8px rgba(201,150,42,.45); } .rank.r2 { background: linear-gradient(135deg, #9aa3ad, #d4d9de); color: #fff; } .rank.r3 { background: linear-gradient(135deg, #a5602d, #d4906a); color: #fff; }
 img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
+/* the page's name for a screen reader, where the design leads with something else (audit 2026-09-29) */
+.vh { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* UI-V4: an NFL team's colour as a swatch beside its code -- never the text's colour; neutral when none is cached */
 .nflsw { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; background: var(--team, var(--mid)); box-shadow: 0 0 0 1px var(--rule); }
 /* UI-P6: a player's face (the local headshot, or the NFL team's logo), after .mark so it wins */
@@ -181,6 +183,7 @@ img.mark { object-fit: cover; background: var(--mid); border: 1px solid var(--gr
 img.face { object-fit: cover; background: var(--mid); border: 1px solid var(--grid); }
 img.face[src^="/img/teams/"] { object-fit: contain; background: var(--surface); padding: 2px; }
 .face.lg { width: 76px; height: 76px; margin-right: 0; font-size: 22px; }
+.face.mark { display: inline-flex; align-items: center; justify-content: center; margin-right: 0; }   /* the fallback keeps .mark's centring (audit 2026-09-29) */
 .pcard .n img.face { width: 34px; height: 34px; margin-right: 9px; }
 
 /* ---- tables ---- */
@@ -296,7 +299,7 @@ table.heat2 td.h0 { color: var(--muted); } table.heat2 tr.me th.nm { font-weight
 details.tview { margin-top: 6px; font-size: 12px; } details.tview summary { cursor: pointer; color: var(--muted); }
 [data-player] { cursor: help; text-decoration: underline dotted var(--rule); text-underline-offset: 3px; }
 .themeform { display: inline-flex; gap: 0; margin-left: 12px; vertical-align: middle; } .themeform button { padding: 3px 9px; font-size: 10px; border-radius: 0; box-shadow: none; letter-spacing: .08em; }
-.densitybtn { padding: 3px 9px; font-size: 10px; letter-spacing: .08em; box-shadow: none; margin-left: 6px; vertical-align: middle; } .densitybtn[aria-pressed="true"] { background: var(--ink); color: var(--plane); }
+.densitybtn { padding: 3px 9px; font-size: 10px; letter-spacing: .08em; box-shadow: none; margin-left: 6px; vertical-align: middle; } .densitybtn[aria-pressed="true"], .densitybtn[aria-pressed="true"]:hover, .densitybtn[aria-pressed="true"]:focus-visible { background: var(--ink); color: var(--plane); }
 .themeform button:first-of-type { border-radius: 999px 0 0 999px; } .themeform button:last-of-type { border-radius: 0 999px 999px 0; } .themeform button.on { background: var(--ink); color: var(--plane); border-color: var(--ink); }
 /* U3: the job bar while a job runs, and the toast when it ends */
 .jobbar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 80; background: var(--pos-bg); overflow: hidden; }
@@ -454,6 +457,8 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 .u-w-85em--h-85em--stroke-var-turf--tfc-initial { width: .85em !important; height: .85em !important; stroke: var(--turf) !important; -webkit-text-fill-color: initial !important; }
 .u-w-auto--maxw-20rem--d-inline-block { width: auto !important; max-width: 20rem !important; display: inline-block !important; }
 .u-ws-normal { white-space: normal !important; }
+/* after the utilities: a `hidden` attribute still hides an element that carries one (audit 2026-09-29) */
+[hidden] { display: none !important; }
 </style>
 <script>try { if (localStorage.getItem("syn-density") === "compact") document.documentElement.dataset.density = "compact"; } catch (e) {}</script>
 </head>
@@ -497,7 +502,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19a2 2 0 0 1 2-2h13"/></symbol>
   <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 4h8v5a4 4 0 0 1-8 0V4zM8 6H5a3 3 0 0 0 3 3M16 6h3a3 3 0 0 1-3 3M12 13v4M9 20h6"/></symbol>
 </svg>
-{% if job_now and job_now.state == 'RUNNING' %}<div class="jobbar" id="jobbar" data-id="{{ job_now.id }}" data-url="{{ job_now|job_url }}" data-label="{{ job_now.label or (job_now.tool|tool_title) }}" title="{{ job_now.label or (job_now.tool|tool_title) }} is running"><i></i></div>{% endif %}
+{% if job_now and job_now.state == 'RUNNING' and not (job and job.id == job_now.id) %}<div class="jobbar" id="jobbar" data-id="{{ job_now.id }}" data-url="{{ job_now|job_url }}" data-label="{{ job_now.label or (job_now.tool|tool_title) }}" title="{{ job_now.label or (job_now.tool|tool_title) }} is running"><i></i></div>{% endif %}
 <div class="toast" id="toast" hidden role="status"></div>
 <div class="pal" id="pal" hidden><div class="box"><input type="search" id="pal-q" placeholder="Jump to a page, a tool, a team… or type: compare A vs B" autocomplete="off" aria-label="command palette"><ul id="pal-list"></ul><div class="foot"><span><kbd>↑</kbd> <kbd>↓</kbd> move</span><span><kbd>Enter</kbd> open</span><span><kbd>Esc</kbd> close</span><span><kbd>?</kbd> every shortcut</span></div></div></div>
 <div class="keys" id="keys" hidden><div class="box"><h3>Keyboard shortcuts</h3><dl>
@@ -531,7 +536,7 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 // UI-E8: follow a running job -- the server-sent event stream where the browser has one, the
 // old polling of /jobs/<id>.json (every `pollMs`) when it does not or the stream drops.
 // `apply(status)` gets every update; watching stops once the job has ended.
-window.watchJob = function (jid, apply, pollMs) {
+window.watchJob = function (jid, apply, pollMs, pollOnly) {
   var url = '/jobs/' + encodeURIComponent(jid), done = false;
   function poll() {
     if (done) return;
@@ -544,7 +549,9 @@ window.watchJob = function (jid, apply, pollMs) {
         setTimeout(poll, pollMs);
       }).catch(function () { setTimeout(poll, pollMs * 2); });
   }
-  if (!window.EventSource) { setTimeout(poll, pollMs); return; }
+  // pollOnly: the job bar on every page polls -- a browser allows six connections per host, and a
+  // stream held by every open tab would stall page loads (audit 2026-09-29)
+  if (pollOnly || !window.EventSource) { setTimeout(poll, pollMs); return; }
   var es = new EventSource(url + '/events');
   es.onmessage = function (ev) {
     var j;
@@ -633,7 +640,7 @@ window.watchJob = function (jid, apply, pollMs) {
       bar.remove();
       if (j.state === 'OK') showToast('<span><b>' + escT(jlabel) + '</b> finished.</span> <a href="' + escT(jurl) + '">Open the answer</a>', 30000);
       else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
-    }, 3000);
+    }, 3000, true);
   }
   // U4 / U14: the command palette and the shortcuts
   var PALETTE = {{ palette|tojson }};
