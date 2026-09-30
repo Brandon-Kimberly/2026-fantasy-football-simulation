@@ -172,6 +172,10 @@ LEAGUE_STATE_FILE = _current("league_state.json")
 LIVE_ROSTERS_FILE = _current("live_rosters.json")
 LEAGUE_STANDINGS_FILE = _current("league_standings.json")
 WEEKLY_ACTUALS_FILE = _current("weekly_actuals.json")
+# UI-L4 (2026-09-29): each completed week's lineups as the league played them --
+# {"week_N": {team: {"starters": [player ids], "players": [player ids]}}}. Current state, rewritten
+# each sync from the same matchups fetch as the actuals. Read by the web UI only; never the engine.
+WEEKLY_LINEUPS_FILE = _current("weekly_lineups.json")
 # F7 (AUDIT_PLAN.md): append-only log of the projections each sync used for rostered players,
 # so next season's projection error -- what EPISTEMIC_ERROR_RATES actually is -- can be measured.
 # Sleeper serves only the current week's projections; this file is the only record of them.

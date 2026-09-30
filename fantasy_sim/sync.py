@@ -32,7 +32,7 @@ from fantasy_sim.storage import (
     LIVE_ROSTERS_FILE, LEAGUE_STANDINGS_FILE, WEEKLY_ACTUALS_FILE, load_json, save_json, PROJECTION_LOG_FILE, PLAYOFF_BRACKET_FILE,
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
-    PENDING_TRADES_FILE, draft_log_file, season_log_file, NFL_TEAM_COLORS_FILE, FAILED_CLAIMS_FILE,
+    PENDING_TRADES_FILE, draft_log_file, season_log_file, NFL_TEAM_COLORS_FILE, WEEKLY_LINEUPS_FILE, FAILED_CLAIMS_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1111,6 +1111,19 @@ def generate_league_schedule(roster_map, regular_season_weeks=14):
     save_json(LEAGUE_SCHEDULE_FILE, full_schedule)
     return failed_weeks
 
+def _extract_weekly_lineups(wk_matchups, roster_map):
+    """UI-L4: {team: {"starters": [player ids], "players": [player ids]}} for one completed week,
+    as the league played it. An empty slot ("0") is not a starter. Nothing is priced here."""
+    out = {}
+    for entry in wk_matchups or []:
+        team = roster_map.get(entry.get("roster_id"))
+        if not team:
+            continue
+        out[team] = {"starters": [str(p) for p in (entry.get("starters") or []) if p and str(p) != "0"],
+                     "players": [str(p) for p in (entry.get("players") or []) if p]}
+    return out
+
+
 def _extract_weekly_h2h_results(wk_matchups, roster_map):
     """
     Computes each team's real head-to-head win/loss for one week from Sleeper's matchup data,
@@ -1414,11 +1427,13 @@ def _sync_body(sharp_polling=False):
                                week_schedule=_wk_sched)
 
     all_weeks_actuals = {}
+    all_weeks_lineups = {}                              # UI-L4: the lineups as played, same fetch
     for wk in range(1, max(0, current_nfl_week - 1) + 1):
         m_resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{wk}")
         if m_resp.status_code != 200 or not m_resp.json(): continue
 
         wk_matchups = m_resp.json()
+        all_weeks_lineups[f"week_{wk}"] = _extract_weekly_lineups(wk_matchups, roster_map)
         wk_scores = {roster_map.get(entry["roster_id"]): float(entry.get("points", 0.0)) for entry in wk_matchups}
         median_cut = np.median(list(wk_scores.values())) if wk_scores else 0
 
@@ -1445,6 +1460,7 @@ def _sync_body(sharp_polling=False):
 
     record_source("sleeper_matchups", rows=len(all_weeks_actuals))
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
+    save_json(WEEKLY_LINEUPS_FILE, all_weeks_lineups)
     # B19: freeze what was FIRST reported, before a correction can overwrite it.
     n_first = append_first_recorded_scores(all_weeks_actuals, current_nfl_week, baselines)
     if n_first:
