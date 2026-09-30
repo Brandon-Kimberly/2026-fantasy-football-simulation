@@ -560,6 +560,59 @@ class TestPlayoffMachine(BrowserCase):
         self.assertEqual(self.errors, [])
 
 
+class TestLayoutAtTheOwnersWidths(BrowserCase):
+    """Owner report of 2026-09-29, at 1280 and at the owner's 2560:
+    1. Home's opponent sat towards the middle: its side is a reversed row told to justify to
+       flex-end, which in a reversed row is the LEFT.
+    2. League's standings lost their last column (budget left) with no way to scroll: above
+       720px no table scrolled, and the page clips what spills.
+    3. On Playoffs the table header covered the first row (the owner's): a header sticks at the
+       app header's height, and inside a box that scrolls sideways that is measured from the
+       box, not the page."""
+    plant = staticmethod(_plant_export)
+
+    def at(self, width):
+        self.page.set_viewport_size({"width": width, "height": 1000})
+
+    def test_the_opponent_sits_at_the_right_edge(self):
+        for w in (1280, 2560):
+            with self.subTest(width=w):
+                self.at(w)
+                self.open("/")
+                gap = self.page.evaluate("""() => {
+                    const who = document.querySelector('.hero .who'), side = who && who.querySelector('.side.r');
+                    return side ? who.getBoundingClientRect().right - side.lastElementChild.getBoundingClientRect().right : null; }""")
+                if gap is None:
+                    self.skipTest("no matchup hero in this fixture")
+                side_gap = self.page.evaluate("""() => { const who = document.querySelector('.hero .who'), side = who.querySelector('.side.r');
+                    return who.getBoundingClientRect().right - Math.max(...Array.from(side.children).map(c => c.getBoundingClientRect().right)); }""")
+                self.assertLessEqual(side_gap, 2, "the opponent's block reaches the right edge")
+
+    def test_a_table_wider_than_its_column_scrolls_and_one_that_fits_does_not(self):
+        self.at(1280)
+        self.open("/league")
+        info = self.page.evaluate("""() => { const s = document.querySelector('table.standings').closest('.scroller');
+            return {over: getComputedStyle(s).overflowX, sw: s.scrollWidth, cw: s.clientWidth}; }""")
+        if info["sw"] > info["cw"] + 1:
+            self.assertEqual(info["over"], "auto", "a table that does not fit scrolls rather than being clipped")
+        self.at(2560)
+        self.open("/league")
+        fits = self.page.evaluate("""() => { const t = document.querySelector('table.standings'), s = t.closest('.scroller');
+            return t.getBoundingClientRect().right <= s.getBoundingClientRect().right + 1; }""")
+        self.assertTrue(fits, "at 2560 the whole standings table fits")
+
+    def test_no_table_header_covers_its_first_row(self):
+        for w, path, sel in ((2560, "/playoffs", "table.pm-table"), (1280, "/playoffs", "table.pm-table"), (520, "/league", "table.standings")):
+            with self.subTest(width=w, path=path):
+                self.at(w)
+                self.open(path)
+                gap = self.page.evaluate(f"""() => {{ const t = document.querySelector({sel!r});
+                    const head = t.querySelector('thead').getBoundingClientRect(), th = t.querySelector('thead th').getBoundingClientRect();
+                    const row = t.querySelector('tbody tr').getBoundingClientRect();
+                    return row.top - th.bottom; }}""")
+                self.assertGreaterEqual(gap, -1, "the first row starts below the header")
+
+
 def _plant_started_week(root):
     """Week 3 under way, with a schedule: the owner (fixture team 0) against team 6."""
     from tests.test_webui_routes import TEAMS
