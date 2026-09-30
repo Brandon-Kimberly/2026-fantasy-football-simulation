@@ -180,8 +180,10 @@ def model_records(root):
     """UI-H4: records only a model can keep -- this season so far, from the quoted forecasts
     and the weekly exports.
       least_likely_win  the lowest quoted pre-game chance that won (the league's result, F83)
-      comeback          the lowest playoff odds in any forecast for a team now in a playoff place
-      collapse          the highest playoff odds in any forecast for a team now out of one
+      comeback          the lowest playoff odds in an earlier forecast for a team now in a playoff
+                        place, whose odds have risen since
+      collapse          the highest playoff odds in an earlier forecast for a team now out of one,
+                        whose odds have fallen since
       champion          the title winner's odds in the season's first forecast, once there is one
     Each is None until the season supplies it."""
     from webui.accuracy import chances_in, quoted_week
@@ -204,12 +206,17 @@ def model_records(root):
         seen = [(w, f[team]["playoff"]) for w, f in forecasts if (f.get(team) or {}).get("playoff") is not None]
         if not seen:
             continue
-        low = min(seen, key=lambda x: x[1])
-        high = max(seen, key=lambda x: x[1])
-        if team in inside and (out["comeback"] is None or low[1] < out["comeback"]["low"]):
-            out["comeback"] = {"team": team, "low": float(low[1]), "week": low[0], "now": float(seen[-1][1])}
-        if team not in inside and (out["collapse"] is None or high[1] > out["collapse"]["high"]):
-            out["collapse"] = {"team": team, "high": float(high[1]), "week": high[0], "now": float(seen[-1][1])}
+        # a comeback or a collapse is a MOVE: the low (or peak) comes before the latest forecast
+        # and the odds have since risen (or fallen) -- a team at its highest odds ever, now,
+        # is no collapse (2026-09-30)
+        now = float(seen[-1][1])
+        earlier = seen[:-1]
+        low = min(earlier, key=lambda x: x[1]) if earlier else None
+        high = max(earlier, key=lambda x: x[1]) if earlier else None
+        if team in inside and low and low[1] < now and (out["comeback"] is None or low[1] < out["comeback"]["low"]):
+            out["comeback"] = {"team": team, "low": float(low[1]), "week": low[0], "now": now}
+        if team not in inside and high and high[1] > now and (out["collapse"] is None or high[1] > out["collapse"]["high"]):
+            out["collapse"] = {"team": team, "high": float(high[1]), "week": high[0], "now": now}
     bracket = root.read_json("current/playoff_bracket.json", {}) or {}
     rounds = [r for r in bracket.get("rounds") or [] if isinstance(r, dict) and r.get("winner")]
     final = max(rounds, key=lambda r: r.get("round") or 0) if rounds else None
@@ -241,7 +248,9 @@ def season_page(root, season):
         if wk > last:
             continue
         rows = bundle["matchups"][str(wk)] or []
-        pts = {names.get(str(e.get("roster_id")), f"roster {e.get('roster_id')}"): e.get("points") for e in rows}
+        empty = {str(x) for x in bundle.get("unowned_rosters") or []}
+        pts = {names.get(str(e.get("roster_id")), "Empty slot" if str(e.get("roster_id")) in empty else f"roster {e.get('roster_id')}"):
+               e.get("points") for e in rows}
         by_mid = {}
         for e in rows:
             if e.get("matchup_id") is not None:

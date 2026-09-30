@@ -93,7 +93,7 @@ class TestTheStory(unittest.TestCase):
                 self.assertTrue(any("Crimson Marmots" in m and "wk 3" in m for m in marks), marks)
                 text = visible_text(body)
                 self.assertIn("+81.5", text)
-                self.assertIn("the biggest move that step", text)
+                self.assertIn("the biggest move between forecasts", text)
                 if mode == "simple":
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 

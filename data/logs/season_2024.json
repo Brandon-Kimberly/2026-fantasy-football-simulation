@@ -34,11 +34,10 @@
     "1": "Neon Walruses",
     "2": "Rocket Pandas",
     "3": "Turbo Llamas",
-    "4": "Cosmic Badgers",
-    "5": "Polar Yetis",
-    "6": "Quantum Ferrets",
-    "7": "Iron Wombats",
-    "8": "Crimson Marmots"
+    "4": "Polar Yetis",
+    "5": "Quantum Ferrets",
+    "6": "Crimson Marmots",
+    "7": "Cosmic Badgers"
   },
   "final_standings": {
     "Neon Walruses": {
@@ -59,35 +58,29 @@
       "ties": 0,
       "points_scored": 2460.74
     },
-    "Cosmic Badgers": {
+    "Polar Yetis": {
       "wins": 19,
       "losses": 9,
       "ties": 0,
       "points_scored": 2670.12
     },
-    "Polar Yetis": {
+    "Quantum Ferrets": {
       "wins": 14,
       "losses": 14,
       "ties": 0,
       "points_scored": 2480.72
     },
-    "Quantum Ferrets": {
+    "Crimson Marmots": {
       "wins": 16,
       "losses": 12,
       "ties": 0,
       "points_scored": 2337.62
     },
-    "Iron Wombats": {
+    "Cosmic Badgers": {
       "wins": 21,
       "losses": 7,
       "ties": 0,
       "points_scored": 2732.26
-    },
-    "Crimson Marmots": {
-      "wins": 0,
-      "losses": 28,
-      "ties": 0,
-      "points_scored": 0.0
     }
   },
   "matchups": {
@@ -10364,5 +10357,8 @@
       }
     ]
   },
-  "ingested_at": "2026-09-29T16:15:28Z"
+  "ingested_at": "2026-09-29T16:15:28Z",
+  "unowned_rosters": [
+    "8"
+  ]
 }

@@ -126,8 +126,10 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
 
     out = []
     for key in sorted(lineups, key=lambda k: int(str(k).rsplit("_", 1)[-1]) if str(k).rsplit("_", 1)[-1].isdigit() else 0):
-        lu = (lineups.get(key) or {}).get(team)
-        if not lu or not str(key).rsplit("_", 1)[-1].isdigit():
+        if not (str(key).startswith("week_") and str(key).rsplit("_", 1)[-1].isdigit()) or not isinstance(lineups.get(key), dict):
+            continue                                   # the file's "_season" stamp is no week
+        lu = lineups[key].get(team)
+        if not lu:
             continue
         wk = int(str(key).rsplit("_", 1)[-1])
         players = [str(p) for p in lu.get("players") or []]

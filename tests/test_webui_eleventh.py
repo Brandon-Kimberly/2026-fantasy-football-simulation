@@ -210,11 +210,15 @@ class TestKickoffAlert(unittest.TestCase):
                 self.assertIn("before kickoff", body)
 
     def test_permission_is_asked_for_only_when_the_box_is_ticked(self):
-        _body, script = self.page()
-        self.assertEqual(script.count("requestPermission"), 1)
-        asked = script.index("requestPermission")
+        # the request lives in base.html's window.askNotify (shared with the other alerts since
+        # 2026-09-30); Home's script calls it once, inside the change handler, never on load
+        body, script = self.page()
+        self.assertNotIn("requestPermission", script)
+        self.assertEqual(script.count("window.askNotify()"), 1)
+        asked = script.index("window.askNotify()")
         handler = script.index("alerts.addEventListener('change'")
         self.assertLess(handler, asked, "the request must sit inside the change handler, not run on load")
+        self.assertEqual(body.count("requestPermission"), 1, "one place asks: window.askNotify")
 
     def test_it_fires_once_per_kickoff_thirty_minutes_out(self):
         _body, script = self.page()

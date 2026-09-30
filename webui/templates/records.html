@@ -11,14 +11,14 @@
 <div class="head">
   <p class="eyebrow">records · every tool run and every digest</p>
   <h1>{% if week %}Week {{ week }} records{% elif adhoc is not none %}Ad-hoc records{% else %}Records{% endif %}</h1>
-  <p class="lede">What each tool said, kept as it was said. Scheduled and deliberate runs are <b>canonical</b>; everything exploratory goes to the archive. A record opens as tables, with the raw JSON one click further.</p>
+  <p class="lede">Every tool answer, kept exactly as given. The week's official runs are <b>canonical</b>; everything else goes to the archive.</p>
   <div class="wknav">{% for w in weeks %}<a href="/records/week-{{ w }}"{% if w == week %} class="on"{% endif %}>Week {{ w }}</a>{% endfor %}<a href="/records/ad-hoc"{% if adhoc is not none %} class="on"{% endif %}>Ad-hoc &amp; season</a></div>
 </div>
 
 {% if listing %}
 <div class="wknav" aria-label="tool">{% for t in tools %}<a href="?tool={{ t }}"{% if t == tool %} class="on"{% endif %}>{{ t|tool_title }}</a>{% endfor %}{% if tool %}<a href="?">every tool</a>{% endif %}</div>
 <section><h2>Canonical <span class="hint">the runs the season is scored on · records written within two minutes are one run</span></h2>{{ runlist(canon_runs, prev) }}</section>
-<section><h2>Archive <span class="hint">exploratory, mid-week and development runs</span></h2>{{ runlist(archive_runs, prev) }}</section>
+<section><h2>Archive <span class="hint">exploratory, mid-week and test runs</span></h2>{{ runlist(archive_runs, prev) }}</section>
 {% endif %}
 
 {% if adhoc is not none %}

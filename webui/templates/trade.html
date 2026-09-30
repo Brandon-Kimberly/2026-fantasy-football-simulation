@@ -17,7 +17,7 @@
 <div class="head">
   <p class="eyebrow">trade builder</p>
   <h1>Trade builder</h1>
-  <p class="lede">Pick a team, tick what you would give and what you would get, and see at once what the deal does to each side's best lineup for the rest of the regular season. For what it does to your playoff and title chances, send it to the full simulation.</p>
+  <p class="lede">Pick a team and tick the players on each side. You'll see right away what the deal does to both starting lineups for the rest of the regular season; run the full simulation for playoff and title odds.</p>
   {{ toolshere(["evaluate_trade"] + (["find_trades", "trade_leverage"] if dev else [])) }}
 </div>
 
@@ -49,7 +49,7 @@
     <ul>
       <li>{{ s.total|signed(1) }} over the {{ est.weeks|length }} week{{ 's' if est.weeks|length != 1 }} left</li>
       {% if s.new_holes %}<li class="neg">leaves a starting slot empty in week{{ 's' if s.new_holes|length != 1 }} {{ s.new_holes|join(", ") }}</li>{% endif %}
-      {% if s.over %}<li>ends at {{ s.active_after }} active players, over the limit of 19: must drop {{ s.over }}{% for d in s.drops %} -- likely {{ d.name }} ({{ d.mean|num(1) }} a week){% endfor %}</li>{% elif s.gets|length < s.gives|length %}<li>frees {{ s.gives|length - s.gets|length }} roster spot{{ 's' if s.gives|length - s.gets|length != 1 }}</li>{% endif %}
+      {% if s.over %}<li>ends at {{ s.active_after }} active players, over the 19-player limit: must drop {{ s.over }}{% for d in s.drops %}, likely {{ d.name }} ({{ d.mean|num(1) }} a week){% endfor %}</li>{% elif s.gets|length < s.gives|length %}<li>frees {{ s.gives|length - s.gets|length }} roster spot{{ 's' if s.gives|length - s.gets|length != 1 }}</li>{% endif %}
     </ul>
   </div>
   {% endfor %}
@@ -72,8 +72,8 @@
 <td class="num">{{ a.before|num(1) }} → <b>{{ a.after|num(1) }}</b></td><td class="num {{ 'pos' if a.delta > 0 else ('neg' if a.delta < 0) }}">{{ a.delta|signed(1) }}</td>
 <td class="num">{{ b.before|num(1) }} → <b>{{ b.after|num(1) }}</b></td><td class="num {{ 'pos' if b.delta > 0 else ('neg' if b.delta < 0) }}">{{ b.delta|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-10px">A quick estimate: each side's best lineup from season averages, with byes and injured reserve left out. It knows nothing of injuries to come, matchups, or how the rest of the league moves, and it does not price playoff or title chances.</p>
-<p class="u-mt-12px"><a class="btn" href="{{ est.simulate }}"><svg class="i"><use href="#i-swap"/></svg> Run the full simulation</a> <span class="small muted">two paired runs, a few minutes</span></p>
+<p class="small muted u-mt-10px">Each side's best lineup from season averages, skipping byes and injured reserve. It doesn't account for future injuries, matchups or the rest of the league, and it doesn't price playoff or title odds.</p>
+<p class="u-mt-12px"><a class="btn" href="{{ est.simulate }}"><svg class="i"><use href="#i-swap"/></svg> Run the full simulation</a> <span class="small muted">{{ "two paired runs, a few minutes" if dev else "takes a few minutes" }}</span></p>
 </section>
 {% elif other %}<p class="small muted u-mt-14px">Tick at least one player on either side.</p>{% endif %}
 <script>

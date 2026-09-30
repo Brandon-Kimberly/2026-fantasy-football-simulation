@@ -12,42 +12,42 @@ table.luck td { vertical-align: top; } table.luck td.nm { white-space: normal; m
 <div class="head">
   <p class="eyebrow">luck · {{ r.weeks }} week{{ "s" if r.weeks != 1 }} played</p>
   <h1>How the dice fell for {{ r.team|real }}</h1>
-  <p class="lede">Five measures of luck, each defined before the season began and each measured against the league rather than against the model, so the model's own misses are not called luck. They are shown side by side and never added into one number.</p>
+  <p class="lede">Five measures, each set before the season started and each compared with the rest of the league, so the model's own mistakes don't count as luck. They're shown side by side, never added into one number.</p>
   {{ toolshere(["luck_ledger"] if dev else []) }}
   <div class="lteams">{% for t in teams %}<a href="/luck?team={{ t|slug }}" class="{{ 'on' if t == r.team }}">{{ mark(t) }}{{ t|real }}</a>{% endfor %}</div>
 </div>
 <section>
-<div class="scroller"><table class="luck"><thead><tr><th>Measure</th><th class="num">Value</th><th>Which way</th><th>Can it be told from noise?</th></tr></thead><tbody>
+<div class="scroller"><table class="luck"><thead><tr><th>Measure</th><th class="num">Value</th><th>Which way</th><th>Real or noise?</th></tr></thead><tbody>
 {% for m in r.rows %}<tr class="measure"><td class="nm"><b>{{ m.label }}</b><div class="what">{{ m.what }}</div></td>
 {% if m.metric %}<td class="num"><b>{{ m.metric.delta|signed(2) }}</b> <span class="small muted">{{ m.metric.se|se }}</span><div class="small muted">{{ m.unit }}</div></td>
 <td class="way-{{ m.way }}">{{ m.way }}</td>
 <td>{% if r.early %}<span class="muted">too early to test: fewer than {{ r.min_weeks }} weeks</span>{% elif m.p is not none %}{{ m.word }} <span class="small muted">(z {{ m.z|signed(2) }}, p {{ m.p|num(3) }})</span>{% else %}<span class="muted">no spread to test against</span>{% endif %}</td>
 {% else %}<td class="num muted">—</td><td colspan="2" class="small muted">{{ m.why_none }}</td>{% endif %}</tr>{% endfor %}
 </tbody></table></div>
-{% if r.early %}<p class="small muted u-mt-8px">With {{ r.weeks }} week{{ "s" if r.weeks != 1 }} played, nothing here can be told from chance, so no test is shown until week {{ r.min_weeks }} — a threshold set before the season. The ± beside each value is the honest content now: it says how noisy each number still is.</p>{% endif %}
-{% if r.disagreement %}{% set d = r.disagreement %}<p class="small muted">The league banked {{ d.banked }} wins for {{ r.team|real }}, but today's box scores add up to {{ d.recomputed }} ({{ d.h2h_wins }} head-to-head and {{ d.median_wins }} against the median): Sleeper now scores finished weeks under the league's later settings. The two measures that depend on who won are withheld rather than shown on rewritten results.</p>{% endif %}
+{% if r.early %}<p class="small muted u-mt-8px">After {{ r.weeks }} week{{ "s" if r.weeks != 1 }}, nothing here can be separated from chance, so the test waits until week {{ r.min_weeks }}, a threshold set before the season. For now, read the ± beside each value: it shows how noisy the number still is.</p>{% endif %}
+{% if r.disagreement %}{% set d = r.disagreement %}<p class="small muted">The league banked {{ d.banked }} wins for {{ r.team|real }}, but today's box scores add up to {{ d.recomputed }} ({{ d.h2h_wins }} head-to-head, {{ d.median_wins }} against the median), because Sleeper now scores finished weeks under the league's later settings. The two measures that depend on who won are withheld.</p>{% endif %}
 </section>
 {# Decision 2 (owner ruling 2026-09-29): pre-registered in docs/LUCK_LEDGER.md's addendum #}
 <section>
-<h2><svg class="i c-violet"><use href="#i-dice"/></svg> Registered later <span class="hint">defined 2026-09-29, after weeks 1-3 had been played, and before anything computed them</span></h2>
-<div class="scroller"><table class="luck"><thead><tr><th>Measure</th><th class="num">Value</th><th>Which way</th><th>Can it be told from noise?</th></tr></thead><tbody>
-{% for key, label, what in (("forecast_luck", "Forecast luck", "head-to-head wins minus the model's pre-game chances of winning"), ("median_luck", "Median luck", "median wins minus the model's pre-game chances of beating the median, against the league's average")) %}{% set m = late[key] %}
+<h2><svg class="i c-violet"><use href="#i-dice"/></svg> Registered later <span class="hint">defined 2026-09-29, after week 3 and before either had been computed</span></h2>
+<div class="scroller"><table class="luck"><thead><tr><th>Measure</th><th class="num">Value</th><th>Which way</th><th>Real or noise?</th></tr></thead><tbody>
+{% for key, label, what in (("forecast_luck", "Forecast luck", "head-to-head wins minus the model's pre-game win chances, added up"), ("median_luck", "Median luck", "median wins minus the model's pre-game chances of beating the median, compared with the league average")) %}{% set m = late[key] %}
 <tr class="measure late"><td class="nm"><b>{{ label }}</b><div class="what">{{ what }}</div></td>
 {% if m %}<td class="num"><b>{{ m.delta|signed(2) }}</b> <span class="small muted">{{ m.se|se }}</span><div class="small muted">wins, over {{ m.n }} week{{ "s" if m.n != 1 }}</div></td>
 <td class="way-{{ m.way }}">{{ m.way }}</td>
 <td>{% if m.p is none %}<span class="muted">too early to test: fewer than {{ r.min_weeks }} weeks</span>{% else %}{{ m.word }} <span class="small muted">(z {{ m.z|signed(2) }}, p {{ m.p|num(3) }})</span>{% endif %}</td>
-{% else %}<td class="num muted">—</td><td colspan="2" class="small muted">not measurable yet: no week has both a result and the model's quote from before kickoff</td>{% endif %}</tr>{% endfor %}
+{% else %}<td class="num muted">—</td><td colspan="2" class="small muted">not measurable yet: no week has both a result and a pre-game forecast</td>{% endif %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-8px">Registered late but not after the fact: they were written down before anything here had computed them, and the date says the season was three weeks old. Like the five above, each stands alone.{% if late.forecast_luck and late.forecast_luck.left_out %} {{ late.forecast_luck.left_out }} week{{ "s" if late.forecast_luck.left_out != 1 }} had no quote from before kickoff and {{ "are" if late.forecast_luck.left_out != 1 else "is" }} left out.{% endif %}</p>
+<p class="small muted u-mt-8px">Added late, but written down before anything had computed them. Like the five above, each stands alone.{% if late.forecast_luck and late.forecast_luck.left_out %} {{ late.forecast_luck.left_out }} week{{ "s" if late.forecast_luck.left_out != 1 }} had no pre-game forecast and {{ "are" if late.forecast_luck.left_out != 1 else "is" }} left out.{% endif %}</p>
 </section>
 
 {% if swap and swap.teams %}
 <section>
-<h2><svg class="i"><use href="#i-cal"/></svg> On each other's schedule <span class="hint">each row's record had it played the column's schedule · descriptive, not a test</span></h2>
+<h2><svg class="i"><use href="#i-cal"/></svg> On each other's schedule <span class="hint">each row team's record against the column team's schedule · for interest, not a test</span></h2>
 <div class="scroller"><table class="heat2 swap"><thead><tr><th>Team \ schedule of</th>{% for b in swap.teams %}<th>{{ mark(b) }}</th>{% endfor %}</tr></thead><tbody>
 {% for a in swap.teams %}<tr{% if a == r.team %} class="me"{% endif %}><th class="nm">{{ a|real }}</th>{% for b in swap.teams %}{% set c = swap.cells[a][b] %}{% set n = c[0] + c[1] + c[2] %}{% set share = (c[0] + 0.5 * c[2]) / n if n else 0 %}<td class="hc {{ 'own' if a == b else ('h' ~ (1 + ([share * 4, 3.99]|min)|int)) }}" title="{{ a|real }} on {{ b|real }}'s schedule: {{ c[0] }}-{{ c[1] }}{% if c[2] %}-{{ c[2] }}{% endif %}">{{ c[0] }}–{{ c[1] }}{% if c[2] %}–{{ c[2] }}{% endif %}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-8px">Each week the row team's score is set against the score of whoever the column team played; in the week the column team played the row team, the row team faces the column team instead. The outlined diagonal is each team's own record on these scores.{% if swap.rescored %} Scores are Sleeper's box scores, which re-score some early weeks under the league's later settings, so a diagonal can differ from the league's record.{% endif %}</p>
+<p class="small muted u-mt-8px">Each week, the row team's score goes up against the column team's opponent; in the week those two teams met, it goes up against the column team. The outlined diagonal is each team's own record.{% if swap.rescored %} These are Sleeper's box scores, which re-score some early weeks under the league's later settings, so a diagonal can differ from the league's record.{% endif %}</p>
 </section>
 <style>table.swap td.own { outline: 2px solid var(--ink); outline-offset: -3px; background: var(--surface); }</style>
 {% endif %}

@@ -2205,6 +2205,43 @@ def ingest_drafts(roster_map, league_id=None, path_fn=None):
     return written
 
 
+def owner_roster_map(past_rosters, current_rosters, names):
+    """({past roster_id: today's team name}, [unowned past roster_ids]) -- a past season's
+    rosters matched to today's teams by OWNER, never by roster number.
+
+    Roster numbers carry over only within one renewal chain. The 2024 league is not the renewal
+    of today's (B20), and Sleeper numbered its rosters differently: matched by number, five of
+    its seven seasons landed on the wrong team -- the owner's own among them (owner report
+    2026-09-30). A roster with no owner is an empty slot (2024's roster 8 scored 0.00 every
+    week) and is no team; an owner no longer in the league is "Former manager (roster N)".
+    No owner id leaves this function."""
+    now_by_owner = {r.get("owner_id"): str(r.get("roster_id")) for r in current_rosters or [] if r.get("owner_id")}
+    rmap, unowned = {}, []
+    for r in past_rosters or []:
+        rid, owner = str(r.get("roster_id")), r.get("owner_id")
+        if not owner:
+            unowned.append(rid)
+        elif owner in now_by_owner:
+            rmap[rid] = names.get(now_by_owner[owner], f"roster_{now_by_owner[owner]}")
+        else:
+            rmap[rid] = f"Former manager (roster {rid})"
+    return rmap, sorted(unowned, key=int)
+
+
+def remap_season_bundle(bundle, past_rosters, current_rosters, names):
+    """An archived season bundle with its roster map (and final standings' keys) re-derived by
+    owner (owner_roster_map); an unowned roster leaves both and is listed in unowned_rosters."""
+    rmap, unowned = owner_roster_map(past_rosters, current_rosters, names)
+    old = {str(k): v for k, v in (bundle.get("roster_map") or {}).items()}
+    fs = bundle.get("final_standings") or {}
+    new_fs = {}
+    for rid, was in old.items():
+        if rid in rmap and was in fs:
+            new_fs[rmap[rid]] = fs[was]
+    out = dict(bundle, roster_map=rmap, final_standings=new_fs, unowned_rosters=unowned)
+    return out
+
+
 def ingest_season(league_id, path_fn=None):
     """The season-retrospective bundle (storage.season_log_file): one document per season --
     the league's metadata (roster_positions, playoff_week_start, league_average_match), the
@@ -2226,13 +2263,14 @@ def ingest_season(league_id, path_fn=None):
         if os.path.exists(path):
             return 0  # immutable once written
         rosters = requests.get(f"{BASE_URL}/league/{league_id}/rosters", timeout=10).json() or []
-        # F37: roster_id-keyed (Sleeper keeps roster_id stable across a renewed league,
-        # the same assumption ingest_drafts already documents).
-        roster_map = {str(r["roster_id"]): TEAM_NAME_MAP.get(str(r["roster_id"]),
-                                                             f"roster_{r['roster_id']}")
-                      for r in rosters}
+        # Matched to today's teams by OWNER (owner_roster_map): roster numbers carry over only
+        # within one renewal chain, and the 2024 league is not in ours (owner report 2026-09-30).
+        current = rosters if str(league_id) == str(LEAGUE_ID) else             (requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/rosters", timeout=10).json() or [])
+        roster_map, unowned = owner_roster_map(rosters, current, TEAM_NAME_MAP)
         final_standings = {}
         for r in rosters:
+            if str(r["roster_id"]) not in roster_map:
+                continue                                  # an empty slot is no team
             st = r.get("settings", {})
             final_standings[roster_map[str(r["roster_id"])]] = {
                 "wins": int(st.get("wins", 0)), "losses": int(st.get("losses", 0)),
@@ -2262,7 +2300,7 @@ def ingest_season(league_id, path_fn=None):
                   "roster_positions": info.get("roster_positions"),
                   "settings": {"playoff_week_start": (info.get("settings") or {}).get("playoff_week_start"),
                                "league_average_match": (info.get("settings") or {}).get("league_average_match")},
-                  "roster_map": roster_map, "final_standings": final_standings,
+                  "roster_map": roster_map, "unowned_rosters": unowned, "final_standings": final_standings,
                   "matchups": matchups,
                   "ingested_at": datetime.utcfromtimestamp(_now_ms() / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ")}
         save_json(path, bundle)

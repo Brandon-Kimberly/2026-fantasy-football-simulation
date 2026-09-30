@@ -16,9 +16,9 @@
 
 <div class="acc">
 <div class="head">
-  <p class="eyebrow">accuracy · what was said before the games, against what happened</p>
+  <p class="eyebrow">accuracy · the forecasts against the results</p>
   <h1>Accuracy</h1>
-  <p class="lede">Every probability here is a count of simulated seasons, and this is the page that checks them. Only the forecast that was committed <b>before a week's first kickoff</b> is scored: anything logged after the games began knows too much, and a week whose only committed forecast came later is skipped and said to be skipped rather than quietly replaced.{% if dev %} The quoted row is the newest canonical <code>week_predictions</code> row logged before the week's earliest kickoff (F25/B5).{% endif %}</p>
+  <p class="lede">What the model said against what happened. Only the forecast committed <b>before a week's first kickoff</b> is scored; anything logged later knows too much. A week without one is skipped, and listed as skipped.{% if dev %} The quoted row is the newest canonical <code>week_predictions</code> row logged before the week's earliest kickoff (F25/B5).{% endif %}</p>
   <div class="note-first"><b>{{ note }}</b>{% if skipped %} Skipped: {% for s in skipped %}week {{ s.week }} ({{ s.why }}){{ ", " if not loop.last }}{% endfor %}.{% endif %}</div>
 </div>
 
@@ -29,27 +29,27 @@
   {"k": "points, average miss", "v": (points.mae|num(1)) if points.n else "—",
    "s": ("bias " ~ points.bias|signed(1) ~ " per team-week over " ~ points.n|string ~ " forecasts") if points.n else "", "tone": ""},
   {"k": "spread of the misses", "v": (points.sd_z|num(2)) if points.sd_z is not none else "—",
-   "s": "1.00 would mean the stated uncertainty was exactly right", "tone": ("warn" if points.sd_z and (points.sd_z < 0.8 or points.sd_z > 1.25) else "")},
+   "s": "1.00 means the stated uncertainty is exactly right", "tone": ("warn" if points.sd_z and (points.sd_z < 0.8 or points.sd_z > 1.25) else "")},
   {"k": "inside the stated range", "v": ((points.within80 * 100)|round(0)|int|string ~ "%") if points.within80 is not none else "—",
-   "s": "80% is the target: four in five weeks should land inside", "tone": ""}
+   "s": "the target is 80%", "tone": ""}
 ]) }}
 
 <section>
 <h2><svg class="i c-turf"><use href="#i-matchup"/></svg> Who would win <span class="hint">one call per matchup, from the committed forecast</span></h2>
-<p class="small">The model called <b>{{ matchups.hits }}</b> of <b>{{ matchups.calls }}</b> matchups correctly{% if matchups.n > matchups.calls %} ({{ matchups.n - matchups.calls }} were true coin-flips and are not counted as calls){% endif %}. Its Brier score is <b>{{ matchups.brier|num(3) }}</b> — lower is better, 0.25 is what you get by saying 50% to everything, and it is measured over all {{ matchups.n }} matchups.</p>
+<p class="small">The model called <b>{{ matchups.hits }}</b> of <b>{{ matchups.calls }}</b> matchups correctly{% if matchups.n > matchups.calls %} ({{ matchups.n - matchups.calls }} were true coin-flips and don't count as calls){% endif %}. Its Brier score over all {{ matchups.n }} matchups is <b>{{ matchups.brier|num(3) }}</b>; lower is better, and saying 50% every time scores 0.25.</p>
 </section>
 
 <section>
 <h2><svg class="i c-pos"><use href="#i-chart"/></svg> How many points <span class="hint">each team's forecast total against what it scored</span></h2>
-{% if points.n %}<p class="small">Over {{ points.n }} team-weeks the forecast was off by <b>{{ points.mae|num(1) }}</b> points on average, and ran <b>{{ (points.bias|abs)|num(2) }}</b> points {{ "high" if points.bias and points.bias < 0 else "low" }} overall.{% if points.sd_z is not none %} Dividing each miss by the spread the model stated for it gives <b>{{ points.sd_z|num(2) }}</b>; at 1.00 the stated uncertainty would be exactly right, {% if points.sd_z < 1 %}and below it the model is claiming more uncertainty than it needs{% else %}and above it the model is more confident than it should be{% endif %}.{% endif %}{% if dev %} This is the quoted-vs-realised read M1's interval-shape work waits on.{% endif %}</p>{% else %}<p class="small muted">No team-week has been scored against its forecast yet.</p>{% endif %}
+{% if points.n %}<p class="small">Over {{ points.n }} team-weeks the forecast missed by <b>{{ points.mae|num(1) }}</b> points on average and ran <b>{{ (points.bias|abs)|num(2) }}</b> points {{ "high" if points.bias and points.bias < 0 else "low" }} overall.{% if points.sd_z is not none %} Each miss divided by the spread the model stated for it has a spread of <b>{{ points.sd_z|num(2) }}</b>. At 1.00 the stated uncertainty is exactly right; {% if points.sd_z < 1 %}below it, the model is less sure than it needs to be{% else %}above it, the model is surer than it should be{% endif %}.{% endif %}{% if dev %} This is the quoted-vs-realised read M1's interval-shape work waits on.{% endif %}</p>{% else %}<p class="small muted">No team-week has been scored against its forecast yet.</p>{% endif %}
 </section>
 
 <section>
-<h2><svg class="i c-turf"><use href="#i-chart"/></svg> Two readings of the stated spread <span class="hint">why this page and the points backtest can point different ways</span></h2>
+<h2><svg class="i c-turf"><use href="#i-chart"/></svg> Two readings of the stated spread <span class="hint">why this page and the points backtest can disagree</span></h2>
 {% set bt = backtest %}
 <p class="small">This page scores the quote made days before <b>the same week</b>'s games, this season: {% if points.within80 is not none %}<b>{{ (points.within80 * 100)|round(0)|int }}%</b> of {{ points.n }} team-weeks landed inside the stated 80% range (one standard error on a coverage rate at that size: {{ ((0.16 / points.n) ** 0.5 * 100)|se }} points){% else %}no team-week has been scored yet{% endif %}.
-{% if bt %}The points backtest re-runs the model from weeks {{ bt.checkpoints[:-1]|join(", ") }} and {{ bt.checkpoints[-1] }} of the 2025 season and scores every later team-week -- forecasts up to eleven weeks ahead, for another season: its newest logged run ({{ bt.at[:10] }}{% if bt.commit %}, {{ bt.commit }}{% endif %}) put <b>{{ (bt.cover80 * 100)|round(0)|int }}%</b> of {{ bt.n }} team-weeks inside the 80% range ({{ (bt.se * 100)|se }} points).{% else %}The other reading would be the points backtest, but no points backtest has been logged yet (scripts.run_points_backtest writes data/logs/points_backtest.jsonl).{% endif %}
-They measure different things -- a one-week horizon against weeks of it, this season against last -- so one reading wide and the other narrow is not a contradiction.{% if points.within80 is not none and points.n %}{% set za = (points.within80 - 0.8) / ((0.16 / points.n) ** 0.5) %} This page's figure sits {{ za|abs|num(1) }} standard errors {{ "above" if za > 0 else "below" }} 80%{% if bt %}{% set zb = (bt.cover80 - 0.8) / bt.se %} and the backtest's {{ zb|abs|num(1) }} {{ "above" if zb > 0 else "below" }}{% endif %}: suggestive, not settled.{% endif %} Both figures are read from their sources each time this page loads.</p>
+{% if bt %}The points backtest re-runs the model from weeks {{ bt.checkpoints[:-1]|join(", ") }} and {{ bt.checkpoints[-1] }} of the 2025 season and scores every later team-week, so its forecasts reach up to eleven weeks ahead, in another season. Its newest logged run ({{ bt.at[:10] }}{% if bt.commit %}, {{ bt.commit }}{% endif %}) put <b>{{ (bt.cover80 * 100)|round(0)|int }}%</b> of {{ bt.n }} team-weeks inside the 80% range ({{ (bt.se * 100)|se }} points).{% else %}The other reading would be the points backtest, but no points backtest has been logged yet (scripts.run_points_backtest writes data/logs/points_backtest.jsonl).{% endif %}
+They measure different things (one week ahead against many, this season against last), so one reading wide and the other narrow is not a contradiction.{% if points.within80 is not none and points.n %}{% set za = (points.within80 - 0.8) / ((0.16 / points.n) ** 0.5) %} This page's figure sits {{ za|abs|num(1) }} standard errors {{ "above" if za > 0 else "below" }} 80%{% if bt %}{% set zb = (bt.cover80 - 0.8) / bt.se %} and the backtest's {{ zb|abs|num(1) }} {{ "above" if zb > 0 else "below" }}{% endif %}: suggestive, not settled.{% endif %} Both figures are read fresh on each load.</p>
 </section>
 
 <section>
@@ -93,9 +93,9 @@ They measure different things -- a one-week horizon against weeks of it, this se
 {% endfor %}
 </section>
 
-<p class="small muted u-mt-18px">Nothing on this page is a verdict. It counts what was said against what happened; with this many weeks the counts are still mostly noise, and they are shown so the record builds in the open rather than being assembled later.</p>
+<p class="small muted u-mt-18px">None of this is a verdict yet. With this few weeks the counts are mostly noise; they are shown so the record builds in the open, not assembled after the fact.</p>
 {% else %}
-<div class="note u-mt-16px">Nothing to score yet. A week is scored once it has a result on file and a forecast that was committed before its first kickoff.</div>
+<div class="note u-mt-16px">Nothing to score yet. A week is scored once it has a result and a forecast committed before its first kickoff.</div>
 {% endif %}
 </div>
 {% endblock %}

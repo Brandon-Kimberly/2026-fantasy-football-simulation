@@ -247,7 +247,7 @@ class TestPages(unittest.TestCase):
             with self.subTest(mode=mode):
                 body = self.get("/gameday", mode=mode, board=board)
                 self.assertIn('id="gd"', body)
-                self.assertIn("auto-refresh", body.lower())
+                self.assertIn("refreshes every minute", body.lower())
                 self.assertIn("/api/live", body)
                 self.assertEqual(calls, [], "a page render never fetches")
 

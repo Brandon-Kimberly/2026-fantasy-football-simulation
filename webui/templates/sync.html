@@ -17,20 +17,20 @@
 .bk td { font-size: 13px; }
 </style>
 <div class="head">
-  <p class="eyebrow">sync · pull the league's current state</p>
+  <p class="eyebrow">sync · the league's current state from Sleeper</p>
   <h1>Sync <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
-  <p class="lede">Rosters, standings, betting lines and projections on disk are from the last sync{% if fr.manifest %} — <b>{{ fr.manifest.finished_at|when }}</b>{% if fr.age_hours is not none %}, {{ fr.age_hours|ago }}{% endif %}{% endif %}. A sync rewrites <code>data/current/</code> and appends the new transactions to the decision log; it never rewrites a log row, a forecast or a record. Three things happen before anything is written.</p>
+  <p class="lede">Rosters, standings, betting lines and projections are from the last sync{% if fr.manifest %}, <b>{{ fr.manifest.finished_at|when }}</b>{% if fr.age_hours is not none %} ({{ fr.age_hours|ago }}){% endif %}{% endif %}. A sync rewrites <code>data/current/</code> and adds new transactions to the decision log. It never rewrites a log row, a forecast or a record, and it does three things before writing anything.</p>
 </div>
 
 <div class="steps">
-  <div class="step"><div class="n">1 · preflight</div><b>The odds key is proven live first</b><p>Read from {{ key_source }}{% if not key_present %} — <span class="neg">none found</span>{% endif %}, probed against the-odds-api. Anything but an accepted key stops here: a dead key would silently write the flat 21.5 line over the real ones (C3).</p></div>
-  <div class="step"><div class="n">2 · backup</div><b>Everything in data/current/ is copied first</b><p>To a stamped folder under <code>data/local/</code> (never tracked), with a restore button below. The ten newest are kept.</p></div>
-  <div class="step"><div class="n">3 · the run</div><b>The same command you would type</b><p>With the verified key injected into that process only — it never enters a job record, a log or this page. The sync checks the key again itself (H5).</p></div>
+  <div class="step"><div class="n">1 · preflight</div><b>The odds key is tested</b><p>Read from {{ key_source }}{% if not key_present %} (<span class="neg">none found</span>){% endif %} and tried against the-odds-api. Anything but an accepted key stops the sync here, because a dead key would quietly replace the real lines with the flat 21.5 default (C3).</p></div>
+  <div class="step"><div class="n">2 · backup</div><b>data/current/ is backed up</b><p>Copied to a dated folder under <code>data/local/</code> (never tracked). The ten newest are kept, and any of them can be restored below.</p></div>
+  <div class="step"><div class="n">3 · the run</div><b>The usual sync command runs</b><p>The tested key goes to that one process and nowhere else: not a job record, a log or this page. The sync checks the key again itself (H5).</p></div>
 </div>
 
 {% if error %}<div class="note bad u-mt-16px"><b>Not launched — nothing was written.</b> {{ error }}{% if probe and probe.remaining %} <span class="muted">(the-odds-api quota: {{ probe.remaining }} requests left){% endif %}</div>{% endif %}
 {% if restored is defined and restored %}<div class="note good u-mt-16px"><b>Restored.</b> {{ restored }} file{{ 's' if restored != 1 }} copied back from <code>{{ restored_name }}</code>. The forecast and records were not touched; re-run what you need.</div>{% endif %}
-{% if current %}<div class="note warn u-mt-16px">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. Sync when it has finished.</div>{% endif %}
+{% if current %}<div class="note warn u-mt-16px"><a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a> is running. Sync once it finishes.</div>{% endif %}
 
 <section>
 <h2><svg class="i"><use href="#i-cloud"/></svg> Sync now <span class="hint">one at a time · the job page shows progress</span></h2>
@@ -43,14 +43,14 @@
 </div>
 {% endfor %}
 </div>
-<p class="small muted u-mt-12px">After a plain sync the forecast, lineup and waiver records are still the old ones — run them again from <a href="/tools">Tools</a>, or choose <i>Sync &amp; refresh</i> to do it in one go. The refresh is a non-canonical run: it files under the week's archive and its prediction row is marked as such, exactly like a hand run.</p>
-{% if not key_present %}<div class="note bad">No ODDS_API_KEY is set in the Windows User scope or this server's environment, so the button is off. Set it with <code>setx ODDS_API_KEY ...</code>, restart the server, and come back. A deliberate fallback sync stays a terminal act: <code>py -3.10 -m scripts.run_sync --allow-fallback</code>.</div>{% endif %}
+<p class="small muted u-mt-12px">A plain sync leaves the forecast, lineup and waiver answers as they were. Rerun them from <a href="/tools">Tools</a>, or use <i>Sync &amp; refresh</i> to do both at once. The refresh is a non-canonical run: it files under the week's archive and marks its prediction row that way, the same as a run from the terminal.</p>
+{% if not key_present %}<div class="note bad">No ODDS_API_KEY is set in the Windows User scope or this server's environment, so the buttons are off. Set it with <code>setx ODDS_API_KEY ...</code> and restart the server. A sync without real lines is terminal-only: <code>py -3.10 -m scripts.run_sync --allow-fallback</code>.</div>{% endif %}
 </section>
 
 <section>
 <h2 id="changed"><svg class="i c-violet"><use href="#i-swap"/></svg> What changed <span class="hint">against {{ "the backup" if compare else "the last backup" }}{% if changes.taken_at %} · {{ changes.taken_at|when }}{% endif %}{% if compare %} · <a href="/sync#changed">back to the newest</a>{% endif %}</span></h2>
 {% if not changes.available %}<p class="small muted">{{ changes.note }}</p>
-{% elif changes.n == 0 %}<p class="small muted">Nothing has moved since that backup: the same rosters, the same designations, the same projections and the same standings.</p>
+{% elif changes.n == 0 %}<p class="small muted">Nothing changed since that backup: rosters, designations, projections and standings are all the same.</p>
 {% else %}
 {% if changes.roster %}<h3>Rosters</h3>
 <div class="scroller"><table><thead><tr><th>Player</th><th>Was</th><th>Now</th></tr></thead><tbody>
@@ -68,7 +68,6 @@
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Wins</th><th class="num">Points</th></tr></thead><tbody>
 {% for c in changes.standings %}<tr><td class="nm">{{ mark(c.team) }}{{ teamlink(c.team) }}</td><td class="num">{{ c.wins }} <span class="muted small">was {{ c.wins_was }}</span></td><td class="num">{{ c.points|num(1) }} <span class="muted small">was {{ c.points_was|num(1) }}</span></td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
-<p class="small muted u-mt-10px">Read from the backup on disk, not recomputed; a sync that changed nothing shows nothing.</p>
 {% endif %}
 </section>
 
@@ -78,7 +77,7 @@
 <div class="scroller"><table class="bk"><thead><tr><th>Taken</th><th>Why</th><th class="num">Week</th><th class="num">Files</th><th class="num">Size</th><th></th><th></th></tr></thead><tbody>
 {% for b in backups %}<tr><td class="nm">{{ b.taken_at|when }}</td><td>{{ b.reason }}</td><td class="num">{{ b.week or "—" }}</td><td class="num">{{ b.files|length }}</td><td class="num">{{ (b.bytes / 1048576)|round(1) }} MB</td><td><a class="tiny" href="/sync?from={{ b.name }}#changed">compare</a></td><td><form method="post" action="/sync/restore" onsubmit="return confirm('Copy this backup back over data/current/? The current files will be replaced.')"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="name" value="{{ b.name }}"><button type="submit" class="ghost u-p-5px-10px--fs-11px"{% if current %} disabled{% endif %}>Restore</button></form></td></tr>{% endfor %}
 </tbody></table></div>
-{% else %}<p class="small muted">None yet — the first sync from this page will take one.</p>{% endif %}
+{% else %}<p class="small muted">None yet. The first sync from this page makes one.</p>{% endif %}
 </section>
 
 {% if last_job %}

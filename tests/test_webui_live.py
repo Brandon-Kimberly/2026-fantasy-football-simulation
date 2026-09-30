@@ -144,7 +144,7 @@ class TestSnapshot(unittest.TestCase):
     def test_my_roster_missing_is_reported_not_raised(self):
         s = live.snapshot(self.root, 3, MY_TEAM, "L", lambda url: [] if "matchups" in url else fake_fetch(url))
         self.assertFalse(s["ok"])
-        self.assertIn("not in this week", s["error"])
+        self.assertIn("isn't in this week's matchups", s["error"])
 
 
 class TestBoard(unittest.TestCase):

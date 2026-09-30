@@ -33,20 +33,20 @@
 <div class="head">
   <p class="eyebrow">decisions · every move in the league, scored</p>
   <h1>Decisions</h1>
-  <p class="lede">Every add, claim and trade the league has made this season, and what it did to that team's playoff and title chances — the same roster simulated with and without the move, on the same seeds.{% if dev %} The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them.{% endif %}</p>
+  <p class="lede">Every add, claim and trade this season, and what each did to that team's playoff and title odds. Each move is judged by simulating the season with and without it{% if dev %}, on the same seeds. The effects are the engine's, written to the decision log by <code>evaluate_move --evaluate-unevaluated</code>; this page only joins and sums them{% endif %}.</p>
   {{ toolshere(["evaluate_move"] + (["decision_scorecard", "bid_review"] if dev else [])) }}
 </div>
 
 {{ tiles([
-  {"k": "moves logged", "v": n|string, "s": n_evaluated|string ~ " evaluated · " ~ n_skipped|string ~ " skipped (roster drift) · " ~ n_pending|string ~ " not yet", "tone": ""},
-  {"k": "my moves", "v": mine|length|string, "s": "adds, claims and trades involving my roster", "tone": ""},
+  {"k": "moves logged", "v": n|string, "s": n_evaluated|string ~ " evaluated · " ~ n_skipped|string ~ (" skipped (roster drift)" if dev else " skipped (roster changed first)") ~ " · " ~ n_pending|string ~ " not yet", "tone": ""},
+  {"k": "my moves", "v": mine|length|string, "s": "adds, claims and trades", "tone": ""},
   {"k": "my playoff odds, net of my moves", "v": (my_row.playoff|signed(1) ~ " pts") if my_row else "—", "s": (my_row.playoff_se|se ~ " · " ~ my_row.evaluated|string ~ " evaluated") if my_row else "no evaluated move yet", "tone": ("pos" if my_row.playoff > 0 else ("neg" if my_row.playoff < 0 else "")) if my_row else ""},
   {"k": "my title odds, net of my moves", "v": (my_row.champ|signed(1) ~ " pts") if my_row else "—", "s": (my_row.champ_se|se) if my_row else "", "tone": ("pos" if my_row.champ > 0 else ("neg" if my_row.champ < 0 else "")) if my_row else ""}
 ]) }}
 
 {% if awards and awards.best %}
 <section>
-<h2><svg class="i c-gold"><use href="#i-award"/></svg> Awards <span class="hint">the single move that moved a team's playoff chances most, either way</span></h2>
+<h2><svg class="i c-gold"><use href="#i-award"/></svg> Awards <span class="hint">the moves that swung a team's playoff odds most, either way</span></h2>
 <div class="cards wide awards">
 {% for key, title, tone in (("best", "Move of the season", "pos"), ("worst", "Ouch of the season", "neg"), ("best_week", "Move of week " ~ awards.week|string, "pos"), ("worst_week", "Ouch of week " ~ awards.week|string, "neg")) %}{% set p = awards[key] %}
 {% if p and not (key == 'best_week' and p.id == awards.best.id and p.team == awards.best.team) and not (key == 'worst_week' and p.id == awards.worst.id and p.team == awards.worst.team) %}
@@ -68,12 +68,12 @@
 <td class="num">{% if s.decision is not none %}<b class="{{ 'pos' if s.decision > 0 else ('neg' if s.decision < 0) }}">{{ s.decision|signed(1) }}</b> <span class="muted small">{{ s.decision_se|se }} playoff pts</span>{% else %}<span class="muted">not graded</span>{% endif %}</td>
 <td class="num"><b class="{{ 'pos' if s.net > 0 else ('neg' if s.net < 0) }}">{{ s.net|signed(1) }}</b> <span class="muted small">points</span></td></tr>{% endfor %}{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-8px">The decision is what the trade did to each side's playoff chances, priced before the fact by a paired simulation. What happened is the points each side's new players scored while it started them, minus what the players it sent away scored while their new team started them. A good trade can lose points and a bad one can win them, so the two are never added together. Not built yet: a replay of each week with the trade undone, which needs the lineups each side would have started instead.</p>
+<p class="small muted u-mt-8px"><b>The decision</b> is what the trade did to each side's playoff odds, judged before the games{% if dev %} by a paired simulation{% endif %}. <b>What happened</b> is the points the new players scored in that team's lineup, minus what the departed players scored in their new team's lineup. A good trade can lose points and a bad one can win them, so the two are never added together. Not built yet: a replay of each week with the trade undone{% if dev %}, which needs the lineups each side would have started instead{% endif %}.</p>
 </section>
 {% endif %}
 {% if chart %}
 <section>
-<h2><svg class="i"><use href="#i-chart"/></svg> My moves, added up <span class="hint">cumulative change in my playoff probability, in percentage points, move by move</span></h2>
+<h2><svg class="i"><use href="#i-chart"/></svg> My moves, added up <span class="hint">running total of what my moves did to my playoff odds, in percentage points</span></h2>
 <div class="vizbox">{{ chart }}</div>
 </section>
 {% endif %}
@@ -83,8 +83,7 @@
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Who has helped themselves <span class="hint">each team's own moves, summed · playoff percentage points</span></h2>
 {% set lmax = [(ledger|map(attribute='playoff')|map('abs')|max), 0.5]|max %}
 <div class="hbar ledger">{% for L in ledger %}<span class="{{ 'me' if L.team == my_team }}">{{ mark(L.team) }}{{ teamlink(L.team) }}</span><span class="b {{ 'neg' if L.playoff < 0 }}"><i data-width="{{ (100 * (L.playoff|abs) / lmax)|round(1) }}"></i></span><span class="v {{ 'pos' if L.playoff > 0 else ('neg' if L.playoff < 0) }}">{{ sparkline(timelines.get(L.team), hue=L.team|hue) }} {{ L.playoff|signed(1) }} <span class="muted tiny">{{ L.playoff_se|se }} · {{ L.evaluated }}/{{ L.moves }}</span></span>{% endfor %}</div>
-<p class="small muted u-mt-8px">The small line is the team's own moves added up in order, oldest to newest.</p>
-<p class="small muted u-mt-8px">A trade counts for both sides. ± is the combined batch-to-batch spread of the evaluations; a team whose bar is inside its ± has not measurably moved.</p>
+<p class="small muted u-mt-8px">The small line is each team's running total, oldest move first. A trade counts for both sides. A bar inside its ± hasn't measurably moved the odds.{% if dev %} ± is the combined batch-to-batch spread of the evaluations.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -96,7 +95,7 @@
   <button type="button" data-f="trade">Trades</button>
   <button type="button" data-f="waiver">Waiver claims</button>
   <button type="button" data-f="free_agent">Free-agent adds</button>
-  <button type="button" data-f="moved">Measurably moved the odds</button>
+  <button type="button" data-f="moved">Moved the odds</button>
 </div>
 <div id="list">
 {% for d in decisions %}{% set fx = d.actor_effect %}
@@ -118,9 +117,9 @@
       {% set v = fx.playoff|verdict(fx.playoff_se) %}{% if v %}<div class="verdict {{ v.tier }}{{ (" " ~ v.sign) if v.tier != "none" }}"{% if dev %} title="{{ v.z }} standard errors from no change"{% endif %}>{{ v.text }}</div>{% endif %}
       <div class="s">{{ fx.playoff_se|se }} · title {{ fx.champ|signed(1) }} {{ fx.champ_se|se }}</div>
       {% if d.type == 'trade' %}{% for t in d.teams if t != d.actor and d.effect.get(t) %}<div class="other">{{ t|real }}: {{ d.effect[t].playoff|signed(1) }} playoff · {{ d.effect[t].champ|signed(1) }} title</div>{% endfor %}{% endif %}
-      {% if d.reversed %}<div class="s">roster had moved on; evaluated as of the log</div>{% endif %}
+      {% if d.reversed %}<div class="s">roster has changed since; judged as logged</div>{% endif %}
     {% elif d.skipped %}
-      <div class="s">not measurable{% if dev %} — {{ d.skipped|truncate(90) }}{% else %} — the rosters had already moved on{% endif %}</div>
+      <div class="s">not measurable{% if dev %}: {{ d.skipped|truncate(90) }}{% else %}: the rosters had already changed{% endif %}</div>
     {% else %}
       <div class="s">not evaluated yet</div>
     {% endif %}
@@ -128,7 +127,7 @@
 </div>
 {% endfor %}
 </div>
-{% if dev %}<p class="small muted u-mt-12px">No moves logged yet? The decision log fills as the sync sees transactions; evaluations arrive when <code>py -3.10 -m scripts.evaluate_move --evaluate-unevaluated</code> runs.</p>{% endif %}
+{% if dev %}<p class="small muted u-mt-12px">The decision log fills as the sync sees transactions; evaluations arrive when <code>py -3.10 -m scripts.evaluate_move --evaluate-unevaluated</code> runs.</p>{% endif %}
 </section>
 <script>
 (function () {

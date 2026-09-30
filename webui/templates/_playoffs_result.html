@@ -2,11 +2,11 @@
 {% if r.available %}{% set res = r.res %}{% set base = r.base %}{% set live = r.picks and not res.refused %}
 <div class="pm-count{{ ' refused' if res.refused }}">
 {% if r.picks %}
-  <p><b>{{ "{:,}".format(res.n) }} of {{ "{:,}".format(res.total) }} seasons match</b>{% if res.refused %} — too few to say. A number is shown only when at least {{ r.min }} seasons match, and each pick keeps roughly half of them: remove one to see the odds again.{% else %} every pick. Each number is the share of those seasons, ± one standard error.{% endif %}</p>
+  <p><b>{{ "{:,}".format(res.n) }} of {{ "{:,}".format(res.total) }} seasons match</b>{% if res.refused %}: too few to say. The odds need at least {{ r.min }} matching seasons, and each pick keeps roughly half of them. Remove a pick to see them again.{% else %} every pick. Each number is the share of those seasons, ± one standard error.{% endif %}</p>
   <ul class="pm-picks">{% for p in r.picks %}<li>{% if p.kind == "g" %}Week {{ p.week }}: <b>{{ p.winner|real }}</b> beats {{ p.loser|real }}{% else %}Week {{ p.week }}: <b>{{ p.team|real }}</b> {{ "beats" if p.beat else "misses" }} the median{% endif %} <a href="{{ p.drop }}" class="pm-x" title="Remove this pick" aria-label="Remove this pick">×</a></li>{% endfor %}
     <li><a href="/playoffs" class="pm-clear">Clear all</a></li></ul>
 {% else %}
-  <p>No picks: these are the odds across all {{ "{:,}".format(res.total) }} simulated seasons, ± one standard error. Pick results below and the odds become the share of the seasons where those results happened.</p>
+  <p>The odds across all {{ "{:,}".format(res.total) }} simulated seasons, ± one standard error. Pick results to see how they change.</p>
 {% endif %}
 </div>
 <div class="scroller"><table class="pm-table"><thead><tr><th>Team</th><th class="num">Playoffs</th>{% if live %}<th class="num">Change</th>{% endif %}<th class="num">Title</th><th class="num">Seed 1</th><th class="num">2</th><th class="num">3</th><th class="num">4</th></tr></thead><tbody>
@@ -19,5 +19,5 @@
 {% for s in x.seeds[:4] %}<td class="num seed">{{ s|pct(0) }}</td>{% endfor %}
 {% endif %}</tr>{% endfor %}
 </tbody></table></div>
-{% if live %}<p class="small muted">Change is in percentage points against the odds with no picks.</p>{% endif %}
+{% if live %}<p class="small muted">Change is in percentage points, against the odds with no picks.</p>{% endif %}
 {% endif %}

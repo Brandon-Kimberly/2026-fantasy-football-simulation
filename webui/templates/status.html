@@ -7,18 +7,18 @@
   <p class="eyebrow">system · data for week {{ fr.week or "?" }}</p>
   <h1>System <span class="pill {{ fr.status }}">{{ fr.status }}</span></h1>
   <p class="lede">
-    {% if fr.status == 'STALE' %}The data on disk is not good enough to run on: {{ stale|join('; ') if stale else 'the sync has not run this week' }}.{% if fr.n_bad or fr.n_fell or fr.n_warn %} Also: {{ fr.phrase }}; details under <b>Last sync</b>.{% endif %}
-    {% elif fr.status == 'DEGRADED' %}The sync ran this week: {{ fr.phrase }}. The model runs{% if fr.n_bad or fr.n_fell %}, on older inputs where a source failed or fell back{% endif %}. Each source's state is in the table under <b>Last sync</b>, and the warnings are folded beneath it.
-    {% else %}Everything is current: the sync ran this week, the betting lines are for week {{ fr.vegas_week }}, and the simulation export is newer than the sync.{% endif %}
+    {% if fr.status == 'STALE' %}The model can't run on this data: {{ stale|join('; ') if stale else 'the sync has not run this week' }}.{% if fr.n_bad or fr.n_fell or fr.n_warn %} Also: {{ fr.phrase }}.{% endif %}
+    {% elif fr.status == 'DEGRADED' %}This week's sync ran: {{ fr.phrase }}. The model can run{% if fr.n_bad or fr.n_fell %}, on older inputs where a source failed or fell back{% endif %}.
+    {% else %}Everything is current: the sync ran this week, the betting lines are for week {{ fr.vegas_week }}, and the forecast is newer than the sync.{% endif %}
   </p>
 </div>
 
 <section>
 <h2><svg class="i"><use href="#i-cloud"/></svg> Last sync <span class="hint">{% if fr.manifest %}{{ fr.manifest.finished_at|when }}{% if fr.age_hours is not none %} · {{ fr.age_hours|ago }}{% endif %}{% else %}none on record{% endif %} · <a href="/sync">sync now</a></span></h2>
-{% if fr.vegas_stale_since %}<div class="note warn"><b>Betting lines kept from {{ fr.vegas_stale_since|when }}.</b> The odds fetch failed and the last real lines were preserved rather than overwritten.</div>{% endif %}
+{% if fr.vegas_stale_since %}<div class="note warn"><b>Betting lines kept from {{ fr.vegas_stale_since|when }}.</b> The odds fetch failed, so the last real lines were kept.</div>{% endif %}
 {% if fr.sources %}
 <div class="scroller"><table><thead><tr><th>Source</th><th>State</th><th class="num">Rows</th><th>Fell back to</th></tr></thead><tbody>
-{% for name, s in fr.sources.items()|sort %}{% set ln = fr.lines_note if name == "vegas_odds" else None %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td>{% if ln %}<span class="pill">few left</span>{% else %}<span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span>{% endif %}</td><td class="num">{{ s.rows }}</td><td class="small muted">{% if ln %}{{ ln.before }} of {{ ln.total }} week-{{ ln.week }} games had kicked off before this sync, so few lines were left -- expected, not an outage{% if s.fallback %} · the rest use {{ s.fallback }}{% endif %}{% else %}{{ s.fallback or "" }}{% endif %}</td></tr>{% endfor %}
+{% for name, s in fr.sources.items()|sort %}{% set ln = fr.lines_note if name == "vegas_odds" else None %}<tr><td class="nm">{{ name|replace("_"," ") }}</td><td>{% if ln %}<span class="pill">few left</span>{% else %}<span class="pill {{ 'OK' if s.ok and not s.fallback else ('DEGRADED' if s.ok else 'STALE') }}">{{ 'ok' if s.ok and not s.fallback else ('fell back' if s.ok else 'failed') }}</span>{% endif %}</td><td class="num">{{ s.rows }}</td><td class="small muted">{% if ln %}{{ ln.before }} of {{ ln.total }} week-{{ ln.week }} games had already kicked off, so few lines were left, which is expected, not an outage{% if s.fallback %} · the rest use {{ s.fallback }}{% endif %}{% else %}{{ s.fallback or "" }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
 {% endif %}
 {% if degraded %}<details class="sec u-mt-10px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
@@ -31,12 +31,12 @@
 <div class="scroller"><table><thead><tr><th>Window</th><th>Opens</th><th>Closes</th><th>State</th><th>Covered by</th></tr></thead><tbody>
 {% for w in windows.result.windows %}<tr><td class="nm">{{ w.name|window_title }}</td><td class="tnum">{{ w.start|clock if w.start else "" }}</td><td class="tnum">{{ w.deadline|clock if w.deadline else "" }}</td><td><span class="pill {{ w.status }}">{{ w.status|lower }}</span></td><td class="small muted">{{ w.covered_by or "" }}{% if w.adjudicated %} · {{ (w.adjudicated.late_by_seconds // 60) }} min late, ruled covered {{ w.adjudicated.ruled }}{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-{% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>A window is open:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h{% if not loop.last %}; {% endif %}{% endfor %}. <a href="/tools/weekly_report?canonical=1">Launch the canonical digest</a>, or from a terminal <code>py -3.10 -m scripts.weekly_report --canonical --embed</code>.</div>{% endif %}
+{% if windows.verdict and windows.verdict.actionable %}<div class="note warn"><b>A window is open:</b> {% for a in windows.verdict.actionable %}{{ a.name }} closes in {{ a.hours_left }} h{% if not loop.last %}; {% endif %}{% endfor %}. <a href="/tools/weekly_report?canonical=1">Run the canonical digest</a>, or <code>py -3.10 -m scripts.weekly_report --canonical --embed</code> from a terminal.</div>{% endif %}
 {% endif %}
 </section>
 
 <section>
-<h2><svg class="i"><use href="#i-git"/></svg> Season logs <span class="hint">the record that survives a machine loss</span></h2>
+<h2><svg class="i"><use href="#i-git"/></svg> Season logs <span class="hint">committed and pushed, they survive a lost machine</span></h2>
 <div class="chips u-mt-0">
   <a class="chip {{ 'warn' if git and git.uncommitted }}" href="/logs"><svg class="i"><use href="#i-git"/></svg><span class="k">uncommitted</span><span class="v">{% if git is none %}—{% elif git.uncommitted %}{{ git.uncommitted|length }} file{{ 's' if git.uncommitted|length != 1 }}{% else %}none{% endif %}</span></a>
   <a class="chip {{ 'warn' if git and git.unpushed }}" href="/logs"><svg class="i"><use href="#i-cloud"/></svg><span class="k">unpushed</span><span class="v">{% if git is none or git.unpushed is none %}—{% elif git.unpushed %}{{ git.unpushed }} commit{{ 's' if git.unpushed != 1 }}{% else %}none{% endif %}</span></a>
@@ -47,7 +47,7 @@
 </section>
 
 <section>
-<details class="sec"><summary>What this UI will not do, and the terminal command for each</summary>
+<details class="sec"><summary>Terminal only</summary>
 <div class="rows u-mt-8px">{% for cmd, why in commands %}<div class="row u-gtc-1fr"><span><code>{{ cmd }}</code><span class="sub u-ff-var-sans">{{ why }}</span></span></div>{% endfor %}</div>
 <p class="small muted u-mt-10px">{{ r1 }}</p>
 <p class="small muted">{{ warnings_note }}</p>

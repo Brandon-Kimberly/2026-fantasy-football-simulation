@@ -56,18 +56,18 @@ h2 { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: v
 <body>
 <h1 class="vh">Game day, week {{ week or "?" }}</h1>
 <div id="gd" data-week="{{ week or '' }}" data-enabled="{{ '1' if live.enabled else '0' }}">
-<div class="bar"><span><a href="/">← {{ brand }}</a> · <b>Week {{ week or '?' }}</b> · game day</span><span id="gd-meta">{% if not live.enabled %}live scores are not connected{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}loading…{% endif %}</span><span class="live" id="gd-live" hidden>● LIVE</span><span>auto-refresh every minute</span></div>
+<div class="bar"><span><a href="/">← {{ brand }}</a> · <b>Week {{ week or '?' }}</b> · game day</span><span id="gd-meta">{% if not live.enabled %}live scores are not connected{% elif live.snapshot %}updated {{ live.snapshot.fetched_at|when }}{% else %}loading…{% endif %}</span><span class="live" id="gd-live" hidden>● LIVE</span><span>refreshes every minute</span></div>
 {% if opponent %}
 <div class="who">
-  <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ my_team|real }}</div><div class="sub">{% if my_row %}{{ my_row.wins }}–{{ losses }} · {{ my_row.points|score }} pts{% endif %}</div></div></div>
+  <div class="side">{{ mark(my_team, 'lg') }}<div><div class="nm">{{ my_team|real }}</div><div class="sub">{% if my_row %}{{ my_row.wins|wins }}–{{ losses }} · {{ my_row.points|score }} pts{% endif %}</div></div></div>
   <div class="vs">VS</div>
-  <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ opponent|real }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins }}–{{ opp_losses }} · {{ opp_row.points|score }} pts{% endif %}</div></div></div>
+  <div class="side r">{{ mark(opponent, 'lg') }}<div><div class="nm">{{ opponent|real }}</div><div class="sub">{% if opp_row %}{{ opp_row.wins|wins }}–{{ opp_losses }} · {{ opp_row.points|score }} pts{% endif %}</div></div></div>
 </div>
 {% endif %}
 <div id="gd-body">
-  <div class="score"><div class="l"><div class="pts">—</div><div class="sub">{% if matchup and matchup.mine %}expected {{ matchup.mine|num(1) }} before the games{% endif %}</div></div><div class="mid">chance to win<b>{% if matchup and matchup.p_win is not none %}{{ (matchup.p_win * 100)|round(0)|int }}%{% else %}—{% endif %}</b>pre-game</div><div class="r"><div class="pts">—</div><div class="sub">{% if matchup and matchup.theirs %}expected {{ matchup.theirs|num(1) }}{% endif %}</div></div></div>
+  <div class="score"><div class="l"><div class="pts">—</div><div class="sub">{% if matchup and matchup.mine %}projected {{ matchup.mine|num(1) }}{% endif %}</div></div><div class="mid">chance to win<b>{% if matchup and matchup.p_win is not none %}{{ (matchup.p_win * 100)|round(0)|int }}%{% else %}—{% endif %}</b>pre-game</div><div class="r"><div class="pts">—</div><div class="sub">{% if matchup and matchup.theirs %}projected {{ matchup.theirs|num(1) }}{% endif %}</div></div></div>
 </div>
-<p class="note">Points so far from Sleeper, game clocks from the NFL scoreboard, refreshed every minute while this page is open. The chance to win is a quick estimate from the points banked and each starter's pre-game projection.</p>
+<p class="note">Points from Sleeper and game clocks from the NFL, refreshed every minute. The chance to win is a quick estimate from points so far and pre-game projections.</p>
 </div>
 <script>
 (function () {

@@ -131,7 +131,7 @@ def report(root):
             continue
         row = quoted(rows, week, kicks.get(week))
         if row is None:
-            skipped.append({"week": week, "why": "no committed forecast logged before the first kickoff"})
+            skipped.append({"week": week, "why": "no forecast committed before the first kickoff"})
             continue
         w = {"week": week, "at": row.get("logged_at"), "matchups": [], "teams": []}
         for m in row.get("matchups") or []:
@@ -195,9 +195,9 @@ def report(root):
                    "brier": round(sum(med_briers) / len(med_briers), 6) if med_briers else None},
         "enough": n_weeks >= ENOUGH_WEEKS,
         "reliability": reliability(pairs), "n_calls": len(pairs), "brier_weeks": brier_weeks,      # UI-Q1
-        "note": (f"{n_weeks} week{'s' if n_weeks != 1 else ''} scored. A read on how well these "
-                 f"probabilities are calibrated first means something at week {ENOUGH_WEEKS} or "
-                 f"{ENOUGH_WEEKS + 1}; until then these are counts, not conclusions."),
+        "note": (f"{n_weeks} week{'s' if n_weeks != 1 else ''} scored. Calibration starts to mean "
+                 f"something around week {ENOUGH_WEEKS} or {ENOUGH_WEEKS + 1}; until then these are "
+                 f"counts, not conclusions."),
     }
 
 

@@ -30,11 +30,11 @@ REGULAR_WEEKS = 14
 # The five, in the ledger's order, with what each measures in plain words. Pre-registered:
 # a sixth entry here is a new measure, which Decision 2 has not made (tests.test_webui_ninth_batch).
 MEASURES = (
-    ("schedule_luck", "Schedule luck", "head-to-head wins minus the wins your all-play rate earns", "wins"),
-    ("opponent_luck", "Opponent luck", "points scored against you a game, minus the league's average", "points a game"),
-    ("close_games", "Close games", "wins in head-to-head games decided by under 10 points, minus half of them", "wins"),
-    ("dnp_luck", "Starters who did not play", "your starters scoring nothing a game, minus the league's average", "a game"),
-    ("scoring_luck", "Scoring luck", "how far your weekly totals beat the projection, in spreads, minus the league's", "spreads"),
+    ("schedule_luck", "Schedule luck", "head-to-head wins minus the wins your all-play record would give you", "wins"),
+    ("opponent_luck", "Opponent luck", "points scored against you per game, compared with the league average", "points a game"),
+    ("close_games", "Close games", "wins in head-to-head games decided by less than 10 points, minus half of those games", "wins"),
+    ("dnp_luck", "Starters who did not play", "starters who scored zero, per game, compared with the league average", "a game"),
+    ("scoring_luck", "Scoring luck", "how far your weekly scores beat the projection, in spreads, compared with the league", "spreads"),
 )
 
 
@@ -86,9 +86,9 @@ def report(root, team):
                "way": None, "z": None, "p": None, "word": None}
         if m is None:
             if key == "dnp_luck":
-                row["why_none"] = "not measurable here: the weekly results on file keep each player's points, not who started"
+                row["why_none"] = "can't be measured here: the weekly results record each player's points but not who started"
             elif key in ("schedule_luck", "close_games") and withheld:
-                row["why_none"] = "withheld: the league's record and today's box scores disagree about who won (see below)"
+                row["why_none"] = "withheld: the league's record and today's box scores disagree on who won (see below)"
             elif key == "scoring_luck":
                 row["why_none"] = "not measurable yet: no week has both a pre-game projection and a result"
             else:

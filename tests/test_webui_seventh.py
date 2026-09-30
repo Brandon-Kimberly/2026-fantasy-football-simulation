@@ -224,8 +224,10 @@ class TestPages(unittest.TestCase):
         for mode in ("dev", "simple"):
             page = self.get("/", mode)
             self.assertIn('class="spark"', page)
+            # the marker is the change in odds (owner report 2026-09-30): every fixture team's
+            # odds rose, so none is marked down -- by places, four "fell" (tests.test_owner_report_0930)
             self.assertIn('class="rankd up"', page)
-            self.assertIn('class="rankd dn"', page)
+            self.assertNotIn('class="rankd dn"', page)
             self.assertIn("since the week 2 forecast", page)
 
     def test_decisions_chart_is_labelled_by_date(self):

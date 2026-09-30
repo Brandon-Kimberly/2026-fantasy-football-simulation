@@ -17,9 +17,9 @@
 </div></div>
 
 {{ tiles([
-  {"k": ("week " ~ week) if week else "this week", "v": week_mean|num(1) if week_mean is not none else "—", "s": ("from this week's " ~ week_source) if week_source else "not priced for this week yet", "tone": ""},
-  {"k": "season mean", "v": season_mean|num(1) if season_mean is not none else "—", "s": "the season baseline, not this week's number", "tone": ""},
-  {"k": "likely range", "v": (range.p10|num(1) ~ "–" ~ range.p90|num(1)) if range else "—", "s": ("one week, 8 in 10 · week-" ~ odds_week ~ " forecast") if range else "only rostered players are simulated", "tone": ""},
+  {"k": ("week " ~ week) if week else "this week", "v": week_mean|num(1) if week_mean is not none else "—", "s": (("from this week's " ~ week_source) if dev else "this week's projection") if week_source else "no projection for this week yet", "tone": ""},
+  {"k": "season mean", "v": season_mean|num(1) if season_mean is not none else "—", "s": "projected points a week", "tone": ""},
+  {"k": "likely range", "v": (range.p10|num(1) ~ "–" ~ range.p90|num(1)) if range else "—", "s": ("8 weeks in 10 · week-" ~ odds_week ~ " forecast") if range else "simulated for rostered players only", "tone": ""},
   {"k": "status", "v": ("IR" if on_ir else (status or "healthy")), "s": body_part or "", "tone": ("neg" if (on_ir or status in ("Out", "Doubtful", "IR")) else "")}
 ]) }}
 
@@ -46,24 +46,24 @@
 
 {% if range and range.p25 is not none %}{% set played = history|map(attribute='points')|select('number')|list %}{% set shi = ((([range.p90 * 1.3] + played)|max / 5)|round(0, 'ceil') * 5) %}
 <section>
-<h2><svg class="i"><use href="#i-chart"/></svg> One week's points <span class="hint">the week-{{ odds_week }} forecast's spread for a week played · 0 to {{ shi|int }} points</span></h2>
+<h2><svg class="i"><use href="#i-chart"/></svg> One week's points <span class="hint">how one week could go, from the week-{{ odds_week }} forecast · 0 to {{ shi|int }} points</span></h2>
 <div class="dwide">{{ strip(range, shi, played, width=520, height=34) }}</div>
-<p class="small muted">The line runs from the 10th to the 90th percentile, the box from the 25th to the 75th, the tick is the mean, and the faint bars are how often each score came up.{% if played %} The dots are the weeks played so far.{% endif %} 10th {{ range.p10|num(1) }} · 25th {{ range.p25|num(1) }} · median {{ range.p50|num(1) }} · 75th {{ range.p75|num(1) }} · 90th {{ range.p90|num(1) }}{% if range.mean is not none %} · mean {{ range.mean|num(1) }}{% endif %}. Weeks the player does not play are left out of this spread.</p>
+<p class="small muted">Line: 10th to 90th percentile. Box: 25th to 75th. Tick: the mean. Faint bars: how often each score came up.{% if played %} Dots: the weeks played so far.{% endif %} 10th {{ range.p10|num(1) }} · 25th {{ range.p25|num(1) }} · median {{ range.p50|num(1) }} · 75th {{ range.p75|num(1) }} · 90th {{ range.p90|num(1) }}{% if range.mean is not none %} · mean {{ range.mean|num(1) }}{% endif %}. Weeks the player sits out aren't counted.</p>
 </section>
 {% endif %}
 <section>
-<h2><svg class="i"><use href="#i-chart"/></svg> Week by week <span class="hint">the last projection logged before each week's first kickoff, against the points first recorded</span></h2>
+<h2><svg class="i"><use href="#i-chart"/></svg> Week by week <span class="hint">the projection before kickoff against the points scored{% if dev %} · the last projection logged before each week's first kickoff, and the points as first recorded{% endif %}</span></h2>
 {% if history %}
 <div class="scroller"><table><thead><tr><th>Week</th><th class="num">Projected</th><th class="num">ESPN</th><th class="num">Points</th><th class="num">Difference</th><th class="num" title="where the points landed in the model's range for that week">Landed</th></tr></thead><tbody>
 {% for h in history %}{% set dd = (h.points - h.projected) if (h.points is not none and h.projected is not none) else None %}<tr><td><a href="/matchups/week-{{ h.week }}">Week {{ h.week }}</a></td><td class="num">{{ h.projected|num(1) if h.projected is not none else "—" }}</td><td class="num muted">{{ h.espn|num(1) if h.espn is not none else "—" }}</td><td class="num"><b>{{ h.points|num(1) if h.points is not none else "—" }}</b></td><td class="num">{% if dd is not none %}<span class="diff {{ 'pos' if dd > 0 else ('neg' if dd < 0) }}">{{ dd|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td><td class="num">{% set ld = landings.get(h.week) if landings else None %}{% if ld is not none %}{{ ordinal(ld) }}{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% endfor %}
 </tbody></table></div>
-{% if landings %}<p class="small muted u-mt-8px">Landed: where the points fell in the model's range for that week, as a percentile — the 50th is the middle. {{ landings|length }} week{{ "s" if landings|length != 1 }} so far: noise, not a verdict on the player or the model. The range is the forecast's spread for one week pooled over the weeks it simulated, and a zero is left out, as it usually means the player did not play.</p>{% endif %}
-{% else %}<p class="small muted">No projections or points on file for this player yet.</p>{% endif %}
+{% if landings %}<p class="small muted u-mt-8px">Landed: where the points fell in the model's range for that week, as a percentile (the 50th is the middle). With {{ landings|length }} week{{ "s" if landings|length != 1 }} so far, that's noise, not a verdict on the player or the model.{% if dev %} The range is the forecast's one-week spread pooled over the weeks it simulated; a zero is left out, since it usually means the player didn't play.{% endif %}</p>{% endif %}
+{% else %}<p class="small muted">No projections or scores for this player yet.</p>{% endif %}
 </section>
 
 {% if moves %}
 <section>
-<h2><svg class="i"><use href="#i-swap"/></svg> Moves <span class="hint">every transaction involving this player</span></h2>
+<h2><svg class="i"><use href="#i-swap"/></svg> Moves <span class="hint">every add, drop and trade with this player</span></h2>
 <div class="scroller"><table><thead><tr><th>Week</th><th>Move</th><th>Team</th><th class="num">Effect for that team</th><th>Verdict</th></tr></thead><tbody>
 {% for d in moves %}{% set fx = d.actor_effect %}<tr><td>{{ d.week }}</td><td>{{ d.label }}{% if d.faab_bid %} <span class="muted">· bid {{ d.faab_bid|num(0) }}</span>{% endif %}</td><td class="nm">{% if d.actor %}{{ mark(d.actor) }}{{ teamlink(d.actor) }}{% endif %}</td>
 <td class="num">{% if fx and fx.playoff is not none %}{{ fx.playoff|signed(1) }} <span class="muted tiny">{{ fx.playoff_se|se }}</span>{% else %}<span class="muted">{{ 'not measurable' if d.skipped else 'not priced yet' }}</span>{% endif %}</td>

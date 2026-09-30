@@ -54,7 +54,7 @@ def _designations(root, my_team, now):
         name = rs[-1].get("name") or pid
         out.append({"kind": "designation", "key": f"designation:{pid}:{new}:{rs[-1]['recorded_at']}",
                     "title": f"{name}: {new or 'no longer designated'}",
-                    "body": f"was {was or 'not designated'} · recorded {rs[-1]['recorded_at'][:16].replace('T', ' ')} UTC"})
+                    "body": f"was {was or 'not designated'} · as of {rs[-1]['recorded_at'][:16].replace('T', ' ')} UTC"})
     return out
 
 
@@ -73,7 +73,7 @@ def _odds(root, my_team):
         return []
     return [{"kind": "odds", "key": f"odds:{prev}:{w}",
              "title": f"Playoff odds {'up' if d > 0 else 'down'} {abs(d):.1f} points",
-             "body": f"{float(a['playoff']):.1f}% in the week-{prev} forecast, {float(b['playoff']):.1f}% in week {w}'s ({fse(se)} points)"}]
+             "body": f"{float(a['playoff']):.1f}% in the week-{prev} forecast, {float(b['playoff']):.1f}% now ({fse(se)} points of noise)"}]
 
 
 def alerts(root, my_team, now=None):
