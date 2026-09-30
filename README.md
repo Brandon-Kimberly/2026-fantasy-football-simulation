@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/syndicate-football)](LICENSE)
-![tests](https://img.shields.io/badge/tests-2250%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-2253%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -41,12 +41,12 @@ on every finding, and the domain judgment are mine. The code is largely AI-gener
 The experiment is whether disciplined verification can make AI-generated code
 trustworthy. The audit trail above is the evidence either way.
 
-![The local web UI on a game-day evening: this week's matchup with the live chance to win leading and the pre-game figure as a footnote, both teams' banked points on one scale, and every starter against his projection](docs/webui_home.png)
-*The landing page of the local web UI, mid-game-day. The headline is whatever is true
-now — the live win probability — with the pre-game number demoted to a footnote beside
-it. Both teams' points are drawn to one scale so the bars compare, and every starter
-carries his pre-game projection and the gap to it, measured against the share of his game
-actually played. Team names are fictional; the players, projections and scores are real.*
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/webui_home_dark.webp">
+  <img alt="The web UI's Home page: this week's matchup with the model's chance to win, the other games, the season outlook and the standings" src="docs/webui_home_light.webp">
+</picture>
+
+*The Home page before kickoff. This week's matchup leads, with the model's chance to win and each side's projection; below it the other games, the season outlook (playoff odds, where I finish, expected wins week by week, drawn from the league's own results for the weeks already played) and the standings, each team's odds line beside the change since the last forecast. Team names are the league's pseudonyms; the players, projections and scores are real. Every screenshot here is retaken by `scripts.readme_shots` (pseudonyms only, no player photos) and a docs guard fails the commit when the pages change without them.*
 
 **Identity note:** manager and team identities in this repository are pseudonymized
 (F37): fictional team names, roster-id keys, league IDs in environment variables only.
@@ -111,11 +111,28 @@ files, URLs and logs stay pseudonymous. It binds `127.0.0.1` with no `--host` op
 `data/current/` (docs/WEB_UI.md W4); the tools never sync. Two views share one codebase:
 the developer's, and a simple one anyone could use (W8), toggled from the footer.
 
-![Every team's playoff odds across the season's forecasts, one line each in the team's own colour, mine drawn thicker](docs/webui_odds_race.png)
-*The Forecasts page. One line per team across every forecast the model has run, so the
-season reads as odds moving rather than a single number — the chart every page's charts
-are drawn by, with round ticks, labels that cannot collide and a hover crosshair naming
-every team at that week.*
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/webui_league_dark.webp">
+  <img alt="The League page: every team's record as the league counts it, points for and against, streaks, playoff and title odds, roster strength and budgets" src="docs/webui_league_light.webp">
+</picture>
+
+*The League page. Each record as the league counts it -- head-to-head and median games -- points for and against to the cent as Sleeper prints them, streaks, playoff and title odds with their move since the last forecast, final-win ranges, roster strength and budgets. Past weeks are the scores the league banked, found and checked to the cent against its own totals (`fantasy_sim.banked_scores`).*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/webui_matchups_dark.webp">
+  <img alt="A week's games with each side's chance to win, and three ways to set my lineup against this opponent" src="docs/webui_matchups_light.webp">
+</picture>
+
+*A week on the Matchups page: every game with each side's chance before kickoff, and three ways to set my lineup against this opponent -- the most points, the best chance to win, the best chance to beat the median.*
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/webui_odds_race_dark.webp">
+  <img alt="Every team's playoff odds across the season's forecasts, one line each in the team's own colour, mine drawn thicker" src="docs/webui_odds_race_light.webp">
+</picture>
+
+*The Forecasts page. One line per team across every forecast the model has run, so the season reads as odds moving rather than a single number; numbered markers name the moves behind the biggest swings. Round ticks, end labels spaced so each stays readable, and a hover crosshair naming every team at that week.*
+
+**Chat.** A Chat page answers questions about the league -- waivers, lineups, trades -- by running Claude Code headless on the owner's own subscription (no API key, nothing billed beyond the plan). It is read-only by construction: every built-in tool is off, and its only tools read a copy of the data and run the same allowlisted analysis tools as the Tools page, in that copy (docs/WEB_UI.md).
 
 **Tools and jobs.** The decision tools below can be launched from the UI as the exact
 command you would type -- one subprocess in the checkout, one at a time. Every launch
@@ -185,6 +202,7 @@ py -3.10 -m scripts.backfill_sync_provenance    # F56 one-off: reconstruct sync 
 py -3.10 -m scripts.luck_ledger                 # F53: am I actually unlucky? five PRE-REGISTERED measures vs the league (docs/LUCK_LEDGER.md; not in the weekly report by design)
 py -3.10 -m scripts.as_played_record           # F83: weeks 1-2 results as the league played them (old IDP scoring), verified vs banked wins; --write
 py -3.10 -m scripts.banked_scores              # every past week's score as the league banked it, checked to the cent vs its totals and records; --write
+py -3.10 -m scripts.readme_shots               # retake the README's web UI screenshots (pseudonyms, no photos); the docs guard requires it after a page change
 py -3.10 -m scripts.run_season_backtest         # win-total / playoff backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest         # points-level backtest (bias, mean z, coverage), logged with commit + interpreter
 py -3.10 -m scripts.run_player_backtest         # variance / correlation / epistemic constants vs real player-week data
@@ -261,7 +279,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 2250 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 2253 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but

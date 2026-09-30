@@ -338,3 +338,42 @@ class TestNoStrayRunLogsAreTracked(unittest.TestCase):
             body = fh.read()
         self.assertIn("/*.log", body,
                       "the root *.log rule is what stops a piped run being committed")
+
+
+class TestReadmeScreenshotsAreCurrent(unittest.TestCase):
+    """Owner request 2026-09-30: the README's web UI screenshots had drifted -- taken on
+    2026-09-27, before the redesign, the chat and a day of fixes -- and must stay current.
+
+    scripts.readme_shots takes them (a throwaway copy of the site, simple view, pseudonyms only,
+    no player photos or logos) and records a fingerprint of the page templates and the renderer
+    it shot. A commit that changes those without retaking the shots fails here, and so in the
+    pre-commit hook: run `py -3.10 -m scripts.readme_shots`."""
+    MANIFEST = os.path.join(ROOT, "docs", "webui_shots.json")
+
+    def manifest(self):
+        import json
+        self.assertTrue(os.path.exists(self.MANIFEST), "no docs/webui_shots.json: run py -3.10 -m scripts.readme_shots")
+        with open(self.MANIFEST, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def test_the_shots_match_the_pages(self):
+        from scripts.readme_shots import ui_hash
+        self.assertEqual(self.manifest().get("ui_hash"), ui_hash(ROOT),
+                         "the web UI changed since the README screenshots were taken: run py -3.10 -m scripts.readme_shots")
+
+    def test_every_shot_exists_and_the_readme_shows_it(self):
+        m = self.manifest()
+        with open(os.path.join(ROOT, "README.md"), encoding="utf-8") as fh:
+            readme = fh.read()
+        self.assertGreaterEqual(len(m.get("shots") or []), 4)
+        for s in m["shots"]:
+            for f in s["files"]:
+                with self.subTest(file=f):
+                    self.assertTrue(os.path.exists(os.path.join(ROOT, f)), f)
+                    self.assertIn(f, readme, "the README shows every shot it keeps")
+        for old in ("docs/webui_home.png", "docs/webui_odds_race.png"):
+            self.assertNotIn(old, readme)
+
+    def test_they_carry_no_identity(self):
+        m = self.manifest()
+        self.assertEqual((m.get("names"), m.get("images")), ("pseudonyms", "none"))
