@@ -129,9 +129,23 @@ class TestTheExport(unittest.TestCase):
                     continue
                 with self.subTest(page=rel, url=url):
                     self.assertTrue(url.startswith(BASE + "/"), f"{attr}={url} is not on the site")
-                    path = url[len(BASE):].split("#")[0]
-                    target = os.path.join(self.out, *[p for p in path.split("/") if p], "index.html")
+                    parts = [p for p in url[len(BASE):].split("#")[0].split("/") if p]
+                    if parts and parts[0] == "assets":      # a shared stylesheet or script: a file, not a page
+                        target = os.path.join(self.out, *parts)
+                    else:
+                        target = os.path.join(self.out, *parts, "index.html")
                     self.assertTrue(os.path.exists(target), f"{url} has no page")
+
+    def test_the_shared_assets_are_published_once(self):
+        """UI-E2 on the public site: one stylesheet and one script for every page, under the
+        site's base, instead of ~93 KB of both inline on each of them."""
+        files = sorted(os.listdir(os.path.join(self.out, "assets")))
+        self.assertEqual(len(files), 3, files)
+        for rel, html in self.pages.items():
+            with self.subTest(page=rel):
+                links = re.findall(r'(?:href|src)="(' + re.escape(BASE) + r'/assets/[^"]+)"', html)
+                self.assertEqual(len(set(links)), 3, links)
+                self.assertFalse("--plane:#f9f9f7" in html, "the stylesheet is still inline")
 
     def test_no_server_features_and_no_images(self):
         for rel, html in self.pages.items():
