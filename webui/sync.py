@@ -32,7 +32,7 @@ import os
 import shutil
 import sys
 
-ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds"
+ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports"   # free: costs no credits (2026-09-30)
 KEEP_BACKUPS = 10
 MODES = {
     "sync": {"module": "scripts.run_sync", "label": "Sync rosters, standings, lines and projections",
@@ -90,14 +90,14 @@ def probe_key(key, fetch=None):
         import requests
         getter = requests.get
     try:
-        resp = getter(ODDS_PROBE_URL, params={"apiKey": key, "regions": "us", "markets": "totals"}, timeout=15)
+        resp = getter(ODDS_PROBE_URL, params={"apiKey": key}, timeout=15)
         status = getattr(resp, "status_code", None)
         headers = getattr(resp, "headers", {}) or {}
     except Exception as ex:
         return {"verdict": "unreachable", "detail": f"could not reach the-odds-api ({type(ex).__name__}); nothing was written. Try again in a minute.",
                 "remaining": None, "used": None}
     remaining, used = headers.get("x-requests-remaining"), headers.get("x-requests-used")
-    if status in (401, 403) and _out_of_credits(resp, remaining):
+    if status in (200, 401, 403) and _out_of_credits(resp, remaining):
         return {"verdict": "exhausted", "detail": f"the-odds-api has no credits left this month ({used or 'all'} used). The key is fine, so "
                                                    "there is nothing to fix, and nothing was written. Credits come back at the plan's monthly "
                                                    "reset (00:00 UTC on the 1st on this account's plan). To sync before then without real lines, "

@@ -100,7 +100,8 @@ jobs:
 
       - name: Sync
         if: steps.watch.outputs.proceed == 'true'
-        run: python -m scripts.run_sync
+        # --official: fetches fresh lines and may spend the odds credits held in reserve
+        run: python -m scripts.run_sync --official
 
       - name: Capture the tracked logs first (tier-1.5 duty, before anything can fail)
         if: steps.watch.outputs.proceed == 'true'

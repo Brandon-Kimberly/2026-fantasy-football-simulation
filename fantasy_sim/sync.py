@@ -247,7 +247,11 @@ def _stamp_vegas(totals, week, source):
     return stamped
 
 
-ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds"
+# The key check and the balance read use the FREE endpoint (2026-09-30): the list of sports
+# costs no credits (x-requests-last: 0) yet validates the key (INVALID_KEY -> 401) and carries
+# the balance headers -- answering 200 with x-requests-remaining: 0 when the account is empty.
+# The key check used to hit the paid odds endpoint: a third of every sync's cost.
+ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports"
 
 # H5. What to do when the key is rejected, on THIS machine. The 2026-09-23 session lost
 # most of an evening to a 401 that reads exactly like the API being down: the Bash tool's
@@ -309,15 +313,13 @@ def verify_odds_key(key, fetch=None):
         import requests
         getter = requests.get
     try:
-        resp = getter(ODDS_PROBE_URL,
-                      params={"apiKey": key, "regions": "us", "markets": "totals"},
-                      timeout=15)
+        resp = getter(ODDS_PROBE_URL, params={"apiKey": key}, timeout=15)
         status = getattr(resp, "status_code", None)
     except Exception as ex:
         return "unreachable", (f"could not reach the-odds-api ({type(ex).__name__}); "
                                f"proceeding, and F67 keeps this week's real lines if any "
                                f"are already on disk")
-    if status in (401, 403):
+    if status in (401, 403) or (status == 200 and _out_of_credits(resp)):
         if _out_of_credits(resp):
             used = (getattr(resp, "headers", None) or {}).get("x-requests-used")
             return "exhausted", _OUT_OF_CREDITS_HINT.format(
@@ -327,6 +329,57 @@ def verify_odds_key(key, fetch=None):
         return "ok", "ODDS_API_KEY accepted"
     return "unreachable", (f"the-odds-api answered HTTP {status}; treating it as a "
                            f"transient and proceeding")
+
+
+def odds_credit_balance(key, fetch=None):
+    """The account's remaining odds credits, read from the FREE endpoint, or None when it
+    cannot be read (no key, network, no header). Never raises, never returns the key."""
+    if not (key or "").strip():
+        return None
+    getter = fetch
+    if getter is None:
+        getter = requests.get
+    try:
+        resp = getter(ODDS_PROBE_URL, params={"apiKey": key}, timeout=15)
+        value = (getattr(resp, "headers", None) or {}).get("x-requests-remaining")
+        return int(str(value).strip()) if value is not None and str(value).strip().isdigit() else None
+    except Exception:
+        return None
+
+
+def odds_fetch_decision(week, existing, official, sharp, remaining, now):
+    """Pay for fresh lines, reuse the ones on disk, or hold -- and why. The odds credit budget
+    (config.ODDS_CREDIT_RESERVE / ODDS_FETCH_COST / ODDS_REUSE_HOURS; 2026-09-30).
+
+    `existing` is the Vegas file on disk (or None), `remaining` the balance (None = unknown).
+      reuse  -- not official, not a sharp poll, and `existing` is this week's REAL lines,
+                fetched ODDS_REUSE_HOURS or less ago and not kept from a failed fetch;
+      hold   -- the balance cannot cover the fetch; or, for anything but an official run,
+                the fetch would go below the reserve or the balance is unknown;
+      fetch  -- otherwise. Official runs always fetch fresh, and may spend the reserve.
+    Pure: no I/O, so the guarantee is testable as a property."""
+    from fantasy_sim.config import ODDS_CREDIT_RESERVE, ODDS_FETCH_COST, ODDS_REUSE_HOURS
+    if not official and not sharp and isinstance(existing, dict):
+        meta = existing.get(VEGAS_META_KEY) or {}
+        try:
+            age_h = (now - datetime.fromisoformat(str(meta.get("fetched_at")))).total_seconds() / 3600
+        except (TypeError, ValueError):
+            age_h = None
+        if (meta.get("source") and not _is_fallback(meta.get("source")) and not meta.get("stale_since")
+                and str(meta.get("week")) == str(week) and age_h is not None and 0 <= age_h <= ODDS_REUSE_HOURS):
+            return "reuse", (f"this week's real lines were fetched {age_h:.1f} h ago "
+                             f"(reused for up to {ODDS_REUSE_HOURS} h outside official runs)")
+    if remaining is None:
+        if official:
+            return "fetch", "an official run; the balance could not be read, so it fetches anyway"
+        return "hold", ("the odds credit balance could not be read, and only an official run "
+                        "spends credits without knowing the balance")
+    if remaining < ODDS_FETCH_COST:
+        return "hold", f"{remaining} odds credits left, and a fetch costs {ODDS_FETCH_COST}"
+    if not official and remaining - ODDS_FETCH_COST < ODDS_CREDIT_RESERVE:
+        return "hold", (f"{remaining} odds credits left; the last {ODDS_CREDIT_RESERVE} are held "
+                        f"for official runs, which this is not")
+    return "fetch", f"{remaining} odds credits left"
 
 
 def should_stop_for_odds_key(verdict, allow_fallback=False):
@@ -405,14 +458,17 @@ def _write_vegas(totals, week, source):
     return stamped
 
 
-def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_schedule=None):
+def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_schedule=None, budget=None):
     """Market-implied team totals for `current_nfl_week`, stamped with the week they are for.
 
     THE FIX FOR CORRECT IN-SEASON OPPONENTS IS ODDS_API_KEY. Without it there is no market
     data after the preseason gate, and every team gets the flat 21.5 / no-opponent fallback:
     no matchup information, no defensive-tier adjustments, and a normaliser built from a flat
     schedule. The write-and-stamp discipline below makes that state VISIBLE (loud here, refused
-    by the engine); it does not make it correct. See config.ODDS_API_KEY."""
+    by the engine); it does not make it correct. See config.ODDS_API_KEY.
+
+    `budget` ({"official": bool}) turns on the odds credit budget (odds_fetch_decision); the
+    sync always passes it. None -- direct callers and the older tests -- fetches as before."""
     if datetime.now() < datetime(2026, 9, 9):
         # UNVERIFIED: 2026-09-09 is assumed to be the regular-season kickoff. If the real
         # kickoff is earlier, week-1 games would run on the verified table (fine); if later,
@@ -428,11 +484,30 @@ def fetch_vegas_implied_totals(current_nfl_week, sharp_polling=False, week_sched
         record_source("vegas_odds", ok=False, rows=0, fallback="flat 21.5 totals, no opponents")
         return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_no_api_key")
 
+    if budget is not None:
+        on_disk = _keepable_real_lines(current_nfl_week)
+        action, why = odds_fetch_decision(current_nfl_week, on_disk, official=bool(budget.get("official")),
+                                          sharp=sharp_polling, remaining=odds_credit_balance(ODDS_API_KEY),
+                                          now=datetime.now())
+        if action == "reuse":
+            logging.info("VEGAS (week %d): no odds fetch, no credits spent -- %s.", current_nfl_week, why)
+            record_source("vegas_odds", ok=True, rows=sum(1 for k in on_disk if k != VEGAS_META_KEY))
+            generate_nfl_power_ratings(on_disk)
+            return on_disk
+        if action == "hold":
+            logging.warning("VEGAS (week %d): no odds fetch this run -- %s.", current_nfl_week, why)
+            record_source("vegas_odds", ok=False, rows=0,
+                          fallback="this week's real lines kept" if on_disk else "flat 21.5 totals, no opponents")
+            return _write_vegas(DEFAULT_FALLBACK_TOTALS, current_nfl_week, "fallback_credit_reserve")
+
     url = f"https://api.the-odds-api.com/v4/sports/americanfootball_nfl/odds/?apiKey={ODDS_API_KEY}&regions=us&markets=spreads,totals&bookmakers=draftkings"
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
         games = response.json()
+        _h = getattr(response, "headers", None) or {}
+        logging.info("VEGAS (week %d): the odds fetch cost %s credits; %s left.", current_nfl_week,
+                     _h.get("x-requests-last"), _h.get("x-requests-remaining"))
     except Exception as e:
         logging.warning(
             "VEGAS FALLBACK (week %d): odds API request failed (%s: %s). Every team gets a flat "
@@ -1433,7 +1508,7 @@ def write_sync_manifest(started_at, current_week, season, warnings, sharp_pollin
     })
 
 
-def sync_all(sharp_polling=False):
+def sync_all(sharp_polling=False, official=False):
     """Runs the full sync (_sync_body) and, only if it completes, writes the manifest last. An
     exception anywhere propagates and leaves no fresh manifest -- the orchestrator and
     check_freshness read that absence as "sync did not complete", never as stale-but-usable."""
@@ -1443,13 +1518,13 @@ def sync_all(sharp_polling=False):
     root = logging.getLogger()
     root.addHandler(collector)
     try:
-        current_week, season = _sync_body(sharp_polling)
+        current_week, season = _sync_body(sharp_polling, official)
     finally:
         root.removeHandler(collector)
     write_sync_manifest(started_at, current_week, season, collector.messages, sharp_polling)
 
 
-def _sync_body(sharp_polling=False):
+def _sync_body(sharp_polling=False, official=False):
     if not LEAGUE_ID:
         raise SystemExit("SLEEPER_LEAGUE_ID is not set (F37: league ids are env-only). "
                          "Locally: setx SLEEPER_LEAGUE_ID <id> and open a NEW terminal; "
@@ -1516,7 +1591,7 @@ def _sync_body(sharp_polling=False):
             "the engine will reject them. Re-run after the schedule fetch succeeds.",
             current_nfl_week)
     fetch_vegas_implied_totals(current_nfl_week, sharp_polling=sharp_polling,
-                               week_schedule=_wk_sched)
+                               week_schedule=_wk_sched, budget={"official": official})
 
     all_weeks_actuals = {}
     all_weeks_lineups = {}                              # UI-L4: the lineups as played, same fetch

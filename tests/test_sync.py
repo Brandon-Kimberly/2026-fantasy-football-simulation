@@ -499,7 +499,7 @@ class TestSyncManifest(unittest.TestCase):
         from fantasy_sim.storage import SYNC_MANIFEST_FILE
         saved = []
 
-        def body(sharp_polling):
+        def body(sharp_polling, official=False):     # official: the odds credit budget (2026-09-30)
             logging.warning("ODDS: no ODDS_API_KEY; using ratings model")
             logging.warning("NAME COLLISION: 'Kyle Murphy' is pid 3356 (OT, NO), pid 7377 (OL, NYG). None are rostered; "
                             "all are stored as 'Name (pid)' until one is rostered.")
