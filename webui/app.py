@@ -215,6 +215,10 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["real"] = overlay.text
     app.jinja_env.filters["stamp"] = render.human_time
     app.jinja_env.filters["num"] = _fmt_num
+    # a played score, or a season's points for or against: to the cent, as Sleeper prints it, so
+    # a number here can be checked against the league's (owner report 2026-09-29). Projections
+    # and other estimates keep `num`.
+    app.jinja_env.filters["score"] = lambda v: _fmt_num(v, 2)
     # UI-V8: a percentage that may not exist yet -- "—", never "—%" (Jinja's Undefined is "not none")
     app.jinja_env.filters["pctn"] = lambda v, nd=1: (_fmt_num(v, nd) + "%") if isinstance(v, (int, float)) and not isinstance(v, bool) and v == v else "—"
     app.jinja_env.filters["ts"] = render.human_time

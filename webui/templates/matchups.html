@@ -36,7 +36,7 @@
 {% for g in games %}
   <div class="mg{{ ' me' if g.mine }}" data-a="{{ g.a }}" data-b="{{ g.b }}" tabindex="-1">
     {% for side in ("a", "b") %}{% set t = g[side] %}{% set pts = g["pts_" ~ side] %}{% set med = g["med_" ~ side] %}{% set p = g["p_" ~ side] %}
-    <div class="side{{ ' lose' if g.winner and g.winner != t }}" id="t-{{ t|slug }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|num(1) }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
+    <div class="side{{ ' lose' if g.winner and g.winner != t }}" id="t-{{ t|slug }}">{{ mark(t) }}<span class="nm">{{ teamlink(t) }}{% if g.winner == t %}<span class="res W">W</span>{% elif g.winner %}<span class="res L">L</span>{% endif %}{% if med %}<span class="res {{ med }}" title="against the league median">{{ med }} med</span>{% endif %}</span><span class="v">{% if pts is not none %}{{ pts|score }}{% elif p is not none %}{{ (100 * p)|round(0)|int }}%{% else %}—{% endif %}</span></div>
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">
@@ -79,7 +79,7 @@
 <div class="mgames u-gtc-repeat-auto-fit-minmax-240px-1fr">
 {% for a in rv.awards %}<div class="mg"><div class="k">{{ a.label }}</div>
 <div class="side u-gtc-auto-1fr">{{ mark(a.team) }}<span class="nm">{{ teamlink(a.team) }}</span></div>
-<div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }}; the model gave them {{ (100 * a.quote)|round(0)|int }}% before kickoff{% elif a.key == "median_miss" %}{{ a.points|num(1) }} points{% if a.short is not none %}, {{ a.short|num(2 if a.short < 1 else 1) }} short of the {{ a.cut|num(1) }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|num(1) }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|num(1) }} points, still a loss to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
+<div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }}; the model gave them {{ (100 * a.quote)|round(0)|int }}% before kickoff{% elif a.key == "median_miss" %}{{ a.points|score }} points{% if a.short is not none %}, {{ a.short|score }} short of the {{ a.cut|score }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|score }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|score }} points, still a loss to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
 </div>
 {% if rv.movers %}<h3 class="u-mt-18px">Whose odds the week moved most</h3>
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Playoff odds</th><th class="num">Change</th></tr></thead><tbody>

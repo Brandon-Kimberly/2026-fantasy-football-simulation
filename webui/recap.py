@@ -91,8 +91,13 @@ def week_recap(root, week, my_team):
     if losses:
         p, t, o = max(losses)
         awards.append({"key": "high_loss", "label": "Lost with the week's best losing score", "team": t, "points": p, "opponent": o})
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
-    cut = (actuals.get(f"week_{week}") or {}).get("median_cutoff")
+    # the median of the week's scores as shown (the league's banked ones where known): the
+    # recomputed box scores' own cut sits beside banked scores it was not taken from
+    shown = sorted(float(r["points_scored"]) for r in res.values() if r and r.get("points_scored") is not None)
+    cut = None
+    if shown:
+        n = len(shown)
+        cut = round((shown[n // 2 - 1] + shown[n // 2]) / 2 if n % 2 == 0 else shown[n // 2], 3)
     missed = [(float(r.get("points_scored") or 0.0), t) for t, r in res.items() if r and r.get("median_win") is not None
               and float(r["median_win"]) <= 0
               and (cut is None or float(r.get("points_scored") or 0.0) < float(cut))]   # not a re-scored contradiction
@@ -122,11 +127,11 @@ def chat_text(rv, week):
         if a["key"] == "upset":
             tail = f"beat {a['opponent']}, given {round(100 * a['quote'])}% before kickoff"
         elif a["key"] == "median_miss":
-            tail = f"{a['points']:.1f} points" + (f", {a['short']:.{2 if a['short'] < 1 else 1}f} short of the {a['cut']:.1f} median" if a.get("short") is not None else "")
+            tail = f"{a['points']:.2f} points" + (f", {a['short']:.2f} short of the {a['cut']:.2f} median" if a.get("short") is not None else "")
         elif a["key"] == "low_win":
-            tail = f"{a['points']:.1f} points, enough to beat {a['opponent']}"
+            tail = f"{a['points']:.2f} points, enough to beat {a['opponent']}"
         else:
-            tail = f"{a['points']:.1f} points, still a loss to {a['opponent']}"
+            tail = f"{a['points']:.2f} points, still a loss to {a['opponent']}"
         lines.append(f"{a['label']}: {a['team']} -- {tail}")
     movers = [m for m in rv.get("movers") or [] if m.get("d_playoff") is not None]
     if movers:

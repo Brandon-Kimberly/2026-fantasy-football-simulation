@@ -12,7 +12,7 @@ import json
 import logging
 import math
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
 import requests
@@ -33,6 +33,7 @@ from fantasy_sim.storage import (
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     PENDING_TRADES_FILE, draft_log_file, season_log_file, NFL_TEAM_COLORS_FILE, WEEKLY_LINEUPS_FILE, FAILED_CLAIMS_FILE,
+    BANKED_SCORES_FILE, SCORING_SETTINGS_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -1128,6 +1129,49 @@ def _merge_weekly_lineups(old, new, season=None, before_week=None):
     return out
 
 
+def build_banked_scores(season, weeks_matchups, rosters, roster_map, league_settings, eras, fetch=None):
+    """The banked-scores document (storage.BANKED_SCORES_FILE) for the completed weeks in
+    `weeks_matchups` ({week: Sleeper /matchups rows}): each week's stat lines are fetched
+    (/stats/nfl/regular/<season>/<week>, one call a week) and fantasy_sim.banked_scores
+    finds and checks the league's banked scores against the rosters' fpts, fpts_against and
+    record strings. None when a stats fetch fails: the last file stands, and a warning says so."""
+    from fantasy_sim.banked_scores import resolve
+    fetch = fetch or (lambda u: requests.get(u, timeout=45).json())
+    weeks = {}
+    try:
+        for w, ms in sorted(weeks_matchups.items()):
+            stats = fetch(f"{BASE_URL}/stats/nfl/regular/{season}/{int(w)}")
+            if not isinstance(stats, dict) or not stats:
+                raise ValueError(f"no stat lines for week {w}")
+            weeks[int(w)] = {"matchups": ms, "stats": stats}
+    except Exception as ex:                                     # noqa: BLE001 -- never break a sync
+        logging.warning("BANKED SCORES: the stats feed failed (%s: %s); the last banked-scores file "
+                        "stands, and past weeks show what it holds.", type(ex).__name__, ex)
+        return None
+    team_map = {str(k): v for k, v in (roster_map or {}).items()}
+    pf, pa, records = {}, {}, {}
+    for r in rosters or []:
+        t, st = team_map.get(str(r.get("roster_id"))), (r.get("settings") or {})
+        if not t:
+            continue
+        pf[t] = sleeper_points(st)
+        pa[t] = sleeper_points(st, "fpts_against")
+        rec = (r.get("metadata") or {}).get("record")
+        if rec is not None:
+            records[t] = rec
+    median = bool((league_settings or {}).get("league_average_match"))
+    got = resolve(weeks, eras, team_map, pf, points_against=pa or None,
+                  records=records if records and len(records) == len(pf) else None, median=median)
+    doc = {"_meta": {"season": str(season), "verified": got["verified"], "why": got["why"],
+                     "eras": {str(w): e for w, e in got["eras"].items()}, "checks": got["checks"],
+                     "overrides": [{"week": w, "team": t, "points": r["points"], "api_points": r["api_points"]}
+                                   for w, rows in sorted(got["weeks"].items()) for t, r in sorted(rows.items()) if r["override"]],
+                     "written_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")}}
+    for w, rows in sorted(got["weeks"].items()):
+        doc[f"week_{w}"] = rows
+    return doc
+
+
 def _extract_weekly_lineups(wk_matchups, roster_map):
     """UI-L4: {team: {"starters": [player ids], "players": [player ids]}} for one completed week,
     as the league played it. An empty slot ("0") is not a starter. Nothing is priced here."""
@@ -1445,11 +1489,13 @@ def _sync_body(sharp_polling=False):
 
     all_weeks_actuals = {}
     all_weeks_lineups = {}                              # UI-L4: the lineups as played, same fetch
+    all_weeks_matchups = {}                             # the banked scores, below
     for wk in range(1, max(0, current_nfl_week - 1) + 1):
         m_resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/matchups/{wk}")
         if m_resp.status_code != 200 or not m_resp.json(): continue
 
         wk_matchups = m_resp.json()
+        all_weeks_matchups[wk] = wk_matchups
         all_weeks_lineups[f"week_{wk}"] = _extract_weekly_lineups(wk_matchups, roster_map)
         wk_scores = {roster_map.get(entry["roster_id"]): float(entry.get("points", 0.0)) for entry in wk_matchups}
         median_cut = np.median(list(wk_scores.values())) if wk_scores else 0
@@ -1486,6 +1532,28 @@ def _sync_body(sharp_polling=False):
     save_json(WEEKLY_LINEUPS_FILE, _merge_weekly_lineups(_prior_lineups, all_weeks_lineups,
                                                          season=str(state.get("season", "2026")),
                                                          before_week=current_nfl_week))
+    # Every past week's score as the league BANKED it (fantasy_sim.banked_scores): the league's
+    # settings are logged when they change, so a week banked under earlier settings is scored
+    # as it was, and the result is checked to the cent against the league's own totals.
+    try:
+        from fantasy_sim.banked_scores import eras as _scoring_eras, record_settings
+        _season = str(state.get("season", "2026"))
+        if record_settings(SCORING_SETTINGS_FILE, _season, current_nfl_week, scoring_settings or {},
+                           now=datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")):
+            print("[SCORING] the league's scoring settings changed; the new settings are logged.")
+        if all_weeks_matchups:
+            _banked = build_banked_scores(_season, all_weeks_matchups, rosters, roster_map,
+                                          league_info.get("settings"), _scoring_eras(SCORING_SETTINGS_FILE, _season))
+            if _banked is not None:
+                save_json(BANKED_SCORES_FILE, _banked)
+                if _banked["_meta"]["verified"]:
+                    print(f"[BANKED] weeks {', '.join(k[5:] for k in _banked if k.startswith('week_'))} "
+                          f"reproduce the league's points to the cent.")
+                else:
+                    logging.warning("BANKED SCORES: not verified -- %s. Past weeks show Sleeper's recomputed "
+                                    "box scores, with their caveat, until this is resolved.", _banked["_meta"]["why"])
+    except Exception as ex:                                      # noqa: BLE001 -- never break a sync
+        logging.warning("BANKED SCORES: skipped (%s: %s).", type(ex).__name__, ex)
     # B19: freeze what was FIRST reported, before a correction can overwrite it.
     n_first = append_first_recorded_scores(all_weeks_actuals, current_nfl_week, baselines)
     if n_first:

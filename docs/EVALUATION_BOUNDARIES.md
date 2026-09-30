@@ -125,6 +125,31 @@ the fattest tail was cut, so pre-change coverage compares only to pre-change bas
 
 ---
 
+## Boundary 1 — CORRECTION, appended 2026-09-29
+
+The resolution above is kept as written; one part of it was wrong, and this is what the league
+actually banked. **Week 2 was banked on the NEW scale, not restored to the old one.** The
+change landed before week 2 closed, Sleeper banked week 2 under it, and the commissioner
+overrode a single score -- Cosmic Badgers, `custom_points` 150.41, its old-scale value --
+which is what keeps the week-2 result as played (Quantum Ferrets' banked 148.52 is the new
+scale; its old-scale 149.02 was never banked). Week 1 is banked on the old scale, with the
+official stat corrections applied since (Polar Yetis 168.49 when first recorded, 168.36 now).
+
+Measured against the live league on 2026-09-29: each starter's CURRENT stat line scored under
+the settings in force when its week was banked -- week 1 old, weeks 2-3 new -- plus the
+override reproduces every team's banked points for AND points against to the cent, and all
+48 results against Sleeper's own record strings. Of the eight ways to assign old/new to weeks
+1-3, exactly one reproduces the points.
+
+That is now how every past week is shown. `fantasy_sim.banked_scores` finds the assignment
+from a log of the league's settings (`data/logs/scoring_settings.jsonl`, appended by the sync
+whenever they change; seeded with the two 2026 settings), checks it, and the sync writes
+`data/current/banked_scores.json`; the web UI shows those points and results for every past
+week once verified, and falls back to the recomputed box scores, with their caveat, when not.
+`py -3.10 -m scripts.banked_scores` checks it on demand. The split above still holds for the
+ENGINE: `weekly_actuals.json` stays the recomputed new-scale scores, which is what forecasting
+wants.
+
 ## Boundary 2 — ESPN blend restoration and blend-coverage fix (F52 + F54)
 
 **What changed.** Two faults, fixed together and taking effect at the same re-sync.

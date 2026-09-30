@@ -171,6 +171,31 @@ def _as_played(season, logs_dir=os.path.join("data", "logs")):
     return out
 
 
+def _banked(season, path=os.path.join("data", "current", "banked_scores.json")):
+    """{week: {team: (points, h2h_win, median_win)}} from the sync's banked scores
+    (fantasy_sim.banked_scores) for `season`: each past week as the league banked it. {} for
+    another season, or unless the file says verified -- nothing unchecked replaces a score."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            doc = json.load(fh)
+    except (OSError, ValueError):
+        return {}
+    meta = (doc or {}).get("_meta") or {}
+    if not meta.get("verified") or str(meta.get("season")) != str(season):
+        return {}
+    out = {}
+    for key, teams in doc.items():
+        if not str(key).startswith("week_") or not isinstance(teams, dict):
+            continue
+        try:
+            wk = int(str(key)[5:])
+        except ValueError:
+            continue
+        out[wk] = {t: (r.get("points"), r.get("h2h_win"), r.get("median_win")) for t, r in teams.items()
+                   if isinstance(r, dict) and r.get("points") is not None}
+    return out
+
+
 def _projections(season):
     """{week: {team: (expected_total, sd)}} from the committed predictions log.
 
@@ -308,8 +333,16 @@ def main(argv=None):
         pa = {t: c["points_against"] for t, c in counted.items()} if closed else None
         if pa and any(v is None for v in pa.values()):
             pa = None
-        # who won a re-scored week comes from the as-played record, not today's box score
+        # who won a re-scored week comes from the as-played record, not today's box score --
+        # and where the sync's banked scores cover a week, its points and results are the league's
         results = {w: r for w, r in _as_played(season).items() if w in scores}
+        for w, teams in (_banked(season) if str(lid) == str(LEAGUE_ID) else {}).items():
+            if w not in scores:
+                continue
+            for t, (pts, h, med) in teams.items():
+                if t in scores[w]:
+                    scores[w][t] = float(pts)
+                    results.setdefault(w, {})[t] = (h, med)
         res = ledger(scores, pairs, team, starter_points=starters,
                      projections=_projections(season), banked_wins=banked,
                      results=results or None, points_against=pa)

@@ -113,14 +113,14 @@ class TestPages(Case):
         for mode in ("dev", "simple"):
             with self.subTest(mode=mode):
                 text = visible_text(self.get("/league", mode))
-                for s in ("All-play", "10–4", "284.2", "L2", "Games back", "0–1–1", "re-scored"):
+                for s in ("All-play", "10–4", "284.19", "L2", "Games back", "0–1–1", "re-scored"):
                     self.assertIn(s, text)
                 if mode == "simple":
                     self.assertEqual([t for t in DEV_TERMS if t in text], [])
 
     def test_a_team_page_shows_its_row(self):
         text = visible_text(self.get("/team/quantum-ferrets", "simple"))
-        for s in ("10–4", "all-play", "streak L2", "284.2"):
+        for s in ("10–4", "all-play", "streak L2", "284.19"):
             self.assertIn(s, text)
 
     def test_home_takes_its_numbers_from_the_same_helper(self):

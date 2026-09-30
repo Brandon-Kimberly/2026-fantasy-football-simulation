@@ -44,7 +44,7 @@ table.standings tr.cutline td { border-bottom: 2px solid var(--turf); }
 </div>
 {% if mine %}{% set s = mine[0][1] %}{% set rec = records.get(my_team) if records else None %}{{ tiles([
   {"k": "my record", "v": (rec.combined.text if rec and rec.agrees else s.h2h_wins|string ~ "–" ~ ((2 * wk - 2 - (s.h2h_wins or 0))|string)), "s": ((rec.h2h.text ~ " head-to-head · " ~ rec.median.text ~ " against the median") if rec and rec.agrees else ("head-to-head and median combined; the split arrives with the next sync" if s.h2h_wins else "no games played yet")), "tone": ""},
-  {"k": "points scored", "v": s.points_scored|num(1), "s": "season to date", "tone": ""},
+  {"k": "points scored", "v": s.points_scored|score, "s": "season to date", "tone": ""},
   {"k": "my lineup VORP", "v": (vt[my_team].lineup_vorp|signed(1)) if (vt and my_team in vt) else "—", "s": ("rank " ~ vt[my_team].rank ~ " of " ~ vt|length ~ " · depth " ~ vt[my_team].depth_vorp|signed(1)) if (vt and my_team in vt) else "run roster grades to fill this", "tone": ""},
   {"k": "budget left", "v": s.remaining_faab|num(0), "s": "of 100 FAAB", "tone": ""}
 ]) }}{% endif %}
@@ -57,8 +57,8 @@ table.standings tr.cutline td { border-bottom: 2px solid var(--turf); }
 <td class="num" data-sort="{{ r.wins }}"><b>{{ r.wins|num(0) if r.wins is not none and r.wins % 1 == 0 else r.wins|num(1) }}</b></td>
 {% if r.combined %}<td class="num" data-sort="{{ r.h2h.w }}">{{ r.h2h.text }}</td><td class="num" data-sort="{{ r.median.w }}">{{ r.median.text }}</td>{% else %}<td class="num muted" data-sort="-1">—</td><td class="num muted" data-sort="-1">—</td>{% endif %}
 <td class="num" data-sort="{{ r.all_play.w if r.all_play else -1 }}">{{ r.all_play.text if r.all_play else "—" }}</td>
-<td class="num" data-sort="{{ r.points_for }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (r.points_for or 0) / pmax)|round(0)|int }}"></i></span>{{ r.points_for|num(1) }}</span></td>
-<td class="num" data-sort="{{ r.points_against if r.points_against is not none else -1 }}">{{ r.points_against|num(1) if r.points_against is not none else "—" }}</td>
+<td class="num" data-sort="{{ r.points_for }}"><span class="bc"><span class="mini warm"><i data-width="{{ (100 * (r.points_for or 0) / pmax)|round(0)|int }}"></i></span>{{ r.points_for|score }}</span></td>
+<td class="num" data-sort="{{ r.points_against if r.points_against is not none else -1 }}">{{ r.points_against|score if r.points_against is not none else "—" }}</td>
 <td data-sort="{{ r.streak or '' }}">{{ r.streak or "—" }}</td>
 <td class="num" data-sort="{{ (0 - r.cushion) if r.cushion is not none else r.gb }}">{% if r.cushion is not none %}<span class="pos" title="lead over fifth place">+{{ r.cushion|num(0) if r.cushion % 1 == 0 else r.cushion|num(1) }}</span>{% if r.cushion == 0 %} <span class="muted tiny">on points</span>{% endif %}{% elif r.gb is not none %}{{ r.gb|num(0) if r.gb % 1 == 0 else r.gb|num(1) }}{% if r.gb == 0 %} <span class="muted tiny">on points</span>{% endif %}{% else %}—{% endif %}</td>
 <td class="num" data-sort="{{ r.playoff or 0 }}">{% if r.playoff is not none %}<span class="bc"><span class="mini turf"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{{ r.playoff|pctn(1) }}</span>{% if r.move %} <span class="rankd {{ 'up' if r.move > 0 else 'dn' }}" title="playoff odds since the forecast before">{{ '▲' if r.move > 0 else '▼' }}{{ r.move|abs|num(1) }}</span>{% endif %}{% else %}<span class="muted">—</span>{% endif %}</td>

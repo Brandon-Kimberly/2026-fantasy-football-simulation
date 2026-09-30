@@ -39,16 +39,10 @@ MEASURES = (
 
 
 def _inputs(root):
-    actuals = root.read_json("current/weekly_actuals.json", {}) or {}
+    from webui.results import week_results
     scores = {}
-    for key, wk in actuals.items():
-        if not str(key).startswith("week_") or not isinstance(wk, dict):
-            continue
-        try:
-            n = int(str(key)[5:])
-        except ValueError:
-            continue
-        row = {t: float(r["points_scored"]) for t, r in (wk.get("team_results") or {}).items()
+    for n, teams in week_results(root).items():             # the league's banked points where known
+        row = {t: float(r["points_scored"]) for t, r in teams.items()
                if isinstance(r, dict) and r.get("points_scored") is not None}
         if n <= REGULAR_WEEKS and row:
             scores[n] = row
@@ -71,7 +65,6 @@ def _inputs(root):
         pass
     standings = root.read_json("current/league_standings.json", {}) or {}
     banked = {t: int(float(s["h2h_wins"])) for t, s in standings.items() if isinstance(s, dict) and s.get("h2h_wins") is not None}
-    from webui.results import week_results
     results = {w: {t: (r.get("h2h_win"), r.get("median_win")) for t, r in teams.items()}
                for w, teams in week_results(root).items() if w in scores}
     pa = {t: s.get("points_against") for t, s in standings.items() if isinstance(s, dict)}

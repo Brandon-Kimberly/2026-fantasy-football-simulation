@@ -51,3 +51,9 @@ data/logs/failed_claims.jsonl merge=union
 #                          only reader is the log viewer, so a duplicate from a union merge
 #                          is one reading shown twice, never a wrong number
 data/logs/streamer_levels.jsonl merge=union
+#   scoring_settings    -- the league's scoring settings over time (fantasy_sim.banked_scores),
+#                          appended by the sync when they change, so it races like the rest. Its
+#                          reader sorts by observed_at and absorbs a repeat of the settings in
+#                          force, so a duplicate from a union merge changes nothing; pinned by
+#                          tests.test_banked_scores
+data/logs/scoring_settings.jsonl merge=union
