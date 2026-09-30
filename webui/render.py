@@ -1161,7 +1161,7 @@ def line_chart(series, labels, unit="", nd=1, width=640, height=220, y_min=0.0, 
                     out.append(f'<text class="vl" x="{xs[i]:.1f}" y="{y(v) - 7:.1f}" text-anchor="middle">{txt}</text>')
     # the end labels: pushed apart from the top down, then the whole stack lifted if it ran off the bottom
     end_labels.sort(key=lambda t: t[0])
-    gap = CHART_FONT_PX + 2
+    gap = CHART_FONT_PX + 4                    # +2 was the letter height and read as touching (2026-09-30)
     for k in range(1, len(end_labels)):
         if end_labels[k][0] < end_labels[k - 1][0] + gap:
             end_labels[k][0] = end_labels[k - 1][0] + gap

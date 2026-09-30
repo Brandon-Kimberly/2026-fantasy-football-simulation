@@ -1,0 +1,46 @@
+{
+ "ui_hash": "085b4d582e543c4fef65b35503007ab682a0be2776add11b39b29d563cd918d0",
+ "taken_at": "2026-09-30T16:36:49Z",
+ "names": "pseudonyms",
+ "images": "none",
+ "view": "simple",
+ "width": 1400,
+ "shots": [
+  {
+   "name": "home",
+   "path": "/",
+   "width": 1400,
+   "files": [
+    "docs/webui_home_light.webp",
+    "docs/webui_home_dark.webp"
+   ]
+  },
+  {
+   "name": "league",
+   "path": "/league",
+   "width": 1900,
+   "files": [
+    "docs/webui_league_light.webp",
+    "docs/webui_league_dark.webp"
+   ]
+  },
+  {
+   "name": "matchups",
+   "path": "/matchups",
+   "width": 1400,
+   "files": [
+    "docs/webui_matchups_light.webp",
+    "docs/webui_matchups_dark.webp"
+   ]
+  },
+  {
+   "name": "odds_race",
+   "path": "/forecasts",
+   "width": 1400,
+   "files": [
+    "docs/webui_odds_race_light.webp",
+    "docs/webui_odds_race_dark.webp"
+   ]
+  }
+ ]
+}
