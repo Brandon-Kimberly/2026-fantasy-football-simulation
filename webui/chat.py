@@ -188,6 +188,8 @@ class ChatService:
         self._turn = None               # {cid, text, tools, proc, started}
         self._ws = None
         self._ws_made = None
+        self._ws_lock = threading.Lock()
+        self._warming = False
 
     @property
     def available(self):
@@ -197,22 +199,58 @@ class ChatService:
     def _manifest_time(self):
         return self.root.mtime("current/sync_manifest.json") or self.root.mtime("current/league_standings.json") or 0
 
+    def _fresh(self):
+        return bool(self._ws and os.path.isdir(self._ws) and (self._ws_made or 0) >= self._manifest_time())
+
+    def _make_copy(self):
+        """A marked sandbox (webui.sandbox can discard it) holding the served data without the
+        images and charts, which no tool reads and which were most of its 170 MB."""
+        from webui import sandbox
+        from webui.paths import TOP_DIRS
+        os.makedirs(self.base, exist_ok=True)
+        top = tempfile.mkdtemp(prefix="syn-sandbox-", dir=self.base)
+        data = os.path.join(top, "data")
+        os.makedirs(data)
+        skip = shutil.ignore_patterns("*.png", "*.jpg", "*.jpeg", "*.gif", "*.svg", "*.webp")
+        for d in TOP_DIRS:
+            src = os.path.join(self.root.data, d)
+            if os.path.isdir(src):
+                shutil.copytree(src, os.path.join(data, d), ignore=skip)
+        with open(os.path.join(top, sandbox.MARKER), "w", encoding="utf-8") as fh:
+            json.dump({"copied_from": self.root.root, "for": "chat"}, fh)
+        return top
+
     def workspace(self):
         """The chat's copy of the league data, outside the repository; made again after a sync."""
         from webui import sandbox
-        if self._ws and os.path.isdir(self._ws) and (self._ws_made or 0) >= self._manifest_time():
+        with self._ws_lock:
+            if self._fresh():
+                return self._ws
+            old = self._ws
+            made = _dt.datetime.now().timestamp()
+            self._ws = self._make_copy()
+            self._ws_made = made
+            if old:
+                try:
+                    sandbox.discard(old)
+                except (OSError, ValueError):
+                    pass
             return self._ws
-        os.makedirs(self.base, exist_ok=True)
-        old = self._ws
-        made = _dt.datetime.now().timestamp()
-        self._ws = sandbox.create(self.root, base=self.base).root
-        self._ws_made = made
-        if old:
+
+    def prewarm(self):
+        """Make the copy in the background when the page opens, so the first message does not wait."""
+        if self._fresh() or self._warming:
+            return
+
+        def run():
             try:
-                sandbox.discard(old)
-            except (OSError, ValueError):
+                self.workspace()
+            except OSError:
                 pass
-        return self._ws
+            finally:
+                self._warming = False
+        self._warming = True
+        threading.Thread(target=run, daemon=True).start()
 
     def mcp_config(self):
         ws = self.workspace()
@@ -260,16 +298,32 @@ class ChatService:
             self.store.save(conv)
             mapping = getattr(self.overlay, "mapping", {}) or {}
             prompt = self._context() + "\n\n" + pseudonymize(text, mapping)
-            argv = build_argv(self.claude, prompt, self.mcp_config(), self.briefing(), model, conv.get("session_id"))
-            proc = self.popen(argv, cwd=self.base, env=child_env(os.environ), stdout=subprocess.PIPE,
-                              stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
-            self._turn = {"cid": cid, "text": "", "tools": [], "proc": proc, "model": model,
-                          "started": _dt.datetime.now().timestamp()}
-            threading.Thread(target=self._pump, args=(cid, proc, model), daemon=True).start()
+            now = _dt.datetime.now().timestamp()
+            steps = [] if self._fresh() else [{"id": "copy", "name": "copy", "input": {}, "done": False,
+                                               "label": "Getting the latest league data", "started": now}]
+            self._turn = {"cid": cid, "text": "", "tools": steps, "proc": None, "model": model, "started": now}
+            threading.Thread(target=self._run, args=(cid, prompt, conv.get("session_id"), model), daemon=True).start()
         except BaseException:
             self._turn = None
             self._busy.release()
             raise
+
+    def _run(self, cid, prompt, session_id, model):
+        """The turn's own thread: the data copy (a step the page shows), then Claude Code."""
+        turn = self._turn
+        try:
+            cfg = self.mcp_config()
+            for t in turn["tools"]:
+                if t["id"] == "copy":
+                    t["done"] = True
+            argv = build_argv(self.claude, prompt, cfg, self.briefing(), model, session_id)
+            proc = self.popen(argv, cwd=self.base, env=child_env(os.environ), stdout=subprocess.PIPE,
+                              stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL)
+        except Exception as ex:                                      # noqa: BLE001 -- the message says so
+            self._finish(cid, turn, f"The chat could not start: {type(ex).__name__}: {ex}", None, True, model)
+            return
+        turn["proc"] = proc
+        self._pump(cid, proc, model)
 
     def _pump(self, cid, proc, model):
         turn = self._turn
@@ -301,22 +355,30 @@ class ChatService:
         except Exception as ex:                                      # noqa: BLE001 -- the message says so
             final, err = f"{type(ex).__name__}: {ex}", True
         finally:
-            conv = self.store.get(cid) or {"id": cid, "messages": []}
-            text = turn["text"].strip() or (final or "")
+            # the saved answer is the final reply: what Claude narrates between tool calls
+            # ("Let me check the board.") shows while it works and is not part of the answer
+            text = final.strip() if (final and not err) else (turn["text"].strip() or (final or ""))
             if final is None and not text:
                 text, err = "The chat stopped before it answered.", True
+            self._finish(cid, turn, text, session, err, model)
+
+    def _finish(self, cid, turn, text, session, err, model):
+        try:
+            conv = self.store.get(cid) or {"id": cid, "messages": []}
             conv["messages"].append({"role": "assistant", "text": text, "error": bool(err), "model": model,
-                                     "tools": [{"name": t["name"], "label": t["label"], "input": t["input"]} for t in turn["tools"]],
+                                     "tools": [{"name": t["name"], "label": t["label"], "input": t["input"]}
+                                               for t in turn["tools"] if t["id"] != "copy"],
                                      "at": _dt.datetime.now().isoformat(timespec="seconds")})
             if session and not err:
                 conv["session_id"] = session
             self.store.save(conv)
+        finally:
             self._turn = None
             self._busy.release()
 
     def stop(self, cid):
         t = self._turn
-        if t and t["cid"] == cid:
+        if t and t["cid"] == cid and t.get("proc") is not None:
             try:
                 t["proc"].kill()
             except OSError:

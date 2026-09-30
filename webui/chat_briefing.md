@@ -59,6 +59,8 @@ answer from what is already on file.
 ## How to answer
 
 - Lead with the answer, then the reasons. Short paragraphs; a small table when comparing.
+- Quote records, scores and budgets exactly as the data gives them (a 5-1 team is 5-1); never
+  round, infer or recompute a fact the data states.
 - Use the numbers. Give projections to one decimal and odds as percentages; when the model gives
   a standard error, include it ("+4.6 points of playoff odds, ± 0.6").
 - Separate what the league recorded (scores, records, budgets) from what the model estimates

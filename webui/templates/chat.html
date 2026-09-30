@@ -175,11 +175,22 @@
     if (cid) return Promise.resolve(cid);
     return post('/chat/new').then(function (r) { var m = /\/chat\/([A-Za-z0-9_\-]+)/.exec(r.url); cid = m ? m[1] : null; if (cid) history.replaceState(null, '', '/chat/' + cid); return cid; });
   }
+  // a chat started from this page joins the list at once, titled by its first question
+  function listed(id, text) {
+    var side = document.querySelector('.convs');
+    if (!side || side.querySelector('a.cv[href="/chat/' + id + '"]')) return;
+    var none = side.querySelector('.none'); if (none) none.remove();
+    side.querySelectorAll('a.cv.on').forEach(function (a) { a.classList.remove('on'); });
+    var a = el('a', 'cv on', text.length > 70 ? text.slice(0, 70) + '…' : text); a.href = '/chat/' + id; a.title = text;
+    var first = side.querySelector('a.cv'), newf = side.querySelector('form');
+    side.insertBefore(a, first || (newf ? newf.nextSibling : null));
+  }
   function send(text) {
     text = (text || '').trim();
     if (!text) return;
     msgline.textContent = '';
     ensureChat().then(function (id) {
+      if (id) listed(id, text);
       if (!id) { msgline.textContent = 'Could not start a chat.'; return; }
       return post('/chat/' + id + '/send', { text: text, model: model.value }).then(function (r) {
         return r.json().then(function (j) {

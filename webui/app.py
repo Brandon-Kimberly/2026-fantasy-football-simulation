@@ -451,6 +451,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     @app.route("/chat")
     @app.route("/chat/<cid>")
     def chat_page(cid=None):
+        if not app.testing:
+            chatsvc.prewarm()                          # the data copy, before the first message needs it
         convs = chatsvc.store.list()
         if cid is None and convs:
             return redirect(f"/chat/{convs[0]['id']}")

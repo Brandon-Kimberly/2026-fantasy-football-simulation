@@ -686,16 +686,18 @@ class TestTheChatPage(BrowserCase):
         for mode in ("dev", "simple"):
             with self.subTest(mode=mode):
                 self.open("/chat", mode)
+                before = self.page.locator(".msg.ai").count()          # the second pass reopens the first's chat
                 box = self.page.locator("#chat-input")
                 box.fill("Who should I claim?")
                 box.press("Enter")
                 self.page.locator(".msg.me").last.wait_for()
                 self.assertIn("Who should I claim?", self.page.locator(".msg.me").last.inner_text())
-                self.page.locator(".msg.ai:not(.live) strong").last.wait_for(timeout=10000)
+                self.page.wait_for_function(f"document.querySelectorAll('.msg.ai:not(.live)').length > {before} && !document.getElementById('chat-input').disabled", timeout=10000)
                 answer = self.page.locator(".msg.ai:not(.live)").last
                 self.assertIn("Braelon Allen", answer.inner_text())
                 self.assertIn("Running waiver targets", answer.inner_text())
                 self.assertFalse(self.page.locator("#chat-input").is_disabled())
+                self.assertIn("Who should I claim?", self.page.locator(".convs a.cv.on").inner_text(), "the new chat is listed at once")
                 self.assertEqual(self.errors, [])
 
 
