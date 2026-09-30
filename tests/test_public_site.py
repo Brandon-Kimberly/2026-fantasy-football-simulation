@@ -191,7 +191,7 @@ class TestThePlayoffMachineDoesNotMultiply(unittest.TestCase):
         cls.report = export(Root(cls.td.name), cls.out, BASE, max_pages=250)
         cls.pages = {}
         for d, _s, fs in os.walk(os.path.join(cls.out, "playoffs")):
-            for f in fs:
+            for f in (f for f in fs if f.endswith(".html")):     # pages; the machine's outcomes.json is data
                 with open(os.path.join(d, f), encoding="utf-8") as fh:
                     cls.pages[os.path.relpath(os.path.join(d, f), cls.out).replace(os.sep, "/")] = fh.read()
 

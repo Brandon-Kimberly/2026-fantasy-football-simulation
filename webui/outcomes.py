@@ -48,6 +48,7 @@ class Outcomes:
         self.week = int(meta["week"]) if meta.get("week") is not None else (self.weeks[0] if self.weeks else None)
         self.n = len(self.rows)
         n_teams, hexn = len(self.teams), int(doc.get("median_hex") or 1)
+        self.median_hex = hexn
         parts = [r.split(";") for r in self.rows]
         codes = [(p[0].split("|") if p[0] else []) for p in parts]
         self.games, self.median = {}, {}
@@ -81,6 +82,15 @@ class Outcomes:
             if team == b:
                 return gi, 0
         return None, None
+
+
+def public_doc(o):
+    """The export as the public site's browser machine reads it (webui/assets/machine.js): the
+    seasons exactly as recorded, plus the floor and the playoff spots it must count with."""
+    return {"teams": o.teams, "weeks": o.weeks, "week": o.week,
+            "matchups": {str(w): [list(p) for p in pairs] for w, pairs in o.matchups.items()},
+            "median_hex": o.median_hex, "median_enabled": o.median_enabled, "seasons": o.rows,
+            "min": MIN_SEASONS, "spots": PLAYOFF_SPOTS}
 
 
 def parse(doc):

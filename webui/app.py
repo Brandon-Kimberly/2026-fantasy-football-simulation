@@ -457,6 +457,17 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         and the clinch markers -- every number a filter over the forecast's simulated seasons."""
         return render_template("playoffs.html", r=outcomesmod.report(root, request.args, MY_TEAM))
 
+    @app.route("/playoffs/outcomes.json")
+    def playoffs_outcomes():
+        """The public export's copy of the simulated seasons, for its browser machine. The local
+        server has its own machine and never serves them (404)."""
+        if static_site is None:
+            abort(404)
+        r = outcomesmod.report(root, {}, MY_TEAM)
+        if not r.get("available"):
+            abort(404)
+        return outcomesmod.public_doc(r["o"])
+
     @app.route("/playoffs/result")
     def playoffs_result():
         """The machine's result alone, for the page to swap in while the old one stays on screen."""

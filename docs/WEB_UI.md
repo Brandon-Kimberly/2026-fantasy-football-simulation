@@ -1234,6 +1234,17 @@ base.html: the palette (`window.PALETTE`), the site address, the density and the
 the audit probe. `tests/webui_served.py` puts the served files back where a page links them, so
 the tests that read CSS or script text read what a browser gets.
 
+**The playoff machine, in the browser (2026-09-30).** The public Playoffs page carries the full
+picker: every remaining game and every median. The export publishes the forecast's simulated
+seasons once (`playoffs/outcomes.json`, `webui.outcomes.public_doc`), and `webui/assets/machine.js`
+counts the matching seasons in the browser -- the same count, the same 200-season refusal and the
+same standard error as `webui.outcomes.conditional`. `tests/test_public_machine.py` clicks picks in
+a real browser on the exported site and holds every team's playoff and title share, and the count
+behind them, to the Python numbers to 12 places. The local server keeps its own machine and never
+serves the seasons. Building it found an exporter bug: the link pattern matched `src=` inside
+`data-src=` and rewrote it as a page address; only whole `href` / `src` / `action` attributes are
+links now.
+
 **Link previews (2026-09-30).** A link pasted into a chat shows a text card, not a bare URL: every
 public page carries Open Graph tags (its own `<title>`, the site's description, the site's name,
 and its absolute address from `build_public_site --origin`, which defaults to

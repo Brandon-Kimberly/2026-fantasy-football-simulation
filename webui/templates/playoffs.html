@@ -90,6 +90,27 @@ table.lev tr.me td.nm { font-weight: 700; }
     </details>{% endfor %}
     <button type="submit">Show the odds</button>
   </form>
+  {% else %}{# the public site: the same picker, counted in the browser (webui/assets/machine.js) #}
+  <form id="pm-static" data-src="{{ site_base }}/playoffs/outcomes.json" class="pm-static">
+    <h2 class="small u-m-0-0-8px">Pick results</h2>
+    {% for w in o.weeks %}{% set ns = namespace(n=0) %}{% for k in r.chosen %}{% if k.startswith('g%d.'|format(w)) or k.startswith('m%d.'|format(w)) %}{% set ns.n = ns.n + 1 %}{% endif %}{% endfor %}
+    <details class="wk"{% if ns.n or (loop.first and not r.chosen) or w == r.this_week %} open{% endif %}>
+      <summary>Week {{ w }}{% if w == r.this_week %} <span class="hint">this week</span>{% endif %}</summary>
+      <div class="body">
+      {% for a, b in o.matchups.get(w, []) %}{% set key = 'g%d.%d'|format(w, loop.index0) %}{% set cur = r.chosen.get(key, '') %}{% set pa = r.game_p.get('%d.%d'|format(w, loop.index0)) %}
+        <fieldset class="gm"><legend>{{ a|real }} vs {{ b|real }}{% if pa is not none %}: {{ a|real }} wins {{ pa|pct(0) }} of seasons{% endif %}</legend>
+          <label class="a"><input type="radio" name="{{ key }}" value="a"{% if cur == 'a' %} checked{% endif %}>{{ a|real }}</label>
+          <label class="mid"><input type="radio" name="{{ key }}" value=""{% if not cur %} checked{% endif %}>either</label>
+          <label class="b"><input type="radio" name="{{ key }}" value="b"{% if cur == 'b' %} checked{% endif %}>{{ b|real }}</label>
+        </fieldset>
+      {% endfor %}
+      {% if o.median_enabled %}<div class="meds">{% for t in o.teams %}{% set key = 'm%d.%d'|format(w, loop.index0) %}{% set cur = r.chosen.get(key, '') %}
+        <label for="s_{{ key|replace('.', '_') }}">{{ t|real }}<select id="s_{{ key|replace('.', '_') }}" name="{{ key }}"><option value="">median: either</option><option value="1"{% if cur == '1' %} selected{% endif %}>beats the median</option><option value="0"{% if cur == '0' %} selected{% endif %}>misses the median</option></select></label>{% endfor %}</div>{% endif %}
+      </div>
+    </details>{% endfor %}
+    <button type="reset" class="ghost">Clear the picks</button>
+  </form>
+  <script src="{{ asset('machine.js') }}"></script>
   {% endif %}
 </div>
 <p class="small muted"><b>Clinched</b> and <b>eliminated</b> are mathematically certain. <b>Over 99.9%</b> and <b>under 0.1%</b> are near-certain, not guaranteed. <b>Controls its destiny</b>: if it wins every remaining game and beats every median, it's in.{% if dev %} Clinched and eliminated are proven from the remaining schedule, counting a tie in wins against the team because the points tiebreak is still to be played; the near-certain marks need at least {{ "{:,}".format(r.near_min) }} simulated seasons; controls its destiny means fewer than four teams could then match its total.{% endif %}</p>

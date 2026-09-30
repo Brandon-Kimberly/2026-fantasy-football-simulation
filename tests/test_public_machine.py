@@ -94,6 +94,20 @@ class TestTheExport(unittest.TestCase):
         self.assertEqual(c.get("/playoffs/outcomes.json").status_code, 404, "only the public export serves the seasons")
 
 
+class TestTheRewriterLeavesDataAttributesAlone(unittest.TestCase):
+    """Found building the picker: the exporter's link pattern matched `src=` inside `data-src=`
+    (a word boundary sits after the hyphen) and rewrote a script's data address as a page link --
+    base twice, and a trailing slash. Only real href / src / action attributes are links."""
+
+    def test_data_attributes_are_not_links(self):
+        from webui.static_site import _rewrite
+        html = '<form id="f" data-src="/b/playoffs/outcomes.json" data-href="/league"><a data-href="/x" href="/league">L</a></form>'
+        out = _rewrite(html, "/b", set(), "/playoffs")
+        self.assertIn('data-src="/b/playoffs/outcomes.json"', out)
+        self.assertIn('<form id="f" data-src="/b/playoffs/outcomes.json" data-href="/league">', out)
+        self.assertIn('data-href="/x" href="/b/league/"', out)
+
+
 class _Handler(http.server.SimpleHTTPRequestHandler):
     def translate_path(self, path):
         if path.startswith(BASE):
@@ -155,13 +169,14 @@ class TestTheBrowserAgreesWithPython(unittest.TestCase):
         page.goto(self.url)
         page.wait_for_selector('#pm-static[data-ready="1"]')
         self.check(page, [])
-        page.check('#pm-static input[name="g3.0"][value="a"]')
+        page.click('#pm-static label.a:has(input[name="g3.0"])')          # a visitor clicks the label
         page.wait_for_function("document.getElementById('pm-result').dataset.n === '600'")
         self.check(page, [("g", 3, 0, "a")])
-        page.check('#pm-static input[name="g3.0"][value="b"]')
+        page.click('#pm-static label.b:has(input[name="g3.0"])')
         page.wait_for_function("document.getElementById('pm-result').dataset.n === '400'")
         self.check(page, [("g", 3, 0, "b")])
-        page.check('#pm-static input[name="g4.0"][value="b"]')          # no season has it: refused
+        page.click('#pm-static summary:has-text("Week 4")')               # week 4 starts folded, as it does for a visitor
+        page.click('#pm-static label.b:has(input[name="g4.0"])')          # no season has it: refused
         page.wait_for_function("document.getElementById('pm-result').dataset.refused === '1'")
         self.check(page, [("g", 3, 0, "b"), ("g", 4, 0, "b")])
         self.assertEqual(errors, [])
