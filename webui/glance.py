@@ -500,7 +500,7 @@ def home_report(root, my_team, runner=None):
     table = [{"team": r["team"], "rank": r["rank"], "wins": r["wins"], "points": r["points_for"], "faab": r["faab"],
               "playoff": r["playoff"], "champ": r["champ"], "all_play": r["all_play"], "gb": r["gb"],
               "cushion": r["cushion"], "mark": r["mark"], "hue": team_hue(r["team"]),
-              "spark": sparks.get(r["team"]) or [], "rank_delta": None}
+              "spark": sparks.get(r["team"]) or [], "rank_delta": None, "odds_move": None}
              for r in standings_table(root)]
     if prev_odds:
         now_rank = {r["team"]: i for i, r in enumerate(sorted(table, key=lambda r: -(float(r["playoff"] or 0))))}
@@ -508,6 +508,10 @@ def home_report(root, my_team, runner=None):
         for r in table:
             if r["team"] in then_rank and r["playoff"] is not None:
                 r["rank_delta"] = then_rank[r["team"]] - now_rank[r["team"]]       # positive = moved up
+            # the marker shown: the change in playoff odds, in percentage points (a count of
+            # places read as points -- "up 4" for odds that rose 40; owner report 2026-09-30)
+            if r["team"] in prev_odds and r["playoff"] is not None and prev_odds[r["team"]] is not None:
+                r["odds_move"] = round(float(r["playoff"]) - float(prev_odds[r["team"]]), 1)
     my_row = next((r for r in table if r["team"] == my_team), None)
     losses = (2 * (wk - 1) - int(my_row["wins"] or 0)) if (my_row and wk) else None
     opp_row = next((r for r in table if r["team"] == opponent), None) if opponent else None

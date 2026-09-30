@@ -342,7 +342,7 @@
   <section class="u-mt-28px">
     <h2><svg class="i"><use href="#i-trophy"/></svg> Standings <span class="hint">the league's record · {% if odds_week %}odds from the week-{{ odds_week }} forecast{% else %}odds after the first forecast{% endif %}{% if odds_behind %} (week {{ week }}'s is not out yet){% endif %}{% if prev_week %} · the small line is each team's odds through the season, the arrow its move since week {{ prev_week }}{% endif %}</span></h2>
     <div class="scroller"><table class="mini-standings"><thead><tr><th></th><th>Team</th><th class="num" title="wins: head-to-head plus median, as the league reports them">W</th><th class="num">Pts</th><th class="num">Playoff</th><th class="num">Title</th></tr></thead><tbody>
-    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins|wins }}</b></td><td class="num">{{ r.points|score }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|pctn(1) }}{% if r.rank_delta %}<span class="rankd {{ 'up' if r.rank_delta > 0 else 'dn' }}" title="{{ 'up' if r.rank_delta > 0 else 'down' }} {{ r.rank_delta|abs }} in playoff odds since the week {{ prev_week }} forecast">{{ '▲' if r.rank_delta > 0 else '▼' }}{{ r.rank_delta|abs }}</span>{% elif prev_week %}<span class="rankd" title="no move in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|pctn(1) }}</span></span></td></tr>{% endfor %}
+    {% for r in standings %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="num"><span class="rank r{{ r.rank }}">{{ r.rank }}</span></td><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td><td class="num"><b>{{ r.wins|wins }}</b></td><td class="num">{{ r.points|score }}</td><td class="num"><span class="bc">{% set sp = sparkline(r.spark, hue=r.hue) %}{% if sp %}{{ sp }}{% else %}<span class="mini"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span>{% endif %}{{ r.playoff|pctn(1) }}{% set mv = r.odds_move %}{% if mv is not none and mv|abs >= 0.05 %}<span class="rankd {{ 'up' if mv > 0 else 'dn' }}" title="{{ mv|signed(1) }} points of playoff odds since the week {{ prev_week }} forecast">{{ '▲' if mv > 0 else '▼' }}{{ mv|abs|num(1) }}</span>{% elif prev_week %}<span class="rankd" title="no change in playoff odds since the week {{ prev_week }} forecast">·</span>{% endif %}</span></td><td class="num"><span class="bc"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span><span class="muted">{{ r.champ|pctn(1) }}</span></span></td></tr>{% endfor %}
     </tbody></table></div>
     {% if all_matchups %}<h3 class="u-mt-16px">This week's games <span class="hint">win probability, from the same prediction log</span></h3>
     <div class="games">{% for mm in all_matchups %}{% set pa = (mm.p_a or 0) * 100 %}{% set pb = (mm.p_b or 0) * 100 %}<div class="game{% if my_team in (mm.a, mm.b) %} me{% endif %}"><span class="a{% if pa >= pb %} fav{% endif %}">{{ teamlink(mm.a) }}</span><span class="p a{% if pa >= pb %} fav{% endif %}">{{ pa|round(0)|int }}%</span><span class="vs">vs</span><span class="p{% if pb > pa %} fav{% endif %}">{{ pb|round(0)|int }}%</span><span{% if pb > pa %} class="fav"{% endif %}>{{ teamlink(mm.b) }}</span></div>{% endfor %}</div>{% endif %}
@@ -596,24 +596,17 @@
     return bits.length ? bits.join(' · ') : 'Nothing flagged: your lineup matches the model.';
   }
   function alertCheck(secs) {
-    if (!alerts || !alerts.checked || !window.Notification || Notification.permission !== 'granted') return;
+    if (!alerts || !alerts.checked) return;
     if (!(secs > 0 && secs <= ALERT_AT) || !kick) return;
     var tag = 'alerted:' + kick.getAttribute('data-at');
     try { if (localStorage.getItem(tag)) return; localStorage.setItem(tag, '1'); } catch (e) {}
-    var note = new Notification('Kickoff in ' + Math.max(1, Math.round(secs / 60)) + ' min', { body: alertMessage(), tag: tag });
-    note.onclick = function () { window.focus(); note.close(); };
-  }
-  function alertOn() {
-    try { new Notification('Alerts on', { body: 'You will be warned 30 minutes before the next kickoff, while this page is open.' }); } catch (e) {}
+    window.pageAlert('Kickoff in ' + Math.max(1, Math.round(secs / 60)) + ' min', alertMessage(), tag);
   }
   if (alerts) {
     try { alerts.checked = localStorage.getItem('live-alert') === '1'; } catch (e) {}
-    if (!window.Notification) { alerts.checked = false; alerts.disabled = true; }
     alerts.addEventListener('change', function () {
       try { localStorage.setItem('live-alert', alerts.checked ? '1' : '0'); } catch (e) {}
-      if (!alerts.checked || !window.Notification) return;
-      if (Notification.permission === 'granted') { alertOn(); return; }
-      Notification.requestPermission().then(function (p) { if (p === 'granted') { alertOn(); } else { alerts.checked = false; } });
+      if (alerts.checked) { window.askNotify(); window.pageAlert('Kickoff alert on', "You'll get a heads-up 30 minutes before the next kickoff while this page is open."); }
     });
   }
   // U6: the countdown to the next kickoff ticks in the browser
@@ -657,20 +650,19 @@
   var boxes = document.querySelectorAll('#alertrow input[data-alert]');
   function on(kind) { try { return localStorage.getItem('alert-' + kind) === '1'; } catch (e) { return false; } }
   function fire(a) {
-    if (!window.Notification || Notification.permission !== 'granted' || !on(a.kind)) return;
+    if (!on(a.kind)) return;
     var tag = 'alerted:' + a.key;
     try { if (localStorage.getItem(tag)) return; localStorage.setItem(tag, '1'); } catch (e) { return; }
-    try { var n = new Notification(a.title, { body: a.body || '', tag: tag }); n.onclick = function () { window.focus(); n.close(); }; } catch (e) {}
+    window.pageAlert(a.title, a.body || '', tag);
   }
+  // the box shows what is saved and ticks when clicked; alerts show on the page, and as system
+  // notifications only where the browser allows them -- a refusal no longer unticks the box
   Array.prototype.forEach.call(boxes, function (b) {
     var kind = b.getAttribute('data-alert');
     b.checked = on(kind);
-    if (!window.Notification) { b.disabled = true; b.checked = false; }
     b.addEventListener('change', function () {
       try { localStorage.setItem('alert-' + kind, b.checked ? '1' : '0'); } catch (e) {}
-      if (b.checked && window.Notification && Notification.permission !== 'granted') {
-        Notification.requestPermission().then(function (p) { if (p !== 'granted') { b.checked = false; } else { check(); } });
-      } else if (b.checked) { check(); }
+      if (b.checked) { window.askNotify(); check(); }
     });
   });
   var waiver = null;

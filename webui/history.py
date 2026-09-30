@@ -241,7 +241,9 @@ def season_page(root, season):
         if wk > last:
             continue
         rows = bundle["matchups"][str(wk)] or []
-        pts = {names.get(str(e.get("roster_id")), f"roster {e.get('roster_id')}"): e.get("points") for e in rows}
+        empty = {str(x) for x in bundle.get("unowned_rosters") or []}
+        pts = {names.get(str(e.get("roster_id")), "Empty slot" if str(e.get("roster_id")) in empty else f"roster {e.get('roster_id')}"):
+               e.get("points") for e in rows}
         by_mid = {}
         for e in rows:
             if e.get("matchup_id") is not None:

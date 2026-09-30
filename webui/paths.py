@@ -68,6 +68,13 @@ def _inside(parent, child):
         return False
 
 
+def _holds_a_file(path):
+    for _dirpath, _dirs, files in os.walk(path):
+        if files:
+            return True
+    return False
+
+
 class Root:
     def __init__(self, root):
         self.root = os.path.realpath(str(root))
@@ -186,6 +193,8 @@ class Root:
             return None
 
     # ------------------------------------------------------------------ listings
+    # A week folder with no file anywhere in it is no run: a test once left empty week_05..15
+    # folders behind, and Forecasts listed them as runs (owner report 2026-09-30).
     def _week_dirs(self, top):
         base = os.path.join(self.data, top)
         if not os.path.isdir(base):
@@ -193,7 +202,7 @@ class Root:
         out = []
         for name in os.listdir(base):
             m = WEEK_DIR_RE.match(name)
-            if m and os.path.isdir(os.path.join(base, name)):
+            if m and os.path.isdir(os.path.join(base, name)) and _holds_a_file(os.path.join(base, name)):
                 out.append(int(m.group(1)))
         return sorted(out)
 

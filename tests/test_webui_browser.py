@@ -726,7 +726,10 @@ class TestAlertsFireOnce(BrowserCase):
     FAKE = ("window.__notes = JSON.parse(sessionStorage.getItem('__notes') || '[]');"
             "window.Notification = function (t, o) { window.__notes.push(t); sessionStorage.setItem('__notes', JSON.stringify(window.__notes)); this.close = function () {}; };"
             "window.Notification.permission = 'granted'; window.Notification.requestPermission = function () { return Promise.resolve('granted'); };"
-            "try { localStorage.setItem('alert-designation', '1'); } catch (e) {}")
+            "try { localStorage.setItem('alert-designation', '1'); } catch (e) {}"
+            # a system notification is sent while the page is in the background (window.pageAlert;
+            # in view it shows on the page) -- 2026-09-30
+            "Object.defineProperty(document, 'hidden', { configurable: true, get: function () { return true; } });")
 
     def test_a_designation_alert_fires_once(self):
         self.ctx.add_init_script(self.FAKE)

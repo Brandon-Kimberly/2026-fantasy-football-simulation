@@ -462,6 +462,18 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 .u-ws-normal { white-space: normal !important; }
 /* after the utilities: a `hidden` attribute still hides an element that carries one (audit 2026-09-29) */
 [hidden] { display: none !important; }
+/* on-page alerts (window.pageAlert): they work at any address, including an http one where the
+   browser refuses system notifications (owner report 2026-09-30) */
+.alertstack { position: fixed; top: calc(var(--head-h, 0px) + 12px); right: 16px; z-index: 60; display: grid; gap: 10px; width: min(360px, calc(100vw - 32px)); pointer-events: none; }
+.alertcard { pointer-events: auto; position: relative; background: var(--plane); color: var(--ink); border: 1px solid var(--grid); border-left: 4px solid var(--pos); border-radius: 12px; padding: 12px 36px 12px 14px; box-shadow: 0 12px 32px -12px rgba(0,0,0,.35); animation: alert-in .35s cubic-bezier(.2,.8,.2,1) both; }
+.alertcard b { display: block; font-size: 13.5px; margin-bottom: 2px; }
+.alertcard span { font-size: 12.5px; color: var(--ink-2); }
+.alertcard button { position: absolute; top: 6px; right: 6px; border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; padding: 4px 6px; cursor: pointer; border-radius: 6px; }
+.alertcard button:hover, .alertcard button:focus-visible { color: var(--ink); background: var(--mid); }
+.alertcard.out { animation: alert-out .25s ease-in both; }
+@keyframes alert-in { from { opacity: 0; transform: translateX(24px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes alert-out { to { opacity: 0; transform: translateX(24px); } }
+@media (prefers-reduced-motion: reduce) { .alertcard, .alertcard.out { animation: none; } }
 </style>
 <script>try { if (localStorage.getItem("syn-density") === "compact") document.documentElement.dataset.density = "compact"; } catch (e) {}</script>
 </head>
@@ -804,6 +816,30 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
   var top = document.querySelector('header.top');
   function headH() { if (top) document.documentElement.style.setProperty('--head-h', top.offsetHeight + 'px'); }
   headH(); window.addEventListener('resize', headH);
+  // an alert on the page itself -- and, where the browser allows one, a system notification too.
+  // Browsers refuse notification permission on an http address that is not localhost, which is
+  // how this site is usually opened; the page alert works everywhere (owner report 2026-09-30).
+  window.pageAlert = function (title, body, tag) {
+    var host = document.querySelector('.alertstack');
+    if (!host) { host = document.createElement('div'); host.className = 'alertstack'; host.setAttribute('role', 'status'); host.setAttribute('aria-live', 'polite'); document.body.appendChild(host); }
+    var t = document.createElement('div'); t.className = 'alertcard';
+    var b = document.createElement('b'); b.textContent = title; t.appendChild(b);
+    if (body) { var s = document.createElement('span'); s.textContent = body; t.appendChild(s); }
+    var x = document.createElement('button'); x.type = 'button'; x.setAttribute('aria-label', 'Dismiss'); x.textContent = '\u00d7'; t.appendChild(x);
+    function close() { t.classList.add('out'); setTimeout(function () { t.remove(); }, 260); }
+    x.addEventListener('click', close);
+    setTimeout(close, 15000);
+    host.appendChild(t);
+    try {
+      if (window.Notification && Notification.permission === 'granted' && document.hidden) {
+        var n = new Notification(title, { body: body || '', tag: tag || title }); n.onclick = function () { window.focus(); n.close(); };
+      }
+    } catch (e) {}
+  };
+  // ask for system notifications only where the browser can grant them; a refusal changes nothing
+  window.askNotify = function () {
+    try { if (window.Notification && window.isSecureContext && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
+  };
   // a table wider than its column gets a sideways scrollbar (.xscroll) instead of losing its
   // right-hand columns to the page's clip; re-measured on resize
   function fit() {
