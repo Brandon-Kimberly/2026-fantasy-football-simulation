@@ -37,19 +37,24 @@
 (function () {
   var url = "/jobs/{{ job.id }}.json", typical = {{ typical or 'null' }};
   function mmss(s) { s = Math.max(0, Math.floor(s || 0)); if (s < 60) return s + " s"; return Math.floor(s / 60) + " m" + (s % 60 ? " " + (s % 60) + " s" : ""); }
-  function tick() {
-    fetch(url, { headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); }).then(function (j) {
-      if (j.state !== "RUNNING") { location.reload(); return; }
-      document.getElementById("elapsed").textContent = mmss(j.elapsed);
-      var p = j.progress || {}, st = document.getElementById("stages");
-      Array.from(st.children).forEach(function (el, i) { el.className = "stage " + (i + 1 < p.reached ? "done" : (i + 1 === p.reached ? "now" : "")); });
-      if (p.last) document.getElementById("latest").textContent = p.last;
-      var bar = document.getElementById("bar");
-      if (typical) { var pct = Math.min(96, Math.round((j.elapsed / typical) * 100)); bar.className = "bar"; bar.firstChild.style.width = pct + "%"; }
-      setTimeout(tick, 2000);
-    }).catch(function () { setTimeout(tick, 4000); });
+  // UI-E8: updates arrive on the job's event stream (window.watchJob, base.html), or by polling
+  // `url` when the stream drops; between them the elapsed time ticks here, from the last update
+  var base = null, at = 0;
+  function show(sec) {
+    document.getElementById("elapsed").textContent = mmss(sec);
+    var bar = document.getElementById("bar");
+    if (typical && bar) { var pct = Math.min(96, Math.round((sec / typical) * 100)); bar.className = "bar"; bar.firstChild.style.width = pct + "%"; }
   }
-  setTimeout(tick, 2000);
+  function apply(j) {
+    if (j.state !== "RUNNING") { location.reload(); return; }
+    base = j.elapsed; at = Date.now();
+    show(base);
+    var p = j.progress || {}, st = document.getElementById("stages");
+    Array.from(st.children).forEach(function (el, i) { el.className = "stage " + (i + 1 < p.reached ? "done" : (i + 1 === p.reached ? "now" : "")); });
+    if (p.last) document.getElementById("latest").textContent = p.last;
+  }
+  setInterval(function () { if (base !== null) show(base + (Date.now() - at) / 1000); }, 1000);
+  document.addEventListener("DOMContentLoaded", function () { window.watchJob({{ job.id|tojson }}, apply, 2000); });
 })();
 </script>
 {% endif %}

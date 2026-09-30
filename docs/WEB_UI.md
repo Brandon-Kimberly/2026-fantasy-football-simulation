@@ -957,6 +957,20 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### Server-sent events for running jobs (2026-09-29, roadmap UI-E8; the unbuilt half of U13)
+
+- **The stream.** `/jobs/<id>/events` streams the same status the page used to poll.
+  - It sends an event whenever anything but the elapsed time changes, and a refresh every
+    `SSE_REFRESH` (5) seconds, so the elapsed time stays honest.
+  - It sends a last event once the job has ended, then closes.
+  - A stream older than `SSE_MAX` (15 minutes) closes, and the page falls back.
+- **One follower.** `window.watchJob(id, apply, pollMs)` in `base.html` is shared by the job
+  page and the job bar. It opens an EventSource where the browser has one, and falls back to
+  polling `/jobs/<id>.json` every `pollMs` when it has none or the stream errors. The job page
+  ticks its elapsed time locally between updates.
+- **The cost.** Each open stream holds one of the local server's threads while the job runs.
+  That is fine for one owner on 127.0.0.1.
+
 ### The sandbox root (2026-09-29, roadmap UI-E6; the W5 design)
 
 - **`webui.sandbox.create`** copies the served directories into a fresh temporary root. It

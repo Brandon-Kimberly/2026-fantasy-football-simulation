@@ -18,6 +18,7 @@ import os
 import re
 import secrets
 import sys
+import time
 
 from flask import Flask, Response, abort, redirect, render_template, request, send_file, url_for
 
@@ -1004,9 +1005,42 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def job_status(job_id):
         """What the job page polls: state, elapsed, the stage reached, the last line the
         tool printed, and the log tail -- updated in place, no page reload until the end."""
+        st = _job_status(job_id)
+        if st is None:
+            abort(404)
+        return st
+
+    @app.route("/jobs/<job_id>/events")
+    def job_events(job_id):
+        """UI-E8: the same status as a server-sent event stream -- an event whenever anything
+        but the elapsed time changes, a refresh every SSE_REFRESH seconds so the elapsed time
+        stays honest, and a last event once the job has ended, after which the stream closes.
+        A stream older than SSE_MAX seconds closes too; the page reconnects or polls."""
+        if not runner.read(job_id):
+            abort(404)
+        interval = float(app.config.get("SSE_INTERVAL", 1.0))
+        refresh, longest = float(app.config.get("SSE_REFRESH", 5.0)), float(app.config.get("SSE_MAX", 900.0))
+
+        def stream():
+            last, since, began = None, 0.0, time.monotonic()
+            while True:
+                st = _job_status(job_id)
+                if st is None:
+                    return
+                key = json.dumps({k: v for k, v in st.items() if k != "elapsed"}, default=str, sort_keys=True)
+                if key != last or since >= refresh:
+                    yield "data: " + json.dumps(st, default=str) + "\n\n"
+                    last, since = key, 0.0
+                if st.get("state") != RUNNING or time.monotonic() - began > longest:
+                    return
+                time.sleep(interval)
+                since += interval
+        return Response(stream(), mimetype="text/event-stream", headers={"X-Accel-Buffering": "no"})   # never cached: the app sets no-store on every response
+
+    def _job_status(job_id):
         meta = runner.read(job_id)
         if not meta:
-            abort(404)
+            return None
         log_text = runner.log_text(job_id)
         tail = [ln for ln in log_text.splitlines() if ln.strip() and not render._is_chatter(ln)][-30:]
         return {"state": meta.get("state"), "rc": meta.get("rc"), "started_at": meta.get("started_at"),

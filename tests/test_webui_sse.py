@@ -55,7 +55,7 @@ class TestTheStream(unittest.TestCase):
         self.assertEqual(events[0]["state"], RUNNING)
         self.assertEqual(events[-1]["state"], OK)
         self.assertEqual(len([e for e in events if e["state"] == RUNNING]), 1, "an event only when something changed")
-        self.assertEqual(r.headers.get("Cache-Control"), "no-cache")
+        self.assertEqual(r.headers.get("Cache-Control"), "no-store", "the app's policy on every response: never cached")
 
     def test_an_unknown_job_is_404(self):
         self.assertEqual(self.app.test_client().get("/jobs/20260926T000000Z_ffffff_nope/events").status_code, 404)
