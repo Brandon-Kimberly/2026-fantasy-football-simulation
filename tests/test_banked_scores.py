@@ -264,5 +264,40 @@ class TestTheSiteShowsTheBankedScores(unittest.TestCase):
         self.assertEqual(scores[1][QF], 181.5)
 
 
+class TestTheLuckToolReadsThem(unittest.TestCase):
+    """scripts.luck_ledger reads Sleeper's recomputed box scores live; for the current season it
+    takes the banked scores (verified only) for the weeks they cover -- points and results."""
+
+    def test_the_banked_file(self):
+        import scripts.luck_ledger as sl
+        with tempfile.TemporaryDirectory() as td:
+            p = os.path.join(td, "banked_scores.json")
+            doc = {"_meta": {"verified": True, "season": "2026"},
+                   "week_1": {"A": {"points": 187.36, "h2h_win": 1.0, "median_win": 1}}}
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump(doc, fh)
+            self.assertEqual(sl._banked("2026", path=p), {1: {"A": (187.36, 1.0, 1)}})
+            self.assertEqual(sl._banked("2025", path=p), {})
+            doc["_meta"]["verified"] = False
+            with open(p, "w", encoding="utf-8") as fh:
+                json.dump(doc, fh)
+            self.assertEqual(sl._banked("2026", path=p), {})
+
+    def test_the_tool_scores_with_them(self):
+        from unittest.mock import patch
+        import scripts.luck_ledger as sl
+        from fantasy_sim.config import LEAGUE_ID
+        scores = {1: {"A": 185.86, "B": 150.0}}
+        seen = {}
+
+        def fake_ledger(sc, *args, **kw):
+            seen["scores"], seen["results"] = sc, kw.get("results")
+            return {"schedule_luck": None, "opponent_luck": None, "close_games": None, "dnp_luck": None, "scoring_luck": None}
+        with patch.object(sl, "_league_chain", return_value=[("2026", LEAGUE_ID, {"settings": {}})]),              patch.object(sl, "_team_names", return_value={1: "A", 2: "B"}),              patch.object(sl, "_season_data", return_value=(scores, {1: [("A", "B")]}, {})),              patch.object(sl, "_counted", return_value={}), patch.object(sl, "_projections", return_value=None),              patch.object(sl, "_as_played", return_value={}),              patch.object(sl, "_banked", return_value={1: {"A": (187.36, 1.0, 1), "B": (150.0, 0.0, 0)}}),              patch.object(sl, "ledger", side_effect=fake_ledger),              patch.object(sl, "render"), patch.object(sl, "real_name_overlay", return_value={}):
+            sl.main(["--team", "A"])
+        self.assertEqual(seen["scores"][1]["A"], 187.36)
+        self.assertEqual(seen["results"][1]["A"], (1.0, 1))
+
+
 if __name__ == "__main__":
     unittest.main()
