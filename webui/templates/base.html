@@ -528,6 +528,32 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 </div>
 <script>
 {{ table_js|safe }}
+// UI-E8: follow a running job -- the server-sent event stream where the browser has one, the
+// old polling of /jobs/<id>.json (every `pollMs`) when it does not or the stream drops.
+// `apply(status)` gets every update; watching stops once the job has ended.
+window.watchJob = function (jid, apply, pollMs) {
+  var url = '/jobs/' + encodeURIComponent(jid), done = false;
+  function poll() {
+    if (done) return;
+    fetch(url + '.json', { headers: { 'Accept': 'application/json' } })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j) { setTimeout(poll, pollMs * 2); return; }
+        apply(j);
+        if (j.state !== 'RUNNING') { done = true; return; }
+        setTimeout(poll, pollMs);
+      }).catch(function () { setTimeout(poll, pollMs * 2); });
+  }
+  if (!window.EventSource) { setTimeout(poll, pollMs); return; }
+  var es = new EventSource(url + '/events');
+  es.onmessage = function (ev) {
+    var j;
+    try { j = JSON.parse(ev.data); } catch (e) { return; }
+    apply(j);
+    if (j.state !== 'RUNNING') { done = true; es.close(); }
+  };
+  es.onerror = function () { es.close(); if (!done) setTimeout(poll, pollMs); };
+};
 (function () {
   // UI-V5: the compact toggle -- table rows only, remembered in this browser (storage may be blocked: then it lasts the page)
   var db = document.getElementById('density'), root = document.documentElement;
@@ -602,15 +628,11 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
   }
   if (bar) {
     var jid = bar.getAttribute('data-id'), jurl = bar.getAttribute('data-url'), jlabel = bar.getAttribute('data-label') || 'The job';
-    var poll = setInterval(function () {
-      fetch('/jobs/' + encodeURIComponent(jid) + '.json', { headers: { 'Accept': 'application/json' } })
-        .then(function (r) { return r.ok ? r.json() : null; })
-        .then(function (j) {
-          if (!j || j.state === 'RUNNING') return;
-          clearInterval(poll); bar.remove();
-          if (j.state === 'OK') showToast('<span><b>' + escT(jlabel) + '</b> finished.</span> <a href="' + escT(jurl) + '">Open the answer</a>', 30000);
-          else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
-        }).catch(function () {});
+    window.watchJob(jid, function (j) {
+      if (j.state === 'RUNNING') return;
+      bar.remove();
+      if (j.state === 'OK') showToast('<span><b>' + escT(jlabel) + '</b> finished.</span> <a href="' + escT(jurl) + '">Open the answer</a>', 30000);
+      else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
     }, 3000);
   }
   // U4 / U14: the command palette and the shortcuts

@@ -30,6 +30,19 @@ def _pre_import_environment(no_real_names=False):
         os.environ.setdefault("SHOW_REAL_TEAM_NAMES", "1")
 
 
+def prepare_root(root_arg, sandbox=False):
+    """(Root to serve, code root for jobs, cleanup). UI-E6: with `sandbox`, a fresh copy of the
+    checkout's data/ is served and every job runs in it, importing the real code; cleanup
+    discards the copy. Without it, the checkout itself, and cleanup does nothing."""
+    from webui.paths import Root
+    real = Root(root_arg)
+    if not sandbox:
+        return real, None, (lambda: None)
+    from webui import sandbox as sbx
+    sb = sbx.create(real)
+    return sb, real.root, (lambda: sbx.discard(sb))
+
+
 def main(argv=None):
     if sys.version_info[:2] != (3, 10):
         print(f"webui: this project runs on Python 3.10 (py -3.10); this is {sys.version.split()[0]}. "
@@ -41,6 +54,8 @@ def main(argv=None):
     ap.add_argument("--port", type=int, default=DEFAULT_PORT)
     ap.add_argument("--root", default=DEFAULT_ROOT, help="the checkout (or a copy) whose data/ to serve")
     ap.add_argument("--no-real-names", action="store_true")
+    ap.add_argument("--sandbox", action="store_true",
+                    help="serve a fresh copy of data/ and run every job in it; the copy is discarded on exit (UI-E6)")
     ap.add_argument("--hostname", action="append", default=[], metavar="NAME",
                     help="also answer to this name (W9), e.g. syndicatefootball.local -- after adding "
                          "'127.0.0.1 syndicatefootball.local' to the hosts file; the bind stays 127.0.0.1")
@@ -53,16 +68,21 @@ def main(argv=None):
     from webui.names import Overlay
     from webui.paths import Root
 
-    root = Root(args.root)
-    if not os.path.isdir(root.data):
-        print(f"webui: {root.data} does not exist -- is --root a checkout with a data/ tree?", file=sys.stderr)
+    if not os.path.isdir(Root(args.root).data):
+        print(f"webui: {Root(args.root).data} does not exist -- is --root a checkout with a data/ tree?", file=sys.stderr)
         return 2
+    root, code_root, cleanup = prepare_root(args.root, sandbox=args.sandbox)
     overlay = Overlay.from_environment()
-    app = create_app(root, overlay=overlay, port=args.port, default_mode=args.mode, hostnames=args.hostname)
+    app = create_app(root, overlay=overlay, port=args.port, default_mode=args.mode, hostnames=args.hostname, code_root=code_root)
     shown = (args.hostname[0] if args.hostname else "127.0.0.1") + ("" if args.port == 80 else f":{args.port}")
     print(f"webui: http://{shown}/   root={root.root}   "
           f"real names={'on' if overlay.enabled else 'off (pseudonyms)'}   mode={app.config['SETTINGS'].mode}", flush=True)
-    app.run(host="127.0.0.1", port=args.port, debug=False, use_reloader=False, threaded=True)
+    if code_root:
+        print(f"webui: SANDBOX -- a copy of {code_root}'s data/, discarded on exit; nothing here touches the real tree", flush=True)
+    try:
+        app.run(host="127.0.0.1", port=args.port, debug=False, use_reloader=False, threaded=True)
+    finally:
+        cleanup()
     return 0
 
 

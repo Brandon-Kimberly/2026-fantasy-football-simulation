@@ -91,7 +91,8 @@ class Served:
         self.root = Root(self.td.name)
         self.settings = Settings(self.root)
         self.settings.set_theme("system")
-        app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=self.settings,
+        self.runner = FakeRunner()                          # kept, so a test can finish a job mid-page (UI-E8)
+        app = create_app(self.root, runner=self.runner, csrf_token="tok", settings=self.settings,
                          live=LiveBoard(self.root, MY_TEAM, league_id="L" if live_enabled else None,
                                         fetch=_never if live_enabled else None))
         self.srv = make_server("127.0.0.1", 0, app, threaded=True, request_handler=Quiet)
@@ -770,6 +771,32 @@ class TestTheTvViewSecondVersion(BrowserCase):
         xs = self.page.evaluate("['.pm', '.pg', '.pt'].map(s => document.querySelector('.tvgrid ' + s).getBoundingClientRect().left)")
         self.assertLess(xs[0], xs[1])
         self.assertLess(xs[1], xs[2])
+
+
+class TestJobPagesListen(BrowserCase):
+    """UI-E8: a running job's page takes its updates from the event stream, not by polling
+    /jobs/<id>.json; when the stream drops, it falls back to the polling."""
+
+    def watch(self, drop_stream):
+        from webui.jobs import OK
+        jid = self.served.runner.launch(["py", "-m", "scripts.weekly_report"], "weekly_report")
+        polls = []
+        self.page.on("request", lambda req: polls.append(req.url) if req.url.endswith(f"/jobs/{jid}.json") else None)
+        if drop_stream:
+            self.page.route("**/events", lambda route: route.abort())
+        self.open(f"/jobs/{jid}")
+        self.page.wait_for_timeout(4500)
+        seen = list(polls)
+        self.served.runner.metas[jid].update(state=OK, rc=0, finished_at="2026-09-26T00:01:00Z")
+        self.page.wait_for_function("!document.getElementById('stages')", timeout=8000)     # the page reloads at the end
+        return seen
+
+    def test_the_stream_replaces_the_polling(self):
+        self.assertEqual(self.watch(drop_stream=False), [], "no polling while the stream is up")
+        self.assertEqual(self.errors, [])
+
+    def test_a_dropped_stream_falls_back_to_polling(self):
+        self.assertTrue(self.watch(drop_stream=True), "the page polled once the stream failed")
 
 
 class TestCompactDensity(BrowserCase):

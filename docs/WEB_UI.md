@@ -455,7 +455,7 @@ with a drifting violet glow, a gradient ring and split bar, and a red live badge
 motion sits under `prefers-reduced-motion: reduce`, and both views carry the same
 layer (tests.test_webui_modes pins it in each).
 
-### W5 (optional, later) — Sandbox root
+### W5 — Sandbox root (built 2026-09-29 as roadmap UI-E6; see the section below)
 
 `--root` already allows serving a copy. A "sandbox run" button — copy `data/` to a temp
 root, run a tool or the report there, show the result, discard — is the exact technique
@@ -956,6 +956,40 @@ on `/playoffs` is a share of the forecast's own seasons.
   whose objects a later browser test's server thread finalises, and that test times out.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
+
+### Server-sent events for running jobs (2026-09-29, roadmap UI-E8; the unbuilt half of U13)
+
+- **The stream.** `/jobs/<id>/events` streams the same status the page used to poll.
+  - It sends an event whenever anything but the elapsed time changes, and a refresh every
+    `SSE_REFRESH` (5) seconds, so the elapsed time stays honest.
+  - It sends a last event once the job has ended, then closes.
+  - A stream older than `SSE_MAX` (15 minutes) closes, and the page falls back.
+- **One follower.** `window.watchJob(id, apply, pollMs)` in `base.html` is shared by the job
+  page and the job bar. It opens an EventSource where the browser has one, and falls back to
+  polling `/jobs/<id>.json` every `pollMs` when it has none or the stream errors. The job page
+  ticks its elapsed time locally between updates.
+- **The cost.** Each open stream holds one of the local server's threads while the job runs.
+  That is fine for one owner on 127.0.0.1.
+
+### The sandbox root (2026-09-29, roadmap UI-E6; the W5 design)
+
+- **`webui.sandbox.create`** copies the served directories into a fresh temporary root. It
+  never copies `data/local` (the secrets and the identity map) or the image cache. A marker
+  file names the copy a sandbox.
+- **`discard`** refuses anything without the marker. It removes the data first and the marker
+  last, so a discard interrupted by a file still held open can be retried.
+- **The job runner's `code_root`.** A job against a sandbox runs with its working directory in
+  the copy, so every relative `data/` write lands there, and the real checkout goes on
+  `PYTHONPATH`. The job record notes `sandbox`.
+- **`py -3.10 -m webui --sandbox`** serves a fresh copy, runs every job in it, and discards it
+  on exit. The startup line says SANDBOX.
+- **What it is for:** a crawl of a copy, and "what if I add X" without touching production data.
+
+**Limits:**
+- Killing the server's process skips the discard, and the copy stays in the temp folder as
+  `syn-sandbox-*`. `webui.sandbox.discard` removes it.
+- The engine-process scan still guards across a sandbox (R1: one engine at a time), but the
+  engine lock file is per root.
 
 ### The TV view, second version (2026-09-29, roadmap UI-M9)
 

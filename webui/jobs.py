@@ -107,8 +107,12 @@ def scan_engine_processes(exclude=()):
 
 # ------------------------------------------------------------------------- runner
 class JobRunner:
-    def __init__(self, root, popen=subprocess.Popen, scan=scan_engine_processes, alive=pid_alive):
+    def __init__(self, root, popen=subprocess.Popen, scan=scan_engine_processes, alive=pid_alive, code_root=None):
         self.root = root
+        # UI-E6: the checkout whose code a job imports. None means the served root is the checkout;
+        # a sandbox (a copy of data/ alone) names the real checkout, which goes on PYTHONPATH.
+        self.code_root = code_root
+        self.sandboxed = bool(code_root) and os.path.normcase(os.path.abspath(code_root)) != os.path.normcase(root.root)
         self.base = os.path.join(root.local, "webui")
         self.jobs_dir = os.path.join(self.base, "jobs")
         self.lock_path = os.path.join(self.base, "engine.lock")
@@ -240,6 +244,8 @@ class JobRunner:
             raise JobRefused("argv must be a non-empty list")
         child_env = os.environ.copy()
         child_env.update({str(k): str(v) for k, v in (env or {}).items()})
+        if self.sandboxed:
+            child_env["PYTHONPATH"] = os.pathsep.join(p for p in (os.path.abspath(self.code_root), child_env.get("PYTHONPATH")) if p)
         if not self._lock.acquire(blocking=False):
             raise JobRefused(f"busy: job {self._current} is still running")
         try:
@@ -260,6 +266,8 @@ class JobRunner:
                     "started_at": _iso(now), "finished_at": None, "rc": None, "pid": None,
                     "python": argv[0], "args": list(argv[1:]), "cwd": self.root.root,
                     "record": None, "note": None, **{k: v for k, v in (extra or {}).items() if k not in ("id", "state", "pid")}}
+            if self.sandboxed:
+                meta["sandbox"] = self.root.root                     # UI-E6: this run touched only the copy
             logfh = open(os.path.join(jdir, "stdout.log"), "ab")
             try:
                 proc = self._popen(list(argv), cwd=self.root.root, env=child_env,
