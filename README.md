@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
-![tests](https://img.shields.io/badge/tests-2231%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-2250%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -92,6 +92,7 @@ accident (`docs/AUDIT_PLAN.md` F11).
 ```bash
 py -3.10 -m pip install -r requirements-web.txt   # Flask, kept out of the golden-pinned requirements.txt
 py -3.10 -m webui                                  # http://127.0.0.1:8765/  (--port, --root, --no-real-names)
+                                                   # Chat page: ask Claude about the league, read-only, on your subscription (docs/WEB_UI.md)
 ```
 
 A **localhost-only** reader over everything the scripts write -- a landing page with this
@@ -260,7 +261,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 2231 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 2250 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
@@ -285,9 +286,9 @@ platform lock working, not a broken build.
 The skip is the live-ingestion test (`RUN_LIVE_INGESTION_TESTS=1` runs it); the three
 expected failures are deliberate red characterisations of tracked open items. Without
 Flask (`requirements-web.txt`) the web UI's route tests skip cleanly too, the same way
-the `espn_api` and `hypothesis` tests do -- `skipped=430`, not a failure. The fifty
+the `espn_api` and `hypothesis` tests do -- `skipped=439`, not a failure. The fifty-one
 browser tests also need Playwright and an Edge or Chrome to drive; without them they skip
-as well (`skipped=51`). Any engine
+as well (`skipped=52`). Any engine
 change either leaves the golden hashes byte-identical or regenerates them with the deltas
 explained in the commit.
 

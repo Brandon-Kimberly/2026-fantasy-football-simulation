@@ -97,14 +97,14 @@ class TestNavigation(Case):
     def test_the_developer_bar_keeps_the_objects_and_menus_the_machinery(self):
         body = self.get("/", "dev")
         self.assertEqual(self.nav(body), ["/", "/matchups", "/league", "/playoffs", "/players", "/history",
-                                          "/forecasts", "/accuracy", "/decisions", "/tools"])
+                                          "/forecasts", "/accuracy", "/decisions", "/tools", "/chat"])
         menu = re.search(r'<details class="devmenu".*?</details>', body, re.S).group(0)
         self.assertEqual(re.findall(r'<a href="(/[^"]*)"', menu), ["/records", "/jobs", "/logs", "/system", "/sync"])
 
     def test_the_simple_bar_is_unchanged(self):
         body = self.get("/", "simple")
         self.assertEqual(self.nav(body), ["/", "/matchups", "/league", "/playoffs", "/players", "/history",
-                                          "/forecasts", "/decisions", "/tools"])
+                                          "/forecasts", "/decisions", "/tools", "/chat"])
         self.assertNotIn('class="devmenu"', body)
 
     def test_every_question_tool_is_linked_where_its_question_arises(self):

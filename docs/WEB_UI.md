@@ -1168,6 +1168,41 @@ The owner ruled "cache at sync".
 
 ---
 
+### The chat (2026-09-30, owner request)
+
+**What.** A Chat page in both views: ask about waivers, lineups, trades or the standings, and
+Claude answers from the league's data -- and runs the Tools page's analysis tools to do it.
+
+**Cost.** Nothing beyond the owner's Claude subscription. Each message runs Claude Code headless
+(`claude -p`), signed in with the subscription; `webui.chat.child_env` strips any
+`ANTHROPIC_API_KEY`/`ANTHROPIC_AUTH_TOKEN` so it can never fall back to billed API use. Messages
+count against the plan's usage like any Claude Code use. "Thorough" is Opus, "quick" is Sonnet.
+
+**Read-only, by construction** (tests.test_webui_chat pins every part):
+- `--tools ""`: every built-in tool is off -- no shell, no file edits, no web fetches.
+- `--strict-mcp-config` with one server, `webui.chat_tools`, and `--setting-sources ""` (no user
+  or project settings: no hooks, no allow rules); `--permission-mode dontAsk` denies anything not
+  allowed; `--allowedTools mcp__syndicate`.
+- `webui.chat_tools` reads, lists and searches a COPY of `data/` (webui.sandbox, no
+  `data/local`) made outside the repository in the system temp folder, and made again after a
+  sync. Paths are confined to the copy (no absolute paths, no `..`, no private folders).
+- `run_tool` runs only `webui.tools.TOOLS` -- the Tools page's allowlist, so never the engine
+  runs, never sync, never a tool that appends to a tracked log -- never with `--canonical`, with
+  the copy as the working directory: a tool's answer record lands in the copy, never in `data/`.
+- One run at a time: refused while the chat's server runs one, while any other analysis process
+  is on the machine (webui.jobs' scan), or while the site's runner holds `engine.lock` (R1). The
+  tool server finds the checkout from its own path, never its command line, so its own process
+  never reads as an engine process to that scan.
+- Claude Code starts in the temp folder, so no project `CLAUDE.md` loads; its system prompt is
+  `webui/chat_briefing.md` (the league's rules, where the data is, how to answer).
+
+**Names.** What the owner types is mapped from real names to the pseudonyms before it leaves
+the machine (`webui.chat.pseudonymize`); the page maps the answer back with the overlay.
+
+**Where things live.** Conversations: `data/local/webui/chat/<id>.json` (private). Claude's own
+session files: Claude Code's folder, keyed to the temp working folder. The data copy:
+`%TEMP%/syndicate-chat/syn-sandbox-*`.
+
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
 
 Stated up front so nobody discovers it mid-phase.

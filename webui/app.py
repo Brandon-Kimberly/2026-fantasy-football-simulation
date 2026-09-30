@@ -51,11 +51,11 @@ WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log belongs to whichever p
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
 NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/accuracy", "Accuracy"), ("/decisions", "Decisions"),
-           ("/tools", "Tools"))
+           ("/tools", "Tools"), ("/chat", "Chat"))
 # UI-A5 / Decision 6: the machinery under one developer menu, so the bar is the league's objects
 NAV_DEV_MORE = (("/records", "Records"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"), ("/sync", "Sync"))
 NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/decisions", "Decisions"),
-              ("/tools", "Tools"))
+              ("/tools", "Tools"), ("/chat", "Chat"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
 DEV_ONLY_EXACT = ("/jobs",)
@@ -194,7 +194,7 @@ def _int_or_none(v):
 
 
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
-               settings=None, default_mode=None, hostnames=(), code_root=None):
+               settings=None, default_mode=None, hostnames=(), code_root=None, chat=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -441,6 +441,64 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def playoffs_result():
         """The machine's result alone, for the page to swap in while the old one stays on screen."""
         return render_template("_playoffs_result.html", r=outcomesmod.report(root, request.args, MY_TEAM))
+
+    # ---- the read-only chat (owner request 2026-09-30): Claude Code on the owner's subscription,
+    # with no tool but webui.chat_tools, which reads a copy of the data (webui.chat)
+    from webui.chat import Busy as ChatBusy, ChatService
+    chatsvc = chat if chat is not None else ChatService(root, overlay)
+    app.config["CHAT"] = chatsvc
+
+    @app.route("/chat")
+    @app.route("/chat/<cid>")
+    def chat_page(cid=None):
+        if not app.testing:
+            chatsvc.prewarm()                          # the data copy, before the first message needs it
+        convs = chatsvc.store.list()
+        if cid is None and convs:
+            return redirect(f"/chat/{convs[0]['id']}")
+        if cid is not None and chatsvc.store.get(cid) is None:
+            abort(404)
+        return render_template("chat.html", convs=[dict(c, title=overlay.text(c["title"])) for c in convs],
+                               cid=cid, st=chatsvc.state(cid) if cid else None, available=chatsvc.available)
+
+    @app.route("/chat/new", methods=["POST"])
+    def chat_new():
+        require_csrf()
+        return redirect(f"/chat/{chatsvc.new()}")
+
+    @app.route("/chat/<cid>/send", methods=["POST"])
+    def chat_send(cid):
+        require_csrf()
+        try:
+            chatsvc.send(cid, request.form.get("text", ""), request.form.get("model", "deep"))
+        except ChatBusy as ex:
+            return {"ok": False, "error": str(ex)}, 409
+        except KeyError:
+            abort(404)
+        except (ValueError, RuntimeError) as ex:
+            return {"ok": False, "error": str(ex)}, 400
+        return {"ok": True}
+
+    @app.route("/chat/<cid>/state")
+    def chat_state(cid):
+        if chatsvc.store.get(cid) is None:
+            abort(404)
+        return chatsvc.state(cid)
+
+    @app.route("/chat/<cid>/stop", methods=["POST"])
+    def chat_stop(cid):
+        require_csrf()
+        chatsvc.stop(cid)
+        return {"ok": True}
+
+    @app.route("/chat/<cid>/delete", methods=["POST"])
+    def chat_delete(cid):
+        require_csrf()
+        try:
+            chatsvc.delete(cid)
+        except ChatBusy as ex:
+            return {"ok": False, "error": str(ex)}, 409
+        return redirect("/chat")
 
     @app.route("/luck")
     def luck_page():
