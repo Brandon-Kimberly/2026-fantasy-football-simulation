@@ -1111,6 +1111,23 @@ def generate_league_schedule(roster_map, regular_season_weeks=14):
     save_json(LEAGUE_SCHEDULE_FILE, full_schedule)
     return failed_weeks
 
+def _merge_weekly_lineups(old, new, season=None, before_week=None):
+    """UI-L4, audit 2026-09-29: this sync's lineups over the last file's, so a week whose fetch
+    failed this time keeps its last copy. With `season`, the old file counts only if it was
+    written for the same season (its "_season" stamp), and the result carries the stamp; with
+    `before_week`, only completed weeks are kept from it."""
+    keep = {}
+    if isinstance(old, dict) and (season is None or old.get("_season") == season):
+        for k, v in old.items():
+            wk = str(k).rsplit("_", 1)[-1]
+            if str(k).startswith("week_") and wk.isdigit() and (before_week is None or int(wk) < int(before_week)):
+                keep[k] = v
+    out = {**keep, **(new or {})}
+    if season is not None:
+        out["_season"] = season
+    return out
+
+
 def _extract_weekly_lineups(wk_matchups, roster_map):
     """UI-L4: {team: {"starters": [player ids], "players": [player ids]}} for one completed week,
     as the league played it. An empty slot ("0") is not a starter. Nothing is priced here."""
@@ -1460,7 +1477,15 @@ def _sync_body(sharp_polling=False):
 
     record_source("sleeper_matchups", rows=len(all_weeks_actuals))
     save_json(WEEKLY_ACTUALS_FILE, all_weeks_actuals)
-    save_json(WEEKLY_LINEUPS_FILE, all_weeks_lineups)
+    # A week whose matchups fetch failed this time keeps its last copy (audit 2026-09-29) -- but
+    # never a previous season's, and never a week not yet completed.
+    try:
+        _prior_lineups = load_json(WEEKLY_LINEUPS_FILE) if os.path.exists(WEEKLY_LINEUPS_FILE) else {}
+    except (OSError, ValueError):
+        _prior_lineups = {}
+    save_json(WEEKLY_LINEUPS_FILE, _merge_weekly_lineups(_prior_lineups, all_weeks_lineups,
+                                                         season=str(state.get("season", "2026")),
+                                                         before_week=current_nfl_week))
     # B19: freeze what was FIRST reported, before a correction can overwrite it.
     n_first = append_first_recorded_scores(all_weeks_actuals, current_nfl_week, baselines)
     if n_first:
@@ -1557,11 +1582,15 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
     appended = 0
     records = []
     fetched = []                               # every transaction seen, for the lost-claim pairing
+    complete = True                            # did every week's fetch succeed? (the pairing needs them all)
     for wk in range(1, max(1, int(current_week)) + 1):
         try:
             resp = requests.get(f"{BASE_URL}/league/{LEAGUE_ID}/transactions/{wk}", timeout=10)
             txs = resp.json() if resp.status_code == 200 else []
+            if resp.status_code != 200:
+                complete = False
         except Exception as ex:
+            complete = False
             logging.warning("DECISION LOG: transactions for week %d could not be fetched (%s); "
                             "they will be picked up by a later sync.", wk, ex)
             continue
@@ -1581,6 +1610,9 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
                 "snapshot_lag_days": round(lag_days, 3),
                 "snapshot_is_retroactive": lag_days > 1.0,
                 "teams": teams, "is_mine": my_team in teams,
+                # when Sleeper processed it -- a waiver claim's run (audit 2026-09-29); absent on older rows
+                "processed": (datetime.utcfromtimestamp(int(tx["status_updated"]) / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ")
+                              if tx.get("status_updated") else None),
                 "faab_bid": (tx.get("settings") or {}).get("waiver_bid"),
                 # As of the INGESTING sync, post-bid (Sleeper's waiver_budget_used already
                 # includes it); null on non-waiver records and when standings were not passed.
@@ -1592,7 +1624,7 @@ def ingest_transactions(roster_map, current_week, baselines, players_db, my_team
     # Decision 4: the lost claims, beside the log (FAILED_CLAIMS_FILE for the real one, a
     # sibling of a test's path for a test's). Never allowed to cost the decision log.
     ingest_failed_claims(fetched, roster_map, players_db, my_team,
-                         os.path.join(os.path.dirname(path) or ".", os.path.basename(FAILED_CLAIMS_FILE)))
+                         os.path.join(os.path.dirname(path) or ".", os.path.basename(FAILED_CLAIMS_FILE)), complete=complete)
     if not records:
         return 0
     try:
@@ -1652,7 +1684,7 @@ def _iso_ms(ms):
     return datetime.utcfromtimestamp(int(ms) / 1000.0).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def ingest_failed_claims(fetched, roster_map, players_db, my_team, path):
+def ingest_failed_claims(fetched, roster_map, players_db, my_team, path, complete=True):
     """Decision 4 (UI-W4): append each LOST waiver claim not already logged, one JSON line
     each -- the team, the player, the bid, Sleeper's reason ("outbid" when the player was
     claimed by another owner, "roster_full" when the claimant's roster had no room, "other"
@@ -1665,13 +1697,22 @@ def ingest_failed_claims(fetched, roster_map, players_db, my_team, path):
     because the decision log does not keep the processing time. `won_by` is None when no
     completed claim for the player shares the run (a full roster, or a winner not in the feed).
 
-    `fetched` is [(week fetched, transaction)] across every week the sync read. A failure warns
+    `fetched` is [(week fetched, transaction)] across every week the sync read. When a week's
+    fetch failed (`complete` False), an outbid claim whose winner was not found WAITS for a sync
+    that read every week, rather than being written unpaired for good (audit 2026-09-29). Only
+    an outbid claim is paired. A line of the log that does not parse is skipped. A failure warns
     into the manifest and returns 0; it never raises. Returns the number of rows appended."""
     try:
         seen = set()
         if os.path.exists(path):
             with open(path, encoding="utf-8") as handle:
-                seen = {json.loads(line).get("transaction_id") for line in handle if line.strip()}
+                for line in handle:
+                    try:
+                        r = json.loads(line)
+                    except ValueError:
+                        continue                                # a torn line (a killed append) never blocks the log
+                    if isinstance(r, dict):
+                        seen.add(r.get("transaction_id"))
         winners = {}
         for _, tx in fetched:
             if tx.get("type") == "waiver" and tx.get("status") == "complete" and tx.get("status_updated"):
@@ -1690,13 +1731,15 @@ def ingest_failed_claims(fetched, roster_map, players_db, my_team, path):
             txid = tx.get("transaction_id")
             if tx.get("type") != "waiver" or tx.get("status") != "failed" or not txid or txid in seen:
                 continue
-            seen.add(txid)
             note = (tx.get("metadata") or {}).get("notes") or ""
             reason = next((key for text, key in FAILED_CLAIM_REASONS if text in note.lower()), "other")
             team = team_of(tx)
             pid = next(iter(tx.get("adds") or {}), None)
             run = tx.get("status_updated")
-            win = winners.get((str(pid), int(run))) if pid is not None and run else None
+            win = winners.get((str(pid), int(run))) if reason == "outbid" and pid is not None and run else None
+            if reason == "outbid" and win is None and not complete:
+                continue                                        # its winner may be in the week that failed: wait
+            seen.add(txid)
             rows.append({
                 "transaction_id": txid, "type": "waiver", "week": tx.get("leg", wk),
                 "created": _iso_ms(tx["created"]) if tx.get("created") else None,

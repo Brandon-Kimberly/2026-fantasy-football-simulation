@@ -800,7 +800,7 @@ def decisions_report(root, my_team):
         for p in r.get("adds") or []:
             actor = p.get("to_team") or actor
         actor = actor or (teams[0] if teams else None)
-        out.append({"id": r.get("transaction_id"), "created": r.get("created"), "week": r.get("week"),
+        out.append({"id": r.get("transaction_id"), "created": r.get("created"), "processed": r.get("processed"), "week": r.get("week"),
                     "type": r.get("type"), "label": TX_LABELS.get(r.get("type"), r.get("type")), "is_mine": bool(r.get("is_mine")),
                     "teams": teams, "actor": actor,
                     "adds": [_pl(p) for p in r.get("adds") or []], "drops": [_pl(p) for p in r.get("drops") or []],
