@@ -34,6 +34,24 @@ except ImportError:
     HAS_FLASK = False
 
 
+class TestMarkersThatShareAPoint(unittest.TestCase):
+    """Found on real data: a team that was a step's biggest mover AND made a graded move that
+    week gets two notes on one point, and the second marker hid the first. They stack."""
+
+    def test_both_markers_show(self):
+        from webui import render
+        svg = str(render.line_chart([{"name": "A", "values": [10.0, 30.0], "cls": ""}], ["wk 1", "wk 2"],
+                                    notes=[{"x": 1, "series": "A", "n": 1, "title": "one"}, {"x": 1, "series": "A", "n": 2, "title": "two"}]))
+        cys = re.findall(r'<g class="note"><title>[^<]*</title><circle cx="[^"]*" cy="([^"]*)"', svg)
+        self.assertEqual(len(cys), 2)
+        self.assertNotEqual(cys[0], cys[1])
+
+    def test_a_possessive_after_an_s(self):
+        from webui import render
+        self.assertEqual(render.possessive("Cosmic Badgers"), "Cosmic Badgers'")
+        self.assertEqual(render.possessive("Rocket Panda"), "Rocket Panda's")
+
+
 @unittest.skipUnless(HAS_FLASK, "flask not installed")
 class TestTheStory(unittest.TestCase):
     def setUp(self):
@@ -57,7 +75,8 @@ class TestTheStory(unittest.TestCase):
         movers = [n for n in notes if n["kind"] == "mover"]
         self.assertEqual((movers[0]["label"], movers[0]["team"], movers[0]["delta"]), ("wk 3", CM, 81.5))
         moves = [n for n in notes if n["kind"] == "move"]
-        self.assertEqual((moves[0]["label"], moves[0]["team"], moves[0]["delta"]), ("wk 3", TEAMS[2], 5.0))
+        top = max(moves, key=lambda m: abs(m["delta"]))          # notes run in chart order; the top grade is found, not assumed first
+        self.assertEqual((top["label"], top["team"], top["delta"]), ("wk 3", TEAMS[2], 5.0))
         self.assertLessEqual(len(moves), 3)
         self.assertEqual([n["n"] for n in notes], list(range(1, len(notes) + 1)), "numbered in order")
 
