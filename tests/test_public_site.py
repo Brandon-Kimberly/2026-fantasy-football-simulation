@@ -155,6 +155,45 @@ class TestTheExport(unittest.TestCase):
                 self.assertEqual([t for t in DEV_TERMS if t in visible_text(html)], [])
 
 
+class TestEveryLeagueIsChecked(unittest.TestCase):
+    """The first deploy (2026-09-30) ran with only the current league's id on the runner, so its
+    leak check covered 21 identities and silently skipped every 2024 and 2025 team name -- the
+    names the history pages carry. The build refuses unless every league id is present."""
+    ALL = {"SLEEPER_LEAGUE_ID": "111", "SLEEPER_LEAGUE_ID_2025": "222",
+           "SLEEPER_LEAGUE_ID_2024": "333", "ESPN_LEAGUE_ID": "444"}
+
+    def build(self, env):
+        from unittest import mock
+        import scripts.build_public_site as bps
+        calls = []
+        with tempfile.TemporaryDirectory() as tmp, \
+                mock.patch.dict(os.environ, env), \
+                mock.patch("webui.static_site.forbidden_identities", return_value=["Made Up Four"]), \
+                mock.patch("webui.static_site.export",
+                           side_effect=lambda *a, **k: calls.append(a) or {"pages": 1, "truncated": False, "skipped": []}), \
+                mock.patch("webui.static_site.leak_check", return_value=1):
+            for k in set(self.ALL) - set(env):
+                os.environ.pop(k, None)
+            try:
+                code = bps.main(["--out", os.path.join(tmp, "_site")])
+            except SystemExit as ex:
+                code = ex.code
+        return code, calls
+
+    def test_a_missing_league_id_refuses_before_building(self):
+        for missing in self.ALL:
+            env = {k: v for k, v in self.ALL.items() if k != missing}
+            code, calls = self.build(env)
+            self.assertEqual(calls, [], f"built without {missing}")
+            self.assertTrue(code, f"exit status 0 without {missing}")
+            self.assertIn(missing, str(code), "the refusal names what is missing")
+
+    def test_with_every_league_id_it_builds(self):
+        code, calls = self.build(dict(self.ALL))
+        self.assertEqual(code, 0)
+        self.assertEqual(len(calls), 1)
+
+
 class TestTheWorkflows(unittest.TestCase):
     def read(self, name):
         with open(os.path.join(REPO, ".github", "workflows", name), encoding="utf-8") as fh:
