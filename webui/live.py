@@ -190,10 +190,14 @@ def scoreboard(week, fetch):
         else:
             label, state = "pregame", "pre"
         home = away = home_score = away_score = None
+        colors = {}
         for c in comp.get("competitors", []):
             abbr = (c.get("team") or {}).get("abbreviation")
             if not abbr:
                 continue
+            col = str((c.get("team") or {}).get("color") or "").strip().lower()
+            if len(col) == 6 and all(ch in "0123456789abcdef" for ch in col):
+                colors[abbr] = "#" + col                               # UI-M9: the scoreboard's own colour
             for key in {abbr, ABBR_ALIASES.get(abbr, abbr)}:
                 clocks[key] = (frac, label)
             try:
@@ -205,8 +209,25 @@ def scoreboard(week, fetch):
             else:
                 home, home_score = abbr, score
         if home or away:
+            # UI-M9: what else the scoreboard carries -- DraftKings' line and total, the weather
+            # for an outdoor game (an indoor one has no block), and the stat leaders (the
+            # season's before kickoff, the game's after). Anything missing is None or [].
+            odds = (comp.get("odds") or [{}])[0] or {}
+            wx = ev.get("weather") or {}
+            leaders = []
+            for group in comp.get("leaders") or []:
+                top = (group.get("leaders") or [{}])[0] or {}
+                who = (top.get("athlete") or {}).get("shortName")
+                if who and top.get("displayValue"):
+                    leaders.append({"stat": group.get("shortDisplayName") or group.get("abbreviation") or "",
+                                    "name": who, "value": top["displayValue"]})
             games.append({"home": home, "away": away, "home_score": home_score, "away_score": away_score,
-                          "label": label, "state": state, "frac": round(frac, 3)})
+                          "label": label, "state": state, "frac": round(frac, 3),
+                          "line": odds.get("details") or None, "total": odds.get("overUnder"),
+                          "book": (odds.get("provider") or {}).get("name") if odds else None,
+                          "weather": (f"{wx['displayValue']}, {wx['temperature']}°" if wx.get("displayValue") and wx.get("temperature") is not None
+                                      else (wx.get("displayValue") or None)),
+                          "leaders": leaders[:3], "colors": colors, "kickoff": ev.get("date")})
     return clocks, games
 
 

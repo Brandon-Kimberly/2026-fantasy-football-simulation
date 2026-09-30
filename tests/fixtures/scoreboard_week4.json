@@ -1,0 +1,185 @@
+{
+ "_recorded": "ESPN scoreboard, week 4 2026, fetched 2026-09-29 before kickoff; trimmed to two games (one outdoor with weather, one indoor without) and to the fields the TV view reads",
+ "events": [
+  {
+   "date": "2026-10-02T00:15Z",
+   "shortName": "PIT @ CLE",
+   "competitions": [
+    {
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Thu, October 1st at 8:15 PM EDT",
+       "shortDetail": "10/1 - 8:15 PM EDT"
+      },
+      "isTBDFlex": false
+     },
+     "odds": [
+      {
+       "provider": {
+        "name": "Draft Kings"
+       },
+       "details": "PIT -2.5",
+       "overUnder": 38.5,
+       "spread": 2.5
+      }
+     ],
+     "leaders": [
+      {
+       "shortDisplayName": "PASS",
+       "leaders": [
+        {
+         "displayValue": "700 YDS, 4 TD, 2 INT",
+         "athlete": {
+          "shortName": "A. Rodgers"
+         }
+        }
+       ]
+      },
+      {
+       "shortDisplayName": "RUSH",
+       "leaders": [
+        {
+         "displayValue": "38 CAR, 216 YDS",
+         "athlete": {
+          "shortName": "J. Warren"
+         }
+        }
+       ]
+      },
+      {
+       "shortDisplayName": "REC",
+       "leaders": [
+        {
+         "displayValue": "9 REC, 195 YDS, 2 TD",
+         "athlete": {
+          "shortName": "D. Boston"
+         }
+        }
+       ]
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "abbreviation": "CLE",
+        "color": "472a08",
+        "alternateColor": "ff3c00"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "abbreviation": "PIT",
+        "color": "000000",
+        "alternateColor": "ffb612"
+       }
+      }
+     ]
+    }
+   ],
+   "weather": {
+    "displayValue": "Cloudy",
+    "temperature": 77
+   }
+  },
+  {
+   "date": "2026-10-04T13:30Z",
+   "shortName": "IND VS WSH",
+   "competitions": [
+    {
+     "status": {
+      "clock": 0.0,
+      "displayClock": "0:00",
+      "period": 0,
+      "type": {
+       "id": "1",
+       "name": "STATUS_SCHEDULED",
+       "state": "pre",
+       "completed": false,
+       "description": "Scheduled",
+       "detail": "Sun, October 4th at 9:30 AM EDT",
+       "shortDetail": "10/4 - 9:30 AM EDT"
+      },
+      "isTBDFlex": false
+     },
+     "odds": [
+      {
+       "provider": {
+        "name": "Draft Kings"
+       },
+       "details": "IND -3.5",
+       "overUnder": 47.5,
+       "spread": 3.5
+      }
+     ],
+     "leaders": [
+      {
+       "shortDisplayName": "PASS",
+       "leaders": [
+        {
+         "displayValue": "611 YDS, 3 TD, 3 INT",
+         "athlete": {
+          "shortName": "D. Jones"
+         }
+        }
+       ]
+      },
+      {
+       "shortDisplayName": "RUSH",
+       "leaders": [
+        {
+         "displayValue": "66 CAR, 258 YDS, 4 TD",
+         "athlete": {
+          "shortName": "J. Taylor"
+         }
+        }
+       ]
+      },
+      {
+       "shortDisplayName": "REC",
+       "leaders": [
+        {
+         "displayValue": "14 REC, 186 YDS",
+         "athlete": {
+          "shortName": "J. Downs"
+         }
+        }
+       ]
+      }
+     ],
+     "competitors": [
+      {
+       "homeAway": "home",
+       "score": "0",
+       "team": {
+        "abbreviation": "WSH",
+        "color": "5a1414",
+        "alternateColor": "ffb612"
+       }
+      },
+      {
+       "homeAway": "away",
+       "score": "0",
+       "team": {
+        "abbreviation": "IND",
+        "color": "003b75",
+        "alternateColor": "ffffff"
+       }
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

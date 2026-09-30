@@ -615,7 +615,12 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         """The TV view: a full-screen live scoreboard, both views, from the cached
         snapshot (the page's own script refreshes it through /api/live)."""
         rep = home_report(root, MY_TEAM, runner)
-        return render_template("gameday.html", live=_live_payload(live.peek()), **rep)
+        # UI-M9: each NFL team's local logo, keyed by the scoreboard's ESPN codes too
+        from fantasy_sim.config import NFL_TEAMS
+        from webui.live import ABBR_ALIASES
+        logos = {t: root.image("teams", t) for t in NFL_TEAMS}
+        logos.update({e: logos.get(r) for e, r in ABBR_ALIASES.items()})
+        return render_template("gameday.html", live=_live_payload(live.peek()), logos={t: u for t, u in logos.items() if u}, **rep)
 
     @app.route("/api/live")
     def api_live():
@@ -746,7 +751,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         chart = render.line_chart([{"name": "my playoff odds, cumulative effect of my moves", "values": [x["value"] for x in series], "cls": "me"}],
                                   [render.short_date(x["at"]) for x in series],
                                   unit=" pts", nd=1, y_min=None, height=200) if len(series) > 1 else ""
-        return render_template("decisions.html", chart=chart, **rep_)
+        from webui.trade_results import trade_results
+        return render_template("decisions.html", chart=chart, trades_done=trade_results(root), **rep_)      # UI-T4
 
     @app.route("/results")
     def results():

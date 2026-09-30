@@ -957,6 +957,41 @@ on `/playoffs` is a share of the forecast's own seasons.
   The older engine tests, run in the full suite's order, have not hit this; the hazard is
   latent there.
 
+### The TV view, second version (2026-09-29, roadmap UI-M9)
+
+- **The parser (`webui.live.scoreboard`)** keeps, per game:
+  - `line` and `total` (DraftKings' `details` and `overUnder`) and `book`;
+  - `weather` ("Cloudy, 77°"; None indoors);
+  - up to three `leaders` (stat, player, line);
+  - `colors`, the scoreboard's own `color` per team;
+  - `kickoff`.
+  Anything missing is None or [], never an error.
+- **The cards.** Each game card shows the team's local logo (Decision 3), a swatch in the
+  scoreboard's colour (falling back to the sync's cache), the line and total, the weather and
+  the leaders. The leaders are labelled as the season's before kickoff and the game's after.
+- **The layout.** At 2200 pixels and wider there are three panes, my starters, every game,
+  theirs; narrower, the two rosters sit side by side with the games below; on a phone,
+  everything stacks.
+- **The test** is `tests/fixtures/scoreboard_week4.json`, ESPN's week-4 scoreboard of
+  2026-09-29 trimmed to two games (outdoor and indoor), driven through the real parser into
+  the page in a browser.
+
+### Trades: the decision and what happened (2026-09-29, roadmap UI-T4)
+
+`webui.trade_results` puts two columns beside every completed trade on the Decisions page,
+and never merges them:
+- **The decision:** the paired simulation's change in each side's playoff odds, priced
+  before the fact.
+- **What happened:** the points the side's incoming players scored while it started them,
+  minus what its outgoing players scored while their new team started them.
+
+"Started" comes from `data/current/weekly_lineups.json` (UI-L4), and the points from the
+first-recorded scores.
+
+**What it does not claim:** it is not a replay of each week with the trade undone. That needs
+the lineups each side would have started instead, and it is not built. With a handful of
+weeks, what happened is mostly the dice.
+
 ### Lineup calls judged before the games; the season as a story (2026-09-29, roadmap UI-L4, H5)
 
 - **The lineups as played (a sync change).** The roadmap listed L4 as "on disk", but the
