@@ -75,6 +75,30 @@ class TestKeyAndProbe(unittest.TestCase):
         for verdict in (ok, syncmod.probe_key(KEY, fetch=_fetch(401)), syncmod.probe_key(KEY, fetch=_fetch(OSError("x")))):
             self.assertNotIn(KEY, json.dumps(verdict))
 
+    def test_out_of_credits_is_not_a_rejected_key(self):
+        """2026-09-30: the-odds-api answers an account out of credits with the same 401 as a bad
+        key, and the page told the owner to fix a key that was fine. The body and the usage
+        headers tell them apart (the real replies, captured that day)."""
+        class Reply(_Resp):
+            def __init__(self, status, body, headers=None):
+                super().__init__(status, headers)
+                self.body = body
+
+            def json(self):
+                return self.body
+
+        def fetch(body, headers=None):
+            return lambda url, params=None, timeout=None: Reply(401, body, headers)
+        out = syncmod.probe_key(KEY, fetch=fetch({"message": "Usage quota has been reached.", "error_code": "OUT_OF_USAGE_CREDITS"},
+                                                 {"x-requests-remaining": "0", "x-requests-used": "500"}))
+        self.assertEqual((out["verdict"], out["remaining"], out["used"]), ("exhausted", "0", "500"))
+        for word in ("rejected", "rotated", "revoked", "setx"):
+            self.assertNotIn(word, out["detail"].lower())
+        self.assertIn("credits", out["detail"].lower())
+        self.assertNotIn(KEY, json.dumps(out))
+        bad = syncmod.probe_key(KEY, fetch=fetch({"message": "API key is not valid.", "error_code": "INVALID_KEY"}))
+        self.assertEqual(bad["verdict"], "rejected")
+
     def test_argv_for_each_mode(self):
         self.assertEqual(syncmod.argv_for("sync", python="PY"), ["PY", "-m", "scripts.run_sync"])
         self.assertEqual(syncmod.argv_for("refresh", python="PY"), ["PY", "-m", "scripts.weekly_report"])

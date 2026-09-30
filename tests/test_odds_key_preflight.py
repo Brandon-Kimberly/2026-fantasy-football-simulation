@@ -106,6 +106,75 @@ class TestTheOperatorGuidance(unittest.TestCase):
         self.assertNotIn("rejected", detail.lower())
 
 
+# The-odds-api's real replies, captured 2026-09-30: an account out of credits and a key that
+# does not exist both answer HTTP 401, and only the body and the usage headers tell them apart.
+OUT_OF_CREDITS = {"message": "Usage quota has been reached. See usage plans at https://the-odds-api.com",
+                  "error_code": "OUT_OF_USAGE_CREDITS"}
+INVALID_KEY = {"message": "API key is not valid. Get an API key at https://the-odds-api.com",
+               "error_code": "INVALID_KEY"}
+
+
+class _Reply:
+    def __init__(self, status, body=None, headers=None):
+        self.status_code, self._body, self.headers = status, body, headers or {}
+
+    def json(self):
+        if self._body is None:
+            raise ValueError("no JSON body")
+        return self._body
+
+
+def _reply(status, body=None, headers=None):
+    def go(_url, params=None, timeout=None):
+        return _Reply(status, body, headers)
+    return go
+
+
+class TestOutOfCredits(unittest.TestCase):
+    """2026-09-30: the account ran out of its 500 monthly credits, and the check reported a
+    REJECTED key with the stale-shell remedy -- the wrong diagnosis, the one H5 exists to
+    prevent. Out of credits is its own verdict: the key is fine and there is nothing to
+    rotate; the credits come back at the plan's monthly reset. It still stops a sync unless
+    the operator opts in, exactly as before -- only the diagnosis changes."""
+
+    def test_out_of_credits_is_its_own_verdict(self):
+        from fantasy_sim.sync import verify_odds_key
+        v, _d = verify_odds_key("k" * 32, fetch=_reply(401, OUT_OF_CREDITS,
+                                                       {"x-requests-remaining": "0", "x-requests-used": "500"}))
+        self.assertEqual(v, "exhausted")
+
+    def test_zero_remaining_alone_is_enough(self):
+        from fantasy_sim.sync import verify_odds_key
+        v, _d = verify_odds_key("k" * 32, fetch=_reply(401, None, {"x-requests-remaining": "0"}))
+        self.assertEqual(v, "exhausted")
+
+    def test_an_invalid_key_is_still_rejected(self):
+        from fantasy_sim.sync import verify_odds_key
+        v, detail = verify_odds_key("k" * 32, fetch=_reply(401, INVALID_KEY))
+        self.assertEqual(v, "rejected")
+        self.assertIn("stale", detail.lower())
+
+    def test_the_message_names_the_real_cause_and_not_the_shell(self):
+        from fantasy_sim.sync import verify_odds_key
+        secret = "abc123def456abc123def456abc123de"
+        _v, detail = verify_odds_key(secret, fetch=_reply(401, OUT_OF_CREDITS,
+                                                          {"x-requests-remaining": "0", "x-requests-used": "500"}))
+        low = detail.lower()
+        self.assertIn("credits", low)
+        self.assertIn("500", detail, "how many were used")
+        self.assertIn("reset", low)
+        self.assertIn("--allow-fallback", detail)
+        self.assertNotIn("stale", low)
+        self.assertNotIn("rejected", low)
+        self.assertNotIn("GetEnvironmentVariable", detail)
+        self.assertNotIn(secret, detail)
+
+    def test_out_of_credits_stops_a_sync_unless_the_operator_opts_in(self):
+        from fantasy_sim.sync import should_stop_for_odds_key
+        self.assertTrue(should_stop_for_odds_key("exhausted", allow_fallback=False))
+        self.assertFalse(should_stop_for_odds_key("exhausted", allow_fallback=True))
+
+
 class TestTheGate(unittest.TestCase):
     """`should_stop_for_odds_key` is the decision `run_sync` makes. Pure, so the CLI stays
     a thin wrapper and the policy is testable."""

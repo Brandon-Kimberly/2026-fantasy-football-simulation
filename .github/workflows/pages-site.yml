@@ -9,7 +9,10 @@
 # artifact after a canonical weekly report, and this workflow runs when that workflow finishes
 # (and on a push that changes the site's code, rebuilt from the same data). Until an official
 # run has kept its data -- the first days after this landed -- it syncs and simulates here
-# instead, so the site is never empty.
+# instead, so the site is never empty. That stand-in sync runs WITHOUT the odds key, on
+# purpose: the account's odds credits are a monthly budget (it ran out on 2026-09-30), and a
+# rebuild on every push to webui/ is no place to spend them. Those builds use the ratings
+# model's game environments instead of real lines, until the next official run's data.
 #
 # The gate: build_public_site takes every real team name, username and league id from Sleeper
 # and refuses to publish on a single whole-word match anywhere in the site.
@@ -52,7 +55,7 @@ jobs:
       SLEEPER_LEAGUE_ID_2025: ${{ secrets.SLEEPER_LEAGUE_ID_2025 }}
       SLEEPER_LEAGUE_ID_2024: ${{ secrets.SLEEPER_LEAGUE_ID_2024 }}
       ESPN_LEAGUE_ID: ${{ secrets.ESPN_LEAGUE_ID }}
-      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      # no ODDS_API_KEY: see the header -- the stand-in sync spends no odds credits
       MPLBACKEND: Agg
     steps:
       - uses: actions/checkout@v7
