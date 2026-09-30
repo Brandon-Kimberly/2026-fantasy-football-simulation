@@ -65,6 +65,23 @@ class Case(unittest.TestCase):
         return r.get_data(as_text=True)
 
 
+class TestTheMarkFallbackIsCentred(unittest.TestCase):
+    """Found in the post-roadmap screenshots (2026-09-29): with no headshot and no logo, the
+    player page's lettered mark drew its initials in the circle's top-left corner. `.face`
+    (display: inline-block) comes after `.mark` and cancelled its centring flexbox. The fallback
+    mark must keep it."""
+
+    def test_the_face_mark_is_a_centring_flexbox(self):
+        import re
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "webui", "templates", "base.html"), encoding="utf-8") as fh:
+            css = fh.read()
+        rule = re.search(r"\.face\.mark\s*\{([^}]*)\}", css)
+        self.assertIsNotNone(rule, "a rule for the fallback mark")
+        body = rule.group(1).replace(" ", "")
+        for decl in ("display:inline-flex", "align-items:center", "justify-content:center"):
+            self.assertIn(decl, body)
+
+
 class TestTheRoute(Case):
     def test_a_cached_image_is_served_with_its_type(self):
         self.image("players", "100.jpg", JPEG)
