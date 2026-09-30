@@ -206,11 +206,34 @@
   .home3 > .chips, .home3 > p { grid-column: 1 / -1; grid-row: 4; }
   .home3 > .grid2 > section h2:first-child, .home3 > .hero { margin-top: 0; }
 }
+
+/* ---- polish (2026-09-30): the hero glows at its edge, the two marks carry light, the bar glints ---- */
+@property --hero-a { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+.hero { isolation: isolate; box-shadow: 0 30px 60px -40px rgba(20, 40, 90, .45), var(--shadow); }
+.hero > .edge { position: absolute; inset: -1px; border-radius: inherit; padding: 1px; pointer-events: none; z-index: 0;
+  background: conic-gradient(from var(--hero-a), var(--turf), var(--pos), var(--violet), var(--warm), var(--turf));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude;
+  opacity: .75; animation: hero-spin 14s linear infinite; }
+@keyframes hero-spin { to { --hero-a: 360deg; } }
+.hero .side .mark.lg { position: relative; }
+.hero .side:not(.r) .mark.lg { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--turf-line), 0 14px 34px -10px color-mix(in srgb, var(--turf) 70%, transparent); }
+.hero .side.r .mark.lg { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--turf-line), 0 14px 34px -10px color-mix(in srgb, var(--violet) 70%, transparent); }
+.split { box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.split i { position: relative; overflow: hidden; }
+.split i::before { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.55), transparent); transform: translateX(-100%); animation: split-glint 3.6s cubic-bezier(.2,.8,.2,1) 1.2s infinite; }
+@keyframes split-glint { 0%, 55% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+.pwin .big > span { background-size: 200% auto; animation: pwin-sheen 9s ease-in-out infinite alternate; }
+@keyframes pwin-sheen { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+.others .og { transition: transform .2s cubic-bezier(.2,.8,.2,1), box-shadow .2s, border-color .2s; }
+.others .og:hover { transform: translateY(-2px); }
+.alertrow input[type=checkbox] { transition: transform .2s cubic-bezier(.34,1.56,.64,1); }
+.alertrow input[type=checkbox]:checked { transform: scale(1.12); }
+@media (prefers-reduced-motion: reduce) { .hero > .edge, .split i::before, .pwin .big > span { animation: none; } }
 </style>
 
 {% set m = matchup %}{% set f = forecast %}{% set c = current %}
 <div class="home3">
-<div class="hero">
+<div class="hero"><span class="edge" aria-hidden="true"></span>
   <h1 class="vh">Home, week {{ week or "?" }}</h1>
   <div class="top-line"><p class="eyebrow u-m-0">Week {{ week or "?" }} · {{ tagline }}</p>
     {% if kick and kick.games %}<span class="kick" id="kick" data-at="{{ kick.next or '' }}" data-done="{{ '1' if kick.done else '0' }}" data-q="{{ (lineup.questionable_starters|length) if (lineup and lineup.questionable_starters) else 0 }}" data-week="{{ week or '' }}"><svg class="i c-warm"><use href="#i-clock"/></svg> <b>{% if kick.done %}every week-{{ week }} game has kicked off{% elif kick.first %}first kickoff {{ kick.next|when }}{% else %}next kickoff {{ kick.next|when }}{% endif %}</b>{% if not kick.done %} <span class="in">{% if kick.in_seconds is not none %}in {{ (kick.in_seconds // 3600) }}h {{ ((kick.in_seconds % 3600) // 60) }}m{% endif %}</span> · {{ kick.remaining }} game{{ 's' if kick.remaining != 1 }} left to start{% endif %}</span>{% endif %}

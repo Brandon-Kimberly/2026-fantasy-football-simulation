@@ -474,6 +474,138 @@ a:focus-visible, summary:focus-visible, [tabindex]:focus-visible, input:focus-vi
 @keyframes alert-in { from { opacity: 0; transform: translateX(24px) scale(.98); } to { opacity: 1; transform: none; } }
 @keyframes alert-out { to { opacity: 0; transform: translateX(24px); } }
 @media (prefers-reduced-motion: reduce) { .alertcard, .alertcard.out { animation: none; } }
+
+/* ======================================================================================
+   Polish layer (2026-09-30): light, depth and motion in one place, built on the tokens above.
+   Everything that moves stops under prefers-reduced-motion, and the script half stands down
+   for an automated browser (navigator.webdriver) so a test reads the page at rest.
+   ====================================================================================== */
+:root { --ease: cubic-bezier(.2,.8,.2,1); --ease-out: cubic-bezier(.16,1,.3,1); --spring: cubic-bezier(.34,1.56,.64,1);
+  --ring-pos: 0 0 0 1px color-mix(in srgb, var(--pos) 32%, transparent);
+  --lift: 0 18px 40px -22px rgba(11,11,11,.35), 0 2px 6px -2px rgba(11,11,11,.08);
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+::selection { background: color-mix(in srgb, var(--pos) 26%, transparent); color: var(--ink); }
+html { scrollbar-color: var(--rule) transparent; scrollbar-width: thin; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--rule); border-radius: 999px; border: 2px solid var(--plane); }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* the backdrop: three pools of team colour drifting slowly behind everything, and a whisper of grain */
+body::before { background:
+    radial-gradient(900px 520px at 8% -8%, var(--turf-bg), transparent 62%),
+    radial-gradient(820px 520px at 100% 0%, var(--violet-bg), transparent 62%),
+    radial-gradient(760px 520px at 55% 115%, var(--pos-bg), transparent 66%);
+  background-size: 130% 130%; animation: aurora 38s ease-in-out infinite alternate; }
+body::after { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none; background-image: var(--grain); opacity: .045; mix-blend-mode: multiply; }
+:root[data-theme="dark"] body::after { mix-blend-mode: screen; opacity: .035; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) body::after { mix-blend-mode: screen; opacity: .035; } }
+@keyframes aurora { 0% { background-position: 0% 0%, 100% 0%, 50% 100%; } 50% { background-position: 18% 10%, 82% 14%, 40% 88%; } 100% { background-position: 6% 22%, 94% 6%, 62% 96%; } }
+
+/* the header: glass that deepens once the page scrolls under it */
+.top { view-transition-name: topbar; transition: box-shadow .3s var(--ease), background-color .3s; }
+.top.scrolled { background: color-mix(in srgb, var(--plane) 90%, transparent); box-shadow: 0 14px 30px -24px rgba(0,0,0,.55); }
+.brand { background-size: 220% auto; background-position: 0% 0; transition: background-position .9s var(--ease); }
+.brand:hover { background-position: 100% 0; }
+.tabs a { transition: color .2s var(--ease), transform .2s var(--ease); }
+.tabs a:hover { transform: translateY(-1px); }
+.tabs a.on { text-shadow: 0 0 18px color-mix(in srgb, var(--pos) 35%, transparent); }
+
+/* headings: the brand gradient breathes, slowly */
+h1 { background-size: 220% auto; animation: sheen 14s ease-in-out 1s infinite alternate; }
+@keyframes sheen { from { background-position: 0% 0; } to { background-position: 100% 0; } }
+h2 { position: relative; }
+h2::after { content: ""; position: absolute; left: 0; bottom: -2px; height: 2px; width: 56px; background: var(--g-brand); border-radius: 2px; transform-origin: left; animation: grow .8s var(--ease-out) .15s both; }
+@keyframes grow { from { transform: scaleX(0); } to { transform: none; } }
+
+/* surfaces: a lift, a coloured edge and a light that follows the pointer (.spot, set by the script) */
+.tile, .card, .chip, .mg, .og { will-change: transform; }
+.tile:hover, .card:hover, .mg:hover, .og:hover { box-shadow: var(--ring-pos), var(--lift); border-color: transparent; }
+.chip:hover { box-shadow: var(--ring-pos), var(--lift); }
+.spot { isolation: isolate; }
+.spot > .glow { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: -1; opacity: 0; transition: opacity .35s var(--ease);
+  background: radial-gradient(360px circle at var(--mx, 50%) var(--my, 50%), color-mix(in srgb, var(--pos) 13%, transparent), color-mix(in srgb, var(--violet) 6%, transparent) 40%, transparent 70%); }
+.spot:hover > .glow { opacity: 1; }
+.tile .v { background: linear-gradient(180deg, var(--ink), color-mix(in srgb, var(--ink) 72%, var(--pos))); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.tile .v.pos { background: var(--g-pos); -webkit-background-clip: text; background-clip: text; } .tile .v.neg { background: linear-gradient(135deg, var(--neg), #f08a7a); -webkit-background-clip: text; background-clip: text; }
+
+/* buttons: a sheen that sweeps across on hover, and a ripple where you press (the script) */
+button, .btn { position: relative; overflow: hidden; isolation: isolate; }
+button:not(.ghost)::before, .btn:not(.ghost)::before { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,.35) 50%, transparent 70%); transform: translateX(-120%); transition: transform .7s var(--ease); pointer-events: none; }
+button:not(.ghost):hover::before, .btn:not(.ghost):hover::before { transform: translateX(120%); }
+.ripple { position: absolute; border-radius: 50%; pointer-events: none; background: currentColor; opacity: .22; transform: scale(0); animation: ripple .6s var(--ease-out) forwards; }
+@keyframes ripple { to { transform: scale(4); opacity: 0; } }
+
+/* tables: rows answer the pointer; my row carries a coloured edge */
+tbody tr td { transition: background-color .2s var(--ease); }
+tbody tr:hover td { background: color-mix(in srgb, var(--pos) 5%, var(--surface)); }
+tr.me td:first-child { box-shadow: inset 3px 0 0 var(--pos); }
+tr.me:hover td { background: color-mix(in srgb, var(--pos) 14%, var(--surface)); }
+
+/* bars, medals, pills */
+.mini { box-shadow: inset 0 1px 2px rgba(0,0,0,.06); }
+.mini i { position: relative; overflow: hidden; }
+.mini i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgba(255,255,255,.45), transparent); transform: translateX(-100%); animation: glint 2.8s var(--ease) 1.1s 1 both; }
+@keyframes glint { to { transform: translateX(100%); } }
+.rank.r1 { position: relative; overflow: hidden; }
+.rank.r1::after { content: ""; position: absolute; inset: 0; background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,.75) 50%, transparent 70%); transform: translateX(-130%); animation: shine 5s var(--ease) 1.4s infinite; }
+@keyframes shine { 0%, 70% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+.pill.OK, .pill.RUNNING, .pill.OPEN, .pill.COVERED { box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--pos) 60%, transparent); }
+.mark { transition: transform .35s var(--spring), box-shadow .3s var(--ease); }
+a:hover .mark, .mark:hover, tr:hover .mark { transform: scale(1.08); }
+.mark.lg:hover { transform: scale(1.05) rotate(-4deg); }
+
+/* charts draw themselves in (the script sets the dash) */
+svg .drawn { transition: stroke-dashoffset 1.3s var(--ease-out); }
+
+/* sections that sit below the fold arrive as you scroll to them (the script adds .pre) */
+.pre { opacity: 0; transform: translateY(18px); }
+.pre-in { opacity: 1; transform: none; transition: opacity .7s var(--ease-out), transform .7s var(--ease-out); }
+
+/* a thin bar while the next page loads */
+.navprog { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 95; background: var(--g-brand); box-shadow: 0 0 12px color-mix(in srgb, var(--pos) 60%, transparent); border-radius: 0 3px 3px 0; transition: width 2.4s cubic-bezier(.1,.7,.2,1), opacity .3s; }
+.navprog.go { width: 82%; }
+
+/* page changes cross-fade; the header stays put */
+::view-transition-old(root) { animation: .22s ease-in both vt-out; }
+::view-transition-new(root) { animation: .32s var(--ease-out) both vt-in; }
+@keyframes vt-out { to { opacity: 0; transform: translateY(-4px); } }
+@keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+
+
+/* the active tab reads as a lit pill, not only an underline */
+.tabs a { border-radius: 8px 8px 0 0; padding-inline: 8px; }
+.tabs a:hover { background: color-mix(in srgb, var(--pos) 5%, transparent); }
+.tabs a.on { background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--pos) 10%, transparent)); }
+
+/* the page head: a soft light behind the title and yard lines fading out to the right */
+.head { position: relative; isolation: isolate; padding: 6px 0 2px; }
+.head::before { content: ""; position: absolute; z-index: -1; left: -60px; top: -70px; width: 520px; height: 260px; border-radius: 50%;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--pos) 14%, transparent), color-mix(in srgb, var(--turf) 8%, transparent) 55%, transparent); filter: blur(8px); pointer-events: none; }
+.head::after { content: ""; position: absolute; z-index: -1; right: 0; top: -10px; bottom: -10px; width: min(46%, 560px); pointer-events: none;
+  background: repeating-linear-gradient(90deg, transparent 0 46px, var(--turf-line) 46px 47px);
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 45%, transparent); mask-image: linear-gradient(90deg, transparent, #000 45%, transparent); opacity: .9; }
+
+/* a section's icon sits in a small lit badge */
+h2 svg.i { box-sizing: content-box; padding: 5px; border-radius: 9px; background: linear-gradient(135deg, var(--turf-bg), color-mix(in srgb, var(--pos) 10%, transparent)); box-shadow: inset 0 0 0 1px var(--turf-line); vertical-align: -0.45em; }
+
+/* tiles and cards: glass with a faint wash of colour from the top */
+.tile { background: linear-gradient(170deg, color-mix(in srgb, var(--surface) 86%, var(--pos) 3%) 0%, var(--surface) 55%); backdrop-filter: blur(6px); }
+.card { background: linear-gradient(170deg, color-mix(in srgb, var(--surface) 90%, var(--turf) 2%) 0%, var(--surface) 60%); }
+.tile .k svg.i, .card h4 svg.i { color: var(--pos); }
+.note { background: linear-gradient(90deg, color-mix(in srgb, var(--surface) 92%, var(--pos) 3%), var(--surface)); }
+
+/* team marks carry a faint halo of their own colour (the mark's background) */
+.mark { box-shadow: 0 0 0 2px var(--surface), 0 0 0 3px var(--grid), 0 4px 12px -4px color-mix(in srgb, currentColor 0%, rgba(0,0,0,.35)); }
+.mark.lg { box-shadow: 0 0 0 3px var(--surface), 0 0 0 5px var(--turf-line), 0 12px 30px -8px rgba(0,0,0,.35); }
+
+/* the footer: one quiet line under a gradient rule */
+.foot { opacity: 1; background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--surface) 60%, transparent)); border-radius: 0 0 12px 12px; padding-bottom: 12px; }
+@media (prefers-reduced-motion: reduce) {
+  body::before, h1, h2::after, .mini i::after, .rank.r1::after { animation: none !important; }
+  .pre { opacity: 1; transform: none; }
+  button:not(.ghost)::before, .btn:not(.ghost)::before { display: none; }
+}
 </style>
 <script>try { if (localStorage.getItem("syn-density") === "compact") document.documentElement.dataset.density = "compact"; } catch (e) {}</script>
 </head>
@@ -836,6 +968,87 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
       }
     } catch (e) {}
   };
+  // ---- polish (2026-09-30): the moving parts of the style layer. It all stands down under reduced
+  // motion or in an automated browser, so every test reads the page at rest.
+  (function () {
+    var still = (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) || navigator.webdriver;
+    var topbar = document.querySelector('header.top');
+    function onScroll() { if (topbar) topbar.classList.toggle('scrolled', window.scrollY > 8); }
+    onScroll(); window.addEventListener('scroll', onScroll, { passive: true });
+    // a light under the pointer on cards and tiles (not in an automated browser: it adds a child)
+    if (!navigator.webdriver) document.querySelectorAll('.tile, .card, .chip, .mg, .og').forEach(function (el) {
+      if (getComputedStyle(el).position === 'static') el.style.position = 'relative';
+      el.classList.add('spot');
+      var g = document.createElement('span'); g.className = 'glow'; g.setAttribute('aria-hidden', 'true'); el.insertBefore(g, el.firstChild);
+      el.addEventListener('pointermove', function (ev) {
+        var r = el.getBoundingClientRect();
+        el.style.setProperty('--mx', (ev.clientX - r.left) + 'px'); el.style.setProperty('--my', (ev.clientY - r.top) + 'px');
+      });
+    });
+    // a ripple where a button is pressed
+    document.addEventListener('pointerdown', function (ev) {
+      var b = ev.target.closest && ev.target.closest('button, .btn');
+      if (!b || still) return;
+      var r = b.getBoundingClientRect(), d = Math.max(r.width, r.height), c = document.createElement('span');
+      c.className = 'ripple'; c.style.width = c.style.height = d + 'px';
+      c.style.left = (ev.clientX - r.left - d / 2) + 'px'; c.style.top = (ev.clientY - r.top - d / 2) + 'px';
+      b.appendChild(c); setTimeout(function () { c.remove(); }, 650);
+    });
+    // a thin progress bar while the next page loads
+    var prog = null;
+    function going() { if (!prog) { prog = document.createElement('div'); prog.className = 'navprog'; document.body.appendChild(prog); } requestAnimationFrame(function () { prog.classList.add('go'); }); }
+    document.addEventListener('click', function (ev) {
+      var a = ev.target.closest && ev.target.closest('a[href]');
+      if (!a || ev.defaultPrevented || ev.button !== 0 || ev.metaKey || ev.ctrlKey || ev.shiftKey || a.target || a.hasAttribute('download')) return;
+      var u = new URL(a.href, location.href);
+      if (u.origin !== location.origin || (u.pathname === location.pathname && u.hash)) return;
+      going();
+    });
+    document.addEventListener('submit', function (ev) { if (!ev.defaultPrevented) going(); });
+    window.addEventListener('pageshow', function () { if (prog) prog.classList.remove('go'); });
+    if (still) return;
+    // a tile's number settles onto its value from just below it, as [data-count] numbers do
+    // (B13: never a wrong-looking number); one that carries data-count, or markup, is left alone
+    function settle(el) {
+      if (el.hasAttribute('data-count') || el.dataset.settled || el.children.length) return;
+      var txt = el.textContent, m = /^(\s*[^\d\-+]*?)([+\-]?)(\d[\d,]*\.?\d*)(.*)$/s.exec(txt);
+      if (!m || /\d/.test(m[4])) return;
+      var target = parseFloat(m[3].replace(/,/g, '')), dec = (m[3].split('.')[1] || '').length, t0 = null, dur = 500;
+      if (!isFinite(target) || target === 0) return;
+      el.dataset.settled = '1';
+      function fmt(v) { var s = v.toFixed(dec); return m[3].indexOf(',') >= 0 ? Number(s).toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec }) : s; }
+      function step(ts) { if (t0 === null) t0 = ts; var k = Math.min(1, (ts - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+        el.textContent = k < 1 ? m[1] + m[2] + fmt(target * (0.9 + 0.1 * e)) + m[4] : txt; if (k < 1) requestAnimationFrame(step); }
+      requestAnimationFrame(step);
+    }
+    // lines draw themselves in
+    function draw(svg) {
+      svg.querySelectorAll('path, polyline').forEach(function (p) {
+        var cs = getComputedStyle(p);
+        if (cs.fill !== 'none' || cs.stroke === 'none' || !p.getTotalLength) return;
+        var len = p.getTotalLength(); if (!(len > 4)) return;
+        p.style.strokeDasharray = len; p.style.strokeDashoffset = len; p.classList.add('drawn');
+        requestAnimationFrame(function () { requestAnimationFrame(function () { p.style.strokeDashoffset = 0; }); });
+        p.addEventListener('transitionend', function () { p.style.strokeDasharray = ''; p.style.strokeDashoffset = ''; }, { once: true });
+      });
+    }
+    var inView = function (el) { var r = el.getBoundingClientRect(); return r.top < window.innerHeight && r.bottom > 0; };
+    var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        var el = e.target; io.unobserve(el);
+        if (el.classList.contains('pre')) { el.classList.add('pre-in'); el.classList.remove('pre'); }
+        el.querySelectorAll('.tile .v').forEach(settle);
+        el.querySelectorAll('svg.viz, svg.spark').forEach(draw);
+      });
+    }, { rootMargin: '0px 0px -8% 0px' }) : null;
+    document.querySelectorAll('.wrap > section, .wrap > .tiles, main > section, .head ~ section').forEach(function (el) {
+      if (!io) return;
+      if (!inView(el)) el.classList.add('pre');
+      io.observe(el);
+    });
+    document.querySelectorAll('.tiles, .hero').forEach(function (el) { if (io && inView(el)) io.observe(el); });
+  })();
   // ask for system notifications only where the browser can grant them; a refusal changes nothing
   window.askNotify = function () {
     try { if (window.Notification && window.isSecureContext && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}
