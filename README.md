@@ -1,8 +1,8 @@
 # Fantasy Football Monte Carlo Simulation
 
-[![ci](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/actions/workflows/ci.yml)
+[![ci](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
-[![license](https://img.shields.io/github/license/Brandon-Kimberly/2026-fantasy-football-simulation)](LICENSE)
+[![license](https://img.shields.io/github/license/Brandon-Kimberly/syndicate-football)](LICENSE)
 ![tests](https://img.shields.io/badge/tests-2250%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
@@ -54,7 +54,7 @@ Every number is real — projections, transactions, results — and the pseudony
 itself test-pinned (a leak check gates the published sample; goldens and a behavioral
 baseline proved the rename changed nothing).
 
-**[View a full sanitized sample report](https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html)**.
+**[View a full sanitized sample report](https://brandon-kimberly.github.io/syndicate-football/sample/weekly_report_sample.html)**.
 Team names are fictional; players and projections are real. `scripts.make_sample_report`
 builds it from live data on every renderer change (a Pages workflow -- the sample is a
 build product, never committed) and refuses to publish unless a leak check for every

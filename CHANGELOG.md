@@ -5,7 +5,7 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
-## [v10.3.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.3.0) — 2026-09-28 (MINOR)
+## [v10.3.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.3.0) — 2026-09-28 (MINOR)
 
 **The viewer gets audited, and then gets used.** A crawl-and-screenshot harness
 (`scripts/webui_audit.py`) walked every page in both views at three widths and produced a
@@ -41,7 +41,7 @@ published no projection, and the engine refused to invent one and aborted. The w
 entry for him is zeros, which is the only sourced number available for a player who cannot
 be in a game, and it cancels itself the moment he signs.
 
-## [v10.2.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.2.0) — 2026-09-27 (MINOR)
+## [v10.2.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.2.0) — 2026-09-27 (MINOR)
 
 **The web UI becomes something you read, not something you decode.** Two passes on
 v10.1.0's viewer, both UI-only; the model is unchanged and the goldens byte-identical.
@@ -76,7 +76,7 @@ filters; `s.items` in the record macro resolved to `dict.items()` (every paired 
 was a 500); fuzzy fill-up made an obvious player match ambiguous; a fresh checkout with no
 player pool blocked every launch.
 
-## [v10.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.1.0) — 2026-09-27 (MINOR)
+## [v10.1.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.1.0) — 2026-09-27 (MINOR)
 
 **A local web UI, and the model unchanged.** `py -3.10 -m webui` serves everything the
 scripts write — freshness and run windows, every week's forecast and charts, the canonical
@@ -106,7 +106,7 @@ record); the first UI-launched weekly report ran to completion and its digest re
 and the web tests skip cleanly without it. Also carried: the v10.0.0 `CITATION.cff` date,
 one day stale (H4's guard had been red on `main` since that release commit).
 
-## [v10.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v10.0.0) — 2026-09-25 (MAJOR)
+## [v10.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.0.0) — 2026-09-25 (MAJOR)
 
 **Both season charts drew the league 0-0 until today.** `global_trajectories` is zeroed and
 the simulation writes only from the current week onward, so every completed column stayed at
@@ -129,7 +129,7 @@ and `h2h` byte-identical. A fixture refresh forced by a corrected historical ser
 Also **B29**: `live_matchup`'s Questionable count summed the whole roster when the optimism it
 measures comes only from starters — printed 3-v-2 where the starters were 2-v-0.
 
-## [v9.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v9.0.0) — 2026-09-24 (MAJOR)
+## [v9.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v9.0.0) — 2026-09-24 (MAJOR)
 
 **Slot eligibility was hand-maintained in an eight-name dict while Sleeper shipped the truth
 on every sync.** `config.DUAL_ELIGIBILITY` listed eight players by name; Sleeper sends
@@ -153,7 +153,7 @@ fields changed. Behaviour check clean on both scenarios.
 Also **F85** (PATCH): the canonical-window reminder stamped a Pacific time with a literal `Z`
 and called it UTC, overstating every deadline by seven hours in PDT.
 
-## [v8.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v8.0.0) — 2026-09-24 (MAJOR)
+## [v8.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v8.0.0) — 2026-09-24 (MAJOR)
 
 **The engine was seeding from a record the league does not recognise.** Sleeper's
 `/matchups` endpoint DERIVES a completed week's points rather than storing them — it
@@ -192,7 +192,7 @@ a boundary test of mine overwrote real synced data.
 that wrote over `data/current/league_schedule.json`, and a real-name leak into an audit doc
 that the scanner built this same session caught before it reached history.
 
-## [v7.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v7.0.0) — 2026-09-23 (MAJOR)
+## [v7.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v7.0.0) — 2026-09-23 (MAJOR)
 
 **Every probability this model states is now wider, because the old ones were wrong.**
 Measured over 240 team-weeks of the real 2025 season, the 80% interval covered 67% of
@@ -234,7 +234,7 @@ Goldens regenerated deliberately, and all three scenarios moved including `week0
 mechanical signature of an init-time constant, where B8 alone moved only the two fixtures
 with completed weeks. Suite 997 → 1004.
 
-## [v6.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.1.0) — 2026-09-23 (MINOR)
+## [v6.1.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v6.1.0) — 2026-09-23 (MINOR)
 
 Fourteen backlog items worked in order, and what building them kept finding. Six new
 findings (F56-F61), none of which were on the backlog: an empty projection payload would
@@ -270,7 +270,7 @@ score — the double-loss probability was understated **2.4×** (13.3% against 5
 the trade screen may no longer print a "their gain" figure as though it were a
 measurement. Engine goldens byte-identical throughout; 695 → 982 tests.
 
-## [v6.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v6.0.0) — 2026-09-22 (MAJOR)
+## [v6.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v6.0.0) — 2026-09-22 (MAJOR)
 
 Two silent data faults, found three days apart, both of which had been quietly starving
 the model of the evidence it was built to consume. The ESPN half of the projection blend
@@ -287,7 +287,7 @@ could not have detected either one. Also ships the luck ledger (F53), five
 pre-registered measurements of schedule, opponent, close-game, absence and scoring luck,
 and records the mid-season IDP scoring change as an evaluation boundary (F49).
 
-## [v5.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.1.0) — 2026-09-14 (MINOR)
+## [v5.1.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v5.1.0) — 2026-09-14 (MINOR)
 
 The first week of live season operation, and what it cost. Week 1's automated canonical
 run did everything right and then failed on a cosmetic step (F40), which cried wolf on
@@ -300,7 +300,7 @@ both canonical quotes, with three hypotheses pre-registered into F25 for the wee
 calibration check — including the first measurement of the odds feed as an input with
 its own error. Engine goldens byte-identical; the model itself was not touched.
 
-## [v5.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v5.0.0) — 2026-09-05 (MAJOR)
+## [v5.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v5.0.0) — 2026-09-05 (MAJOR)
 
 League-identity pseudonymization (F37): fictional team names throughout, roster-id
 keys, league IDs moved to environment/secrets (a committed Sleeper ID resolves to real
@@ -310,7 +310,7 @@ behavior-inert. The pre-registered season evaluation re-locked with a dated name
 note before any game was played. The owner's local reports keep an env-gated real-name
 legend that never reaches logs or published artifacts.
 
-## [v4.1.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v4.1.0) — 2026-09-05 (MINOR)
+## [v4.1.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v4.1.0) — 2026-09-05 (MINOR)
 
 Season-operations automation and the showcase polish: the canonical-window watcher and
 scheduled log capture on GitHub Actions, fully gated unattended canonical runs (F36 —
@@ -320,7 +320,7 @@ naive-baseline comparison (engine MAE 22.24 vs 26.55 projections-only), and the 
 report rebuilt as a Pages build product instead of a committed 9 MB blob. Engine
 goldens byte-identical throughout.
 
-## [v4.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v4.0.0) — 2026-09-03 (MAJOR)
+## [v4.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v4.0.0) — 2026-09-03 (MAJOR)
 
 FAAB behavior calibrated to the real league: bid sizes fitted to the 99 attributed 2025
 claims, an upgrade-bidding channel, and a two-parameter per-manager model — simulated
@@ -328,20 +328,20 @@ spending moved from ~31% of real to inside the pre-declared [650, 800] band. Tra
 evaluator records FAAB transfers as explicitly unpriced. Also: the weekly report's
 visual redesign, and F30's capture-rate measurement (measured and held).
 
-## [v3.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v3.0.0) — 2026-09-02 (MAJOR)
+## [v3.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v3.0.0) — 2026-09-02 (MAJOR)
 
 K and IDP players gain a real epistemic signal: both projection sources' stat lines
 scored under this league's own settings, with the disagreement driving uncertainty.
 The sync stage gets its own byte-exact golden, closing the blind spot v2.0.0 exposed.
 
-## [v2.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v2.0.0) — 2026-09-02 (MAJOR)
+## [v2.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v2.0.0) — 2026-09-02 (MAJOR)
 
 First measured IDP variance constants (DL/LB/DB derived from full-NFL 2025 stats,
 replacing placeholder fallbacks) and K re-fit under the league's current kicker rules.
 The engine goldens were byte-identical through the change — the finding that sync-time
 constants sit upstream of what they pin, now written into the release policy itself.
 
-## [v1.0.0](https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/releases/tag/v1.0.0) — 2026-09-02
+## [v1.0.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v1.0.0) — 2026-09-02
 
 The audited baseline: Phases 0–7 complete, the golden master, the real-data backtest
 gate, and the audit trail that defines this project. Tagged at the F27 commit.
