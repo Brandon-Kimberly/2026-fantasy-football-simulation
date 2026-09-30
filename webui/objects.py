@@ -260,6 +260,7 @@ def team_report(root, team, my_team):
     moves = [dict(d, fx=d["effect"].get(team)) for d in decisions_report(root, my_team)["decisions"] if team in d["teams"]]
     return {"team": team, "hue": team_hue(team), "is_mine": team == my_team, "rank": rank, "of": len(order),
             "standing": standings.get(team) or {}, "record": records(root).get(team), "odds": now["teams"].get(team) or {},
+            "quality": _quality(root, team),                                                   # UI-L4
             "row": _standings_row(root, team),
             "odds_week": now["week"], "move": odds_moves(root)["teams"].get(team), "prev_week": odds_moves(root)["prev"],
             "schedule": schedule, "roster": roster, "moves": moves, "week": cur, "injuries": injury_report(root, team),
@@ -411,3 +412,9 @@ def _landings_for(root, name):
     """UI-P3: {week: percentile} -- where each week's points landed in that week's range."""
     from webui.calibration import player_landings
     return player_landings(root, name) if name else {}
+
+
+def _quality(root, team):
+    """UI-L4: each completed week's lineup call, judged before the games and in hindsight."""
+    from webui.decision_quality import season
+    return season(root, team)

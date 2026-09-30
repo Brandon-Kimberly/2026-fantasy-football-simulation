@@ -698,6 +698,48 @@ def odds_race(root, my_team):
     return {"labels": labels, "playoff": build(0), "champ": build(1)}
 
 
+STORY_MOVES = 3          # UI-H5: how many graded moves the race carries
+
+
+def race_story(root, race, n_moves=STORY_MOVES):
+    """UI-H5: numbered notes for the playoff-odds race -- each forecast-to-forecast step's
+    biggest mover (the largest change in playoff odds, either way; UI-O3's measure) and the
+    `n_moves` highest-graded moves from the decision log (the paired simulation's playoff
+    effect on the team it moved most, either way), each placed on the week it was made (or
+    the next forecast after it). Numbered in chart order."""
+    labels = race.get("labels") or []
+    notes = []
+    for i in range(1, len(labels)):
+        best = None
+        for s in race.get("playoff") or []:
+            a, b = (s["values"][i - 1], s["values"][i]) if len(s["values"]) > i else (None, None)
+            if a is None or b is None:
+                continue
+            if best is None or abs(b - a) > abs(best[1]):
+                best = (s["name"], b - a)
+        if best and abs(best[1]) > 0:
+            notes.append({"kind": "mover", "x": i, "label": labels[i], "team": best[0], "delta": round(best[1], 1)})
+    weeks = [int(str(l).split()[-1]) for l in labels]
+    graded = []
+    for d in decisions_report(root, None)["decisions"]:
+        fx = {t: v for t, v in (d.get("effect") or {}).items() if (v or {}).get("playoff") is not None}
+        if not fx or d.get("week") is None:
+            continue
+        team, v = max(fx.items(), key=lambda kv: abs(kv[1]["playoff"]))
+        at = next((i for i, w in enumerate(weeks) if w >= int(d["week"])), None)
+        if at is None:
+            continue
+        graded.append({"kind": "move", "x": at, "label": labels[at], "team": team, "delta": round(v["playoff"], 1),
+                       "se": v.get("playoff_se"), "move": d.get("label"), "week": d.get("week"),
+                       "players": [p.get("name") for p in d.get("adds") or [] if p.get("to") == team]})
+    graded.sort(key=lambda g: -abs(g["delta"]))
+    notes += graded[:n_moves]
+    notes.sort(key=lambda n: (n["x"], n["kind"] != "mover", -abs(n["delta"])))
+    for k, n in enumerate(notes, 1):
+        n["n"] = k
+    return notes
+
+
 # ------------------------------------------------------------------- decisions tab
 TX_LABELS = {"free_agent": "free-agent add", "waiver": "waiver claim", "trade": "trade"}
 

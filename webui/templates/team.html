@@ -58,6 +58,15 @@ tr.now td { background: color-mix(in srgb, var(--pos) 8%, transparent); }
 </tbody></table></div>
 </section>
 
+{% if quality %}
+<section>
+<h2><svg class="i"><use href="#i-clip"/></svg> Lineup calls, judged before the games <span class="hint">the decision apart from the dice · expected points from the last projection before each week's first kickoff</span></h2>
+<div class="scroller"><table><thead><tr><th>Week</th><th class="num" title="expected points of the lineup started, over the best lineup this roster could have started">Before the games</th><th class="num">Left on the bench, expected</th><th class="num">Left on the bench, in hindsight</th><th class="num" title="the hindsight gap minus the expected gap">Not a decision</th></tr></thead><tbody>
+{% for q in quality %}<tr><td><a href="/matchups/week-{{ q.week }}">Week {{ q.week }}</a></td>{% if q.before is none %}<td colspan="4" class="muted small">not judged: {% if q.unpriced %}{{ q.unpriced|length }} starter{{ "s" if q.unpriced|length != 1 }} had no pre-game projection{% else %}no lineup on file{% endif %}</td>{% else %}<td class="num"><b>{{ q.before|pct(1) }}</b></td><td class="num">{{ q.expected_left|num(1) }}</td><td class="num muted">{{ q.hindsight_left|num(1) }}</td><td class="num">{{ q.not_a_decision|signed(1) }}{% if q.late_priced %} <span class="muted tiny" title="picked up after the week's first kickoff, so priced from a later pre-game projection">*</span>{% endif %}</td>{% endif %}</tr>{% endfor %}
+</tbody></table></div>
+<p class="small muted u-mt-8px">Before the games: the points the lineup started was expected to score, as a share of the best lineup this roster could have started with the same projections. 100% means no better call was available beforehand. Left on the bench in hindsight uses the points actually scored, and punishes a right call that did not work out; not a decision is the difference, what the dice did. A player counts as available when the week's projection priced him; one picked up after the week's first kickoff (*) is priced from his earliest projection that week.</p>
+</section>
+{% endif %}
 {% if moves %}
 <section class="moves">
 <h2><svg class="i"><use href="#i-swap"/></svg> Moves <span class="hint">each priced before the fact by a paired simulation · playoff percentage points</span></h2>
