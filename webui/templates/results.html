@@ -2,7 +2,7 @@
 {% from "_macros.html" import filelist with context %}
 {% block title %}Runner results · {{ brand }}{% endblock %}
 {% block body %}
-<div class="head"><p class="eyebrow">scheduled runs · downloaded from GitHub Actions</p><h1>Runner results</h1><p class="lede">What the scheduled runner produced each week, as downloaded. These are the same digests and records as a local run, made on the runner's clock.</p></div>
+<div class="head"><p class="eyebrow">scheduled runs · downloaded from GitHub Actions</p><h1>Runner results</h1><p class="lede">What the scheduled runner produced each week: the same digests and records as a local run, made on the runner's clock.</p></div>
 {% if results %}
 {% for r in results|reverse %}
 <section><h2>Week {{ r.week }}</h2>
@@ -10,5 +10,5 @@
 {% if r.files %}{{ filelist(r.files) }}{% endif %}
 </section>
 {% endfor %}
-{% else %}<div class="note">Nothing downloaded yet — from a terminal, <code>py -3.10 -m scripts.localize_reports --fetch</code> pulls the runner's artifacts into <code>data/results/</code>.</div>{% endif %}
+{% else %}<div class="note">Nothing downloaded yet. From a terminal, <code>py -3.10 -m scripts.localize_reports --fetch</code> pulls the runner's artifacts into <code>data/results/</code>.</div>{% endif %}
 {% endblock %}

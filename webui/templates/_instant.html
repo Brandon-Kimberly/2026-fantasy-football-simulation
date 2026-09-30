@@ -2,15 +2,15 @@
    /tools/compare_players/instant whenever a name changes. #}
 {% set ps = inst.players if inst else [] %}
 {% set known = ps|rejectattr('unknown')|list %}
-{% for p in ps if p.unknown %}{% if p.name %}<p class="small warn-t">No price for <b>{{ p.name }}</b>{% if inst.week %} in week {{ inst.week }}{% endif %} -- pick the name from the list.</p>{% endif %}{% endfor %}
+{% for p in ps if p.unknown %}{% if p.name %}<p class="small warn-t">No projection for <b>{{ p.name }}</b>{% if inst.week %} in week {{ inst.week }}{% endif %}. Pick the name from the list.</p>{% endif %}{% endfor %}
 {% if inst and inst.joint %}{% set j = inst.joint %}
 <div class="inst-head"><b>{{ ps[0].name }}</b> outscores <b>{{ ps[1].name }}</b> in <span class="big">{{ (100 * j.p_first)|round(1) }}%</span> of simulated weeks <span class="muted">{{ (100 * j.se)|se('%') if j.se else '' }} · the full comparison, run {{ j.stamp|when }}</span></div>
-{% if inst.p_first_beats_second is not none %}<p class="small muted">The quick estimate said {{ (100 * inst.p_first_beats_second)|round(1) }}%; the full comparison also prices same-game links and the chance a player sits, so it is the one to use.</p>{% endif %}
+{% if inst.p_first_beats_second is not none %}<p class="small muted">The quick estimate said {{ (100 * inst.p_first_beats_second)|round(1) }}%. The full comparison also accounts for teammates in the same game and the chance a player sits, so go with it.</p>{% endif %}
 {% elif inst and inst.p_first_beats_second is not none %}
 <div class="inst-head"><b>{{ ps[0].name }}</b> outscores <b>{{ ps[1].name }}</b> about <span class="big">{{ (100 * inst.p_first_beats_second)|round(0)|int }}%</span> of the time</div>
 {% elif known|length >= 3 and known|length == ps|length %}
 <div class="inst-head">Who scores the most this week</div>
-{% elif ps|length < 2 or known|length < 2 %}<p class="small muted">Put at least two names in to see the estimate.</p>
+{% elif ps|length < 2 or known|length < 2 %}<p class="small muted">Enter at least two names to see the estimate.</p>
 {% endif %}
 {% if known|length >= 2 and known|length == ps|length %}
 {% set mx = [known|map(attribute='p90')|max, 1]|max %}
@@ -19,5 +19,5 @@
 <td><span class="rng"><span class="bar"><i style="left:{{ (100 * p.p10 / mx)|round(1) }}%;width:{{ (100 * (p.p90 - p.p10) / mx)|round(1) }}%"></i><b style="left:{{ (100 * p.mean / mx)|round(1) }}%"></b></span><span class="n">{{ p.p10|num(0) }} · {{ p.p90|num(0) }}</span></span></td>
 <td class="num">{{ (100 * p.p_top)|round(0)|int }}%</td><td class="muted small">{{ "this week's " ~ p.source if p.source != "baseline" else "the season average" }}</td></tr>{% endfor %}
 </tbody></table>
-<p class="small muted u-mt-8px">Quick estimate: each player on their own spread, priced the way the live panel prices a starter. It ignores same-game links (teammates in the same game rise and fall together) and the chance a player sits; the full comparison below prices both{% if not (inst and inst.joint) %} and takes about a minute{% endif %}.</p>
+<p class="small muted u-mt-8px">Quick estimate: each player on their own{% if dev %}, priced the way the live panel prices a starter{% endif %}. It ignores teammates in the same game rising and falling together, and the chance a player sits; the full comparison below accounts for both{% if not (inst and inst.joint) %} and takes about a minute{% endif %}.</p>
 {% endif %}

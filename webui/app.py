@@ -44,9 +44,9 @@ ALLOWED_HOSTNAMES = ("127.0.0.1", "localhost")
 LARGE_FILE_BYTES = 1_000_000          # above this a text file is offered as a download, never pretty-printed (B17)
 R1_SENTENCE = ("R1: one engine process at a time. A crashed run is void -- re-run it alone. "
                "Never run the test suite, the goldens, or a hand tool while a job is running.")
-WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log holds whatever PROCESS last imported "
-                     "the engine (F10) -- a tool run, a hand run, or the test suite -- and is not "
-                     "any single run's record. Per-run warnings are in the week's audit JSON.")
+WARNINGS_LOG_NOTE = ("data/current/syndicate_warnings.log belongs to whichever process last imported "
+                     "the engine (a tool run, a hand run or the test suite), not to any one run (F10). "
+                     "Each run's own warnings are in that week's audit JSON.")
 # W8: the two views' navigation, and what the simple view does not serve at all (the
 # owner's pages: files, jobs list, logs, system, sync, records). A simple-mode request for
 # one of these gets a plain 404 that names the switch.
@@ -54,16 +54,21 @@ NAV_DEV = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/p
            ("/tools", "Tools"))
 # UI-A5 / Decision 6: the machinery under one developer menu, so the bar is the league's objects
 NAV_DEV_MORE = (("/records", "Records"), ("/jobs", "Jobs"), ("/logs", "Logs"), ("/system", "System"), ("/sync", "Sync"))
-NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecast"), ("/decisions", "Decisions"),
+NAV_SIMPLE = (("/", "Home"), ("/matchups", "Matchups"), ("/league", "League"), ("/playoffs", "Playoffs"), ("/players", "Players"), ("/history", "History"), ("/forecasts", "Forecasts"), ("/decisions", "Decisions"),
               ("/tools", "Tools"))
 DEV_ONLY_PREFIXES = ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs",
                      "/accuracy")
 DEV_ONLY_EXACT = ("/jobs",)
 TERMINAL_COMMANDS = (
-    ("py -3.10 -m scripts.run_sync", "pull live data into data/current/ (H5: the odds key is verified first; "
-                                     "on Windows inject the User-scope value if the shell holds a stale one)"),
-    ("py -3.10 -m scripts.weekly_report --canonical --embed", "the canonical report, inside a run window"),
+    ("py -3.10 -m scripts.run_sync --allow-fallback", "a sync without real betting lines, on purpose; the Sync page refuses one "
+                                                      "(H5: in a terminal, inject the User-scope key if the shell holds a stale one)"),
     ("py -3.10 -m scripts.check_freshness", "the same verdict as this page, from a terminal"),
+    ("py -3.10 -m scripts.gameday", "the game-day sheet; it opens a browser"),
+    ("py -3.10 -m scripts.evaluate_move --log-tx ID", "evaluates a move already in the decision log and writes the result there"),
+    ("py -3.10 -m scripts.bid_review --add NAME --bid N", "records a claim in the bid ledger"),
+    ("py -3.10 -m scripts.run_season_backtest", "the backtests and studies (run_points_backtest, run_player_backtest, the *_study scripts)"),
+    ("py -3.10 -m scripts.banked_scores --write", "rewrites the banked scores without a full sync"),
+    ("py -3.10 -m scripts.scan_real_names", "the real-name scan before a push; local only"),
 )
 
 
@@ -304,11 +309,11 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         if path.startswith("/records/") and path.count("/") >= 3:                    # a record is a tool's answer
             return None
         if path in DEV_ONLY_EXACT or any(path == pfx or path.startswith(pfx + "/") for pfx in DEV_ONLY_PREFIXES if pfx != "/jobs"):
-            return render_template("error.html", code=404, message="That page is part of the developer view. Switch to it from the footer to see it."), 404
+            return render_template("error.html", code=404, message="This page is in the developer view. Switch views in the footer to open it."), 404
         if path.startswith("/tools/") and path[len("/tools/"):].split("?")[0].split("/")[0] not in SIMPLE_TOOLS:
-            return render_template("error.html", code=404, message="That tool is part of the developer view."), 404
+            return render_template("error.html", code=404, message="This tool is in the developer view. Switch views in the footer to use it."), 404
         if path.startswith("/file/") and request.args.get("raw") == "1" and not path.endswith(".png"):
-            return render_template("error.html", code=404, message="Raw files are part of the developer view."), 404
+            return render_template("error.html", code=404, message="Raw files are in the developer view."), 404
         return None
 
     def _palette(mode):
@@ -316,7 +321,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
         the teams. Pseudonyms in; the page applies the overlay before showing them."""
         items = [{"k": "page", "t": label, "h": href} for href, label in (NAV_DEV + NAV_DEV_MORE if mode == "dev" else NAV_SIMPLE)]
         items.append({"k": "page", "t": "Game day (TV view)", "h": "/gameday"})
-        items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how the dice fell, five measures"})     # UI-R6: pulled, never on Home
+        items.append({"k": "page", "t": "Luck", "h": "/luck", "d": "how much of the season was luck"})     # UI-R6: pulled, never on Home
         for name, t in TOOLS.items():
             if mode == "dev" or name in SIMPLE_TOOLS:
                 items.append({"k": "tool", "t": render.tool_title(name), "h": f"/tools/{name}", "d": t.question})
@@ -590,15 +595,15 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
 
     @app.errorhandler(PathRefused)
     def _refused(ex):
-        return render_template("error.html", code=400, message=f"refused: {ex}"), 400
+        return render_template("error.html", code=400, message=f"Refused: {ex}"), 400
 
     @app.errorhandler(FileNotFoundError)
     def _missing(ex):
-        return render_template("error.html", code=404, message=f"not on disk: {ex}"), 404
+        return render_template("error.html", code=404, message=f"Not on disk: {ex}"), 404
 
     @app.errorhandler(404)
     def _404(ex):
-        return render_template("error.html", code=404, message="no such page"), 404
+        return render_template("error.html", code=404, message="There's no page at this address."), 404
 
     @app.errorhandler(400)
     def _400(ex):

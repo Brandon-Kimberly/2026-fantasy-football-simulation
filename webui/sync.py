@@ -36,9 +36,9 @@ ODDS_PROBE_URL = "https://api.the-odds-api.com/v4/sports/americanfootball_nfl/od
 KEEP_BACKUPS = 10
 MODES = {
     "sync": {"module": "scripts.run_sync", "label": "Sync rosters, standings, lines and projections",
-             "what": "pulls live data into data/current/ and appends the new transactions to the decision log"},
+             "what": "pulls live data into data/current/ and adds new transactions to the decision log"},
     "refresh": {"module": "scripts.weekly_report", "label": "Sync, then refresh everything",
-                "what": "sync, then the full run: simulation, charts, roster grades, lineup, matchup, waivers and a new digest (non-canonical, filed under archive)"},
+                "what": "the sync, then the full run: simulation, charts, roster grades, lineup, matchup, waivers and a new digest (non-canonical, filed under archive)"},
 }
 
 
@@ -193,14 +193,14 @@ def changes(root, name=None):
            "roster": [], "status": [], "projection": [], "standings": [], "n": 0}
     saved = list_backups(root)
     if not saved:
-        out["note"] = ("no backup to compare against yet -- the first sync launched from this page takes "
-                       "one, and from then on this says what each sync changed")
+        out["note"] = ("No backup to compare against yet. The first sync from this page makes one, "
+                       "and from then on this shows what each sync changed.")
         return out
     meta = next((b for b in saved if b.get("name") == name), saved[0]) if name else saved[0]
     base = os.path.join(backups_dir(root), meta.get("name") or "")
     old_rosters = _load(os.path.join(base, "live_rosters.json"))
     if old_rosters is None:
-        out["note"] = f"the backup {meta.get('name')} has no roster file to compare against"
+        out["note"] = f"The backup {meta.get('name')} has no roster file to compare against."
         return out
     out.update(available=True, name=meta.get("name"), taken_at=meta.get("taken_at"))
 

@@ -26,7 +26,7 @@
 <div class="head">
   <p class="eyebrow">matchups · week {{ week }}{% if week == current %} · this week{% endif %}</p>
   <h1>Week {{ week }}</h1>
-  <p class="lede">{% if played %}Every game as the league counted it, beside the chance the model gave each side before kickoff.{% elif week == current %}This week's games, with the chance the model gives each side.{% else %}The chance each side wins, from the latest forecast.{% endif %}</p>
+  <p class="lede">{% if played %}Final scores, with the odds the model gave each side before kickoff.{% elif week == current %}This week's games and each side's chance to win.{% else %}Each side's chance to win, from the latest forecast.{% endif %}</p>
   {{ toolshere(["matchup_lineup", "live_matchup"] + (["matchup_watch"] if dev else [])) }}
   <nav class="weeks" aria-label="weeks">{% for w in weeks %}<a href="/matchups/week-{{ w }}" class="{{ 'on' if w == week }}{{ ' cur' if w == current }}"{% if w == current %} title="this week"{% endif %}>{{ w }}</a>{% endfor %}</nav>
 </div>
@@ -40,60 +40,60 @@
     {% endfor %}
     {% if g.p_a is not none %}<div class="split" role="img" aria-label="{{ g.a|real }} {{ (100 * g.p_a)|round(0)|int }}%, {{ g.b|real }} {{ (100 * g.p_b)|round(0)|int }}%"><i style="width:{{ (100 * g.p_a)|round(1) }}%;background:hsl({{ g.hue_a }} 55% 45%)"></i><i style="width:{{ (100 * g.p_b)|round(1) }}%;background:hsl({{ g.hue_b }} 55% 45%)"></i></div>{% endif %}
     <div class="foot">
-      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="the league played this game under the scoring in force at the time; Sleeper now re-scores it under the current settings, which gives these points and the other result">re-scored box score; the league's result stands</span>{% elif g.rescaled %}<span class="muted" title="Sleeper now re-scores this week under the league's later IDP settings; the result stands">re-scored points</span>{% endif %}
-      {% elif g.p_a is not none %}<span>{{ 'the model, before kickoff' if g.quote_a is not none else 'from the latest forecast' }}</span>{% else %}<span class="muted">no forecast for this game yet</span>{% endif %}
+      {% if g.winner %}{% if g.quote_a is not none %}<span>the model had {{ g.a|real }} at {{ (100 * g.quote_a)|round(0)|int }}%</span>{% endif %}{% if g.upset %}<span class="upset">upset</span>{% endif %}{% if g.rescored %}<span class="muted" title="Sleeper now scores this game under the league's later settings, which flips the result; the league's own result stands">re-scored box score; the league's result stands</span>{% elif g.rescaled %}<span class="muted" title="Sleeper now scores this week under the league's later IDP settings; the result stands">re-scored points</span>{% endif %}
+      {% elif g.p_a is not none %}<span>{{ "the model's odds before kickoff" if g.quote_a is not none else 'odds from the latest forecast' }}</span>{% else %}<span class="muted">no forecast yet</span>{% endif %}
     </div>
   </div>
 {% endfor %}
 </div>
-{% else %}<div class="note">No schedule on file for week {{ week }}.</div>{% endif %}
+{% else %}<div class="note">No schedule for week {{ week }} yet.</div>{% endif %}
 
 {% if lineups and lineups.columns %}{% set lu = lineups %}
 <section>
-<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Three ways to set your lineup <span class="hint">from the matchup record of {{ lu.stamp|when }}{% if lu.opponent %} against {{ lu.opponent|real }}{% endif %}</span></h2>
-{% if lu.agree %}<p class="note">This week all three agree: the lineup with the most expected points is also the best bet against {{ (lu.opponent|real) if lu.opponent else "your opponent" }} and against the median.</p>{% endif %}
+<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Three ways to set your lineup <span class="hint">{% if dev %}from the matchup record of {% else %}as of {% endif %}{{ lu.stamp|when }}{% if lu.opponent %} · against {{ lu.opponent|real }}{% endif %}</span></h2>
+{% if lu.agree %}<p class="note">This week all three agree:the lineup with the most expected points is also the best bet against {{ (lu.opponent|real) if lu.opponent else "your opponent" }} and against the median.</p>{% endif %}
 <div class="scroller"><table class="lu3"><thead><tr><th>Slot</th>{% for c in lu.columns %}<th>{{ {"points": "Most expected points", "opponent": "Best chance to win the game", "median": "Best chance to beat the median"}[c.objective] }}<div class="small muted">{{ c.mean|num(1) }} points · {{ c.p_opponent|pct(0) }} to win · {{ c.p_median|pct(0) }} to beat the median</div></th>{% endfor %}</tr></thead><tbody>
 {% for r in lu.rows %}<tr class="{{ 'differs' if r.differs }}"><td class="muted">{{ r.slot }}</td>{% for n in r.names %}<td>{{ n or "—" }}</td>{% endfor %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-8px">{% if not lu.agree %}Highlighted rows are where the three differ. {% endif %}The median column is the best of the lineups the matchup tool built, judged on beating the median, not a lineup built for the median alone.</p>
+<p class="small muted u-mt-8px">{% if not lu.agree %}Highlighted rows are where they differ. {% endif %}{% if dev %}The median column is whichever of the matchup tool's lineups is likeliest to beat the median; no lineup is built for the median alone.{% endif %}</p>
 </section>
 <style>table.lu3 tr.differs td { background: var(--warn-bg); font-weight: 600; } table.lu3 th { vertical-align: bottom; } table.lu3 th .small { text-transform: none; letter-spacing: 0; font-weight: 400; font-family: inherit; }</style>
 {% endif %}
 
 {% if split and split.rows %}{% set sp = split %}
 <section>
-<h2><svg class="i c-turf"><use href="#i-lever"/></svg> Where this game is decided <span class="hint">your lineup against {{ (sp.opponent|real) if sp.opponent else "theirs" }}, position by position · before kickoff</span></h2>
+<h2><svg class="i c-turf"><use href="#i-lever"/></svg> Where this game is decided <span class="hint">your lineup against {{ (sp.opponent|real) if sp.opponent else "theirs" }}, slot by slot, before kickoff</span></h2>
 <div class="scroller"><table class="split"><thead><tr><th>Slot</th><th>Yours</th><th class="num">Chance yours scores more</th><th>Theirs</th><th class="num">Share of the uncertainty</th></tr></thead><tbody>
 {% for r in sp.rows|sort(attribute="share", reverse=true) %}<tr><td class="muted">{{ r.slot }}</td><td>{{ r.mine }} <span class="small muted">{{ r.mine_mean|num(1) }}</span></td>
 <td class="num {{ 'pos' if r.p > 0.55 else ('neg' if r.p < 0.45) }}"><b>{{ r.p|pct(0) }}</b></td>
 <td>{{ r.theirs }} <span class="small muted">{{ r.theirs_mean|num(1) }}</span></td>
 <td class="num"><span class="bc"><span class="mini turf"><i data-width="{{ (100 * r.share)|round(0)|int }}"></i></span>{{ r.share|pct(0) }}</span></td></tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-8px">Pairing the lineups position by position is a presentation choice, not a real contest: nobody's quarterback plays the other quarterback. Each chance treats both players as independent normal curves, with this week's projection as the middle and the forecast's spread for that player; the share is how much of the swing in the final margin sits in that pair, so the biggest shares are where the game is most likely to be won or lost.{% if sp.left_out %} {{ sp.left_out }} pair{{ "s" if sp.left_out != 1 }} left out: no spread on file for one of the players.{% endif %}</p>
+<p class="small muted u-mt-8px">The biggest shares are where this game is most likely won or lost. The pairing is only a presentation: nobody's quarterback plays the other quarterback.{% if dev %} Each chance treats the two players as independent normal distributions (this week's projection, the forecast's spread for that player); the share is the pair's part of the variance of the final margin.{% endif %}{% if sp.left_out %} {{ sp.left_out }} pair{{ "s" if sp.left_out != 1 }} left out: no spread for one of the players.{% endif %}</p>
 </section>
 {% endif %}
 
 {% if review and review.awards %}{% set rv = review %}
 <section>
-<h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review <span class="hint">results as the league counted them{% if rv.rescaled %} · the award points are Sleeper's re-scored box scores, under the league's later IDP settings{% endif %}</span></h2>
+<h2><svg class="i c-gold"><use href="#i-award"/></svg> The week in review{% if rv.rescaled %} <span class="hint">award points are Sleeper's re-scored box scores, under the league's later IDP settings</span>{% endif %}</h2>
 <div class="mgames u-gtc-repeat-auto-fit-minmax-240px-1fr">
 {% for a in rv.awards %}<div class="mg"><div class="k">{{ a.label }}</div>
 <div class="side u-gtc-auto-1fr">{{ mark(a.team) }}<span class="nm">{{ teamlink(a.team) }}</span></div>
-<div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }}; the model gave them {{ (100 * a.quote)|round(0)|int }}% before kickoff{% elif a.key == "median_miss" %}{{ a.points|score }} points{% if a.short is not none %}, {{ a.short|score }} short of the {{ a.cut|score }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|score }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|score }} points, still a loss to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
+<div class="foot">{% if a.key == "upset" %}beat {{ a.opponent|real }} with a {{ (100 * a.quote)|round(0)|int }}% chance before kickoff{% elif a.key == "median_miss" %}{{ a.points|score }} points{% if a.short is not none %}, {{ a.short|score }} short of the {{ a.cut|score }} median{% endif %}{% elif a.key == "low_win" %}{{ a.points|score }} points, enough to beat {{ a.opponent|real }}{% else %}{{ a.points|score }} points and still lost to {{ a.opponent|real }}{% endif %}</div></div>{% endfor %}
 </div>
-{% if rv.movers %}<h3 class="u-mt-18px">Whose odds the week moved most</h3>
+{% if rv.movers %}<h3 class="u-mt-18px">Biggest swings in playoff odds</h3>
 <div class="scroller"><table><thead><tr><th>Team</th><th class="num">Playoff odds</th><th class="num">Change</th></tr></thead><tbody>
 {% for m in rv.movers %}<tr{% if m.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(m.team) }}{{ teamlink(m.team) }}</td><td class="num">{{ m.playoff_was|pctn(1) }} → <b>{{ m.playoff|pctn(1) }}</b></td><td class="num {{ 'pos' if m.d_playoff > 0 else 'neg' }}">{{ m.d_playoff|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
 {% if rv.best_move %}{% set d = rv.best_move %}{% set fx = d.actor_effect %}{% set v = fx.playoff|verdict(fx.playoff_se) %}
 <h3 class="u-mt-18px">The week's best move</h3>
 <p>{{ mark(d.actor) }}{{ teamlink(d.actor) }}: {{ d.label }}{% for p in d.adds %} <b>+ {{ p.name }}</b>{% endfor %}{% for p in d.drops %} <span class="muted">− {{ p.name }}</span>{% endfor %} · {{ fx.playoff|signed(1) }} playoff points {{ fx.playoff_se|se }}{% if v %} · {{ v.text }}{% endif %}</p>{% endif %}
-{% if rv.surprises %}<h3 class="u-mt-18px">Who had the week <span class="hint">points against their own last projection before kickoff, less the league's average surprise that week ({{ rv.league_surprise|signed(1) }})</span></h3>
-<div class="scroller"><table><thead><tr><th>Player</th><th class="num">Projected</th><th class="num">Scored</th><th class="num">Beat the league by</th></tr></thead><tbody>
+{% if rv.surprises %}<h3 class="u-mt-18px">Who had the week <span class="hint">points over their pre-game projection, less the week's league-wide average ({{ rv.league_surprise|signed(1) }})</span></h3>
+<div class="scroller"><table><thead><tr><th>Player</th><th class="num">Projected</th><th class="num">Scored</th><th class="num">Beat projection by</th></tr></thead><tbody>
 {% for p in rv.surprises %}<tr><td class="nm"><a href="/player/{{ p.pid }}">{{ p.name }}</a></td><td class="num">{{ p.projected|num(1) }}</td><td class="num"><b>{{ p.points|num(1) }}</b></td><td class="num pos">{{ p.over_league|signed(1) }}</td></tr>{% endfor %}
 </tbody></table></div>{% endif %}
 {% if post %}{% set parts = chat_parts(post|real) %}
-<div class="copybox"><span class="muted small">Copy for the Sleeper chat{% if parts|length > 1 %}, in {{ parts|length }} messages{% endif %}:</span>
+<div class="copybox"><span class="muted small">For the league chat{% if parts|length > 1 %}, in {{ parts|length }} messages{% endif %}:</span>
 {% for part in parts %}<button type="button" class="copyp" data-text="{{ part }}">{{ "Copy" if parts|length == 1 else "Copy part " ~ loop.index }}</button>{% endfor %}
 <span class="copied small muted" hidden>copied</span></div>
 {% endif %}

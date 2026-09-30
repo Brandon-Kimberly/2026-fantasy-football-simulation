@@ -87,10 +87,10 @@ def week_recap(root, week, my_team):
         losses.append((lp, loser, g["winner"]))
     if wins:
         p, t, o = min(wins)
-        awards.append({"key": "low_win", "label": "Won with the week's lowest winning score", "team": t, "points": p, "opponent": o})
+        awards.append({"key": "low_win", "label": "Lowest winning score", "team": t, "points": p, "opponent": o})
     if losses:
         p, t, o = max(losses)
-        awards.append({"key": "high_loss", "label": "Lost with the week's best losing score", "team": t, "points": p, "opponent": o})
+        awards.append({"key": "high_loss", "label": "Highest losing score", "team": t, "points": p, "opponent": o})
     # the median of the week's scores as shown (the league's banked ones where known): the
     # recomputed box scores' own cut sits beside banked scores it was not taken from
     shown = sorted(float(r["points_scored"]) for r in res.values() if r and r.get("points_scored") is not None)
@@ -103,7 +103,7 @@ def week_recap(root, week, my_team):
               and (cut is None or float(r.get("points_scored") or 0.0) < float(cut))]   # not a re-scored contradiction
     if missed:
         p, t = max(missed)
-        awards.append({"key": "median_miss", "label": "Closest miss against the median", "team": t, "points": p,
+        awards.append({"key": "median_miss", "label": "Just missed the median", "team": t, "points": p,
                        "cut": cut, "short": round(float(cut) - p, 2) if cut is not None else None})
     moves = odds_moves(root, week + 1) if (week + 1) in root.weeks() else {"rows": []}
     movers = sorted([r for r in moves.get("rows") or [] if r.get("d_playoff") is not None],
@@ -125,17 +125,17 @@ def chat_text(rv, week):
     lines = [f"Week {week} in review"]
     for a in rv.get("awards") or []:
         if a["key"] == "upset":
-            tail = f"beat {a['opponent']}, given {round(100 * a['quote'])}% before kickoff"
+            tail = f"beat {a['opponent']} with a {round(100 * a['quote'])}% chance before kickoff"
         elif a["key"] == "median_miss":
             tail = f"{a['points']:.2f} points" + (f", {a['short']:.2f} short of the {a['cut']:.2f} median" if a.get("short") is not None else "")
         elif a["key"] == "low_win":
             tail = f"{a['points']:.2f} points, enough to beat {a['opponent']}"
         else:
-            tail = f"{a['points']:.2f} points, still a loss to {a['opponent']}"
+            tail = f"{a['points']:.2f} points and still lost to {a['opponent']}"
         lines.append(f"{a['label']}: {a['team']} -- {tail}")
     movers = [m for m in rv.get("movers") or [] if m.get("d_playoff") is not None]
     if movers:
-        lines.append("Playoff odds moved most: " + ", ".join(f"{m['team']} {m['d_playoff']:+.1f}" for m in movers))
+        lines.append("Biggest swings in playoff odds: " + ", ".join(f"{m['team']} {m['d_playoff']:+.1f}" for m in movers))
     for p in (rv.get("surprises") or [])[:3]:
-        lines.append(f"{p['name']} scored {p['points']:.1f} against a projection of {p['projected']:.1f}")
+        lines.append(f"{p['name']} scored {p['points']:.1f}, projected {p['projected']:.1f}")
     return "\n".join(lines)

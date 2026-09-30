@@ -14,31 +14,31 @@
 .div i.pos { left: 50%; background: var(--pos); } .div i.neg { right: 50%; background: var(--neg); }
 .dnum { display: inline-block; min-width: 44px; text-align: right; }
 </style>
-<div class="head"><p class="eyebrow">season forecasts · one per simulated week</p><h1>Forecasts</h1><p class="lede">How my season looked from each week the model ran. A later week never overwrites an earlier one, so this reads as the odds moving through the season; open a week for every team's numbers and the charts.</p></div>
+<div class="head"><p class="eyebrow">season forecasts · one a week</p><h1>Forecasts</h1><p class="lede">How the season looked each week the model ran, and how the odds have moved since. Open a week for every team's numbers and the charts.</p></div>
 {% if rows %}
 {% if rows|length > 1 %}
 {% set labels = [] %}{% for r in rows %}{% set _ = labels.append("wk " ~ r.week) %}{% endfor %}
 {% if race and race.labels|length > 1 %}
 <section>
-<h2><svg class="i c-turf"><use href="#i-trend"/></svg> Playoff-odds race <span class="hint">every team, forecast by forecast · mine is the thick line · hover for every team's number</span></h2>
+<h2><svg class="i c-turf"><use href="#i-trend"/></svg> Playoff-odds race <span class="hint">every team, forecast by forecast · yours is the thick line</span></h2>
 {% set po = [] %}{% for s in race.playoff %}{% set _ = po.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
-{% set notes = [] %}{% for n in story %}{% set what = ((n.team|real) ~ " " ~ (n.delta|signed(1)) ~ " playoff points, the biggest move that step") if n.kind == "mover" else ((n.team|real|possessive) ~ " " ~ n.move ~ " in week " ~ n.week ~ ", graded " ~ (n.delta|signed(1)) ~ " playoff points") %}{% set _ = notes.append({"x": n.x, "series": n.team|real, "n": n.n, "title": n.n ~ ". " ~ n.label ~ ": " ~ what}) %}{% endfor %}
+{% set notes = [] %}{% for n in story %}{% set what = ((n.team|real) ~ " " ~ (n.delta|signed(1)) ~ " playoff points, the biggest move between forecasts") if n.kind == "mover" else ((n.team|real|possessive) ~ " " ~ n.move ~ " in week " ~ n.week ~ ", worth " ~ (n.delta|signed(1)) ~ " playoff points") %}{% set _ = notes.append({"x": n.x, "series": n.team|real, "n": n.n, "title": n.n ~ ". " ~ n.label ~ ": " ~ what}) %}{% endfor %}
 <div class="vizbox">{{ line_chart(po, race.labels, unit="%", nd=1, y_min=0, y_max=100, height=280, value_labels="last", legend=True, notes=notes) }}</div>
-{% if story %}<ol class="story">{% for n in story %}<li><span class="sn">{{ n.n }}</span> <span class="muted">{{ n.label }}</span> · {% if n.kind == "mover" %}{{ mark(n.team) }}{{ teamlink(n.team) }} <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> playoff points, the biggest move that step{% else %}{{ mark(n.team) }}<a href="/team/{{ n.team|slug }}" class="tl">{{ n.team|real|possessive }}</a> {{ n.move }} in week {{ n.week }}{% if n.players %} ({{ n.players|join(", ") }}){% endif %}, graded <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> {{ n.se|se }} playoff points by the paired simulation{% endif %}</li>{% endfor %}</ol>{% endif %}
+{% if story %}<ol class="story">{% for n in story %}<li><span class="sn">{{ n.n }}</span> <span class="muted">{{ n.label }}</span> · {% if n.kind == "mover" %}{{ mark(n.team) }}{{ teamlink(n.team) }} <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> playoff points, the biggest move between forecasts{% else %}{{ mark(n.team) }}<a href="/team/{{ n.team|slug }}" class="tl">{{ n.team|real|possessive }}</a> {{ n.move }} in week {{ n.week }}{% if n.players %} ({{ n.players|join(", ") }}){% endif %}, worth <b class="{{ 'pos' if n.delta > 0 else 'neg' }}">{{ n.delta|signed(1) }}</b> {{ n.se|se }} playoff points{% if dev %} by the paired simulation{% endif %}{% endif %}</li>{% endfor %}</ol>{% endif %}
 </section>
 <section>
-<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Title-odds race <span class="hint">the same, for winning it all</span></h2>
+<h2><svg class="i c-gold"><use href="#i-trophy"/></svg> Title-odds race <span class="hint">the same, for the title</span></h2>
 {% set ch = [] %}{% for s in race.champ %}{% set _ = ch.append({"name": s.name|real, "values": s["values"], "cls": s.cls, "hue": s.hue}) %}{% endfor %}
 <div class="vizbox">{{ line_chart(ch, race.labels, unit="%", nd=1, y_min=0, height=260, value_labels="last", legend=True) }}</div>
 </section>
 {% endif %}
 {% if moves and moves.rows %}
 <section>
-<h2><svg class="i c-warm"><use href="#i-trend"/></svg> What week{{ 's' if moves.week - moves.prev > 1 }} {{ moves.prev }}{% if moves.week - moves.prev > 1 %}–{{ moves.week - 1 }}{% endif %} did <span class="hint">each team's odds in the week-{{ moves.prev }} forecast against the week-{{ moves.week }} one · the change carries the results and every roster move in between</span></h2>
+<h2><svg class="i c-warm"><use href="#i-trend"/></svg> What week{{ 's' if moves.week - moves.prev > 1 }} {{ moves.prev }}{% if moves.week - moves.prev > 1 %}–{{ moves.week - 1 }}{% endif %} did <span class="hint">week-{{ moves.prev }} forecast against week-{{ moves.week }} · the change includes the results and every roster move in between</span></h2>
 {% set dmax = [moves.rows|map(attribute='d_playoff')|map('abs')|max, 1.0]|max %}
-<div class="scroller"><table><thead><tr><th>Team</th><th title="head-to-head and median results; the small number is the chance the model quoted before kickoff">Results <span class="muted">· quoted</span></th><th class="num">Playoff odds</th><th class="num">Change</th><th class="num">Title change</th></tr></thead><tbody>
+<div class="scroller"><table><thead><tr><th>Team</th><th title="head-to-head and median results; the small number is the model's chance before kickoff">Results <span class="muted">· quoted</span></th><th class="num">Playoff odds</th><th class="num">Change</th><th class="num">Title change</th></tr></thead><tbody>
 {% for r in moves.rows %}<tr{% if r.team == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r.team) }}{{ teamlink(r.team) }}</td>
-<td>{% if not r.reconciled %}<span class="muted" title="the box scores and the league's standings disagree about this team's record, because a scoring change or a stat correction landed after the result was recorded; the standings are the league's record">not settled · stat correction?</span>{% else %}{% for x in r.results %}<span class="res" title="week {{ x.week }}: head-to-head {{ x.h2h or '?' }}{% if x.p_h2h is not none %} (the model had {{ (100 * x.p_h2h)|round(0)|int }}% before kickoff){% endif %}, median {{ x.median or '?' }}{% if x.p_median is not none %} ({{ (100 * x.p_median)|round(0)|int }}%){% endif %}"><span class="{{ x.h2h }}">{{ x.h2h or '?' }}{% if x.p_h2h is not none %}<small> {{ (100 * x.p_h2h)|round(0)|int }}%</small>{% endif %}</span><span class="{{ x.median }}">{{ x.median or '?' }} med{% if x.p_median is not none %}<small> {{ (100 * x.p_median)|round(0)|int }}%</small>{% endif %}</span></span>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}{% endif %}</td>
+<td>{% if not r.reconciled %}<span class="muted" title="the box scores and the standings disagree on this team's record, usually after a late scoring change or stat correction; the standings are the league's record">not settled · stat correction?</span>{% else %}{% for x in r.results %}<span class="res" title="week {{ x.week }}: head-to-head {{ x.h2h or '?' }}{% if x.p_h2h is not none %} (the model had {{ (100 * x.p_h2h)|round(0)|int }}% before kickoff){% endif %}, median {{ x.median or '?' }}{% if x.p_median is not none %} ({{ (100 * x.p_median)|round(0)|int }}%){% endif %}"><span class="{{ x.h2h }}">{{ x.h2h or '?' }}{% if x.p_h2h is not none %}<small> {{ (100 * x.p_h2h)|round(0)|int }}%</small>{% endif %}</span><span class="{{ x.median }}">{{ x.median or '?' }} med{% if x.p_median is not none %}<small> {{ (100 * x.p_median)|round(0)|int }}%</small>{% endif %}</span></span>{% if not loop.last %} {% endif %}{% else %}<span class="muted">—</span>{% endfor %}{% endif %}</td>
 <td class="num">{{ r.playoff_was|pctn(1) }} → <b>{{ r.playoff|pctn(1) }}</b></td>
 <td class="num">{% if r.d_playoff is not none %}<span class="div"><i class="{{ 'pos' if r.d_playoff > 0 else 'neg' }}" style="width:{{ (50 * (r.d_playoff|abs) / dmax)|round(1) }}%"></i></span><b class="dnum {{ 'pos' if r.d_playoff > 0 else ('neg' if r.d_playoff < 0) }}">{{ r.d_playoff|signed(1) }}</b>{% else %}<span class="muted">—</span>{% endif %}</td>
 <td class="num">{% if r.d_champ is not none %}<span class="{{ 'pos' if r.d_champ > 0 else ('neg' if r.d_champ < 0) }}">{{ r.d_champ|signed(1) }}</span>{% else %}<span class="muted">—</span>{% endif %}</td></tr>{% endfor %}
@@ -46,7 +46,7 @@
 </section>
 {% endif %}
 <section>
-<h2><svg class="i"><use href="#i-chart"/></svg> My season <span class="hint">by the week the forecast was made</span></h2>
+<h2><svg class="i"><use href="#i-chart"/></svg> My season <span class="hint">by forecast week</span></h2>
 <div class="viz2">
   <div class="vizbox"><div class="k">my playoff odds</div>{{ line_chart([{"name": "playoff %", "values": rows|map(attribute='playoff')|list, "cls": "me"}], labels, unit="%", nd=1, y_min=0, y_max=100, width=340, height=200) }}</div>
   <div class="vizbox"><div class="k">my title odds</div>{{ line_chart([{"name": "title %", "values": rows|map(attribute='champ')|list, "cls": "gold"}], labels, unit="%", nd=1, y_min=0, width=340, height=200) }}</div>
@@ -59,7 +59,7 @@
 <div class="scroller"><table><thead><tr><th>Week</th><th class="num">Playoff odds</th><th class="num">Title odds</th><th class="num">Expected wins</th><th class="num">Wins so far</th>{% if dev %}<th class="num">Simulations</th><th>Run</th>{% endif %}</tr></thead><tbody>
 {% for r in rows|reverse %}<tr><td class="nm"><a href="/forecasts/week-{{ r.week }}">Week {{ r.week }}</a></td><td class="num"><span class="trend"><span class="mini turf"><i data-width="{{ (r.playoff or 0)|round(0)|int }}"></i></span><b>{{ r.playoff|pctn(1) }}</b>{% if r.se %} <span class="muted tiny">{{ r.se|se }}</span>{% endif %}</span></td><td class="num"><span class="trend"><span class="mini gold"><i data-width="{{ (r.champ or 0)|round(0)|int }}"></i></span>{{ r.champ|pctn(1) }}</span></td><td class="num">{{ r.exp_wins|num(2) }}</td><td class="num">{{ r.banked|num(0) }}</td>{% if dev %}<td class="num muted">{{ "{:,}".format(r.sims) if r.sims else "—" }}</td><td class="tnum muted">{{ r.mtime|ts }}</td>{% endif %}</tr>{% endfor %}
 </tbody></table></div>
-<p class="small muted u-mt-10px">Odds are mine; ± is the simulation's own noise on the playoff figure.</p>
+<p class="small muted u-mt-10px">Your odds. The ± is simulation noise on the playoff figure.</p>
 </section>
-{% else %}<div class="note">No forecasts yet. The first forecast appears once the week-1 report has run, and one more each week after{% if dev %} — <a href="/tools/run_simulation">run the simulation</a> from Tools, or <code>py -3.10 -m scripts.run_simulation</code>{% endif %}.</div>{% endif %}
+{% else %}<div class="note">No forecasts yet. The first forecast appears once the week-1 report has run, then a new one each week.{% if dev %} <a href="/tools/run_simulation">Run the simulation</a> from Tools, or <code>py -3.10 -m scripts.run_simulation</code>.{% endif %}</div>{% endif %}
 {% endblock %}

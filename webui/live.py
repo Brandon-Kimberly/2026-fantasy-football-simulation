@@ -441,7 +441,7 @@ def snapshot(root, week, my_team, league_id, fetch, base_url=BASE_URL, now=None)
         if team:
             by_team[team] = (m, team_state(m, clocks, exp))
     if my_team not in by_team:
-        return {"ok": False, "week": wk, "error": "my roster is not in this week's matchups"}
+        return {"ok": False, "week": wk, "error": "your team isn't in this week's matchups"}
     m_mine, mine = by_team[my_team]
     mid = m_mine.get("matchup_id")
     opponent = next((t for t, (m, _s) in by_team.items() if t != my_team and m.get("matchup_id") == mid), None)

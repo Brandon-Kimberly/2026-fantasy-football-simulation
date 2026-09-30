@@ -140,7 +140,7 @@ class TestViewer(unittest.TestCase):
     def test_system_page_carries_the_freshness_verdict_windows_note_and_r1(self):
         body = self.client().get("/system").get_data(as_text=True)
         self.assertIn("pill DEGRADED", body)                        # the fixture manifest has a tolerated failure
-        self.assertIn("run a sync to persist them", body)          # no kickoffs: never live-fetched
+        self.assertIn("a sync saves them", body)          # no kickoffs: never live-fetched
         self.assertIn("one engine process at a time", body)        # once, inside the collapsed terminal notes
         self.assertIn("scripts.run_sync", body)
 

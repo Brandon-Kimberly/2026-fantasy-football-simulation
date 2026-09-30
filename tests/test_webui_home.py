@@ -125,7 +125,7 @@ class TestHome(unittest.TestCase):
         self.assertIn("pill DEGRADED", body)
         self.assertIn("vegas odds", body)
         self.assertIn("fell back", body)
-        self.assertIn("run a sync to persist them", body)
+        self.assertIn("a sync saves them", body)
         self.assertIn("from a terminal", body)
         visible = re.sub(r'<[^>]+>', ' ', re.sub(r'<(script|style).*?</\1>', ' ', body, flags=re.S))
         self.assertLess(len(visible.split()), 900, 'the trimmed status is a page of sentences, not a dump')

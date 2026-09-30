@@ -7,18 +7,18 @@
 <div class="head">
   <p class="eyebrow">season forecast · made at week {{ week }} · {{ "{:,}".format(metadata.simulations) if metadata.simulations else "?" }} simulated seasons</p>
   <h1>Week {{ week }}</h1>
-  <p class="lede">The rest of the season as the model saw it from here, from the data at the time.</p>
+  <p class="lede">The rest of the season as the model saw it going into week {{ week }}.</p>
 </div>
 {% if mine %}{{ tiles([
   {"k": "my playoff odds", "v": mf.playoff_probability_pct|num(1) ~ "%", "s": mf.playoff_standard_error|se ~ " simulation noise", "tone": ""},
   {"k": "expected final wins", "v": mf.expected_final_wins|num(2), "s": mc.actual_wins_banked|num(0) ~ " banked · " ~ mf.expected_future_wins|num(2) ~ " still to come", "tone": ""},
-  {"k": "points so far", "v": mc.actual_points_banked|num(1), "s": "the league's record", "tone": ""},
-  {"k": "wins to clinch", "v": mf.approximate_magic_number|num(0), "s": "approximate magic number", "tone": ""}
+  {"k": "points so far", "v": mc.actual_points_banked|num(1), "s": "as the league counted them", "tone": ""},
+  {"k": "wins to clinch", "v": mf.approximate_magic_number|num(0), "s": "approximate", "tone": ""}
 ]) }}{% endif %}
 
 {% if rows %}
 <section>
-<h2><svg class="i"><use href="#i-trophy"/></svg> Playoff odds <span class="hint">every team, from this run</span></h2>
+<h2><svg class="i"><use href="#i-trophy"/></svg> Playoff odds <span class="hint">every team</span></h2>
 <div class="viz2">
   <div class="vizbox"><div class="k">playoff probability</div><div class="hbar">{% for r in rows %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.playoff or 0)|round(1) }}"></i></span><span class="v">{{ r.playoff|pctn(1) }}</span>{% endfor %}</div></div>
   <div class="vizbox"><div class="k">title probability</div><div class="hbar">{% for r in rows|sort(attribute='champ', reverse=true) %}<span class="{{ 'me' if r.team == my_team }}">{{ mark(r.team) }}{{ teamlink(r.team) }}</span><span class="b"><i class="{{ 'me' if r.team == my_team }}" data-width="{{ (r.champ or 0)|round(1) }}"></i></span><span class="v">{{ r.champ|pctn(1) }}</span>{% endfor %}</div></div>
@@ -45,9 +45,9 @@
 {% if roster_value %}{# UI-V2: the roster value baseline, drawn like the odds rather than as the engine's image #}
 {% set rv = roster_value|dictsort(by='value', reverse=true) %}{% set rvmax = [(roster_value.values()|max)|float, 1.0]|max %}
 <section>
-<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Roster value <span class="hint">the best starting lineup's projected points, plus a tenth of the bench</span></h2>
+<h2><svg class="i c-turf"><use href="#i-lineup"/></svg> Roster value <span class="hint">the best lineup's projected points, plus a tenth of the bench</span></h2>
 <div class="vizbox"><div class="k">projected points a week</div><div class="hbar">{% for t, v in rv %}<span class="{{ 'me' if t == my_team }}">{{ mark(t) }}{{ teamlink(t) }}</span><span class="b" title="{{ t|real }}: {{ v|num(1) }} points"><i class="{{ 'me' if t == my_team }}" data-width="{{ (100 * v / rvmax)|round(1) }}"></i></span><span class="v">{{ v|num(1) }} pts</span>{% endfor %}</div></div>
-<p class="small muted u-mt-8px">A measure of roster strength rather than a forecast: the most points the best legal lineup projects this week, with each bench player adding a tenth of their projection for depth.</p>
+<p class="small muted u-mt-8px">Roster strength, not a forecast.{% if dev %} The best legal lineup's projected points this week, with each bench player adding a tenth of their projection for depth.{% endif %}</p>
 </section>
 {% endif %}
 
@@ -56,11 +56,11 @@
 {% set series = [] %}{% for t in names %}{% set v = (traj.get(t) or {}).get('expected_cumulative_wins_by_week') %}{% if v %}{% set _ = series.append((t, v)) %}{% endif %}{% endfor %}
 {% if series %}
 <section>
-<h2><svg class="i c-gold"><use href="#i-chart"/></svg> Expected wins, week by week <span class="hint">every team · mine in green · hover a line for its name</span></h2>
+<h2><svg class="i c-gold"><use href="#i-chart"/></svg> Expected wins, week by week <span class="hint">every team · yours in green</span></h2>
 {% set n = series[0][1]|length %}{% set labels = [] %}{% for i in range(n) %}{% set _ = labels.append("wk " ~ (i + 1)) %}{% endfor %}
 {% set data = [] %}{% for t, v in series %}{% set _ = data.append({"name": t|real, "values": v, "cls": ("me" if t == my_team else "")}) %}{% endfor %}
 <div class="vizbox">{{ line_chart(data, labels, unit="", nd=1, y_min=0, height=280, marker=(week - 1) if week and week - 1 < n else None) }}
-<div class="legend"><span><i class="u-background-var-turf"></i>{{ my_team|real }}</span><span><i class="u-background-var-rule"></i>every other team</span><span>y = expected cumulative wins (two games a week)</span></div>
+<div class="legend"><span><i class="u-background-var-turf"></i>{{ my_team|real }}</span><span><i class="u-background-var-rule"></i>every other team</span><span>expected wins to date (two games a week)</span></div>
 </div>
 </section>
 {% endif %}
@@ -68,7 +68,7 @@
 
 {% if seeds %}
 <section>
-<h2><svg class="i c-violet"><use href="#i-flag"/></svg> Where each team finishes <span class="hint">probability of each seed · the stronger the green, the likelier · every value written</span></h2>
+<h2><svg class="i c-violet"><use href="#i-flag"/></svg> Where each team finishes <span class="hint">chance of each seed · darker green is likelier</span></h2>
 {% set names = rows|map(attribute='team')|list if rows else seeds.keys()|list %}
 {% set seedkeys = (seeds[names[0]] or {}).keys()|list %}
 {% set seedmax = [(seeds.values()|map('dictsort')|map('map', attribute=1)|map('max')|max if seeds else 100)|float, 1.0]|max %}
@@ -80,7 +80,7 @@
 
 {% if h2h %}
 <section>
-<h2><svg class="i c-pos"><use href="#i-swap"/></svg> Head to head <span class="hint">chance the row beats the column in a game · blue favours the row, red the column</span></h2>
+<h2><svg class="i c-pos"><use href="#i-swap"/></svg> Head to head <span class="hint">chance the row team beats the column team · blue favours the row, red the column</span></h2>
 {% set names = rows|map(attribute='team')|list if rows else h2h.keys()|list %}
 <div class="scroller"><table class="heat"><thead><tr><th class="nm"></th>{% for c in names %}<th title="{{ c|real }}">{{ mark(c) }}</th>{% endfor %}</tr></thead><tbody>
 {% for r in names %}<tr{% if r == my_team %} class="me"{% endif %}><td class="nm">{{ mark(r) }}{{ teamlink(r) }}</td>{% for c in names %}{% set v = (h2h.get(r) or {}).get(c) %}{% if r == c or v is none or v != v %}<td><span class="muted">·</span></td>{% else %}{% set d = (v - 50) / 50 %}<td><span style="background:{% if d >= 0 %}rgba(42,120,214,{{ (d * 0.8)|round(3) }}){% else %}rgba(227,73,72,{{ (-d * 0.8)|round(3) }}){% endif %}">{{ v|num(0) }}</span></td>{% endif %}{% endfor %}</tr>{% endfor %}
@@ -90,7 +90,7 @@
 
 {% if wins_dist or score_pct %}
 <section>
-<h2><svg class="i c-warm"><use href="#i-pulse"/></svg> Floors and ceilings <span class="hint">season wins and a typical week's score, p10 · p50 · p90</span></h2>
+<h2><svg class="i c-warm"><use href="#i-pulse"/></svg> Floors and ceilings <span class="hint">season wins and weekly score: a bad year · typical · a great year{% if dev %} (p10 · p50 · p90){% endif %}</span></h2>
 {% set names = rows|map(attribute='team')|list if rows else wins_dist.keys()|list %}
 {% set wmax = [(wins_dist.values()|map(attribute='p90_ceiling')|max if wins_dist else 1)|float, 1.0]|max %}
 {% set smax = [(score_pct.values()|map(attribute='p90_ceiling')|max if score_pct else 1)|float, 1.0]|max %}
@@ -124,7 +124,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 <div class="scroller"><table class="sos"><thead><tr><th class="nm" data-key="t" data-type="text">Team</th><th data-key="a" data-type="number">Average</th>{% for w in sos.weeks %}<th{% if sos.playoff_weeks and w == sos.playoff_weeks[0] %} class="po"{% endif %} data-key="w{{ w }}" data-type="number">wk {{ w }}</th>{% endfor %}</tr></thead><tbody>
 {{ sosrows(sos.fantasy, false) }}
 </tbody></table></div>{% endif %}
-<p class="small muted u-mt-8px">The average is over the window chosen above. A higher number is a better scoring environment for that team's offensive players; hover a cell for the opponent.</p>
+<p class="small muted u-mt-8px">Averages cover the window chosen above. Higher means an easier week for that team's offensive players; hover a cell for the opponent.</p>
 </section>
 {% endif %}
 
@@ -139,7 +139,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 {% set shown_charts = [] %}{% for e in charts %}{% set base = e.name|replace(".png", "")|replace("_week_" ~ week, "") %}{% if not (sos and sos.nfl and e.name.startswith("Strength_of_Schedule")) and base not in replaced %}{% set _ = shown_charts.append(e) %}{% endif %}{% endfor %}
 {% if shown_charts %}
 <section>
-<h2>Charts <span class="hint">from the run · click to open full size</span></h2>
+<h2>Charts <span class="hint">click to open full size</span></h2>
 <div class="charts">{% for e in shown_charts %}<figure><a href="{{ e.link }}"><img src="{{ e.link }}" alt="{{ e.name }}" loading="lazy"></a><figcaption>{{ e.name|replace(".png","")|replace("_week_" ~ week, "")|replace("_"," ")|replace("syndicate ","") }}</figcaption></figure>{% endfor %}</div>
 </section>
 {% endif %}
@@ -147,7 +147,7 @@ table.sos td.bye { color: var(--muted); font-size: 10.5px; letter-spacing: .06em
 {% if insights and insights.most_valuable_players_championship_shares %}
 <section>
 <h2>Who wins titles <span class="hint">how often each player starts for the simulated champion</span></h2>
-<p class="small muted">Highest single-week score seen: {{ insights.highest_single_week_score_observed }} by {{ (insights.team_with_highest_ceiling_game or "")|real }} in week {{ insights.week_of_highest_score }}.</p>
+<p class="small muted">Highest single-week score in the simulations: {{ insights.highest_single_week_score_observed }}, by {{ (insights.team_with_highest_ceiling_game or "")|real }} in week {{ insights.week_of_highest_score }}.</p>
 {% set shares = insights.most_valuable_players_championship_shares %}{% set amax = [(shares.values()|map(attribute='championship_lineup_appearance_pct')|max)|float, 1.0]|max %}
 <div class="scroller"><table><thead><tr><th data-key="n" data-type="text">Player</th><th data-key="a" data-type="number">In the champion's lineup</th><th data-key="p" data-type="number" class="num">Avg. points those weeks</th></tr></thead><tbody>
 {% for name, v in shares.items() %}<tr><td class="nm" data-sort="{{ name }}">{{ name }}</td><td data-sort="{{ v.championship_lineup_appearance_pct }}"><span class="bc u-jc-flex-start"><span class="mini gold u-w-120px--minw-120px"><i data-width="{{ (100 * (v.championship_lineup_appearance_pct or 0) / amax)|round(0)|int }}"></i></span>{{ v.championship_lineup_appearance_pct|pctn(1) }}</span></td><td class="num" data-sort="{{ v.avg_points_per_championship_week }}">{{ v.avg_points_per_championship_week|num(1) }}</td></tr>{% endfor %}

@@ -290,8 +290,8 @@ def windows_report(root, state_week):
     raw = (sched.get("_meta") or {}).get("kickoffs") or {}
     if not raw:
         return {"source": None, "result": None, "verdict": None, "next": None,
-                "note": "no kickoffs in the synced schedule: run a sync to persist them (the CLI would "
-                        "live-fetch ESPN here; this server never reaches the network for it)"}
+                "note": "no kickoffs in the synced schedule yet; a sync saves them (the CLI would fetch "
+                        "them from ESPN; this server never does)"}
     kicks = {int(w): [_parse_iso(t) for t in ts] for w, ts in raw.items() if ts}
     now = _dt.datetime.now(_dt.timezone.utc)
     probe = compute_windows(now, kicks, [], state_week=state_week)

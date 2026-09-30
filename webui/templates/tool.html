@@ -18,27 +18,27 @@
 {% set how = shown|rejectattr('name', 'in', (who + when + opts)|map(attribute='name')|list)|list %}
 <div class="head thead">
   <div>
-    <p class="eyebrow">{% if dev %}{% if tool.engine %}engine run{% else %}decision tool{% endif %} · {{ tool.name|replace("_", " ") }}{% else %}a question for the model{% endif %}</p>
+    <p class="eyebrow">{% if dev %}{% if tool.engine %}engine run{% else %}tool{% endif %} · {{ tool.name }}{% else %}tools{% endif %}</p>
     <h1><svg class="i u-w-85em--h-85em--stroke-var-turf--tfc-initial"><use href="#{{ tool.name|tool_icon }}"/></svg>{{ tool.name|tool_title }}</h1>
     <p class="lede">{{ tool.question }}</p>
-    {% if tool.note and dev %}<p class="small muted u-m-8px-0-0--maxw-80ch">{{ tool.note }}</p>{% endif %}
+    {% if dev and (tool.detail or tool.note) %}<p class="small muted u-m-8px-0-0--maxw-80ch">{{ tool.detail }}{% if tool.detail and tool.note %} {% endif %}{{ tool.note }}</p>{% endif %}
   </div>
-  <div class="est">{% if avg and avg[0] %}<b>{{ avg[0]|dshort }}</b>average of the last {{ avg[1] }} run{{ 's' if avg[1] != 1 }}{% else %}<b>{{ 'minutes' if (tool.heavy or tool.engine) else 'seconds' }}</b>typical, no runs yet{% endif %}</div>
+  <div class="est">{% if avg and avg[0] %}<b>{{ avg[0]|dshort }}</b>average of the last {{ avg[1] }} run{{ 's' if avg[1] != 1 }}{% else %}<b>{{ 'minutes' if (tool.heavy or tool.engine) else 'seconds' }}</b>usually; not run here yet{% endif %}</div>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>. Wait for it to finish.</div>{% endif %}
+{% if current %}<div class="note warn"><a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a> is running. This one can start when it finishes.</div>{% endif %}
 {% if error %}<div class="note bad"><b>Not launched.</b> {{ error|real }}</div>{% endif %}
 {% if tool.engine and fr and dev %}
 {% set degraded = (fr.manifest.degraded if fr.manifest and fr.manifest.degraded else []) %}
 <div class="note {{ 'bad' if fr.status == 'STALE' else ('warn' if fr.status == 'DEGRADED' else 'good') }}">
-<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; run <code>py -3.10 -m scripts.run_sync</code> from a terminal first{% elif fr.status == "DEGRADED" %} — {{ fr.phrase }}; the run goes ahead{% if fr.n_bad or fr.n_fell %} on older inputs where a source failed or fell back{% endif %}{% endif %}
+<b>Data on disk:</b> <span class="pill {{ fr.status }}">{{ fr.status }}</span> week {{ fr.week or "?" }}{% if fr.age_hours is not none %}, synced {{ fr.age_hours|ago }}{% endif %}{% if fr.status == "STALE" %} — <b>a launch will be refused</b>; <a href="/sync">sync</a> first{% elif fr.status == "DEGRADED" %} — {{ fr.phrase }}. The run goes ahead{% if fr.n_bad or fr.n_fell %}, on older inputs where a source failed or fell back{% endif %}.{% endif %}
 {% if fr.status == "STALE" and fr.stale_reasons %}<ul class="small u-m-6px-0-0-1-2em">{% for r in fr.stale_reasons %}<li>{{ r }}</li>{% endfor %}</ul>{% endif %}
 {% if fr.status == "DEGRADED" and degraded %}<details class="sec u-mt-6px"><summary>Sync warnings<span class="n">{{ degraded|length }}</span></summary><pre>{{ degraded|join('\n')|real }}</pre></details>{% endif %}
-{% if windows and windows.result %}<p class="small u-m-8px-0-0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name|window_title }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for a deliberate run inside a window.</p>{% elif windows and windows.note %}<p class="small u-m-8px-0-0">{{ windows.note }}</p>{% endif %}
+{% if windows and windows.result %}<p class="small u-m-8px-0-0"><b>Run windows</b> (week {{ windows.result.target_week }}): {% for w in windows.result.windows %}{{ w.name|window_title }} <span class="pill {{ w.status }}">{{ w.status|lower }}</span>{% if not loop.last %} · {% endif %}{% endfor %}. Tick <i>canonical run</i> only for the week's official run, inside a window.</p>{% elif windows and windows.note %}<p class="small u-m-8px-0-0">{{ windows.note }}</p>{% endif %}
 </div>
 {% endif %}
 
 {% macro control(f) -%}
-{% if f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}">{% if not f.required %}<option value="">(tool default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
+{% if f.kind == "team" %}<select id="f_{{ f.name }}" name="{{ f.name }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}">{% if not f.required %}<option value="">(default)</option>{% endif %}{% for c in f.choices %}<option value="{{ c }}"{% if values.get(f.name) == c %} selected{% endif %}>{{ c|real }}</option>{% endfor %}</select>
 {% elif f.is_player %}<div class="sugg-wrap"><input type="text" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}" data-player="1" data-list="{{ '1' if f.is_list else '0' }}" data-owner="{{ f.owner_spec(values) or 'all' }}"{% if f.owner_field %} data-owner-field="f_{{ f.owner_field }}"{% endif %} placeholder="{% if f.is_list %}names, comma-separated{% else %}start typing a name{% endif %}"><div class="sugg" id="s_{{ f.name }}"></div></div>
 {% elif f.name == "week" and season_weeks %}<select id="f_week" name="week" data-arg="{{ '' if f.positional else '--week' }}">{% set cur = (values.get('week') or sync_week or '')|string %}{% for w in range(1, season_weeks + 1) %}<option value="{{ w }}"{% if cur == w|string %} selected{% endif %}>week {{ w }}{% if w|string == (sync_week or '')|string %} (this week){% endif %}</option>{% endfor %}</select>
 {% elif f.kind in ("int", "float") %}<input type="number" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ values.get(f.name, '') }}" data-arg="{{ '' if f.positional else '--' ~ f.name }}"{% if f.kind == 'float' %} step="any"{% else %} step="1"{% endif %}{% if f.default is not none %} placeholder="{{ f.default }}"{% endif %}>
@@ -50,7 +50,7 @@
 <div class="f{% if f.is_list or f.kind == 'text' and f.name == 'positions' %} wide{% endif %}">
 <label for="f_{{ f.name }}">{{ f.label|sentence }}{% if f.required %}<span class="req" title="required">*</span>{% endif %}</label>
 {{ control(f) }}
-{% if f.help or f.kind in ('myplayer','myplayers','free_players','team_players') or f.default is not none %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %}{{ ' — ' if f.help }}from your roster{% elif f.kind == 'free_players' %}{{ ' — ' if f.help }}free agents only{% elif f.kind == 'team_players' %}{{ ' — ' if f.help }}from the selected team's roster{% endif %}{% if f.default is not none and f.kind not in ('flag',) and 'default' not in (f.help or '') %}{{ ' · ' if (f.help or f.kind in ('myplayer','myplayers','free_players','team_players')) }}default {{ f.default }}{% endif %}</div>{% endif %}
+{% if f.help or f.kind in ('myplayer','myplayers','free_players','team_players') or f.default is not none %}<div class="help">{{ f.help }}{% if f.kind in ('myplayer','myplayers') %}{{ ' — ' if f.help }}from your roster{% elif f.kind == 'free_players' %}{{ ' — ' if f.help }}free agents only{% elif f.kind == 'team_players' %}{{ ' — ' if f.help }}from the selected team's roster{% endif %}{% if f.default is not none and f.kind not in ('flag',) and 'default' not in (f.help or '') %}{{ ' · ' if (f.help or f.kind in ('myplayer','myplayers','free_players','team_players')) }}default {{ f.default|real if f.kind == 'team' else f.default }}{% endif %}</div>{% endif %}
 </div>
 {%- endmacro %}
 
@@ -61,7 +61,7 @@
 #instant .more input { width: 220px; } .warn-t { color: var(--warn); }
 </style>
 <section id="instant">
-<h2><svg class="i c-turf"><use href="#i-compare"/></svg> Quick estimate <span class="hint">ready as soon as two names are in · up to four players</span></h2>
+<h2><svg class="i c-turf"><use href="#i-compare"/></svg> Quick estimate <span class="hint">two to four players, updated as you type</span></h2>
 <div id="instant-body" aria-live="polite">{% include "_instant.html" %}</div>
 <div class="more">{% for x, ph, lab in (("inst_c", "add a third player (optional)", "third player"), ("inst_d", "and a fourth", "fourth player")) %}<div class="sugg-wrap"><input type="text" id="{{ x }}" name="{{ x }}" data-player="1" data-list="0" data-owner="all" autocomplete="off" placeholder="{{ ph }}" aria-label="{{ lab }}"><div class="sugg" id="s_{{ x }}"></div></div>{% endfor %}</div>
 </section>
@@ -83,20 +83,20 @@
 </script>
 {% endif %}
 <section>
-<h2>Set it up <span class="hint">blank = the usual default{% if who|selectattr('is_player')|list %} · player names: start typing, pick from the list{% endif %}</span></h2>
+<h2>Settings <span class="hint">anything left blank uses its default</span></h2>
 <form method="post" action="/tools/{{ tool.name }}" class="tool" autocomplete="off" id="toolform">
 <input type="hidden" name="_csrf" value="{{ csrf_token }}">
-{% if who %}<div class="grp g-who"><h3><svg class="i c-turf"><use href="#i-users"/></svg> Who <span class="hint">teams and players</span></h3><div class="fields">{% for f in who %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
-{% if when %}<div class="grp g-when"><h3><svg class="i c-gold"><use href="#i-cal"/></svg> When <span class="hint">blank = this week</span></h3><div class="fields">{% for f in when %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
-{% if how %}<div class="grp g-how"><h3><svg class="i c-pos"><use href="#i-engine"/></svg> How much <span class="hint">the defaults are the ones the terminal uses</span></h3><div class="fields">{% for f in how %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if who %}<div class="grp g-who"><h3><svg class="i c-turf"><use href="#i-users"/></svg> Who</h3><div class="fields">{% for f in who %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if when %}<div class="grp g-when"><h3><svg class="i c-gold"><use href="#i-cal"/></svg> When</h3><div class="fields">{% for f in when %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
+{% if how %}<div class="grp g-how"><h3><svg class="i c-pos"><use href="#i-engine"/></svg> How much <span class="hint">same defaults as the terminal</span></h3><div class="fields">{% for f in how %}{{ field(f) }}{% endfor %}</div></div>{% endif %}
 {% if opts %}<div class="grp g-opt"><h3><svg class="i c-violet"><use href="#i-flag"/></svg> Options</h3>
 {% for f in opts %}<div class="sw"><input type="checkbox" id="f_{{ f.name }}" name="{{ f.name }}" value="1" data-arg="--{{ f.name }}"{% if values.get(f.name) in ("1","on","true") %} checked{% endif %}><span class="tog" onclick="document.getElementById('f_{{ f.name }}').click()"></span><div><label for="f_{{ f.name }}">{{ f.label|sentence }}</label>{% if f.help %}<div class="help">{{ f.help }}</div>{% endif %}</div></div>{% endfor %}
 </div>{% endif %}
-{% if not shown %}<p class="small muted">This one takes no settings.</p>{% endif %}
+{% if not shown %}<p class="small muted">Nothing to set for this one.</p>{% endif %}
 <div class="launch">
   <button type="submit"><svg class="i"><use href="#i-arrow"/></svg> {% if dev %}Launch{% else %}Ask{% endif %}</button>
   {% if dev %}<div class="cmd" id="cmd" data-tool="{{ tool.name }}" data-forced="{{ tool.forced|join(' ') }}">py -3.10 -m scripts.{{ tool.name }}</div>{% endif %}
-  <span class="small muted">the answer opens when it finishes</span>
+  <span class="small muted">The answer opens here when it's ready.</span>
 </div>
 </form>
 </section>

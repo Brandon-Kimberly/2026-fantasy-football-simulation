@@ -28,11 +28,11 @@ LIST_KINDS = ("players", "myplayers", "free_players", "team_players")
 
 # What a form calls an argument. The argv keeps the tool's own flag; the label is for a
 # person, so 'sims' is 'simulations' and 'light' says what it does.
-LABELS = {"sims": "simulations", "seed": "random seed", "light": "quick mode (no simulation)",
-          "k": "risk weight", "no_cross": "skip the cross-construction table", "top": "show top N",
-          "evaluate": "simulate the top N packages", "batches": "batches", "full": "include the trade finder",
-          "embed": "embed the charts", "seller_threshold": "seller threshold (playoff %)", "offline": "offline (skip the week check)",
-          "all": "every season in the chain", "bid": "FAAB bid", "json": "JSON output", "canonical": "canonical run",
+LABELS = {"sims": "simulations", "seed": "random seed", "light": "quick mode",
+          "k": "risk weight", "no_cross": "skip the cross-construction table", "top": "how many to show",
+          "evaluate": "packages to simulate", "batches": "batches", "full": "include the trade finder",
+          "embed": "embed the charts", "seller_threshold": "seller threshold (playoff %)", "offline": "offline",
+          "all": "every season", "bid": "FAAB bid", "json": "JSON output", "canonical": "canonical run",
           "week": "week", "team": "team", "opponent": "opponent", "positions": "positions", "season": "season"}
 
 
@@ -116,17 +116,20 @@ def team(name="team", required=False, default_mine=True, label=None):
                  required=required, choices=names)
 
 
-WEEK = Field("week", "int", help="NFL week; default = the current week")
-SEED = Field("seed", "int", help="RNG seed; blank = the tool's default")
-CANONICAL = Field("canonical", "flag", label="canonical",
-                  help="a deliberate run filed to week_NN/ instead of week_NN/archive/ -- off unless you mean it")
+WEEK = Field("week", "int")
+SEED = Field("seed", "int", help="blank uses the tool's own seed")
+CANONICAL = Field("canonical", "flag", label="canonical run",
+                  help="files the result under week_NN/ instead of week_NN/archive/. Leave off unless this is the week's official run")
 # JSON-capable tools always run --json (Tool.forced): the job page renders the JSON as
 # tables and the text form is one click away in the log, so the form no longer asks.
 
 
 class Tool:
-    def __init__(self, name, question, fields, note="", heavy=False, forced=(), engine=False):
+    def __init__(self, name, question, fields, note="", heavy=False, forced=(), engine=False, detail=""):
+        # `question`: what an owner asks, in plain words (both views). `detail`: how the tool
+        # answers it, for the developer view. `note`: cost and side effects, developer view only.
         self.name, self.question, self.fields, self.note, self.heavy = name, question, fields, note, heavy
+        self.detail = detail
         # `forced`: argv items every launch carries, before the form's -- the W3 report is
         # ALWAYS --skip-sync (syncing is its own guarded page: docs/WEB_UI.md W4). `engine`: a full
         # simulation run; the launch page shows freshness and the run windows first, and a
@@ -211,83 +214,104 @@ def label_for(tool, form):
 
 
 def _sims(default, help=""):
-    return Field("sims", "int", default=default, help=help or f"simulations; default {default}")
+    return Field("sims", "int", default=default, help=help)
 
 
 TOOLS = {t.name: t for t in (
-    Tool("optimize_lineup", "What lineup does the model's own rule set, and by how much?",
-         [team(), WEEK, _sims(1000), SEED, CANONICAL]),
-    Tool("matchup_lineup", "Against this week's opponent, play safe or swing for variance?",
+    Tool("optimize_lineup", "Who should I start this week, and how many points does it add?",
+         [team(), WEEK, _sims(1000), SEED, CANONICAL],
+         detail="The model's own start/sit rule on this week's projections, against the lineup you have set."),
+    Tool("matchup_lineup", "Against this week's opponent, should I play it safe or chase upside?",
          [team(), WEEK, team("opponent", default_mine=False), _sims(5000), SEED,
-          Field("k", "float", default=0.5, help="risk weight; default 0.5"),
-          Field("no_cross", "flag", label="no cross", help="skip the cross-construction table"),
-          Field("opponent_lineup", "team_players", help="comma-separated; blank = his max-expectation lineup", owner_field="opponent"),
-          CANONICAL]),
+          Field("k", "float", default=0.5, help="how much to penalise spread; 0 ignores it"),
+          Field("no_cross", "flag", label="no cross", help="skip the table that scores each lineup against the others"),
+          Field("opponent_lineup", "team_players", help="blank assumes their highest-scoring lineup", owner_field="opponent"),
+          CANONICAL],
+         detail="Four lineup constructions on one joint sample, each with P(beat opponent) and P(beat median)."),
     Tool("waiver_targets", "Who should I claim, and what should I bid?",
-         [team(), WEEK, Field("top", "int", default=15), Field("positions", "text", help="comma-separated, e.g. RB,WR"),
-          _sims(2000), SEED, CANONICAL]),
+         [team(), WEEK, Field("top", "int", default=15), Field("positions", "text", help="e.g. RB,WR"),
+          _sims(2000), SEED, CANONICAL],
+         detail="Roster gaps against the free-agent pool, ranked by value over replacement, with P(beats my starter)."),
     Tool("roster_grades", "How good is each roster, really?",
-         [team(default_mine=False, label="team (blank = every team)"), WEEK, CANONICAL]),
-    Tool("find_trades", "Who should I be trading for, and who wants what I have?",
+         [team(default_mine=False, label="team (blank for every team)"), WEEK, CANONICAL],
+         detail="Tier and VORP per position and overall, and a league table by lineup VORP."),
+    Tool("find_trades", "Who should I trade for, and who wants what I have?",
          [team(), WEEK, Field("top", "int", default=10),
-          Field("seller_threshold", "float", default=35.0),
-          Field("evaluate", "int", default=0, help="paired evaluations of the top N packages (each is a full simulation pair)"),
-          Field("batches", "int", default=3), _sims(1000), CANONICAL], heavy=True),
-    Tool("compare_players", "Start A or B this week? P(A > B) from the joint simulated distributions.",
+          Field("seller_threshold", "float", default=35.0, help="teams below this playoff chance count as sellers"),
+          Field("evaluate", "int", default=0, help="each one is a full simulation pair, so minutes apiece"),
+          Field("batches", "int", default=3), _sims(1000), CANONICAL], heavy=True,
+         detail="Bench players elsewhere who would start for me, and my surplus that another team needs."),
+    Tool("compare_players", "Which of two players should I start this week?",
          [Field("a", "player", label="player A", required=True, positional=True),
           Field("b", "player", label="player B", required=True, positional=True),
           WEEK, _sims(2000), SEED,
-          Field("light", "flag", help="sample both from baseline parameters; no simulation (seconds, not minutes)")],
-         note="a rostered player triggers a reduced simulation (~2 min); --light skips it", heavy=True),
-    Tool("evaluate_trade", "Is this specific trade good for me? Two paired full simulations on the same seeds.",
-         [team("team_a", label="team A"), Field("a_gives", "team_players", label="A gives", help="comma-separated", owner_field="team_a"),
-          team("team_b", default_mine=False, label="team B"), Field("b_gives", "team_players", label="B gives", help="comma-separated", owner_field="team_b"),
+          Field("light", "flag", help="samples both from their baselines instead of simulating: seconds, not minutes")],
+         note="A rostered player triggers a reduced simulation (about 2 minutes); quick mode skips it.", heavy=True,
+         detail="P(A outscores B) from their joint simulated distributions."),
+    Tool("evaluate_trade", "Is this trade good for me?",
+         [team("team_a", label="team A"), Field("a_gives", "team_players", label="A gives", owner_field="team_a"),
+          team("team_b", default_mine=False, label="team B"), Field("b_gives", "team_players", label="B gives", owner_field="team_b"),
           Field("a_drops", "team_players", label="A drops", owner_field="team_a"), Field("b_drops", "team_players", label="B drops", owner_field="team_b"),
           Field("a_faab", "int", label="A sends FAAB", default=0), Field("b_faab", "int", label="B sends FAAB", default=0),
           Field("batches", "int", default=10), _sims(300)],
-         note="minutes: two full simulations", heavy=True),
-    Tool("evaluate_move", "What is adding X (and dropping Y) worth, in the same paired Champ%/Playoff% terms?",
-         [team(), Field("add", "free_players", help="comma-separated free agents"), Field("drop", "myplayers", help="comma-separated rostered players"),
-          Field("bid", "int", help="FAAB bid: adds the budget-cost block"), Field("batches", "int", default=10), _sims(300)],
-         note="minutes: two full simulations", heavy=True),
-    Tool("matchup_watch", "What should I be watching this week?",
-         [team(), WEEK, team("opponent", default_mine=False)]),
-    Tool("roster_calendar", "Which weeks am I short, and who do I cut when the IR man comes back?", [team()]),
-    Tool("live_matchup", "Am I winning right now, and what is still to come?",
-         [team(), WEEK, _sims(40000), Field("seed", "int", default=20260913)], forced=("--json",)),
-    Tool("trade_leverage", "Sell-high candidates, and rivals' below-replacement slots my surplus could fix.",
-         [team(), WEEK, Field("season", "text", default="2026")]),
-    Tool("market_sweep", "Every starting slot vs the best free agent, on engine values.", [team(), WEEK]),
-    Tool("check_freshness", "Has sync run this week, and did it succeed? (online: checks the week roll)",
-         [Field("offline", "flag", help="skip the Sleeper week check")]),
-    Tool("run_windows", "This week's canonical-run windows: open, covered, or missed.", [], forced=("--json",)),
-    Tool("odds_history", "How have my championship odds moved across canonical runs?",
-         [team()], forced=("--json",)),
-    Tool("luck_ledger", "Am I actually unlucky? Five pre-registered measures against the league.",
-         [Field("season", "text"), Field("all", "flag", label="every season in the chain"),
-          team(default_mine=False, label="team (blank = mine)"), WEEK], forced=("--json",)),
-    Tool("decision_scorecard", "Did we make bad calls? The week's start/sit decisions, scored.",
-         [team(), Field("week", "int", required=True, help="the completed week to score")], forced=("--json",)),
-    Tool("data_health", "Every source the model consumes, checked against what is on disk.",
-         [Field("season", "text", default="2026"), WEEK], forced=("--json",)),
-    Tool("bid_review", "What I suggested vs what I bid vs what it cost (review only; recording a claim stays a terminal act).",
-         [team(), WEEK], forced=("--json",)),
+         note="Takes minutes: two full simulations.", heavy=True,
+         detail="Two full simulations on the same seeds, with and without the trade; the playoff and title change for both sides and every other team."),
+    Tool("evaluate_move", "What would an add (and a drop) do to my playoff and title odds?",
+         [team(), Field("add", "free_players"), Field("drop", "myplayers"),
+          Field("bid", "int", help="adds what the bid costs from the budget"), Field("batches", "int", default=10), _sims(300)],
+         note="Takes minutes: two full simulations.", heavy=True,
+         detail="Two full simulations on the same seeds, with and without the move."),
+    Tool("matchup_watch", "What should I watch this week?",
+         [team(), WEEK, team("opponent", default_mine=False)],
+         detail="Both lineups by NFL game: stacks, injury designations, and the games both sides have players in."),
+    Tool("roster_calendar", "Which weeks am I short, and who goes when a player comes off IR?", [team()],
+         detail="Bye and injury gaps by week, and the roster squeeze when an IR player returns."),
+    Tool("live_matchup", "Am I winning right now, and what's still to play?",
+         [team(), WEEK, _sims(40000), Field("seed", "int", default=20260913)], forced=("--json",),
+         detail="Points banked plus each unplayed starter's projection, simulated. No injury discount before kickoff (F51)."),
+    Tool("trade_leverage", "Who should I sell high, and which rivals need what I have?",
+         [team(), WEEK, Field("season", "text", default="2026")],
+         detail="Sell-high candidates, and rivals' below-replacement slots my surplus could fill."),
+    Tool("market_sweep", "Is any free agent better than one of my starters?", [team(), WEEK],
+         detail="Every starting slot against the best free agent, on engine values."),
+    Tool("check_freshness", "Is the data up to date?",
+         [Field("offline", "flag", help="skips the check against Sleeper's current week")],
+         detail="Has the sync run this week, and did it succeed? Online, it also checks that the week has not rolled over."),
+    Tool("run_windows", "Which of this week's canonical-run windows are open, covered or missed?", [], forced=("--json",)),
+    Tool("odds_history", "How have my title odds moved this season?",
+         [team()], forced=("--json",), detail="Canonical runs only."),
+    Tool("luck_ledger", "Am I actually unlucky?",
+         [Field("season", "text"), Field("all", "flag", label="every season"),
+          team(default_mine=False, label="team (blank for mine)"), WEEK], forced=("--json",),
+         detail="Five pre-registered measures, each against the league average."),
+    Tool("decision_scorecard", "How good were a week's start/sit calls?",
+         [team(), Field("week", "int", required=True, help="a completed week")], forced=("--json",)),
+    Tool("data_health", "Is every data source the model uses in good shape?",
+         [Field("season", "text", default="2026"), WEEK], forced=("--json",),
+         detail="Each source checked against what is on disk."),
+    Tool("bid_review", "How did my bids compare with the suggestions, and what did they cost?",
+         [team(), WEEK], forced=("--json",),
+         detail="Review only. Recording a claim stays a terminal job."),
 )}
 
 # W3: the two engine entry points, through the same runner and the same lock. The report is
 # ALWAYS --skip-sync -- sync stays a terminal act (W4) -- and it self-gates on STALE data.
 ENGINE = {t.name: t for t in (
-    Tool("run_simulation", "Run the Monte Carlo engine on the data on disk: exports, charts, boom/bust, floor/ceiling.",
-         [], note="the full run (10,000 simulations): minutes, and the week's exports are rewritten", heavy=True, engine=True),
-    Tool("weekly_report", "The weekly digest from the data on disk: simulate -> charts -> grades -> lineup -> matchup -> waivers.",
-         [team(), Field("full", "flag", help="also run the trade-target finder"),
-          Field("sims", "int", default=5000, help="matchup joint-sample size; default 5000"),
-          Field("evaluate", "int", default=0, help="with full: paired evaluations of the top N trade packages"),
-          Field("embed", "flag", help="inline the charts as data URIs (portable, 15-20 MB)"),
+    Tool("run_simulation", "Rerun this week's forecast on the current data.",
+         [], note="The full 10,000-season run takes minutes and rewrites the week's exports.", heavy=True, engine=True,
+         detail="The Monte Carlo engine on the data on disk: exports, charts, boom/bust, floor/ceiling."),
+    Tool("weekly_report", "Build this week's digest from the current data.",
+         [team(), Field("full", "flag", help="also runs the trade-target finder"),
+          Field("sims", "int", default=5000, help="joint samples for the matchup section"),
+          Field("evaluate", "int", default=0, help="with the trade finder on: full simulation pairs for the top N packages"),
+          Field("embed", "flag", help="puts the charts inside the file so it travels on its own (15-20 MB)"),
           CANONICAL],
-         note="always --skip-sync here: syncing has its own page (Sync), with a key preflight and a backup first. STALE data stops the run (the digest carries a FAILED banner and the job is VOID). "
-              "A non-canonical run files under week_NN/archive/ and appends a non-canonical row to the predictions log, exactly as a hand run does.",
-         heavy=True, forced=("--skip-sync",), engine=True),
+         note="Always runs with --skip-sync: syncing has its own page, with a key check and a backup first. "
+              "STALE data stops the run; the digest carries a FAILED banner and the job is VOID. "
+              "A non-canonical run files under week_NN/archive/ and adds a non-canonical row to the predictions log, "
+              "the same as a run from the terminal.",
+         heavy=True, forced=("--skip-sync",), engine=True,
+         detail="Simulate, then charts, grades, lineup, matchup and waivers."),
 )}
 
 

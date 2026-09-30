@@ -61,7 +61,7 @@
 {% for b in blocks %}
 {% if b.kind == 'heading' %}<div class="con-h">{{ b.text|real }}</div>
 {% elif b.kind == 'table' %}<div class="scroller"><table><tbody>{% for r in b.rows %}<tr>{% for c in r %}<td{% if loop.first %} class="nm"{% endif %}>{{ c|real }}</td>{% endfor %}</tr>{% endfor %}</tbody></table></div>
-{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record written — <a href="{{ b.link }}">open it</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
+{% elif b.kind == 'record' %}<p class="rec small">{% if b.link %}Record written. <a href="{{ b.link }}">Open it</a>{% else %}<span class="muted">{{ b.text|real }}</span>{% endif %}</p>
 {% elif b.kind == 'chatter' %}<details><summary>engine chatter · {{ b.lines|length }} lines</summary><pre>{{ b.lines|join('\n')|real }}</pre></details>
 {% else %}<pre>{{ b.text|real }}</pre>
 {% endif %}

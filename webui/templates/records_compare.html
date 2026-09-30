@@ -16,7 +16,7 @@
 <h2>Values that differ</h2>
 {% if d["values"] %}<div class="scroller"><table><thead><tr><th>Field</th><th>Before</th><th>After</th></tr></thead><tbody>
 {% for v in d["values"] %}<tr><td>{{ v.key }}</td><td>{{ v.before }}</td><td><b>{{ v.after }}</b></td></tr>{% endfor %}
-</tbody></table></div>{% else %}<p class="note">No top-level value differs; open the two records to compare their tables.</p>{% endif %}
+</tbody></table></div>{% else %}<p class="note">No top-level value differs. Open the two records to compare their tables.</p>{% endif %}
 {% endif %}
 </section>
 {% endblock %}

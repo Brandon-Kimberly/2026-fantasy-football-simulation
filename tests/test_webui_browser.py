@@ -440,8 +440,8 @@ class TestNoCertaintyUntilItIsDecided(BrowserCase):
         self.open("/")
         self.page.wait_for_selector(".plan")
         text = self.page.inner_text(".plan")
-        self.assertIn("+2.5 points of chance to win the game", text)
-        self.assertIn("+3.0 to beat the median", text)
+        self.assertIn("+2.5 points of win chance", text)
+        self.assertIn("+3.0 on the median", text)
 
     def test_a_pinned_bar_keeps_the_score_in_view(self):
         """UI-M2: a slim bar -- both scores, the chance now, starters still to play -- stays

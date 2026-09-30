@@ -19,24 +19,24 @@
 {% set by = {} %}{% for t in tools %}{% set _ = by.update({t.name: t}) %}{% endfor %}
 {% set groups = [
   ("This week", "set the lineup, plan the matchup, work the wire", "s-turf", "c-turf", "i-clip", ["optimize_lineup", "matchup_lineup", "waiver_targets", "matchup_watch", "live_matchup", "market_sweep"]),
-  ("Players & trades", "one question at a time, priced by the same simulation", "s-pos", "c-pos", "i-swap", ["compare_players", "evaluate_move", "evaluate_trade", "find_trades", "trade_leverage", "roster_grades", "roster_calendar"]),
+  ("Players & trades", "who to start, add or trade for", "s-pos", "c-pos", "i-swap", ["compare_players", "evaluate_move", "evaluate_trade", "find_trades", "trade_leverage", "roster_grades", "roster_calendar"]),
   ("Review & health", "how the model and the data are doing", "s-gold", "c-gold", "i-health", ["check_freshness", "run_windows", "odds_history", "luck_ledger", "decision_scorecard", "data_health", "bid_review"]),
 ] %}
 {% macro est(t) -%}
-{% set a = avg.get(t.name) if avg else None %}{% if a and a[0] %}<span class="t" title="average of the last {{ a[1] }} successful run{{ 's' if a[1] != 1 }}">avg <b>{{ a[0]|dshort }}</b></span>{% else %}<span class="t" title="no successful run from this UI yet">~{{ 'minutes' if (t.heavy or t.engine) else 'seconds' }}</span>{% endif %}
+{% set a = avg.get(t.name) if avg else None %}{% if a and a[0] %}<span class="t" title="average of the last {{ a[1] }} successful run{{ 's' if a[1] != 1 }}">avg <b>{{ a[0]|dshort }}</b></span>{% else %}<span class="t" title="not run here yet">~{{ 'minutes' if (t.heavy or t.engine) else 'seconds' }}</span>{% endif %}
 {%- endmacro %}
 <div class="head">
-  <p class="eyebrow">tools · one launch at a time</p>
+  <p class="eyebrow">tools</p>
   <h1>Tools</h1>
-  <p class="lede">{% if dev %}Each one runs the same command you would type and opens its answer as tables when it finishes. Only one runs at a time; a crashed run counts for nothing and is simply re-run. The time on each card is the average of its last few successful runs here.{% else %}Ask a question, get the answer as tables. One runs at a time; the time on each card is how long it usually takes.{% endif %}</p>
+  <p class="lede">{% if dev %}Each tool runs the same command you'd type in a terminal and shows the answer as tables. One runs at a time. A run that crashes leaves nothing behind, so just run it again.{% else %}Pick a question. The answer opens when it's ready; one runs at a time.{% endif %}</p>
 </div>
-{% if current %}<div class="note warn">Running now: <a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a>, started {{ current.started_at|when }}. Wait for it to finish.</div>{% endif %}
+{% if current %}<div class="note warn"><a href="{{ current|job_url }}">{{ current.tool|tool_title }}</a> is running (started {{ current.started_at|when }}). The next one can start when it finishes.</div>{% endif %}
 
 {% for title, hint, stripe, ic, icon, names in groups %}{% set present = [] %}{% for n in names if n in by %}{% set _ = present.append(n) %}{% endfor %}{% if present %}
 <section>
 <h2><svg class="i {{ ic }}"><use href="#{{ icon }}"/></svg> {{ title }} <span class="hint">{{ hint }}</span></h2>
 <div class="cards tidy">
-{% for n in names if n in by %}{% set t = by[n] %}<div class="card {{ stripe }}"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i {{ ic }}"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
+{% for n in names if n in by %}{% set t = by[n] %}<div class="card {{ stripe }}"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i {{ ic }}"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q"{% if dev and t.detail %} title="{{ t.detail }}"{% endif %}>{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
 </div>
 </section>{% endif %}
 {% endfor %}
@@ -46,11 +46,11 @@
 
 {% if engine %}
 <section>
-<h2><svg class="i c-warm"><use href="#i-engine"/></svg> Engine runs <span class="hint">the week's forecast is rewritten</span></h2>
+<h2><svg class="i c-warm"><use href="#i-engine"/></svg> Engine runs <span class="hint">these rewrite the week's forecast</span></h2>
 <div class="cards tidy">
 {% for t in engine %}<div class="card s-warm"><a class="cover" href="/tools/{{ t.name }}" aria-hidden="true" tabindex="-1"></a><h4><svg class="i c-warm"><use href="#{{ t.name|tool_icon }}"/></svg><a href="/tools/{{ t.name }}">{{ t.name|tool_title }}</a>{{ est(t) }}</h4><p class="q">{{ t.question }}</p>{{ last(t) }}</div>{% endfor %}
 </div>
-<p class="small muted u-mt-14px">Kept to the terminal on purpose: syncing live data (the digest here always runs on the data already on disk), the gameday sheet (it opens a browser), the backtests and studies, and anything that appends to a season log.</p>
+<p class="small muted u-mt-14px">Not here on purpose: the game-day sheet (it opens a browser), the backtests and studies, and anything that writes to a season log. Syncing has its own page, <a href="/sync">Sync</a>; the digest here runs on the data already on disk.</p>
 </section>
 {% endif %}
 {% endblock %}

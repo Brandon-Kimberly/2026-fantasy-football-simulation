@@ -429,9 +429,9 @@ def _lineup(d):
         starters.append(r)
     return {
         "title": "Optimal lineup", "subtitle": f"{d.get('team')} · week {d.get('week')}",
-        "tiles": [tile("expected total", fnum(d.get("expected_total"), 1), "pre-game expectation of the 13 starters"),
-                  tile("questionable starters", str(len(q)), "each with a named fallback" if q else "none", "neg" if q else ""),
-                  tile("locked in place", str(d.get("pinned", 0)), "starters whose game has kicked off" if d.get("locks_active") else "no games have kicked off"),
+        "tiles": [tile("expected total", fnum(d.get("expected_total"), 1), "what the 13 starters are expected to score"),
+                  tile("questionable starters", str(len(q)), "each has a named fallback" if q else "none", "neg" if q else ""),
+                  tile("locked in place", str(d.get("pinned", 0)), "their games have kicked off" if d.get("locks_active") else "no game has kicked off yet"),
                   tile("unfilled slots", str(len(d.get("unfilled") or [])), "no eligible player" if d.get("unfilled") else "every slot filled", "neg" if d.get("unfilled") else "")],
         "sections": [
             table("Starters", [col("slot"), col("name"), col("pos"), col("expected", kind="num"),
@@ -439,7 +439,7 @@ def _lineup(d):
                                col("margin", "margin over bench", "signed", 1), col("alternative", "best alternative"), col("flag", "status", "flag")],
                   starters),
             table("Questionable starters", [col("name"), col("slot"), col("expected", kind="num"), col("fallback"),
-                                            col("fallback_expected", "fallback exp.", "num"), col("give_up", "cost of sitting", "num")], q)
+                                            col("fallback_expected", "fallback expects", "num"), col("give_up", "cost of sitting", "num")], q)
             if q else None,
             table("Bench", [col("name"), col("pos"), col("expected", kind="num"), col("available", kind="bool"), col("reason"), col("flag", "status", "flag")],
                   d.get("bench")),
@@ -454,20 +454,20 @@ def _matchup(d):
     best = cons.get(order[0]) if order and order[0] in cons else {}
     secs = [table("Constructions", [col("construction"), col("mean", kind="num"), col("sd", kind="num"), col("p_beat_opponent", "P(beat opponent)", "pct"),
                                     col("p_beat_median", "P(beat median)", "pct"), col("margin_mean", "margin", "signed", 1), col("margin_sd", "margin sd", "num")],
-                  rows, note="ranked by P(beat opponent); the first row is the recommendation")]
+                  rows, note="ranked by P(beat opponent); the top row is the pick")]
     for i, k in enumerate(order):
         if k in cons and cons[k].get("lineup"):
             secs.append(table(f"Lineup — {CONSTRUCTION_LABELS.get(k, k)}" + (" (recommended)" if i == 0 else ""),
                               [col("slot"), col("name"), col("nfl_team", "NFL"), col("expected", kind="num"), col("sd", kind="num"), col("flag", "status", "flag")],
                               cons[k]["lineup"], collapsed=(i > 0)))
-    secs.append(table("Opponent's lineup" + (" (assumed: his max-expectation lineup)" if d.get("opponent_lineup_assumed") else ""),
+    secs.append(table("Opponent's lineup" + (" (assumed: their highest-scoring lineup)" if d.get("opponent_lineup_assumed") else ""),
                       [col("slot"), col("name"), col("expected", kind="num")], d.get("opponent_lineup"), collapsed=True))
     secs.append(text("How this was computed", d.get("note")))
     return {"title": "Matchup lineups", "subtitle": f"{d.get('team')} vs {d.get('opponent')} · week {d.get('week')}",
-            "tiles": [tile("recommended", CONSTRUCTION_LABELS.get(order[0], order[0]) if order else "—", "by P(beat opponent)"),
+            "tiles": [tile("recommended", CONSTRUCTION_LABELS.get(order[0], order[0]) if order else "—", "best chance to beat the opponent"),
                       tile("P(beat opponent)", fpct(best.get("p_beat_opponent")), fse(100 * best["se"], "%") if best.get("se") is not None else ""),
                       tile("P(beat median)", fpct(best.get("p_beat_median")), ""),
-                      tile("favoured on means", "yes" if d.get("favoured_by_max_mean") else "no", "", "pos" if d.get("favoured_by_max_mean") else "neg")],
+                      tile("favoured on projections", "yes" if d.get("favoured_by_max_mean") else "no", "", "pos" if d.get("favoured_by_max_mean") else "neg")],
             "sections": secs}
 
 
@@ -483,16 +483,16 @@ def _waivers(d):
     holes = d.get("holes") or []
     return {"title": "Waiver targets", "subtitle": f"{d.get('team')} · week {d.get('week')}",
             "tiles": [tile("FAAB remaining", fnum(d.get("remaining_faab"), 0), f"league average {fnum(d.get('league_avg_faab'), 0)}"),
-                      tile("holes this week", str(len(holes)), _join(holes) if holes else "every slot fillable", "neg" if holes else ""),
+                      tile("holes this week", str(len(holes)), _join(holes) if holes else "every slot can be filled", "neg" if holes else ""),
                       tile("holes next week", str(len(d.get("holes_next_week") or [])), _join(d.get("holes_next_week")) if d.get("holes_next_week") else "none"),
                       tile("targets", str(len(rows)), "ranked by value over replacement")],
             "sections": [table("Targets", [col("name"), col("pos"), col("team", "NFL"), col("vorp", "VORP", "signed", 1), col("week_mean", "this week", "num"),
                                            col("bid_point", "bid", "num", 0), col("bid_band", "band"), col("fills"), col("injury_status", "status", "flag")],
-                               rows, note="bid = the margin over the fallback priced against actual competition (F61)"),
+                               rows, note="the bid prices each player's edge over your fallback against what rivals are likely to bid (F61)"),
                          table("More on each target", [col("name"), col("tier", kind="num", nd=0), col("mean", "season mean", "num"), col("incumbent"),
                                                        col("week_p90", "p90", "num", 0), col("week_p_zero", "P(0 pts)", "pct"), col("bid_v1", "old bid", "num", 0),
                                                        col("bye", kind="num", nd=0)],
-                               rows, collapsed=True, note="the earlier bid heuristic is kept for comparison; neither rule is validated (F61)"),
+                               rows, collapsed=True, note="the old bid rule, kept for comparison; neither rule is validated yet (F61)"),
                          text("Caveat", d.get("caveat"))]}
 
 
@@ -521,7 +521,7 @@ def _find_trades(d):
     d = dict(d, buy=_acceptable_first(d.get("buy"), "with", d.get("_needs")),
              sell=_acceptable_first(d.get("sell"), "buyer", d.get("_needs")))
     return {"title": "Trade targets", "subtitle": f"{d.get('team')} · week {d.get('week')}",
-            "tiles": [tile("buy ideas", str(len(d.get("buy") or [])), "buried players who would start for me"),
+            "tiles": [tile("buy ideas", str(len(d.get("buy") or [])), "bench players elsewhere who would start for me"),
                       tile("sell ideas", str(len(d.get("sell") or [])), "my surplus with a buyer"),
                       tile("excluded (pending)", str(len(d.get("excluded_pending") or [])), "players in a pending trade (T3)")],
             "sections": [table("Buy", [col("with", link="team"), col("target"), col("fills_my_slot", "fills"), col("i_give"), col("i_get"),
@@ -546,7 +546,7 @@ def _compare(d):
                            "pos" if (d.get("p_a") or 0) > (d.get("p_b") or 0) else "neg"),
                       tile(f"{bn} wins", fpct(d.get("p_b")), f"tie {fpct(d.get('p_tie'))}"),
                       tile("mean difference", fsigned(d.get("mean_diff")), f"{an} minus {bn}", tone(d.get("mean_diff"))),
-                      tile("draws", f"{int(d.get('n') or 0):,}", "quick mode: baseline parameters, no simulation" if quick else "joint simulation")],
+                      tile("draws", f"{int(d.get('n') or 0):,}", "quick mode: drawn from baselines, not simulated" if quick else "joint simulation")],
             "sections": [table("Distributions", [col("player"), col("mean", kind="num"),
                                                  col("band", "floor–ceiling (p10 · p50 · p90)", "range", lo="p10", mid="p50", hi="p90"),
                                                  col("p25", kind="num"), col("p75", kind="num"), col("p_zero", "P(0 pts)", "pct")], rows),
@@ -572,17 +572,17 @@ def _paired(d, what):
     for r in principals[:2]:
         tiles.append(tile(f"{r['team']} · playoff", fsigned(r["playoff_delta"]) + " pts",
                           f"{fse(r['playoff_se'])} · champion {fsigned(r['champ_delta'])}", tone(r["playoff_delta"])))
-    tiles.append(tile("simulations", f"{int(d.get('n_sims') or 0):,}", f"{d.get('batches')} paired batches, same seeds"))
+    tiles.append(tile("simulations", f"{int(d.get('n_sims') or 0):,}", f"{d.get('batches')} paired batches on the same seeds"))
     spec = d.get(what) or {}
     sub = (f"{spec.get('team_a')} gives {_join(spec.get('a_gives'))} · {spec.get('team_b')} gives {_join(spec.get('b_gives'))}"
            if what == "trade" else f"{spec.get('team')}: add {_join(spec.get('adds'))} · drop {_join(spec.get('drops'))}")
     return {"title": "Trade evaluation" if what == "trade" else "Move evaluation", "subtitle": sub,
             "tiles": tiles,
-            "sections": [table("Every team, with minus without", [col("team", link="team"), col("side"), col("playoff_delta", "playoff Δ", "signed", 2), col("playoff_se", "± se", "num", 2),
+            "sections": [table("Every team: with the change, minus without", [col("team", link="team"), col("side"), col("playoff_delta", "playoff Δ", "signed", 2), col("playoff_se", "± se", "num", 2),
                                                                    col("playoff_with", "with", "num"), col("playoff_without", "without", "num"),
                                                                    col("champ_delta", "champ Δ", "signed", 2), col("champ_se", "± se", "num", 2),
                                                                    col("wins_delta", "exp. wins Δ", "signed", 2)], rows, me_key="team",
-                               note="the two sides first, then every bystander; a paired delta's SE is the batch-to-batch spread"),
+                               note="the two sides first, then every other team; each ± is the spread between paired batches"),
                          kv("The " + what, list(spec.items())), text("How this was computed", d.get("note"))]}
 
 
@@ -592,7 +592,7 @@ def _calendar(d):
     rows = [dict(r, holes=", ".join(holes.get(str(r.get("week")), []))) for r in cal.get("rows") or []]
     wks = cal.get("weeks") or []
     return {"title": "Roster calendar", "subtitle": f"{cal.get('team')} · weeks {wks[0] if wks else ''}–{wks[-1] if wks else ''}",
-            "tiles": [tile("holes ahead", str(len(holes)), "; ".join(f"week {w}: {_join(v)}" for w, v in holes.items()) if holes else "every remaining week fillable", "neg" if holes else ""),
+            "tiles": [tile("holes ahead", str(len(holes)), "; ".join(f"week {w}: {_join(v)}" for w, v in holes.items()) if holes else "every remaining week can be filled", "neg" if holes else ""),
                       tile("active", f"{crunch.get('active_now')} of {crunch.get('limit')}", f"{len(crunch.get('ir') or [])} on IR"),
                       tile("must drop on return", str(sum(int(r.get('must_drop') or 0) for r in crunch.get('returns') or [])), _join([r.get('name') for r in crunch.get('returns') or []]))],
             "sections": [table("Week by week", [col("week", kind="num", nd=0), col("n_startable", "startable", "num", 0), col("holes", kind="flag"), col("on_bye"),
@@ -609,7 +609,7 @@ def _watch(d):
     ls = d.get("their_losing_script") or {}
     return {"title": "What to watch", "subtitle": f"{d.get('team')} vs {d.get('opponent')} · week {d.get('week')}",
             "tiles": [tile("games with a stake", str(len(games)), f"{len(d.get('shared_games') or [])} shared"),
-                      tile("mine, total", fnum(sum(g.get("mine_sum") or 0 for g in games), 1), "pre-game expectation across games"),
+                      tile("mine, total", fnum(sum(g.get("mine_sum") or 0 for g in games), 1), "expected points across these games"),
                       tile("theirs, total", fnum(sum(g.get("theirs_sum") or 0 for g in games), 1), ""),
                       tile("their losing script", ls.get("game") or "—", f"{fpct(ls.get('share'))} of their total" if ls else "")],
             "sections": [table("Games", [col("game"), col("mine_names", "mine"), col("mine_sum", "mine", "num"), col("theirs_names", "theirs"), col("theirs_sum", "theirs", "num"),
@@ -626,10 +626,10 @@ def _live_matchup(d):
     return {"title": "Live matchup", "subtitle": f"{d.get('team')} vs {d.get('opponent')} · week {d.get('week')} · as of {human_time(d.get('as_of'))}",
             "tiles": [tile("banked so far", fnum(d.get("banked"), 1), f"{d.get('starters_left')} starters still to play"),
                       tile("projected finish", fnum(d.get("projected"), 1), "if everyone plays (no availability discount, F51)"),
-                      tile("P(win head-to-head)", fpct(d.get("p_head_to_head")), f"{fpct(d.get('p_head_to_head_inflated'))} with same-game swings widened",
+                      tile("P(win head-to-head)", fpct(d.get("p_head_to_head")), f"{fpct(d.get('p_head_to_head_inflated'))} if same-game swings are widened",
                            "pos" if (d.get("p_head_to_head") or 0) >= 0.5 else "neg"),
-                      tile("P(beat the median)", fpct(d.get("p_beat_median")), f"expected wins this week {fnum(jl.get('expected_wins'), 2)} of 2")],
-            "sections": [table("Both legs, drawn jointly", [col("outcome"), col("p", "probability", "pct"), col("independent", "if independent", "pct")],
+                      tile("P(beat the median)", fpct(d.get("p_beat_median")), f"{fnum(jl.get('expected_wins'), 2)} of 2 wins expected this week")],
+            "sections": [table("Both games this week, drawn together", [col("outcome"), col("p", "probability", "pct"), col("independent", "if independent", "pct")],
                                [{"outcome": "2–0 (win both)", "p": jl.get("p_2_0"), "independent": jl.get("p_2_0_independent")},
                                 {"outcome": "1–1", "p": jl.get("p_1_1"), "independent": None},
                                 {"outcome": "0–2 (lose both)", "p": jl.get("p_0_2"), "independent": jl.get("p_0_2_independent")}],
@@ -655,10 +655,10 @@ def _luck(d):
         secs.append(table(f"{sn.get('team')} · {sn.get('season')} · {len(wk)} completed week{'s' if len(wk) != 1 else ''}",
                           [col("measure"), col("delta", "Δ vs league", "signed", 2), col("se", "± se", "num", 2), col("z", kind="signed", nd=2),
                            col("p", kind="num", nd=3), col("detail")], rows,
-                          note="negative = unlucky on that measure; z and p are withheld below six weeks (F53)"))
+                          note="negative means unlucky on that measure; z and p stay blank until six weeks are in (F53)"))
     first = seasons[0] if seasons else {}
     sl = first.get("schedule_luck") or {}
-    return {"title": "Luck ledger", "subtitle": "five pre-registered measures, each differenced against the league",
+    return {"title": "Luck ledger", "subtitle": "five measures set before the season, each against the league average",
             "tiles": [tile("schedule luck", fsigned((sl or {}).get("delta"), 2) if isinstance(sl, dict) else "—", "actual minus expected wins", tone((sl or {}).get("delta") if isinstance(sl, dict) else None)),
                       tile("seasons", str(len(seasons)), "")],
             "sections": secs}
@@ -675,7 +675,7 @@ def _odds_history(d):
             "sections": [table("Every canonical run", [col("at", "run"), col("week", kind="num", nd=0), col("playoff_pct", "playoff %", "num"), col("playoff_se", "± se", "num", 2),
                                                        col("d_playoff", "Δ playoff", "signed", 1), col("champ_pct", "title %", "num"), col("d_champ", "Δ title", "signed", 1),
                                                        col("expected_wins", "exp. wins", "num", 2), col("d_wins", "Δ wins", "signed", 2), col("moves", "moves landed in the window")], rows),
-                         text("What moved the odds", d.get("causation_note")), text("Why canonical only", d.get("canonical_note"))]}
+                         text("What moved the odds", d.get("causation_note")), text("Why only canonical runs", d.get("canonical_note"))]}
 
 
 def _data_health(d):
@@ -722,7 +722,7 @@ def _scorecard(d):
     return {"title": "Decision scorecard", "subtitle": f"{d.get('team')} · week {d.get('week')} · scored on {d.get('source')}",
             "tiles": [tile("decisions", str(sm.get("decisions") or 0), f"{sm.get('right')} right · {sm.get('wrong')} wrong · {sm.get('unresolved')} unresolved"),
                       tile("hit rate", fpct(sm.get("hit_rate")), ""),
-                      tile("points left behind", fnum(sm.get("points_left_behind"), 1), "sum of the wrong calls' costs", "neg" if (sm.get("points_left_behind") or 0) > 0 else "")],
+                      tile("points left behind", fnum(sm.get("points_left_behind"), 1), "what the wrong calls cost, in total", "neg" if (sm.get("points_left_behind") or 0) > 0 else "")],
             "sections": [table("Every start/sit call", [col("slot"), col("started"), col("started_points", "scored", "num"), col("alternative", "the alternative"), col("alternative_points", "it scored", "num"),
                                                         col("expected", "expected", "num"), col("margin", "margin at the time", "signed", 1), col("cost", kind="num"), col("outcome", kind="flag"), col("also", "also considered over")],
                                [dict(r, outcome=(r.get("outcome") if r.get("outcome") == "wrong" else "")) for r in rows]),
@@ -1238,11 +1238,14 @@ def short_date(value, now=None):
 # What each season log under data/logs/ is, for the Logs page: (title, one line). Keyed by
 # the stem before any _<season> or _<date> suffix. Unknown files fall back to their stem.
 LOG_TITLES = {
-    "predictions": ("Predictions", "every week's forecast as it was made, canonical and not, for scoring later"),
+    "predictions": ("Predictions", "every week's forecast as it was made, canonical or not, kept for scoring later"),
     "decision_log": ("Decision log", "adds, drops, claims and trades this season, with the reasoning at the time"),
     "bid_ledger": ("Bid ledger", "what the model suggested, what was bid, what it cost"),
-    "designations": ("Injury designations", "the Saturday designations as captured, week by week"),
-    "faab_adjustments": ("FAAB adjustments", "manager aggression updates learned from this season's claims"),
+    "designations": ("Injury designations", "the Saturday injury designations as captured, week by week"),
+    "faab_adjustments": ("FAAB adjustments", "budget changes no transaction explains, such as a commissioner's adjustment"),
+    "failed_claims": ("Failed claims", "waiver claims that didn't go through"),
+    "scoring_settings": ("Scoring settings", "the league's scoring settings, one row each time they change"),
+    "as_played_results": ("As-played results", "weeks 1-2 as the league counted them, under the old IDP scoring"),
     "first_recorded_scores": ("First recorded scores", "each week's scores as first seen, before any stat correction"),
     "points_backtest": ("Points backtest", "the projection gate's bias, z and coverage, logged per commit"),
     "projection_log": ("Projection log", "the projections in force each week, for the January calibration"),
