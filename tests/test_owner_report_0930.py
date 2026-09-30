@@ -189,3 +189,33 @@ class TestTheOddsMarkerIsTheOddsMove(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---- found in the language pass: a "collapse" that had not happened -------------------------
+
+try:
+    from tests.test_webui_p3_data import Case as P3Case
+except ImportError:                      # flask missing: the class below skips
+    P3Case = unittest.TestCase
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestACollapseIsADrop(P3Case):
+    """History's "biggest collapse" was the highest playoff odds any forecast gave a team now
+    out of the top four -- which named the Iron Wombats at 65.8%, their odds NOW and their
+    highest ever: a collapse of nothing. A collapse (and a comeback) has to be a move: the peak
+    (or the low) comes before the latest forecast and the odds have since fallen (or risen)."""
+
+    def test_no_team_fell_so_there_is_no_collapse(self):
+        from webui.glance import odds_at
+        from webui.history import model_records
+        latest = max(self.root.weeks())
+        now = {t: v["playoff"] for t, v in odds_at(self.root, latest).items()}
+        lower = min(v for v in now.values() if v is not None) - 1.0
+        self.write("weeks/week_02/live_season_forecast_week_2.json",
+                   {t: {"current_state": {"actual_wins_banked": 1.0},
+                        "forecast": {"playoff_probability_pct": lower, "playoff_standard_error": 0.5}} for t in TEAMS})
+        r = model_records(self.root)
+        self.assertIsNone(r["collapse"], "every team's odds rose since week 2")
+        self.assertIsNotNone(r["comeback"])
+        self.assertLess(r["comeback"]["low"], r["comeback"]["now"])
