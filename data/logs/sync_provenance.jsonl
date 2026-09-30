@@ -103,3 +103,10 @@
 {"espn_rows": 111, "git_commit": "e2117fc", "schema_version": 1, "season": "2026", "synced_at": "2026-09-29T18:23:43Z", "total_rows": 150, "week": 4}
 {"espn_rows": 111, "git_commit": "edb3c76", "schema_version": 1, "season": "2026", "synced_at": "2026-09-29T18:53:08Z", "total_rows": 150, "week": 4}
 {"espn_rows": 111, "git_commit": "3a562b0", "schema_version": 1, "season": "2026", "synced_at": "2026-09-29T19:30:47Z", "total_rows": 150, "week": 4}
+{"espn_rows": 109, "git_commit": "0900c2b", "schema_version": 1, "season": "2026", "synced_at": "2026-09-27T17:10:21Z", "total_rows": 145, "week": 3}
+{"espn_rows": 109, "git_commit": "0900c2b", "schema_version": 1, "season": "2026", "synced_at": "2026-09-27T19:04:14Z", "total_rows": 146, "week": 3}
+{"espn_rows": 109, "git_commit": "f219a5f", "schema_version": 1, "season": "2026", "synced_at": "2026-09-28T05:10:44Z", "total_rows": 146, "week": 3}
+{"espn_rows": 109, "git_commit": "4608009", "schema_version": 1, "season": "2026", "synced_at": "2026-09-28T05:31:06Z", "total_rows": 146, "week": 3}
+{"espn_rows": 111, "git_commit": "35c93f8", "schema_version": 1, "season": "2026", "synced_at": "2026-09-29T05:01:32Z", "total_rows": 151, "week": 4}
+{"espn_rows": 111, "git_commit": "5c0cb4f", "schema_version": 1, "season": "2026", "synced_at": "2026-09-29T17:42:35Z", "total_rows": 151, "week": 4}
+{"espn_rows": 110, "git_commit": "b4c7ff3", "schema_version": 1, "season": "2026", "synced_at": "2026-09-30T03:31:34Z", "total_rows": 148, "week": 4}
