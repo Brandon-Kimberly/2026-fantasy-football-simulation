@@ -1,6 +1,6 @@
 # Web UI roadmap: what to build next
 
-**Status (2026-09-28): waves 1–5 under way; 97 items built, 2 deferred (see Progress).** This is the scoped log of what the web UI
+**Status (2026-09-30): waves 1–5 under way; 98 items built, 1 deferred (see Progress).** This is the scoped log of what the web UI
 should add, change and remove next. It picks up where `docs/WEB_UI_AUDIT.md` ended: that
 audit was about fixing and polishing what existed, and all six of its phases have landed.
 This one asks a different question. Given what ESPN, Sleeper, Yahoo, the analysis sites
@@ -32,7 +32,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-O12 | Final wins shown as a range: a strip on Home and a column on League. |
 | UI-V7 / R4 | Keyboard-operable sorting and player cards, a table view behind every chart, CSV export. |
 | UI-F3 / F9 / F11 / W2 / T5 / P7 | Few lines left explained, no NFL team, a week picker, the waiver clock, the deadline countdown, injuries and practice. |
-| deferred | UI-E2 (static assets) and UI-E9 (lighter pages). The churn outweighs a gain a local server does not feel. |
+| deferred | UI-E9 (lighter pages). The churn outweighs a gain a local server does not feel. UI-E2 was deferred for the same reason until the public site made the weight real; it is built below. |
 | UI-H1 / H2 / H3 | History (record book, rivalries) and the draft board. Regular season only, re-scored weeks marked. |
 | UI-R1 / R2 | The week in review on each played week's Matchups page: awards, movers, the best move, and who had the week. |
 | UI-M1 / M2 / M7 | Home knows the week's phase and states a decided result. A pinned score bar. Stale-read warnings. |
@@ -68,6 +68,7 @@ Built on `feature/webui-wave1`, each as a red characterisation commit and then i
 | UI-W4 | Built on Decision 4. The sync logs every lost claim to `data/logs/failed_claims.jsonl`, paired with the claim that beat it by the run's processing time (never the week: three real claims cross a leg boundary). The Waiver board shows what each contested claim took to win, the next best bid, what each team paid above it, the median, and your suggested ranges against the price. The sync golden did not move. The measurement also cleared a question about F31's bid curve and opened F88: B14's premise was wrong. |
 | UI-E7 / P6 | Built on Decision 3. The sync caches each rostered player's headshot and the 32 NFL logos under `data/images/` (not `data/local/`, which is never served), once per file, and never fails on them. `/img/<kind>/<file>` serves only a numeric id as .jpg or a team code as .png. Faces appear on the player page, the roster and player lists, the hover card and the TV view, falling back to the team logo and then (on the player page) the lettered mark. No page requests an image from a third party. Team avatars are unchanged: they identify accounts and stay in memory, from Sleeper, with the real-name overlay. |
 | UI-V1 | Three panes at 4K, the owner's choice under Decision 5. CSS only, so below 2200px the page is pixel-identical to before. The left pane is sticky. |
+| UI-E2 | Built 2026-09-30 for the public site, whose first build was 455 MB. The shared stylesheet and script live in `webui/assets/` and are served at `/assets/<name>.<content hash>.<ext>` with a year's immutable caching; a stale name is a 404. A plain page dropped from ~98 KB of inline style and script to under 12 KB. Rendered from the old and new code and the files put back inline, all 18 fixture pages differ only in two header comments, the palette's move to `window.PALETTE`, and one blank line. Same day, the public playoff machine stopped walking every subset of "wins out" (2,077 pages): one page per what-if. |
 
 **Found while building, not on the original list.**
 - A result the standings contradict. Week 2's box scores give Quantum Ferrets the win over Cosmic Badgers (148.52 to 144.19), but the league's standings record a loss.

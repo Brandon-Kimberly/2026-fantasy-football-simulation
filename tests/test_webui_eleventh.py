@@ -12,6 +12,7 @@ reported and marked locked rather than advised.
 `lineup_plan` reads the record; `lineup_diff` is pure. Neither reaches the network, and
 the diff rides along on a snapshot that still writes nothing.
 """
+from tests.webui_served import inline_assets  # UI-E2: the page as served
 import json
 import os
 import tempfile
@@ -163,7 +164,7 @@ class TestOnThePage(unittest.TestCase):
                 app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
                                  live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
                 app.testing = True
-                body = app.test_client().get("/").get_data(as_text=True)
+                body = inline_assets(app.test_client().get("/").get_data(as_text=True))
                 script = next(s for s in body.split("<script>") if "getElementById('live-body')" in s)
                 css = body.split("</style>", 1)[1].split("</style>", 1)[0]
                 self.assertIn("function plan(", script)
@@ -198,7 +199,7 @@ class TestKickoffAlert(unittest.TestCase):
         app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
                          live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
         app.testing = True
-        body = app.test_client().get("/").get_data(as_text=True)
+        body = inline_assets(app.test_client().get("/").get_data(as_text=True))
         return body, next(s for s in body.split("<script>") if "getElementById('live-body')" in s)
 
     def test_the_control_is_offered_in_both_views(self):

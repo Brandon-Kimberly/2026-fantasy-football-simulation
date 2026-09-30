@@ -23,6 +23,8 @@ each confirmed (by probe, by the test client, or in a browser) before this file 
    and Accuracy pages; the `!important` utilities could override a `hidden` attribute; the
    pressed compact button lost its colours on hover; `pctn` printed "1.0%" for True.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import json
 import os
 import tempfile
@@ -49,7 +51,7 @@ except ImportError:
 
 
 def base_css():
-    with open(os.path.join(HERE, "..", "webui", "templates", "base.html"), encoding="utf-8") as fh:
+    with io.StringIO(base_source()) as fh:
         return fh.read()
 
 
@@ -87,7 +89,7 @@ class TestTheLasVegasLogo(Case):
     def test_the_tv_view_carries_it(self):
         for t in ("lv", "was"):
             self.image("teams", t + ".png")
-        body = self.client().get("/gameday").get_data(as_text=True)
+        body = inline_assets(self.client().get("/gameday").get_data(as_text=True))
         self.assertIn('"LV": "/img/teams/lv.png"', body)
         self.assertIn('"WSH": "/img/teams/was.png"', body, "the ESPN alias still works")
 
@@ -157,7 +159,7 @@ class TestTheJobBar(Case):
 
     def test_the_jobs_own_page_carries_no_job_bar(self):
         r, jid = self.running()
-        body = self.client(runner=r).get(f"/jobs/{jid}").get_data(as_text=True)
+        body = inline_assets(self.client(runner=r).get(f"/jobs/{jid}").get_data(as_text=True))
         self.assertNotIn('id="jobbar"', body)
         self.assertIn('id="jobbar"', self.client(runner=r).get("/league").get_data(as_text=True), "other pages keep it")
 
@@ -168,7 +170,7 @@ class TestTheReliabilityLayout(Case):
         old = accuracy.ENOUGH_WEEKS
         accuracy.ENOUGH_WEEKS = 1
         try:
-            body = self.client().get("/accuracy").get_data(as_text=True)
+            body = inline_assets(self.client().get("/accuracy").get_data(as_text=True))
         finally:
             accuracy.ENOUGH_WEEKS = old
         self.assertIn('class="relgrid"', body)

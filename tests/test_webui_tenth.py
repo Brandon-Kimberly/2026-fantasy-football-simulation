@@ -13,6 +13,7 @@ line with the league's own scoring weights, and `live.diff_updates` turns two sn
 into entries. Both are pure. Nothing here reaches the network or writes under data/:
 the board's updates live in memory beside its history, and the test digests the tree.
 """
+from tests.webui_served import inline_assets  # UI-E2: the page as served
 import tempfile
 import unittest
 
@@ -242,7 +243,7 @@ class TestHomePage(unittest.TestCase):
         app.testing = True
         r = app.test_client().get("/")
         self.assertEqual(r.status_code, 200)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def parts(self, mode="dev"):
         """(the shared stylesheet, this page's own stylesheet, its markup, its script).

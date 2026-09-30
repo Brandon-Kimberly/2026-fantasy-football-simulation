@@ -129,9 +129,23 @@ class TestTheExport(unittest.TestCase):
                     continue
                 with self.subTest(page=rel, url=url):
                     self.assertTrue(url.startswith(BASE + "/"), f"{attr}={url} is not on the site")
-                    path = url[len(BASE):].split("#")[0]
-                    target = os.path.join(self.out, *[p for p in path.split("/") if p], "index.html")
+                    parts = [p for p in url[len(BASE):].split("#")[0].split("/") if p]
+                    if parts and parts[0] == "assets":      # a shared stylesheet or script: a file, not a page
+                        target = os.path.join(self.out, *parts)
+                    else:
+                        target = os.path.join(self.out, *parts, "index.html")
                     self.assertTrue(os.path.exists(target), f"{url} has no page")
+
+    def test_the_shared_assets_are_published_once(self):
+        """UI-E2 on the public site: one stylesheet and one script for every page, under the
+        site's base, instead of ~93 KB of both inline on each of them."""
+        files = sorted(os.listdir(os.path.join(self.out, "assets")))
+        self.assertEqual(len(files), 3, files)
+        for rel, html in self.pages.items():
+            with self.subTest(page=rel):
+                links = re.findall(r'(?:href|src)="(' + re.escape(BASE) + r'/assets/[^"]+)"', html)
+                self.assertEqual(len(set(links)), 3, links)
+                self.assertFalse("--plane:#f9f9f7" in html, "the stylesheet is still inline")
 
     def test_no_server_features_and_no_images(self):
         for rel, html in self.pages.items():
@@ -153,6 +167,52 @@ class TestTheExport(unittest.TestCase):
         for rel, html in self.pages.items():
             with self.subTest(page=rel):
                 self.assertEqual([t for t in DEV_TERMS if t in visible_text(html)], [])
+
+
+@unittest.skipUnless(HAS_FLASK, "flask not installed")
+class TestThePlayoffMachineDoesNotMultiply(unittest.TestCase):
+    """Measured on the first live build (2026-09-30): 2,077 of the site's 3,445 pages, 307 of its
+    455 MB, were the playoff machine. The "wins out" preset pins every remaining game of the
+    owner's team, each pinned game carries a remove-this-pick link, and the crawl followed those
+    into every subset: 2^11. The public site keeps the presets and "Clear all"; a pick is removed
+    by clearing, so each what-if is one page."""
+
+    @classmethod
+    def setUpClass(cls):
+        from webui.paths import Root
+        from webui.static_site import export
+        from tests.test_webui_outcomes import plant_export
+        cls.td = tempfile.TemporaryDirectory()
+        plant(cls.td.name)
+        plant_export(cls.td.name)            # twelve weeks, so "wins out" pins twelve games
+        cls.out = tempfile.mkdtemp()
+        cls.report = export(Root(cls.td.name), cls.out, BASE, max_pages=250)
+        cls.pages = {}
+        for d, _s, fs in os.walk(os.path.join(cls.out, "playoffs")):
+            for f in fs:
+                with open(os.path.join(d, f), encoding="utf-8") as fh:
+                    cls.pages[os.path.relpath(os.path.join(d, f), cls.out).replace(os.sep, "/")] = fh.read()
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.td.cleanup()
+
+    def test_one_page_per_what_if(self):
+        self.assertFalse(self.report["truncated"], "the crawl ran into the page cap")
+        index = self.pages["playoffs/index.html"]
+        presets = re.search(r'<div class="presets">(.*?)</div>', index, re.S)
+        self.assertTrue(presets, "the fixture offers presets")
+        n = len(re.findall(r"<a ", presets.group(1)))
+        self.assertGreaterEqual(n, 3)
+        self.assertLessEqual(len(self.pages), 1 + n, sorted(self.pages)[:8])
+
+    def test_a_what_if_keeps_its_picks_and_clear_all(self):
+        picked = {rel: html for rel, html in self.pages.items() if rel != "playoffs/index.html"}
+        self.assertTrue(picked)
+        for rel, html in picked.items():
+            self.assertTrue('class="pm-picks"' in html, f"{rel}: the picks are listed")
+            self.assertTrue('class="pm-clear"' in html, f"{rel}: Clear all")
+            self.assertFalse('class="pm-x"' in html, f"{rel}: a remove-one link")
 
 
 class TestEveryLeagueIsChecked(unittest.TestCase):

@@ -10,6 +10,8 @@ against the previous forecast and a sparkline of each team's playoff odds. The o
 component: `render.line_chart` carries the data the hover layer reads, `render.sparkline`
 exists, and the per-template chart maths (the old `linechart` macro) is gone.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import json
 import os
 import re
@@ -116,7 +118,7 @@ class TestTicksAndLabels(unittest.TestCase):
         self.assertEqual([t for _x, t in _x_labels(svg)], ["wk 1", "wk 2"])
 
     def test_chart_text_is_readable(self):
-        css = open(BASE, encoding="utf-8").read().split("</style>")[0]
+        css = io.StringIO(base_source()).read().split("</style>")[0]
         m = re.search(r"\.viz text \{ font: ([\d.]+)px", css)
         self.assertTrue(m, ".viz text rule")
         self.assertGreaterEqual(float(m.group(1)), 11.5)
@@ -132,7 +134,7 @@ class TestComponent(unittest.TestCase):
         self.assertIn('data-name="B" data-vals="[2.0, 2.5, 2.0]"', svg)
         self.assertIn('style="stroke:hsl(200 62% var(--line-l))"', svg)         # a team line in its own hue
         self.assertIn('data-unit="%"', svg)
-        base = open(BASE, encoding="utf-8").read()
+        base = io.StringIO(base_source()).read()
         self.assertIn("--line-l:", base.split("@media (prefers-color-scheme: dark)")[0])
         self.assertIn("--line-l:", base.split("@media (prefers-color-scheme: dark)")[1])
         script = base.split("</style>")[1]
@@ -183,7 +185,7 @@ class TestPages(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_odds_race_report(self):
         race = odds_race(self.root, MY_TEAM)

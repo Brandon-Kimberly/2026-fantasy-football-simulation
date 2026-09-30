@@ -6,6 +6,8 @@ inside a try so a private window or blocked storage renders the normal density. 
 switches touches table-cell padding and nothing else. tests.test_webui_browser's
 TestCompactDensity drives it in a real browser. Written before the toggle existed.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import os
 import re
 import unittest
@@ -27,7 +29,7 @@ except ImportError:
 
 
 def base_css():
-    with open(os.path.join(HERE, "..", "webui", "templates", "base.html"), encoding="utf-8") as fh:
+    with io.StringIO(base_source()) as fh:
         return fh.read()
 
 
@@ -62,7 +64,7 @@ class TestTheToggle(unittest.TestCase):
                 app = create_app(root, runner=FakeRunner(), csrf_token="tok", settings=st,
                                  live=LiveBoard(root, MY_TEAM, league_id=None, fetch=None))
                 app.testing = True
-                body = app.test_client().get("/").get_data(as_text=True)
+                body = inline_assets(app.test_client().get("/").get_data(as_text=True))
                 with self.subTest(mode=mode):
                     theme = body.index('class="themeform"')
                     button = body.index('id="density"')

@@ -2,8 +2,8 @@
 {% if r.available %}{% set res = r.res %}{% set base = r.base %}{% set live = r.picks and not res.refused %}
 <div class="pm-count{{ ' refused' if res.refused }}">
 {% if r.picks %}
-  <p><b>{{ "{:,}".format(res.n) }} of {{ "{:,}".format(res.total) }} seasons match</b>{% if res.refused %}: too few to say. The odds need at least {{ r.min }} matching seasons, and each pick keeps roughly half of them. Remove a pick to see them again.{% else %} every pick. Each number is the share of those seasons, ± one standard error.{% endif %}</p>
-  <ul class="pm-picks">{% for p in r.picks %}<li>{% if p.kind == "g" %}Week {{ p.week }}: <b>{{ p.winner|real }}</b> beats {{ p.loser|real }}{% else %}Week {{ p.week }}: <b>{{ p.team|real }}</b> {{ "beats" if p.beat else "misses" }} the median{% endif %} <a href="{{ p.drop }}" class="pm-x" title="Remove this pick" aria-label="Remove this pick">×</a></li>{% endfor %}
+  <p><b>{{ "{:,}".format(res.n) }} of {{ "{:,}".format(res.total) }} seasons match</b>{% if res.refused %}: too few to say. The odds need at least {{ r.min }} matching seasons, and each pick keeps roughly half of them. {{ 'Clear the picks' if static_site else 'Remove a pick' }} to see them again.{% else %} every pick. Each number is the share of those seasons, ± one standard error.{% endif %}</p>
+  <ul class="pm-picks">{% for p in r.picks %}<li>{% if p.kind == "g" %}Week {{ p.week }}: <b>{{ p.winner|real }}</b> beats {{ p.loser|real }}{% else %}Week {{ p.week }}: <b>{{ p.team|real }}</b> {{ "beats" if p.beat else "misses" }} the median{% endif %}{% if not static_site %} <a href="{{ p.drop }}" class="pm-x" title="Remove this pick" aria-label="Remove this pick">×</a>{% endif %}</li>{% endfor %}
     <li><a href="/playoffs" class="pm-clear">Clear all</a></li></ul>
 {% else %}
   <p>The odds across all {{ "{:,}".format(res.total) }} simulated seasons, ± one standard error. Pick results to see how they change.</p>

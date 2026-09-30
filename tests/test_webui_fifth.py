@@ -13,6 +13,7 @@ file is offered as a download; B18 windows have names; B22 the waiver spec is tw
 B24 the log page carries no per-row JSON and defaults to 100; B1 the no-break rules and the
 scroller at every width; and the audit hook renders only with ?audit=1.
 """
+from tests.webui_served import inline_assets  # UI-E2: the page as served
 import json
 import os
 import re
@@ -105,7 +106,7 @@ class TestPages(unittest.TestCase):
     def get(self, path, mode="dev", runner=None, code=200):
         r = self.client(mode, runner).get(path)
         self.assertEqual(r.status_code, code, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_base_css_carries_the_phone_and_sticky_fixes(self):
         page = self.get("/")
@@ -189,7 +190,7 @@ class TestPages(unittest.TestCase):
         c = self.client("simple")
         seen = set()
         for path in SIMPLE_PAGES:
-            html = c.get(path).get_data(as_text=True)
+            html = inline_assets(c.get(path).get_data(as_text=True))
             for href in re.findall(r'href="(/[^"#]*)"', html):
                 if href in seen or href.startswith("/file/") or "/jobs/" in href:
                     continue

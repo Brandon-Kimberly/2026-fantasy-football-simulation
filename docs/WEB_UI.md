@@ -1222,6 +1222,18 @@ through `window.siteUrl`. Static mode leaves out live scores, alerts, the tool l
 the view and theme forms (the theme becomes a browser-only switch) and the playoff picker; a link
 the export would have to catch fails tests.test_public_site, so each is left out by its template.
 
+**Weight (2026-09-30).** The first build was 3,445 pages and 455 MB. Two things made it heavy,
+and both are fixed. The playoff machine was 2,077 of those pages: "wins out" pins every remaining
+game of the owner's team, each pin had a remove-this-pick link, and the crawl walked every
+subset -- on the public site a what-if now lists its picks with "Clear all" only, one page per
+preset. And every page carried the same ~63 KB stylesheet and ~30 KB script inline: they are now
+`webui/assets/` (UI-E2, `webui/assets.py`), served everywhere at
+`/assets/<name>.<content hash>.<ext>` with a year's immutable caching (pages stay `no-store`),
+and published once under `<base>/assets/`. Only what depends on the page stays inline in
+base.html: the palette (`window.PALETTE`), the site address, the density and theme preferences,
+the audit probe. `tests/webui_served.py` puts the served files back where a page links them, so
+the tests that read CSS or script text read what a browser gets.
+
 **When.** `canonical-run` keeps its data as the `site-data` artifact after a canonical weekly
 report; `pages-site` runs when canonical-run finishes (and on a push that changes the site's
 code), downloads the latest official run's data, builds, and deploys. Before any official run has

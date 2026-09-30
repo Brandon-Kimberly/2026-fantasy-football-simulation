@@ -17,6 +17,8 @@ and the owner's team is turf against a recessive grey; the dark turf is stepped 
 inside the lightness band; and the sequential ramp is four steps, because five cannot clear
 both the light-end contrast floor and the step spacing.
 """
+import io
+from tests.webui_served import base_source  # UI-E2: the page as served
 import os
 import re
 import unittest
@@ -42,7 +44,7 @@ def no_literal_colour(testcase, markup):
 
 class TestPalette(unittest.TestCase):
     def test_the_tokens_are_the_validated_values_in_both_themes(self):
-        with open(os.path.join(HERE, "..", "webui", "templates", "base.html"), encoding="utf-8") as fh:
+        with io.StringIO(base_source()) as fh:
             css = fh.read()
         light = css[css.index(":root {"):css.index("@media (prefers-color-scheme: dark)")]
         dark_media = css[css.index("@media (prefers-color-scheme: dark)"):css.index(':root[data-theme="dark"] {')]
