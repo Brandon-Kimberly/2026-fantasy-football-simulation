@@ -69,12 +69,37 @@ TEAM_NAME_MAP = {   # roster_id -> team label (fictional; see the F37 note above
 # opponent: matchup effects, defensive-tier adjustments and the environment normaliser all
 # degrade to a flat schedule. That state is now loud (sync warns, the engine refuses stale
 # lines and says so -- see AUDIT_PHASE_3_FINDINGS.md finding 1) but it is not correct; the
-# key is the fix. Free tier at https://the-odds-api.com covers one sync per week comfortably.
+# key is the fix. The free tier at https://the-odds-api.com is 500 credits a month -- enough,
+# but not by being careful: it ran out on 2026-09-30, so the budget below is enforced in code.
 # .strip() for the same reason LEAGUE_ID has it (2026-09-23): a secret set through a
 # shell pipe or pasted from a dashboard carries a trailing newline, and an odds key with
 # one fails as a 401 that sync reports as "VEGAS FALLBACK: odds API request failed" --
 # indistinguishable from the API being down.
 ODDS_API_KEY = os.getenv("ODDS_API_KEY", "").strip()
+
+# THE ODDS CREDIT BUDGET (owner request 2026-09-30, after the account used all 500 of its
+# monthly credits on the 30th). Measured that day: ~112 syncs on the owner's machine in
+# September, most of them development, each costing 3 credits (a key check on the paid
+# endpoint + the fetch). The key check now reads the free /v4/sports endpoint, and
+# sync.odds_fetch_decision spends only within these three numbers; tests/test_odds_budget.py
+# holds the guarantee as a property (non-official syncs never go below the reserve).
+#
+# What one fetch costs. the-odds-api's documented usage formula is markets x regions per
+# /odds call; the sync asks for 2 markets (spreads, totals) in 1 region (us). Unverified by
+# measurement here -- the account was at zero when this was written -- and the fetch logs
+# x-requests-last, which confirms it on the next paid call.
+ODDS_FETCH_COST = 2
+# Held back for the official runs; nothing else may spend below it. Measured basis:
+# canonical-run fired 13 times in September 2026, quiet skips included, so at most ~13
+# official fetches (~26 credits) a month from the runner, plus the odd local
+# `weekly_report --canonical`. 60 covers 30 official fetches -- over twice that month's
+# worst. A judgment on that measurement, not a derivation.
+ODDS_CREDIT_RESERVE = 60
+# How old this week's real lines may be before a non-official sync pays for new ones.
+# Unverified judgment: a total or spread rarely moves more than a point inside a few hours
+# outside injury news, and the official runs (the ones whose numbers are recorded) always
+# fetch fresh regardless. 6 hours caps a heavy development day at about 4 paid fetches.
+ODDS_REUSE_HOURS = 6
 
 # Dedicated, real ESPN Fantasy Football league (created specifically for this integration, with
 # scoring settings manually configured to match this Sleeper league as closely as ESPN's UI

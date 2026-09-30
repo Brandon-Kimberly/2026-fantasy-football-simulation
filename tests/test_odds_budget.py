@@ -39,7 +39,7 @@ class _Now(_real_dt.datetime):
         return cls(2026, 10, 8, 12, 0, 0)
 
 
-def lines(week=6, hours_ago=2.0, source="the_odds_api", stale=False):
+def lines(week=6, hours_ago=2.0, source="odds_api", stale=False):
     meta = {"week": week, "source": source,
             "fetched_at": (NOW - _real_dt.timedelta(hours=hours_ago)).isoformat(timespec="seconds")}
     if stale:
@@ -112,8 +112,10 @@ class TestTheDecision(unittest.TestCase):
         self.assertIn("official", why)
 
     def test_a_month_of_syncs_never_reaches_zero(self):
-        """The guarantee, as a property: however many non-official syncs run, at any hours,
-        the balance never drops below the reserve, and the official runs still have theirs."""
+        """The guarantee, as a property: however many non-official syncs run, at any hours, no
+        non-official sync ever spends the balance below the reserve, and the official runs
+        still have theirs. (Official runs may spend the reserve, so the balance itself can sit
+        below it; what is pinned is that nothing else ever takes it there.)"""
         reserve, cost, _h = cfg()
         import random
         rng = random.Random(20260930)
@@ -125,12 +127,12 @@ class TestTheDecision(unittest.TestCase):
             action, _w = sync.odds_fetch_decision(6, on_disk, official=official, sharp=rng.random() < 0.1,
                                                   remaining=balance, now=t)
             if action == "fetch":
-                balance -= cost
-                on_disk = {"_meta": {"week": 6, "source": "the_odds_api", "fetched_at": t.isoformat()}}
-            if not official:
-                self.assertGreaterEqual(balance, reserve)
+                before, balance = balance, balance - cost
+                on_disk = {"_meta": {"week": 6, "source": "odds_api", "fetched_at": t.isoformat()}}
+                if not official:
+                    self.assertGreaterEqual(balance, reserve, f"a non-official sync spent {before} -> {balance}")
         self.assertGreaterEqual(balance, 0)
-        for _ in range(reserve // cost):     # the reserve covers this many official runs
+        for _ in range(min(reserve, balance) // cost):     # what is left covers this many official runs
             action, _w = sync.odds_fetch_decision(6, on_disk, official=True, sharp=False, remaining=balance, now=t)
             self.assertEqual(action, "fetch")
             balance -= cost
@@ -182,7 +184,7 @@ class TestTheFetchHonoursTheBudget(unittest.TestCase):
     GAME = {"home_team": "Detroit Lions", "away_team": "Green Bay Packers",
             "commence_time": "2026-10-11T17:00:00Z",
             "bookmakers": [{"key": "draftkings", "markets": [
-                {"key": "totals", "outcomes": [{"name": "Over", "point": 48.0}]},
+                {"key": "totals", "outcomes": [{"name": "Over", "point": 50.0}]},
                 {"key": "spreads", "outcomes": [{"name": "Detroit Lions", "point": -3.5},
                                                 {"name": "Green Bay Packers", "point": 3.5}]}]}]}
 
@@ -225,9 +227,10 @@ class TestTheFetchHonoursTheBudget(unittest.TestCase):
 
     def test_an_official_run_pays_once_even_below_the_reserve(self):
         reserve, _c, _h = cfg()
-        _o, paid, saved = self.run_fetch(lines(hours_ago=1), official=True, remaining=reserve)
+        out, paid, saved = self.run_fetch(lines(hours_ago=1), official=True, remaining=reserve)
         self.assertEqual(len(paid), 1)
-        self.assertEqual(saved["vegas_totals.json"]["_meta"]["source"], "the_odds_api")
+        self.assertEqual(saved["vegas_totals.json"]["_meta"]["source"], "odds_api")
+        self.assertAlmostEqual(out["DET"]["total"], 26.75, msg="the fresh line (50 + 3.5) / 2, not the one on disk")
 
 
 class TestEveryCallerSaysWhetherItIsOfficial(unittest.TestCase):

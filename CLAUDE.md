@@ -31,6 +31,10 @@ py -3.10 -m scripts.run_sync             # pull live data into data/current/ (wr
                                          # value -- inject the User scope, or pass --allow-fallback on purpose.
                                          # Out of credits is the same 401 but its own verdict (`exhausted`): the key
                                          # is fine, it stops the same way, and credits return at the monthly reset.
+                                         # ODDS CREDIT BUDGET (2026-09-30): the key check is free; a non-official
+                                         # sync reuses this week's lines if under ODDS_REUSE_HOURS old and never
+                                         # spends below ODDS_CREDIT_RESERVE. --official (canonical-run, and
+                                         # weekly_report --canonical) always fetches fresh and may spend the reserve.
 py -3.10 -m scripts.run_simulation       # run the engine
 py -3.10 -m scripts.run_season_backtest  # backtest vs the real 2025 season
 py -3.10 -m scripts.run_points_backtest  # points-level backtest gate (bias / mean z / coverage), logged per commit

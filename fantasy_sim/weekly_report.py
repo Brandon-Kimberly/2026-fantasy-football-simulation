@@ -1337,7 +1337,7 @@ def build_steps(team, full=False, skip_sync=False, sims=5000, evaluate=0, canoni
 
     def step_sync():
         from fantasy_sim.sync import sync_all
-        sync_all()
+        sync_all(official=canonical)          # the odds credit budget: only official runs spend the reserve
         manifest = gate_sync_fresh(state["run_started"])
         state["week"] = int(manifest["current_week"])
         return {"manifest": manifest}

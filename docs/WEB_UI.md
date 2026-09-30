@@ -380,7 +380,9 @@ more safeguards, as `webui/sync.py` and the Sync page:
    `x-requests-remaining`; the key is fine and there is nothing to fix -- 2026-09-30), absent
    and unreachable all stop with nothing written and nothing launched; the fallback
    sync stays a deliberate terminal act (`--allow-fallback`). The page renders without
-   probing -- the probe spends an API request, so it runs only on launch.
+   probing, and the probe runs only on launch. It reads the free list-of-sports endpoint
+   (2026-09-30), so it costs no odds credits; the sync it launches is a non-official one,
+   held to the odds credit budget (`config.ODDS_CREDIT_RESERVE`, `ODDS_REUSE_HOURS`).
 2. *Backup.* Every file in `data/current/` is copied to
    `data/local/webui/backups/<stamp>/` (local, never served, never tracked) with a
    manifest before the launch; a Restore button copies one back, refused while a job

@@ -4,13 +4,17 @@ Fetches real data from Sleeper, ESPN, the-odds-api, and Open-Meteo, and writes e
 simulation engine needs into data/. Run this before run_simulation.py.
 
 Usage:
-    python -m scripts.run_sync [--sharp] [--allow-fallback]
+    python -m scripts.run_sync [--sharp] [--allow-fallback] [--official]
 
     --sharp           Poll for sharper (closer-to-kickoff) Vegas lines instead of the
                       default timing.
     --allow-fallback  Sync even if ODDS_API_KEY is REJECTED, accepting the flat 21.5
                       fallback. Without it a rejected key stops the run before anything
                       is written.
+    --official        An official run (canonical-run passes it): always fetches fresh
+                      lines and may spend the odds credits held in reserve
+                      (config.ODDS_CREDIT_RESERVE). Anything else reuses fresh lines
+                      and never spends below the reserve.
 
 H5: the odds key is checked BEFORE the sync touches anything. A dead key answers 401,
 which reads exactly like the API being down, and on Windows a shell can hold a stale
@@ -28,6 +32,7 @@ def main(argv=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     sharp = "--sharp" in argv
     allow_fallback = "--allow-fallback" in argv
+    official = "--official" in argv
 
     verdict, detail = verify_odds_key(ODDS_API_KEY)
     if verdict != "ok":
@@ -37,7 +42,7 @@ def main(argv=None):
               file=sys.stderr)
         return 2
 
-    sync_all(sharp_polling=sharp)
+    sync_all(sharp_polling=sharp, official=official)
     return 0
 
 
