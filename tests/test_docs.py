@@ -267,46 +267,6 @@ class TestVersionMatchesTag(unittest.TestCase):
                       "release gets a headline entry in the same sitting (release policy)")
 
 
-class TestSampleWorkflowCoversRenderer(unittest.TestCase):
-    def test_every_renderer_source_triggers_the_pages_deploy(self):
-        """The sample is a BUILD PRODUCT since 2026-09-05 (deployed by
-        .github/workflows/pages-sample.yml, never committed -- six 9MB blobs in ten
-        days made the old committed-sample scheme untenable). The freshness property
-        the old stamp guard enforced is now structural: a renderer change must trigger
-        a redeploy, so the workflow's paths list has to cover every renderer source.
-        This guard pins that the trigger cannot silently rot."""
-        from scripts.make_sample_report import RENDERER_SOURCES
-        wf = _doc(".github/workflows/pages-sample.yml")
-        for rel in tuple(RENDERER_SOURCES) + ("scripts/make_sample_report.py",):
-            self.assertIn(rel, wf,
-                          f"pages-sample.yml does not trigger on {rel} -- a change "
-                          "there would leave the deployed sample stale")
-
-
-class TestFingerprintIsNewlineInsensitive(unittest.TestCase):
-    def test_crlf_and_lf_copies_of_the_renderer_hash_identically(self):
-        """A rebase or fresh checkout re-materializes the renderer sources through
-        autocrlf, flipping their raw bytes CRLF<->LF with no content change -- which
-        made the freshness guard fire a false alarm on an untouched renderer
-        (2026-09-04, found after the F36 rebase). The fingerprint must hash logical
-        content, not checkout-dependent bytes."""
-        import tempfile
-        from scripts.make_sample_report import RENDERER_SOURCES, renderer_fingerprint
-        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
-            for repo, nl in ((a, b"\n"), (b, b"\r\n")):
-                for rel in RENDERER_SOURCES:
-                    path = os.path.join(repo, *rel.split("/"))
-                    os.makedirs(os.path.dirname(path), exist_ok=True)
-                    with open(path, "wb") as f:
-                        f.write(nl.join([b"line one", b"line two", b""]))
-            self.assertEqual(renderer_fingerprint(a), renderer_fingerprint(b))
-
-
-
-if __name__ == "__main__":
-    unittest.main()
-
-
 class TestNoStrayRunLogsAreTracked(unittest.TestCase):
     """H3. A `git add -A` after a piped run sweeps up whatever `> foo.log` left behind.
     This has happened three times: `w.log` (removed one commit later), then `collins.log`
@@ -377,3 +337,7 @@ class TestReadmeScreenshotsAreCurrent(unittest.TestCase):
     def test_they_carry_no_identity(self):
         m = self.manifest()
         self.assertEqual((m.get("names"), m.get("images")), ("pseudonyms", "none"))
+
+
+if __name__ == "__main__":
+    unittest.main()

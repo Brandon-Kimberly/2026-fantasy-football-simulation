@@ -871,7 +871,7 @@ class TestLocalReportsUseRealNames(unittest.TestCase):
                               "a runner must be left pseudonymous")
 
     def test_an_explicit_opt_out_survives_the_cli(self):
-        """make_sample_report depends on this: it sets 0 and then calls the CLI."""
+        """The public site build (scripts.build_public_site) depends on this: it sets 0 and then calls the CLI."""
         import os
         from unittest.mock import patch as _p
         from scripts.weekly_report import _default_to_real_names
@@ -880,7 +880,7 @@ class TestLocalReportsUseRealNames(unittest.TestCase):
             self.assertEqual(os.environ["SHOW_REAL_TEAM_NAMES"], "0")
 
     def test_an_explicit_zero_turns_it_off(self):
-        """make_sample_report relies on this: it SETS the variable to 0 rather than
+        """The public site build relies on this: it SETS the variable to 0 rather than
         unsetting it, because unsetting now means 'on'."""
         import os
         from unittest.mock import patch as _p

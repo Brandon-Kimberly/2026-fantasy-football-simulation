@@ -1203,6 +1203,31 @@ the machine (`webui.chat.pseudonymize`); the page maps the answer back with the 
 session files: Claude Code's folder, keyed to the temp working folder. The data copy:
 `%TEMP%/syndicate-chat/syn-sandbox-*`.
 
+### The public site (2026-09-30, owner request)
+
+**What.** The web UI's simple view, from the owner's team's point of view, published on GitHub
+Pages for anyone: https://brandon-kimberly.github.io/syndicate-football/. It replaced the legacy
+sample report (scripts.make_sample_report and the pages-sample workflow are retired).
+
+**How.** `webui.static_site.export` renders the app in `static_site` mode through Flask's test
+client from a copy of `data/` without the image cache, crawls every public link from Home
+(`is_public` keeps out Tools, Chat, the API, images, files, jobs, sync and every developer page),
+writes each page at `<base>/<path>/index.html` (a query as `<base>/<path>/q/<slug>/`), and
+rewrites every link to that address. Scripts are never rewritten: the few links they build go
+through `window.siteUrl`. Static mode leaves out live scores, alerts, the tool links and buttons,
+the view and theme forms (the theme becomes a browser-only switch) and the playoff picker; a link
+the export would have to catch fails tests.test_public_site, so each is left out by its template.
+
+**When.** `canonical-run` keeps its data as the `site-data` artifact after a canonical weekly
+report; `pages-site` runs when canonical-run finishes (and on a push that changes the site's
+code), downloads the latest official run's data, builds, and deploys. Before any official run has
+kept its data it syncs and simulates on its own runner instead.
+
+**The gate.** `scripts.build_public_site` takes every real team name, username and league name
+from Sleeper for each league id in the environment, plus the ESPN id and the private-legend
+markers, and `leak_check` refuses to publish on any whole-word match, naming the file but never
+the identity. With no league id to check against it builds nothing.
+
 ## 5. What cannot be done without touching the engine, the goldens, or the gate
 
 Stated up front so nobody discovers it mid-phase.

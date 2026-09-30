@@ -42,6 +42,7 @@ py -3.10 -m scripts.check_test_isolation # does the suite modify real synced dat
 py -3.10 -m scripts.matchup_watch        # T5: what to watch -- lineups by NFL game, stacks, designations, shared games
 py -3.10 -m scripts.roster_calendar      # T6: bye exposure per week + the roster crunch when an IR man returns
 py -3.10 -m scripts.odds_history         # R1: the odds trajectory across canonical runs (canonical only -- F56/B5)
+py -3.10 -m scripts.build_public_site    # the public site (static simple view, leak-checked); the pages-site workflow deploys it after each official run
 py -3.10 -m scripts.readme_shots         # retake the README screenshots; REQUIRED after any template/render.py change (docs guard)
 py -3.10 -m scripts.banked_scores        # past weeks as the league BANKED them (settings then in force + commissioner overrides), checked to the cent; --write
 py -3.10 -m scripts.streamer_study       # C5: BASE_STREAMER_MEANS vs the live free-agent pool (measurement only; changing it is MAJOR)

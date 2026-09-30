@@ -70,6 +70,7 @@ table.lev tr.me td.nm { font-weight: 700; }
 
 <div class="pm">
   <div class="res" id="pm-result" aria-live="polite">{% include "_playoffs_result.html" %}</div>
+  {% if not static_site %}
   <form id="pm" method="get" action="/playoffs">
     <h2 class="small u-m-0-0-8px">Pick results</h2>
     {% for w in o.weeks %}{% set ns = namespace(n=0) %}{% for k in r.chosen %}{% if k.startswith('g%d.'|format(w)) or k.startswith('m%d.'|format(w)) %}{% set ns.n = ns.n + 1 %}{% endif %}{% endfor %}
@@ -89,6 +90,7 @@ table.lev tr.me td.nm { font-weight: 700; }
     </details>{% endfor %}
     <button type="submit">Show the odds</button>
   </form>
+  {% endif %}
 </div>
 <p class="small muted"><b>Clinched</b> and <b>eliminated</b> are mathematically certain. <b>Over 99.9%</b> and <b>under 0.1%</b> are near-certain, not guaranteed. <b>Controls its destiny</b>: if it wins every remaining game and beats every median, it's in.{% if dev %} Clinched and eliminated are proven from the remaining schedule, counting a tie in wins against the team because the points tiebreak is still to be played; the near-certain marks need at least {{ "{:,}".format(r.near_min) }} simulated seasons; controls its destiny means fewer than four teams could then match its total.{% endif %}</p>
 
@@ -128,8 +130,8 @@ table.lev tr.me td.nm { font-weight: 700; }
 
 <section>
 <h2><svg class="i c-gold"><use href="#i-trophy"/></svg> How many wins is enough? <span class="hint">playoff odds by final win total</span></h2>
-<form method="get" action="/playoffs" class="small u-mb-8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
-<label for="f_team">Team</label> <select id="f_team" class="u-w-auto--maxw-20rem--d-inline-block" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>
+{% if not static_site %}<form method="get" action="/playoffs" class="small u-mb-8px">{% for k, v in r.chosen.items() %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endfor %}
+<label for="f_team">Team</label> <select id="f_team" class="u-w-auto--maxw-20rem--d-inline-block" name="team" onchange="this.form.submit()">{% for t in r.order %}<option value="{{ t }}"{% if t == r.team %} selected{% endif %}>{{ t|real }}</option>{% endfor %}</select> <noscript><button type="submit">Show</button></noscript></form>{% endif %}
 {% if r.curve %}
 <div class="curve" role="img" aria-label="{{ r.team|real }}: playoff odds by final win total">{% for b in r.curve %}<div class="bar{{ ' thin' if b.thin }}" title="{{ b.wins|num(1) }} wins: {{ b.p|pct }} made the playoffs, {{ '{:,}'.format(b.n) }} seasons{{ ' — too few to rely on' if b.thin }}"><b>{{ '99%+' if b.p >= 0.995 else ('<1%' if b.p <= 0.005 else b.p|pct(0)) }}</b><i style="height: {{ (b.p * 100)|round(1) }}%"></i></div>{% endfor %}</div>
 <div class="curve-x">{% for b in r.curve %}<span>{{ b.wins|num(1) if b.wins % 1 else b.wins|int }}</span>{% endfor %}</div>
@@ -140,7 +142,7 @@ table.lev tr.me td.nm { font-weight: 700; }
 {% else %}<div class="note">This forecast is missing each team's wins so far, so final totals can't be counted.</div>{% endif %}
 </section>
 {% endif %}
-<script>
+{% if not static_site %}<script>
 (function () {
   var f = document.getElementById("pm"), out = document.getElementById("pm-result");
   if (!f || !out || !window.fetch) return;
@@ -164,5 +166,5 @@ table.lev tr.me td.nm { font-weight: 700; }
       .catch(function () { if (my === seq) out.classList.remove("updating"); });
   });
 })();
-</script>
+</script>{% endif %}
 {% endblock %}

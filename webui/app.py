@@ -194,7 +194,7 @@ def _int_or_none(v):
 
 
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
-               settings=None, default_mode=None, hostnames=(), code_root=None, chat=None):
+               settings=None, default_mode=None, hostnames=(), code_root=None, chat=None, static_site=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
@@ -278,19 +278,31 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     app.jinja_env.filters["job_subtitle"] = render.job_subtitle
     app.jinja_env.filters["plain"] = render.simplify
 
+    # `static_site`: the public snapshot's base path (webui.static_site). Its pages carry nothing
+    # that needs a server -- no Tools, no Chat, no live scores, no forms -- and their scripts
+    # build links through window.siteUrl.
+    def _public(href):
+        from webui.static_site import is_public
+        return is_public(href)
+
     @app.context_processor
     def _ctx():
         mode = settings.mode
-        return {"overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
+        nav = NAV_DEV if mode == "dev" else NAV_SIMPLE
+        pal = _palette(mode)
+        if static_site is not None:
+            nav = tuple((h, label) for h, label in nav if _public(h))
+            pal = [p for p in pal if _public(p["h"])]
+        return {"static_site": static_site, "site_base": static_site or "","overlay_enabled": overlay.enabled, "brand": brand.NAME, "tagline": brand.TAGLINE,
                 "audit": request.args.get("audit") == "1",      # the harness's overflow probe (scripts.webui_audit)
-                "mode": mode, "dev": mode == "dev", "nav": NAV_DEV if mode == "dev" else NAV_SIMPLE,
+                "mode": mode, "dev": mode == "dev", "nav": nav,
                 "nav_more": NAV_DEV_MORE if mode == "dev" else (),
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
                 "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
                 "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc)),
                 "job_now": runner.current() if runner is not None else None,     # U3: the job bar on every page
-                "theme": settings.theme, "palette": _palette(mode)}              # U11 / U4
+                "theme": settings.theme, "palette": pal}                         # U11 / U4
 
     @app.before_request
     def _host_check():

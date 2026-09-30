@@ -44,7 +44,7 @@ jobs:
         # failures -- the learn-to-ignore-it failure mode. The GATE is scoped to the
         # fantasy_sim package (2026-09-03, second incident of the same class): the repo
         # total includes standalone milestone scripts that are 0%-covered BY DESIGN
-        # (scripts/run_behavior_check, scripts/make_sample_report run at milestones, not
+        # (scripts/run_behavior_check, scripts/build_public_site run from their own workflows, not
         # in the suite), so every new one sank the total and broke the gate by
         # construction. scripts/ stays measured and visible in the report above; the
         # ratchet protects the package where the model lives. The floor only moves by a

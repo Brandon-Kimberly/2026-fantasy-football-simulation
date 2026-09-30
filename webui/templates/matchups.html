@@ -102,7 +102,7 @@
 
 {% if week == current and live_enabled %}
 <div id="mlive" data-started="{{ '1' if started else '0' }}" hidden></div>
-<script>
+{% if not static_site %}<script>
 (function () {   // UI-A3 live: every game's score as it happens, over its card (reads /api/live only)
   var box = document.getElementById('mlive');
   if (!box || box.getAttribute('data-started') !== '1') return;
@@ -147,7 +147,7 @@
   load();
   setInterval(load, 180000);
 })();
-</script>
+</script>{% endif %}
 {% endif %}
 <style>.copybox { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 12px; } .mg:focus { outline: 2px solid var(--turf); outline-offset: 2px; }</style>
 <script>

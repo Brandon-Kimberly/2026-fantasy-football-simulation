@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}>
+<html lang="en"{% if theme and theme != "system" %} data-theme="{{ theme }}"{% endif %}{% if static_site %} class="static-site"{% endif %}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -562,6 +562,9 @@ svg .drawn { transition: stroke-dashoffset 1.3s var(--ease-out); }
 .pre { opacity: 0; transform: translateY(18px); }
 .pre-in { opacity: 1; transform: none; transition: opacity .7s var(--ease-out), transform .7s var(--ease-out); }
 
+/* the public snapshot (webui.static_site): a countdown frozen at build time would be wrong */
+.static-site .kick .in { display: none; }
+
 /* a thin bar while the next page loads */
 .navprog { position: fixed; top: 0; left: 0; height: 3px; width: 0; z-index: 95; background: var(--g-brand); box-shadow: 0 0 12px color-mix(in srgb, var(--pos) 60%, transparent); border-radius: 0 3px 3px 0; transition: width 2.4s cubic-bezier(.1,.7,.2,1), opacity .3s; }
 .navprog.go { width: 82%; }
@@ -608,6 +611,23 @@ h2 svg.i { box-sizing: content-box; padding: 5px; border-radius: 9px; background
 }
 </style>
 <script>try { if (localStorage.getItem("syn-density") === "compact") document.documentElement.dataset.density = "compact"; } catch (e) {}</script>
+<script>
+// the site's address, for the few links a script builds (webui.static_site): on the public
+// snapshot every page lives at <base>/<path>/, a query as <base>/<path>/q/<slug>/
+window.SITE = {{ {"base": site_base or "", "static": static_site is not none}|tojson }};
+window.siteUrl = function (u) {
+  if (!window.SITE.static || !u || u.charAt(0) !== '/' || u.charAt(1) === '/') return u;
+  var hash = '', q = '', i = u.indexOf('#');
+  if (i >= 0) { hash = u.slice(i); u = u.slice(0, i); }
+  i = u.indexOf('?');
+  if (i >= 0) { q = u.slice(i + 1); u = u.slice(0, i); }
+  var path = u.replace(/\/+$/, '');
+  var out = window.SITE.base + (path ? path : '') + '/';
+  if (q) { out += 'q/' + q.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') + '/'; }
+  return out + hash;
+};
+{% if static_site %}try { var th = localStorage.getItem("syn-theme"); if (th === "light" || th === "dark") document.documentElement.dataset.theme = th; } catch (e) {}{% endif %}
+</script>
 </head>
 <body>
 <svg width="0" height="0" class="u-pos-absolute" aria-hidden="true">
@@ -672,10 +692,12 @@ h2 svg.i { box-sizing: content-box; padding: 5px; border-radius: 9px; background
 {% if overlay_enabled and dev %}<div class="private"><b>{{ private_marker }}.</b> Real names are an in-memory overlay on this page only; every file on disk and every URL stays pseudonymous.</div>{% endif %}
 {% block body %}{% endblock %}
 <footer class="foot">
-  <form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
+  {% if static_site %}<span class="meta">A public snapshot of the league, rebuilt after each week's model run. Team names are stand-ins; the players and the numbers are real.</span>
+  <div class="themeform" title="light, dark, or follow the system">{% for t in ("system", "light", "dark") %}<button type="button" class="ghost" data-theme-set="{{ t }}">{{ t }}</button>{% endfor %}</div>
+  {% else %}<form method="post" action="/mode" class="modeform"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}"><input type="hidden" name="mode" value="{{ 'simple' if dev else 'dev' }}"><span class="muted">{{ brand }} · {{ 'developer view' if dev else 'simple view' }}</span><button type="submit" class="ghost" title="{{ 'the plain view anyone could use' if dev else 'every file, job, log and control' }}">{{ 'Switch to the simple view' if dev else 'Switch to the developer view' }}</button></form>
   <form method="post" action="/theme" class="themeform" title="light, dark, or follow the system"><input type="hidden" name="_csrf" value="{{ csrf_token }}"><input type="hidden" name="back" value="{{ request.path }}">{% for t in ("system", "light", "dark") %}<button type="submit" name="theme" value="{{ t }}" class="ghost{{ ' on' if theme == t }}">{{ t }}</button>{% endfor %}</form>
   <button type="button" id="density" class="ghost densitybtn" aria-pressed="false" title="tighter table rows, remembered in this browser">compact</button>
-  {% if dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
+  {% endif %}{% if static_site %}{% elif dev %}<span class="meta">{{ now }} local · localhost · {% if overlay_enabled %}real names{% else %}pseudonyms{% endif %} · <span class="pill">dev</span></span>{% else %}<span class="meta">{{ now }}</span>{% endif %}
 </footer>
 </div>
 <script>
@@ -809,6 +831,7 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
   // query is dropped, so the list never shows players for letters since deleted
   var palPlayers = { q: null, items: [] }, palSeq = 0;
   function palFetchPlayers() {
+    if (window.SITE.static) return;                                // no player search without a server
     var q = palQ.value.trim(), ql = q.toLowerCase(), my = ++palSeq;
     if (q.length < 2 || /^compare\s/i.test(q)) { palPlayers = { q: null, items: [] }; return; }
     fetch('/api/players?owner=all&q=' + encodeURIComponent(q), { headers: { 'Accept': 'application/json' } })
@@ -822,7 +845,7 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
       }).catch(function () {});
   }
   function palOpen() { if (!pal) return; keys.hidden = true; pal.hidden = false; palQ.value = ''; palRender(); palQ.focus(); }
-  function palGo() { var it = palItems[palIdx]; if (it) window.location.href = it.h; }
+  function palGo() { var it = palItems[palIdx]; if (it) window.location.href = window.siteUrl(it.h); }
   if (pal) {
     palQ.addEventListener('input', function () { palRender(); palFetchPlayers(); });
     palQ.addEventListener('keydown', function (ev) {
@@ -833,20 +856,22 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
     pal.addEventListener('click', function (ev) { if (ev.target === pal) pal.hidden = true; });
     keys.addEventListener('click', function (ev) { if (ev.target === keys) keys.hidden = true; });
   }
-  var GO = { h: '/', m: '/matchups', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' }, pendingG = 0;
+  var GO = { h: '/', m: '/matchups', l: '/league', f: '/forecasts', d: '/decisions', t: '/tools', g: '/gameday' };
+  if (window.SITE.static) { delete GO.t; delete GO.g; }
+  var pendingG = 0;
   document.addEventListener('keydown', function (ev) {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') { ev.preventDefault(); palOpen(); return; }
     if (ev.key === 'Escape') { if (pal) pal.hidden = true; if (keys) keys.hidden = true; if (pcard) pcard.hidden = true; return; }
     if (typing(ev) || ev.ctrlKey || ev.metaKey || ev.altKey) return;
     if (ev.key === '?') { ev.preventDefault(); if (keys) { keys.hidden = !keys.hidden; if (pal) pal.hidden = true; } return; }
     if (ev.key === 'g') { pendingG = Date.now(); return; }
-    if (pendingG && Date.now() - pendingG < 1500 && GO[ev.key]) { pendingG = 0; window.location.href = GO[ev.key]; return; }
+    if (pendingG && Date.now() - pendingG < 1500 && GO[ev.key]) { pendingG = 0; window.location.href = window.siteUrl(GO[ev.key]); return; }
     pendingG = 0;
   });
   // U5: a card for any player name (data-player) after a short hover -- or, UI-V7, when a
   // player link takes keyboard focus; Escape closes it
   var pcard = document.getElementById('pcard'), pcTimer = null, pcCache = {};
-  function playerHref(id) { return '/player/' + encodeURIComponent(id); }
+  function playerHref(id) { return window.siteUrl('/player/' + encodeURIComponent(id)); }
   function pcShow(el, d) {
     var st = d.status ? d.status : (d.on_ir ? 'IR' : 'healthy');
     pcard.innerHTML = '<div class="n">' + (d.img ? '<img class="face" src="' + escT(d.img) + '" alt="">' : '') + escT(d.name) + '</div><div class="row"><span>' + escT(d.pos || '?') + ' · ' + escT(d.nfl || 'FA') + '</span><span>' + escT(d.owner || 'free agent') + '</span></div>' +
@@ -863,7 +888,7 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
     if (top + h > window.innerHeight) top = Math.max(8, r.top - h - 8);
     pcard.style.left = Math.max(8, left) + 'px'; pcard.style.top = top + 'px'; pcard.style.visibility = '';
   }
-  if (pcard) {
+  if (pcard && !window.SITE.static) {                           // the hover card asks the server
     function pcFor(el) {
       clearTimeout(pcTimer);
       pcTimer = setTimeout(function () {
@@ -1049,6 +1074,16 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
     });
     document.querySelectorAll('.tiles, .hero').forEach(function (el) { if (io && inView(el)) io.observe(el); });
   })();
+  document.querySelectorAll('[data-theme-set]').forEach(function (b) {
+    var cur = document.documentElement.dataset.theme || 'system';
+    b.classList.toggle('on', b.getAttribute('data-theme-set') === cur);
+    b.addEventListener('click', function () {
+      var t = b.getAttribute('data-theme-set');
+      if (t === 'system') { delete document.documentElement.dataset.theme; } else { document.documentElement.dataset.theme = t; }
+      try { if (t === 'system') { localStorage.removeItem('syn-theme'); } else { localStorage.setItem('syn-theme', t); } } catch (e) {}
+      document.querySelectorAll('[data-theme-set]').forEach(function (x) { x.classList.toggle('on', x === b); });
+    });
+  });
   // ask for system notifications only where the browser can grant them; a refusal changes nothing
   window.askNotify = function () {
     try { if (window.Notification && window.isSecureContext && Notification.permission === 'default') Notification.requestPermission(); } catch (e) {}

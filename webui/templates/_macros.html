@@ -80,7 +80,7 @@
 
 {% macro toolshere(names) -%}
 {# UI-A5: the tools whose question this page raises, beside the page as well as under Tools #}
-{% if names %}<p class="toolshere small"><span class="muted">Tools for this:</span>{% for n in names %} <a href="/tools/{{ n }}">{{ n|tool_title }}</a>{% if not loop.last %} <span class="muted">·</span>{% endif %}{% endfor %}</p>{% endif %}
+{% if names and not static_site %}<p class="toolshere small"><span class="muted">Tools for this:</span>{% for n in names %} <a href="/tools/{{ n }}">{{ n|tool_title }}</a>{% if not loop.last %} <span class="muted">·</span>{% endif %}{% endfor %}</p>{% endif %}
 {%- endmacro %}
 
 {% macro runlist(runs, prev) -%}

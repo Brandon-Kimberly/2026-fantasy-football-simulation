@@ -31,7 +31,7 @@ def _default_to_real_names():
     releases and rendered to Pages.
 
     So: opt in here, in the CLI a human typed, and never on a runner. An explicit
-    SHOW_REAL_TEAM_NAMES=0 still wins, which is how make_sample_report stays clean.
+    SHOW_REAL_TEAM_NAMES=0 still wins, which is how scripts.build_public_site stays clean.
     The library default (fantasy_sim.weekly_report.real_names_enabled) stays OFF so the
     test suite never reaches the network to render."""
     import os

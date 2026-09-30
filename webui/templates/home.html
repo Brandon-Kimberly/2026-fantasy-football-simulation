@@ -259,7 +259,7 @@
     <span>projected <b>{{ m.mine|num(1) }}</b> to <b>{{ m.theirs|num(1) }}</b></span>
     {% if m.p_median is not none %}<span>above the league median <b>{{ (m.p_median * 100)|round(1) }}%</b></span>{% endif %}
     {% if m.se and dev %}<span class="muted">{{ (m.se * 100)|se }} simulation noise on the win chance</span>{% endif %}
-    {% if lineup and lineup.expected_total %}<span>best lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link %} · <a href="{{ lineup_link }}">see it</a>{% endif %}</span>{% endif %}
+    {% if lineup and lineup.expected_total %}<span>best lineup projects <b>{{ lineup.expected_total|num(1) }}</b>{% if lineup_link and not static_site %} · <a href="{{ lineup_link }}">see it</a>{% endif %}</span>{% endif %}
   </div>
   {% if h2h and h2h.rows %}
   <div class="h2h">head-to-head <b>{{ h2h.wins }}–{{ h2h.losses }}{% if h2h.ties %}–{{ h2h.ties }}{% endif %}</b> since {{ h2h.since }} · last time <span class="{{ 'w' if h2h.last.won else 'l' }}">{{ 'won' if h2h.last.won else ('tied' if h2h.last.tied else 'lost') }} {{ h2h.last.mine|score }}–{{ h2h.last.theirs|score }}</span>{% if h2h.last.rescored %} <span class="muted" title="the league scored this game under the scoring in force when it was played; Sleeper now re-scores it under the current settings, which gives these points and the other result">(re-scored box score; the league's result stands)</span>{% endif %} ({{ h2h.last.season }} week {{ h2h.last.week }})
@@ -278,6 +278,7 @@
   </div>{% endfor %}</div>
   {% endif %}
 
+  {% if not static_site %}
   {# ---- UI-R5: the alerts beside the kickoff one; opt-in, browser-only, while this page is open ---- #}
   <div class="alertrow" id="alertrow"><span class="muted">While this page is open, alert me when</span>
     <label><input type="checkbox" data-alert="designation"> a player's injury status changes</label>
@@ -285,6 +286,8 @@
     <label><input type="checkbox" data-alert="odds"> my playoff odds move by more than the noise</label>
     <label><input type="checkbox" data-alert="waiver"> the waiver run is 30 minutes away</label></div>
 
+  {% endif %}
+  {% if not static_site %}
   {# ---- live scoreboard (W6, W13): read-only, off-disk; see webui/live.py ---- #}
   <div class="live" id="live" data-enabled="{{ '1' if live.enabled else '0' }}" data-started="{{ '1' if kick and kick.started else '0' }}">
     <div class="lh">
@@ -299,6 +302,7 @@
     </div>
     <div id="live-body" data-dev="{{ '1' if dev else '0' }}" data-hue="{{ hue }}">{% if live.snapshot and live.snapshot.ok %}<div class="note-l">loading…</div>{% elif live.enabled %}<div class="note-l">Press Refresh for live points and an updated chance to win.{% if dev %} Reads Sleeper and the NFL scoreboard; writes nothing.{% endif %}</div>{% endif %}</div>
   </div>
+  {% endif %}
   {% else %}
   <p class="lede">No matchup on file for week {{ week or "?" }} yet{% if dev %} — the league schedule arrives with the sync{% endif %}.</p>
   {% endif %}
@@ -375,7 +379,7 @@
     {% set q = lineup.questionable_starters if lineup else [] %}
     {% if q %}<h3>Questionable starters</h3>
     <div class="scroller"><table class="watch"><thead><tr><th>Starter</th><th class="num">Proj.</th><th>If out</th><th class="num">Change</th><th></th></tr></thead><tbody>
-    {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num {{ 'neg' if (x.give_up or 0) > 0 else 'pos' }}">{{ (0 - (x.give_up or 0))|signed(1) }}</td><td><a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a></td></tr>{% endfor %}
+    {% for x in q %}<tr><td class="nm">{{ x.name }}<span class="small muted">{{ x.slot }}</span></td><td class="num">{{ x.expected|num(1) }}</td><td>{{ x.fallback }}<span class="small muted">{{ x.fallback_expected|num(1) }}</span></td><td class="num {{ 'neg' if (x.give_up or 0) > 0 else 'pos' }}">{{ (0 - (x.give_up or 0))|signed(1) }}</td><td>{% if not static_site %}<a class="tiny" href="/tools/compare_players?a={{ x.name|urlencode }}&amp;b={{ x.fallback|urlencode }}">compare</a>{% endif %}</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
     {% if injuries %}<h3>Injuries and practice</h3>
     <div class="scroller"><table class="watch"><thead><tr><th>Player</th><th>Status</th><th>Injury</th><th>Practice</th><th>Updated</th></tr></thead><tbody>
@@ -387,19 +391,20 @@
     </tbody></table></div>{% endif %}
     {% if holes %}<h3>Empty slots ahead</h3>
     <div class="scroller"><table class="watch"><thead><tr><th>Week</th><th>Slot</th><th></th></tr></thead><tbody>
-    {% for w, slots in holes.items() %}<tr><td class="nm">week {{ w }}</td><td><span class="flag">{{ slots|join(", ") }}</span></td><td class="small muted">no eligible player on the roster{% if calendar_link %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</td></tr>{% endfor %}
+    {% for w, slots in holes.items() %}<tr><td class="nm">week {{ w }}</td><td><span class="flag">{{ slots|join(", ") }}</span></td><td class="small muted">no eligible player on the roster{% if calendar_link and not static_site %} · <a href="{{ calendar_link }}">calendar</a>{% endif %}</td></tr>{% endfor %}
     </tbody></table></div>{% endif %}
     {% if not q and not designations and not injuries and not holes %}<p class="small muted">Nothing flagged.{% if not lineup %} Run <a href="/tools/optimize_lineup">Set my lineup</a> and <a href="/tools/roster_calendar">Bye weeks ahead</a> to fill this in.{% endif %}</p>{% endif %}
-    <div class="qa">
+    {% if not static_site %}<div class="qa">
       <a class="btn" href="/tools/optimize_lineup"><svg class="i"><use href="#i-clip"/></svg> Set my lineup</a>
       <a class="btn ghost" href="/tools/matchup_lineup"><svg class="i"><use href="#i-matchup"/></svg> Game-plan the matchup</a>
       <a class="btn ghost" href="/tools/waiver_targets"><svg class="i"><use href="#i-waiver"/></svg> Waiver targets</a>
       {% if dev %}<a class="btn ghost" href="/tools/weekly_report"><svg class="i"><use href="#i-book"/></svg> Weekly digest</a>{% endif %}
-    </div>
+    </div>{% endif %}
   </section>
 </div>
 </div>
 
+{% if not static_site %}
 <script>
 (function () {
   var box = document.getElementById('live'); if (!box) return;
@@ -713,4 +718,5 @@
   setInterval(waitWaiver, 30 * 1000);
 })();
 </script>
+{% endif %}
 {% endblock %}
