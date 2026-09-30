@@ -16,7 +16,9 @@ the league played them), the projections from logs/projection_log.jsonl, and the
 logs/first_recorded_scores.jsonl. Limits, said on the page:
 - A player counts as available if the week's pre-game projection priced him, so a player
   already ruled out is usually out of the pool, but not always.
-- A starter with no pre-game projection leaves the week unjudged rather than guessed.
+- A player picked up after the week's first kickoff is priced from his earliest projection
+  that week (lineups lock per game, so it is still a pre-game number) and the week says so.
+- A starter with no projection at all leaves the week unjudged rather than guessed.
 Nothing here re-solves anything with the results in hand except the hindsight line, which says
 so. Reads only.
 """
@@ -76,6 +78,7 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
     lineups = root.read_json("current/weekly_lineups.json", {}) or {}
     kicks = _first_kickoff(root)
     proj, first = {}, {}
+    late, late_at = {}, {}             # a player acquired after the first kickoff: his earliest projection that week
     for r in _rows(root, "logs/projection_log.jsonl"):
         try:
             wk, pid = int(r["week"]), str(r["player_id"])
@@ -83,7 +86,9 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
             continue
         at, ko = r.get("synced_at") or "", kicks.get(wk)
         if ko is not None and at and at >= ko.strftime("%Y-%m-%dT%H:%M:%SZ"):
-            continue                                            # logged after kickoff: knows too much
+            if (wk, pid) not in late_at or at < late_at[(wk, pid)]:
+                late_at[(wk, pid)], late[(wk, pid)] = at, r.get("sleeper_mean")
+            continue
         if (wk, pid) not in first or at >= first[(wk, pid)]:
             first[(wk, pid)] = at
             proj[(wk, pid)] = r.get("sleeper_mean")
@@ -114,8 +119,14 @@ def season(root, team, slots=REQUIRED_STARTING_SLOTS):
         players = [str(p) for p in lu.get("players") or []]
         roster = {pid: entry(pid) for pid in players}
         projected = {pid: proj.get((wk, pid)) for pid in players if proj.get((wk, pid)) is not None}
+        # A lineup locks per game, not per week: a player picked up after the week's first kickoff
+        # (no projection before it) is priced from his earliest projection that week -- still a
+        # pre-game number, since he could only be started before his own game -- and flagged.
+        late_priced = sorted(pid for pid in players if pid not in projected and late.get((wk, pid)) is not None)
+        projected.update({pid: late[(wk, pid)] for pid in late_priced})
         scored = {pid: scores.get((wk, pid)) for pid in players if scores.get((wk, pid)) is not None}
         row = judge([str(p) for p in lu.get("starters") or []], roster, projected, scored, slots)
         row["week"] = wk
+        row["late_priced"] = late_priced
         out.append(row)
     return out
