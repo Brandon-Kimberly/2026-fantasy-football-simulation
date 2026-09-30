@@ -51,6 +51,16 @@
 <p class="small muted">Line: 10th to 90th percentile. Box: 25th to 75th. Tick: the mean. Faint bars: how often each score came up.{% if played %} Dots: the weeks played so far.{% endif %} 10th {{ range.p10|num(1) }} · 25th {{ range.p25|num(1) }} · median {{ range.p50|num(1) }} · 75th {{ range.p75|num(1) }} · 90th {{ range.p90|num(1) }}{% if range.mean is not none %} · mean {{ range.mean|num(1) }}{% endif %}. Weeks the player sits out aren't counted.</p>
 </section>
 {% endif %}
+{% if idp %}
+<section id="idp-line">
+<h2><svg class="i"><use href="#i-whistle"/></svg> Projected stat line <span class="hint">week {{ idp.week }}{% if idp.source == 'season_per_game' %}, the season's projection per game{% endif %} · Sleeper's projection, scored with this league's settings</span></h2>
+<div class="scroller"><table><thead><tr><th>Category</th><th class="num">Projected</th><th class="num">Points</th></tr></thead><tbody>
+{% for r in idp.rows %}<tr><td>{{ r.label }}</td><td class="num">{{ r.value|num(2 if r.value < 1 else 1) }}</td><td class="num">{{ r.points|num(2 if r.points is not none and r.points < 1 else 1) }}</td></tr>{% endfor %}
+<tr><td><b>Total</b></td><td></td><td class="num"><b>{{ idp.total|num(1) }}</b></td></tr>
+</tbody></table></div>
+<p class="small muted">Only the categories this league scores. This is Sleeper's line for the week, not the model's number: the model's price for this player{% if season_mean is not none %} ({{ season_mean|num(1) }} a week){% endif %} starts from it and blends in its earlier weeks{% if dev %}, then the forecast's own draws (current/idp_projections.json, {{ idp.source }}){% endif %}.</p>
+</section>
+{% endif %}
 <section>
 <h2><svg class="i"><use href="#i-chart"/></svg> Week by week <span class="hint">the projection before kickoff against the points scored{% if dev %} · the last projection logged before each week's first kickoff, and the points as first recorded{% endif %}</span></h2>
 {% if history %}

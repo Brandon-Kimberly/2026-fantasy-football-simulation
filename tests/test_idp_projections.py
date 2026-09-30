@@ -85,6 +85,9 @@ class TestTheSyncKeepsTheLine(unittest.TestCase):
         import inspect
         from fantasy_sim import sync
         self.assertIn("write_idp_projections(", inspect.getsource(sync.generate_player_baselines))
+        # only when the real sync asks: the tests that call generate_player_baselines directly
+        # write nothing new, and the sync always asks
+        self.assertIn("keep_idp=True", inspect.getsource(sync._sync_body))
 
 
 def _plant_idp(root, week=3, with_file=True):

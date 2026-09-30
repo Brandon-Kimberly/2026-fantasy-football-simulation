@@ -17,6 +17,7 @@ import glob
 import math
 import os
 
+from webui import idp as idpmod
 from webui.live import expectations
 from webui.players import PlayerIndex
 
@@ -91,7 +92,7 @@ def estimate(root, names, week=None):
         week = freshness_report(root)["week"]
     week = int(week) if week else None
     idx = PlayerIndex.for_root(root)
-    by_name = {r["name"]: r for r in (expectations(root, week) if week else {}).values()}
+    by_name = {r["name"]: dict(r, pid=pid) for pid, r in (expectations(root, week) if week else {}).items()}
     rows = []
     for n in names:
         p = idx._by_fold.get(str(n or "").strip().casefold())
@@ -112,4 +113,6 @@ def estimate(root, names, week=None):
             a, b = known
             pair = round(_phi((a["mean"] - b["mean"]) / math.sqrt(max(a["sd"] ** 2 + b["sd"] ** 2, 1e-9))), 4)
     joint = joint_answer(root, rows[0]["name"], rows[1]["name"], week) if len(rows) == 2 and week else None
-    return {"week": week, "players": rows, "p_first_beats_second": pair, "joint": joint}
+    idp = idpmod.table(root, [{"name": r["name"], "pid": (by_name.get(r["name"]) or {}).get("pid")} for r in known]) \
+        if len(known) >= 2 and len(known) == len(rows) else None               # UI-P8: defenders side by side
+    return {"week": week, "players": rows, "p_first_beats_second": pair, "joint": joint, "idp": idp}

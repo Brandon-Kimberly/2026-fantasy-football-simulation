@@ -33,7 +33,7 @@ from fantasy_sim.storage import (
     SYNC_PROVENANCE_FILE, git_head_short, FIRST_SCORES_FILE, DESIGNATIONS_FILE, FAAB_ADJUSTMENTS_FILE,
     SYNC_MANIFEST_FILE, SYNC_OUTPUT_FILES, PLAYER_CACHE_FILE, DECISION_LOG_FILE,
     PENDING_TRADES_FILE, draft_log_file, season_log_file, NFL_TEAM_COLORS_FILE, WEEKLY_LINEUPS_FILE, FAILED_CLAIMS_FILE,
-    BANKED_SCORES_FILE, SCORING_SETTINGS_FILE,
+    BANKED_SCORES_FILE, SCORING_SETTINGS_FILE, IDP_PROJECTIONS_FILE,
 )
 from fantasy_sim.clients.sleeper import update_player_cache
 from fantasy_sim.clients.espn import fetch_espn_projection_data, normalize_player_name_for_matching as _normalize_player_name_for_matching
@@ -869,8 +869,52 @@ def _shared_subscore(stats_dict, league_scoring_settings, slot):
     return total if total > 0 else None
 
 
+def idp_projection_lines(projections, players_db, scoring, fallback_season=False):
+    """UI-P8: each defender's projected stat line, from the projection payload the baselines
+    are built from -- only the categories this league scores (a zero setting, like combined
+    tackles here, is left out), each with the points it is worth under the league's settings,
+    and their total. A season-long payload (the fallback) is divided to one game. Defenders
+    with nothing projected, and every offensive player, are left out."""
+    scored = {k: float(v) for k, v in (scoring or {}).items() if str(k).startswith("idp_") and v}
+    out = {}
+    for pid, proj in (projections or {}).items():
+        pos = normalize_position((players_db.get(str(pid)) or {}).get("position"))
+        if pos not in ("DL", "LB", "DB") or not isinstance(proj, dict):
+            continue
+        stats = proj.get("stats", proj) or {}
+        games = float(stats.get("gp") or 16.0) if fallback_season else 1.0
+        if games <= 0:
+            games = 16.0
+        line = {}
+        for k in scored:
+            try:
+                v = float(stats.get(k) or 0.0) / games
+            except (TypeError, ValueError):
+                continue
+            if v > 0:
+                line[k] = round(v, 3)
+        if not line:
+            continue
+        out[str(pid)] = {"pos": pos, "stats": line, "points": {k: round(v * scored[k], 2) for k, v in line.items()},
+                         "total": round(sum(v * scored[k] for k, v in line.items()), 2)}
+    return out
+
+
+def write_idp_projections(projections, players_db, scoring, week, fallback_season=False):
+    """UI-P8: current/idp_projections.json, for the web UI only. Display data: a failure is
+    logged at INFO and never stops the sync (the baselines are what the engine needs)."""
+    try:
+        save_json(IDP_PROJECTIONS_FILE, {
+            "_meta": {"week": int(week), "source": "season_per_game" if fallback_season else "weekly",
+                      "synced_at": datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")},
+            "players": idp_projection_lines(projections, players_db, scoring, fallback_season)})
+    except Exception as ex:                                  # noqa: BLE001 -- display only
+        logging.info("IDP projections not written (%s: %s); the player pages show no stat line.",
+                     type(ex).__name__, ex)
+
+
 def generate_player_baselines(league_scoring_settings, players_db, live_rosters, current_year="2026", week=1,
-                              rostered_pids=None, byes=None, reserve_pids=None):
+                              rostered_pids=None, byes=None, reserve_pids=None, keep_idp=False):
     existing_baselines = {}
     if os.path.exists(BASELINES_FILE):
         try:
@@ -943,6 +987,11 @@ def generate_player_baselines(league_scoring_settings, players_db, live_rosters,
             f"[{'; '.join(_proj_why) or 'empty payload'}]. Refusing to continue: building "
             f"baselines from an empty payload would overwrite player_baselines.json with "
             f"nothing. The previous sync's baselines are left untouched -- re-run the sync.")
+
+    # UI-P8: the same payload's IDP categories, kept for the web UI. Only the real sync asks
+    # (keep_idp), so the many tests that call this directly write nothing new.
+    if keep_idp:
+        write_idp_projections(projections, players_db, league_scoring_settings, week, fallback_season)
 
     # Second, independent projection source (free, see fetch_espn_projections docstring). A
     # failure here must never break baseline generation -- espn_projections simply stays {}
@@ -1577,7 +1626,7 @@ def _sync_body(sharp_polling=False, official=False):
     byes = load_json(NFL_SCHEDULE_FILE).get("_meta", {}).get("byes", {})
     rostered_pids = {str(pid) for r in rosters for pid in r.get("players", [])}
     baselines = generate_player_baselines(scoring_settings, players_db, live_rosters_payload, str(state.get("season", "2026")), current_nfl_week,
-                              rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids)
+                              rostered_pids=rostered_pids, byes=byes, reserve_pids=reserve_pids, keep_idp=True)
     record_source("player_baselines", ok=bool(baselines), rows=len(baselines or {}))
     _wk_sched = {}
     try:
