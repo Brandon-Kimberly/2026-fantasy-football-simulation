@@ -613,6 +613,37 @@ class TestLayoutAtTheOwnersWidths(BrowserCase):
                 self.assertGreaterEqual(gap, -1, "the first row starts below the header")
 
 
+class TestTheAlertBoxesTick(BrowserCase):
+    """Owner report of 2026-09-30: Home's alert boxes did not tick when clicked, only after a
+    refresh. The site is opened at an http address a browser does not count as secure, where
+    it refuses notification permission; the box was saved as on, then unticked when the
+    permission came back refused -- so a refresh showed it on. An alert now shows on the page
+    itself (and as a system notification only where the browser allows one), so the box means
+    what it shows and ticks when clicked."""
+    DENY = """window.Notification = function () { window.__sysNotes = (window.__sysNotes || 0) + 1; };
+              window.Notification.permission = 'default';
+              window.Notification.requestPermission = function () { window.Notification.permission = 'denied'; return Promise.resolve('denied'); };"""
+
+    def test_a_box_ticks_and_its_alert_shows_on_the_page(self):
+        self.ctx.add_init_script(self.DENY)
+        self.page.route("**/api/alerts*", lambda route: route.fulfill(json={"alerts": [
+            {"kind": "designation", "key": "t:1", "title": "Player 0 is now Out", "body": "was Questionable"}]}))
+        self.open("/", "simple")
+        box = self.page.locator('#alertrow input[data-alert="designation"]')
+        box.click()
+        self.page.wait_for_timeout(300)
+        self.assertTrue(box.is_checked(), "ticked as soon as it is clicked, permission or not")
+        self.page.locator(".alertcard").first.wait_for()
+        self.assertIn("Player 0 is now Out", self.page.locator(".alertcard").first.inner_text())
+        self.page.reload(wait_until="load")
+        self.assertTrue(self.page.locator('#alertrow input[data-alert="designation"]').is_checked(), "and still after a refresh")
+        box = self.page.locator('#alertrow input[data-alert="designation"]')
+        box.click()
+        self.page.wait_for_timeout(200)
+        self.assertFalse(box.is_checked())
+        self.assertEqual(self.errors, [])
+
+
 def _plant_started_week(root):
     """Week 3 under way, with a schedule: the owner (fixture team 0) against team 6."""
     from tests.test_webui_routes import TEAMS
