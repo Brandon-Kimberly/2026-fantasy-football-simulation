@@ -10,6 +10,7 @@ simple view serves no dev-only page and no dev-only tool; a tool's answer (the j
 is for everyone but shows no command, log or exit code; the simple tool form asks who
 and when only; the nav differs; and dev mode is unchanged (every other test runs in it).
 """
+from tests.webui_served import inline_assets  # UI-E2: the page as served
 import json
 import os
 import re
@@ -131,14 +132,14 @@ class TestSimpleView(unittest.TestCase):
             self.assertIn(pfx, ("/system", "/status", "/logs", "/sync", "/records", "/results", "/health", "/jobs", "/accuracy"))
 
     def test_the_simple_nav_and_footer_toggle(self):
-        body = self.client("simple").get("/").get_data(as_text=True)
+        body = inline_assets(self.client("simple").get("/").get_data(as_text=True))
         for href in ("/league", "/forecasts", "/decisions", "/tools"):
             self.assertIn(f'href="{href}"', body)
         for href in ("/records", "/jobs", "/logs", "/system", "/sync"):
             self.assertNotIn(f'<a href="{href}"', body)
         self.assertIn("Switch to the developer view", body)
         self.assertNotIn("LOCAL VIEW", body)
-        dev = self.client("dev").get("/").get_data(as_text=True)
+        dev = inline_assets(self.client("dev").get("/").get_data(as_text=True))
         self.assertIn('href="/sync"', dev)
         self.assertIn("Switch to the simple view", dev)
 
@@ -156,7 +157,7 @@ class TestSimpleView(unittest.TestCase):
         self.assertTrue(r.headers["Location"].endswith("/"), "an off-site back is ignored")
 
     def test_the_simple_tool_form_asks_who_and_when_only(self):
-        body = self.client("simple").get("/tools/compare_players").get_data(as_text=True)
+        body = inline_assets(self.client("simple").get("/tools/compare_players").get_data(as_text=True))
         self.assertIn('name="a"', body)
         self.assertIn('name="week"', body)
         self.assertNotIn('name="sims"', body)
@@ -164,7 +165,7 @@ class TestSimpleView(unittest.TestCase):
         self.assertNotIn('name="light"', body)
         self.assertNotIn('id="cmd"', body)
         self.assertIn("> Ask</button>", body)
-        dev = self.client("dev").get("/tools/compare_players").get_data(as_text=True)
+        dev = inline_assets(self.client("dev").get("/tools/compare_players").get_data(as_text=True))
         self.assertIn('name="sims"', dev)
         self.assertIn('id="cmd"', dev)
 
@@ -173,7 +174,7 @@ class TestSimpleView(unittest.TestCase):
         jid = runner.launch(["py", "-m", "scripts.optimize_lineup", "--team", MY_TEAM], "optimize_lineup")
         runner.metas[jid].update(state=OK, finished_at="2026-09-26T00:00:03Z", rc=0,
                                  record="/file/decisions/week_03/lineup_20260924T165331Z_week3.json")
-        body = self.client("simple", runner=runner).get(render.job_url({"id": jid})).get_data(as_text=True)
+        body = inline_assets(self.client("simple", runner=runner).get(render.job_url({"id": jid})).get_data(as_text=True))
         self.assertEqual(self.client("simple", runner=runner).get(render.job_url({"id": jid})).status_code, 200)
         self.assertIn("Done", body)
         self.assertIn("Optimal lineup", body)
@@ -183,19 +184,19 @@ class TestSimpleView(unittest.TestCase):
         self.assertEqual(hits, [], hits)
         self.assertNotIn("What the tool printed", body)
         self.assertNotIn("exit code", body)
-        dev = self.client("dev", runner=runner).get(render.job_url({"id": jid})).get_data(as_text=True)
+        dev = inline_assets(self.client("dev", runner=runner).get(render.job_url({"id": jid})).get_data(as_text=True))
         self.assertIn("The command, and where it ran", dev)
 
     def test_the_vibrant_layer_renders_in_both_views_and_respects_reduced_motion(self):
         for mode in ("dev", "simple"):
-            body = self.client(mode).get("/").get_data(as_text=True)
+            body = inline_assets(self.client(mode).get("/").get_data(as_text=True))
             self.assertIn('id="vizg-turf"', body, "the chart gradient defs every page carries")
             self.assertIn('class="rank r1"', body, "medal ranks in the standings")
             self.assertIn("--g-brand:", body)
             self.assertIn("@keyframes draw", body)
             self.assertIn("prefers-reduced-motion: reduce", body)
             self.assertIn('id="ringg"', body)
-        league = self.client("simple").get("/league").get_data(as_text=True)
+        league = inline_assets(self.client("simple").get("/league").get_data(as_text=True))
         self.assertIn('class="rank r3"', league)
 
     def test_dev_mode_is_the_default_and_unchanged(self):

@@ -11,6 +11,8 @@ and the tabs and the clock sits in the footer; the status chips and the League t
 chips are grids, not wrapping rows that orphan the last one; the gold medal wears dark
 text; the LIVE badge starts from the readable red.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import re
 import tempfile
 import unittest
@@ -54,7 +56,7 @@ def tokens(css_block):
 
 
 def theme_blocks():
-    css = open(BASE, encoding="utf-8").read().split("</style>")[0]
+    css = io.StringIO(base_source()).read().split("</style>")[0]
     light = css.split(":root {", 1)[1].split("@media (prefers-color-scheme: dark)", 1)[0]
     dark = css.split("@media (prefers-color-scheme: dark)", 1)[1].split("} }", 1)[0]
     return tokens(light), tokens(dark)
@@ -71,7 +73,7 @@ class TestContrast(unittest.TestCase):
 
     def test_white_on_the_gradient_pill_starts_and_dark_on_gold(self):
         light, _dark = theme_blocks()
-        css = open(BASE, encoding="utf-8").read()
+        css = io.StringIO(base_source()).read()
         for grad in ("--g-turf", "--g-pos"):
             start = re.search(grad + r":\s*linear-gradient\([^,]+,\s*(#[0-9a-fA-F]{6})", css).group(1)
             self.assertGreaterEqual(contrast("#ffffff", start), 4.5, f"white on {grad} start {start}")
@@ -82,7 +84,7 @@ class TestContrast(unittest.TestCase):
 
 class TestIcons(unittest.TestCase):
     def test_every_tool_and_record_prefix_has_a_symbol_in_the_sprite(self):
-        sprite = set(re.findall(r'<symbol id="(i-[a-z]+)"', open(BASE, encoding="utf-8").read()))
+        sprite = set(re.findall(r'<symbol id="(i-[a-z]+)"', io.StringIO(base_source()).read()))
         for name in list(render.TOOL_ICONS) + ["nonsense"]:
             self.assertIn(render.tool_icon(name), sprite, name)
         self.assertEqual(render.tool_icon("nonsense"), "i-clip")
@@ -116,7 +118,7 @@ class TestPages(unittest.TestCase):
     def get(self, path, mode="dev", runner=None):
         r = self.client(mode, runner).get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_focus_ring_header_and_footer(self):
         body = self.get("/")

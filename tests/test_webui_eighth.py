@@ -14,6 +14,7 @@ here reaches the network or writes under data/.
 What the tests do NOT do: execute the page scripts. The countdown tick, the toast, the
 swing animation and the confetti are pinned by their presence in the served page only.
 """
+from tests.webui_served import inline_assets  # UI-E2: the page as served
 import datetime as _dt
 import json
 import os
@@ -215,7 +216,7 @@ class TestPages(unittest.TestCase):
     def get(self, path, **kw):
         r = self.client(**kw).get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_home_countdown_and_head_to_head_in_both_views(self):
         # The clock is pinned inside the fixture's week: on the real clock this test failed for

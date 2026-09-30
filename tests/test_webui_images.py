@@ -10,6 +10,7 @@ view. A player without one falls back to the NFL team's logo, and a player with 
 back to the lettered mark on the player page. No page asks a third party for a headshot or a
 logo.
 """
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import os
 import re
 import tempfile
@@ -62,7 +63,7 @@ class Case(unittest.TestCase):
     def get(self, path, mode="dev"):
         r = self.client(mode).get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
 
 class TestTheMarkFallbackIsCentred(unittest.TestCase):
@@ -73,8 +74,7 @@ class TestTheMarkFallbackIsCentred(unittest.TestCase):
 
     def test_the_face_mark_is_a_centring_flexbox(self):
         import re
-        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "webui", "templates", "base.html"), encoding="utf-8") as fh:
-            css = fh.read()
+        css = base_source()                                   # UI-E2: base.html with its shared stylesheet
         rule = re.search(r"\.face\.mark\s*\{([^}]*)\}", css)
         self.assertIsNotNone(rule, "a rule for the fallback mark")
         body = rule.group(1).replace(" ", "")

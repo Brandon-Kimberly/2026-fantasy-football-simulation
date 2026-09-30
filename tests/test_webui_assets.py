@@ -31,7 +31,7 @@ except ImportError:
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CSS_MARK = "--plane:#f9f9f7"            # the first token of the shared stylesheet
-JS_MARK = "function watchJob"          # a function of the shared script
+JS_MARK = "window.watchJob = function"  # a function of the shared script
 ASSET = re.compile(r'/assets/(site|table)\.[0-9a-f]{10}\.(css|js)')
 
 

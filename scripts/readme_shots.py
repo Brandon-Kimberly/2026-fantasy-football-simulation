@@ -45,11 +45,15 @@ SHOTS = (
 
 
 def ui_hash(root=ROOT):
-    """A fingerprint of what the pages look like: every template, and the renderer that draws
-    their charts and tables. Line endings do not count."""
+    """A fingerprint of what the pages look like: every template, the shared stylesheet and
+    scripts (webui/assets, UI-E2), and the renderer that draws their charts and tables. Line
+    endings do not count."""
     h = hashlib.sha256()
     tdir = os.path.join(root, "webui", "templates")
     files = sorted(os.path.join(tdir, f) for f in os.listdir(tdir) if f.endswith(".html"))
+    adir = os.path.join(root, "webui", "assets")
+    if os.path.isdir(adir):
+        files += sorted(os.path.join(adir, f) for f in os.listdir(adir) if f.endswith((".css", ".js")))
     files.append(os.path.join(root, "webui", "render.py"))
     for f in files:
         with open(f, "rb") as fh:

@@ -45,6 +45,8 @@ UI-F1: whether the week's games have started is the sync's kickoffs against the 
 decided once on the server, so Home can read live scores on load instead of leading with
 a pre-game number after the games began.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import datetime as _dt
 import json
 import os
@@ -148,7 +150,7 @@ class TestSystemCountsSourcesAndWarningsApart(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_the_report_counts_warnings(self):
         fr = freshness_report(self.root)
@@ -231,7 +233,7 @@ class TestLeagueShowsTheSplit(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_my_record_tile_splits_head_to_head_from_the_median(self):
         _actuals(self.td.name, [{A: (1.0, 0), B: (0.0, 1)}, {A: (1.0, 0), B: (0.0, 1)}], {A: 2, B: 2})
@@ -289,7 +291,7 @@ class TestPlayerCardSeparatesWeekFromSeason(unittest.TestCase):
         self.assertIsNone(c["week_mean"])
 
     def test_the_card_script_never_calls_the_baseline_a_projection(self):
-        with open("webui/templates/base.html", encoding="utf-8") as fh:
+        with io.StringIO(base_source()) as fh:
             js = fh.read().split("function pcShow", 1)[1].split("function ", 1)[0]
         self.assertNotIn("<span>projection</span>", js)
         self.assertIn("season mean", js)
@@ -352,7 +354,7 @@ class TestOneSourceForTheOdds(unittest.TestCase):
         app = create_app(self.root, runner=FakeRunner(), csrf_token="tok", settings=st,
                          live=LiveBoard(self.root, MY_TEAM, league_id=None, fetch=None))
         app.testing = True
-        body = app.test_client().get("/").get_data(as_text=True)
+        body = inline_assets(app.test_client().get("/").get_data(as_text=True))
         self.assertIn("from the week-3 forecast", body)
         self.assertNotIn("from this week's forecast", body)
 
@@ -444,7 +446,7 @@ class TestPagesSpeakTheGrammar(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_each_evaluated_move_states_its_verdict_and_the_filter_agrees(self):
         import re
@@ -498,7 +500,7 @@ class TestWhatEachResultDid(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def plant_quote(self, logged_at="2026-09-16T10:00:00Z", canonical=True):
         """Week 2 kicked off 2026-09-17T00:15Z; the model quoted A 62% against B, and A 45% to
@@ -608,7 +610,7 @@ class TestFinalWinsAsARange(unittest.TestCase):
         app.testing = True
         r = app.test_client().get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     def test_odds_at_carries_the_range(self):
         w = odds_at(self.root, 3)[MY_TEAM]["wins"]

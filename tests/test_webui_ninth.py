@@ -10,6 +10,8 @@ U10 the Decisions awards (best and worst move of the season and of the latest we
 per-team timelines; U13 durations per tool on the Jobs page; page transitions; and B13:
 the count-up starts near its target. Scripts are pinned by presence, not executed.
 """
+import io
+from tests.webui_served import base_source, inline_assets  # UI-E2: the page as served
 import re
 import tempfile
 import unittest
@@ -36,11 +38,11 @@ BASE = "webui/templates/base.html"
 
 
 def css():
-    return open(BASE, encoding="utf-8").read().split("</style>")[0]
+    return io.StringIO(base_source()).read().split("</style>")[0]
 
 
 def script():
-    return open(BASE, encoding="utf-8").read().split("</style>")[-1]
+    return io.StringIO(base_source()).read().split("</style>")[-1]
 
 
 class TestStylesheet(unittest.TestCase):
@@ -100,7 +102,7 @@ class TestPages(unittest.TestCase):
     def get(self, path, **kw):
         r = self.client(**kw).get(path)
         self.assertEqual(r.status_code, 200, path)
-        return r.get_data(as_text=True)
+        return inline_assets(r.get_data(as_text=True))
 
     # ---- U11 theme
     def test_theme_setting_and_route(self):
@@ -149,13 +151,13 @@ class TestPages(unittest.TestCase):
         self.assertIn('id="pal"', dev)
         self.assertIn('id="keys"', dev)
         self.assertIn("g h", dev)
-        items = re.search(r"var PALETTE = (\[.*?\]);", dev).group(1)
+        items = re.search(r"window\.PALETTE = (\[.*?\]);", dev).group(1)   # UI-E2: the page's own list stays inline
         self.assertIn('"/system"', items)
         self.assertIn('"/tools/compare_players"', items)
         self.assertIn('"/tools/run_simulation"', items)
         self.assertIn('"/team/', items)                                            # the teams, to their pages (UI-A1)
         simple = self.get("/", mode="simple")
-        items = re.search(r"var PALETTE = (\[.*?\]);", simple).group(1)
+        items = re.search(r"window\.PALETTE = (\[.*?\]);", simple).group(1)
         self.assertNotIn('"/system"', items)
         self.assertNotIn('"/tools/run_simulation"', items)
         self.assertIn('"/tools/compare_players"', items)

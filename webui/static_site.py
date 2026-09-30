@@ -84,12 +84,14 @@ def _copy_without_images(real, into):
 
 
 SCRIPT_RE = re.compile(r"(<script\b.*?</script>)", re.S | re.I)
+SCRIPT_SRC_RE = re.compile(r'(<script\b[^>]*?\bsrc=")(/assets/)', re.I)
 
 
 def _rewrite(html, base, found, page="/"):
     """The markup outside <script> blocks rewritten (_rewrite_markup); a script's links go
     through window.siteUrl at run time, and its code is never touched. `page` is the site path
     of the page being written, which a query-only link ('?pos=RB') is relative to."""
+    html = SCRIPT_SRC_RE.sub(lambda m: m.group(1) + base + m.group(2), html)    # the shared scripts (UI-E2)
     parts = SCRIPT_RE.split(html)
     return "".join(p if i % 2 else _rewrite_markup(p, base, found, page) for i, p in enumerate(parts))
 
@@ -114,6 +116,8 @@ def _rewrite_markup(html, base, found, page="/"):
         name, url = m.group(1), absolute(m.group(2))
         if not url.startswith("/") or url.startswith("//"):
             return m.group(0)
+        if url.startswith("/assets/"):                # a shared stylesheet: a file, written once below
+            return f'{name}="{base}{url}"'
         if not is_public(url):
             return f'{name}="#"'
         found.add(_page_key(url))
@@ -169,6 +173,10 @@ def export(real_root, out_dir, base, start=("/",), max_pages=6000):
             fh.write(_rewrite(r.get_data(as_text=True), base.rstrip("/"), set()))
         with open(os.path.join(out_dir, ".nojekyll"), "w") as fh:
             fh.write("")
+        os.makedirs(os.path.join(out_dir, "assets"), exist_ok=True)       # UI-E2: once for the whole site
+        for hashed, (body, _mime) in app.config["ASSETS"].files.items():
+            with open(os.path.join(out_dir, "assets", hashed), "wb") as fh:
+                fh.write(body)
         return {"pages": len(written), "skipped": skipped, "truncated": bool(queue)}
     finally:
         shutil.rmtree(work, ignore_errors=True)

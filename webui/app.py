@@ -211,6 +211,8 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     from fantasy_sim.positional_tiers import _TABLE_CSS, _TABLE_JS
 
     app = Flask(__name__, template_folder="templates", static_folder=None)
+    from webui import assets as assetsmod
+    app.config["ASSETS"] = assetsmod.load(_TABLE_JS)         # UI-E2: /assets/<name>.<hash>.<ext>
     # A local name for this machine (W9: `--hostname syndicatefootball.local` plus a hosts-file
     # line pointing it at 127.0.0.1) joins the two built-in ones; the bind stays 127.0.0.1.
     allowed = tuple(ALLOWED_HOSTNAMES) + tuple(h.strip().lower() for h in hostnames if h and h.strip())
@@ -299,7 +301,7 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
                 "nav_more": NAV_DEV_MORE if mode == "dev" else (),
                 "private_marker": overlay.marker() if overlay.enabled else None,
                 "csrf_token": app.config["CSRF_TOKEN"], "my_team": MY_TEAM,
-                "root_path": root.root, "table_css": _TABLE_CSS, "table_js": _TABLE_JS,
+                "root_path": root.root, "table_css": _TABLE_CSS, "asset": app.config["ASSETS"].url,
                 "r1": R1_SENTENCE, "now": render.human_time(_dt.datetime.now(_dt.timezone.utc)),
                 "job_now": runner.current() if runner is not None else None,     # U3: the job bar on every page
                 "theme": settings.theme, "palette": pal}                         # U11 / U4
@@ -653,9 +655,17 @@ def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live
     def _headers(resp):
         resp.headers["X-Content-Type-Options"] = "nosniff"
         resp.headers["Referrer-Policy"] = "no-referrer"
-        if not request.path.startswith("/img/"):              # a headshot or logo keeps its day (audit 2026-09-29)
-            resp.headers["Cache-Control"] = "no-store"
+        if not request.path.startswith(("/img/", "/assets/")):   # a headshot or logo keeps its day (audit 2026-09-29);
+            resp.headers["Cache-Control"] = "no-store"          # an asset its year (its name is its content)
         return resp
+
+    @app.route("/assets/<name>")
+    def asset_file(name):
+        """UI-E2: the shared stylesheet and scripts, by content-hashed name only."""
+        hit = app.config["ASSETS"].get(name)
+        if hit is None:
+            abort(404)
+        return Response(hit[0], mimetype=hit[1], headers={"Cache-Control": assetsmod.CACHE})
 
     def require_csrf():
         """For every future POST: the per-launch token, or 403."""
