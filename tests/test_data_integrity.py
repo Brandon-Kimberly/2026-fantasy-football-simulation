@@ -89,7 +89,7 @@ try:
     from webui.settings import Settings
     from tests.test_webui_launch import FakeRunner
     from tests.test_webui_modes import visible_text
-    from tests.test_webui_objects import CB, QF, plant
+    from tests.test_webui_objects import CB, IW, QF, plant
     from tests.test_webui_routes import TEAMS
     HAS_FLASK = True
 except ImportError:
@@ -127,6 +127,15 @@ class TestPointsAgainstAreTheLeagues(Case):
         self.assertEqual(rows[order[0]]["points_against"], 500.0)
         self.assertEqual(rows[QF]["points_against"], 500.0 + order.index(QF))
 
+    def test_the_streak_is_the_leagues(self):
+        # Sleeper's streak runs through both games a week, head-to-head then median, in the
+        # order of its own record string (Quantum Ferrets, live on 2026-09-29: WWLLLW, streak
+        # 1W); the page counted head-to-head only and printed L2. Fixture: Quantum Ferrets
+        # W W / L L, Cosmic Badgers W L / W L, Iron Wombats L L / L L
+        from webui.standings import table
+        rows = {r["team"]: r for r in table(self.root)}
+        self.assertEqual((rows[QF]["streak"], rows[CB]["streak"], rows[IW]["streak"]), ("L2", "L1", "L4"))
+
 
 class TestTheCurveBanksWhatTheLeagueBanked(Case):
     def test_completed_weeks_follow_the_record(self):
@@ -136,6 +145,27 @@ class TestTheCurveBanksWhatTheLeagueBanked(Case):
         traj = home_report(self.root, QF, FakeRunner())["trajectory"]
         self.assertEqual(traj[:2], [2.0, 2.0], "week 1 two wins, week 2 none, as the league counted")
         self.assertEqual(traj[2:], [4.4, 5.6], "the forecast's weeks to come are untouched")
+
+    def test_the_forecast_pages_curves_bank_what_the_league_banked(self):
+        # the Forecasts page draws every team's curve from the same export: Quantum Ferrets'
+        # read 2, 3 and Cosmic Badgers' carried the week-2 win the league gave them one short.
+        # An export for week n banks the weeks before n; those come from the record, the rest
+        # stay the forecast's
+        self.rw("weeks/week_03/syndicate_comprehensive_matrix_week_3.json",
+                lambda d: dict(d, weekly_trajectories={QF: {"expected_cumulative_wins_by_week": [2.0, 3.0, 4.4, 5.6]}}))
+        from webui.app import week_report
+        traj = week_report(self.root, 3)["traj"][QF]["expected_cumulative_wins_by_week"]
+        self.assertEqual(traj, [2.0, 2.0, 4.4, 5.6])
+
+    def test_the_week_and_the_record_are_left_alone(self):
+        # found in the screenshots of the fix above: its loop reused `wk`, so Home announced
+        # the last completed week ("Week 3", "every week-3 game has kicked off") and counted
+        # losses from it (3-1 for a 3-3 team)
+        from webui.glance import freshness_report, home_report
+        rep = home_report(self.root, QF, FakeRunner())
+        wk = int(freshness_report(self.root)["week"])
+        self.assertEqual(rep["week"], wk)
+        self.assertEqual(rep["losses"], 2 * (wk - 1) - int(rep["my_row"]["wins"]))
 
 
 class TestLuckReadsTheRecord(Case):
@@ -179,6 +209,68 @@ class TestSmallMarginsKeepTheirHundredths(Case):
         text = visible_text(app.test_client().get("/history").get_data(as_text=True))
         i = text.index("Closest game")
         self.assertIn("0.04", text[i:i + 60])
+
+
+class TestTheRecordBookDoesNotContradictItself(unittest.TestCase):
+    """Same class as the week in review, found auditing it: history's record book pairs the
+    as-played winner with re-scored points, so a game the league counted a 0.24-point loss
+    could be the "highest score in a loss" for the team whose box score now WINS by 4.33, or
+    the season's biggest win for a team that scored less. A contradicted game still counts
+    for the points-only records (highest, lowest); it is left out of the result records."""
+
+    def test_result_records_skip_the_contradicted_game(self):
+        from webui.history import record_book
+        g = lambda wk, a, b, pa, pb, w: {"season": "2026", "week": wk, "a": a, "b": b, "pa": pa, "pb": pb, "winner": w,
+                                          "margin": round(abs(pa - pb), 2), "rescored": w == b and pa > pb, "rescaled": False}
+        gs = [g(2, "A", "B", 190.0, 100.0, "B"),       # the league counted B; the box score says A by 90
+              g(1, "C", "D", 150.0, 120.0, "C"), g(1, "E", "F", 140.0, 139.0, "E")]
+        book = {r["key"]: r for r in record_book(gs)}
+        self.assertEqual(book["high"]["team"], "A", "the points record keeps the re-scored game")
+        for key in ("margin", "high_loss", "low_win", "close"):
+            self.assertNotEqual(book[key]["week"], 2, key)
+
+
+class TestTheLuckToolReadsTheRecord(unittest.TestCase):
+    """The Luck Ledger TOOL (scripts.luck_ledger) is where "won both close games" came from:
+    run on 2026-09-29 it printed close games 2-0 and 2.0 head-to-head wins for a team the
+    league counted 1-2. It reads Sleeper's box scores live, so week 2's re-scored "win"
+    counted, and its banked cross-check stayed silent: it only fires once Sleeper's `leg`
+    has moved past the last counted week, and `leg` still read that week on the Tuesday
+    after it. The tool now takes the as-played record (data/logs/as_played_results_<season>.json)
+    for results, and checks against the banked record -- and reads the league's points
+    against -- whenever the league's own record covers exactly the weeks it counted."""
+
+    SCORES = {1: {"A": 180.0, "B": 140.0, "C": 150.0, "D": 145.0}, 2: {"A": 148.52, "B": 150.0, "C": 144.19, "D": 160.0}}
+    PAIRS = {1: [("A", "B"), ("C", "D")], 2: [("A", "C"), ("B", "D")]}
+    ROSTERS = [{"roster_id": i + 1, "settings": {"wins": w, "losses": 4 - w, "fpts_against": pa, "fpts_against_decimal": 50}}
+               for i, (w, pa) in enumerate(((2, 290), (1, 324), (3, 328), (2, 300)))]
+
+    def test_the_tool_passes_the_record_the_banked_wins_and_the_points_against(self):
+        from unittest.mock import patch
+        import scripts.luck_ledger as sl
+        from fantasy_sim.config import LEAGUE_ID
+        names = {1: "A", 2: "B", 3: "C", 4: "D"}
+        results = {1: {"A": (1.0, 1), "B": (0.0, 0), "C": (1.0, 1), "D": (0.0, 0)},
+                   2: {"A": (0.0, 0), "C": (1.0, 0), "B": (0.0, 1), "D": (1.0, 1)}}
+        seen = {}
+
+        def fake_ledger(*args, **kw):
+            seen.update(kw)
+            return {"schedule_luck": None, "opponent_luck": None, "close_games": None, "dnp_luck": None, "scoring_luck": None}
+        info = {"season": "2026", "settings": {"league_average_match": 1, "leg": 2}}
+        with patch.object(sl, "_league_chain", return_value=[("2026", LEAGUE_ID, info)]),              patch.object(sl, "_team_names", return_value=names),              patch.object(sl, "_season_data", return_value=(self.SCORES, self.PAIRS, {})),              patch.object(sl, "_get", return_value=self.ROSTERS),              patch.object(sl, "_projections", return_value=None),              patch.object(sl, "_as_played", return_value=results),              patch.object(sl, "ledger", side_effect=fake_ledger),              patch.object(sl, "render"), patch.object(sl, "real_name_overlay", return_value={}):
+            sl.main(["--team", "A"])
+        self.assertEqual(seen.get("results"), results)
+        self.assertEqual(seen.get("banked_wins"), 2, "the league's record covers both counted weeks")
+        self.assertEqual(seen.get("points_against"), {"A": 290.5, "B": 324.5, "C": 328.5, "D": 300.5})
+
+    def test_the_as_played_file(self):
+        import scripts.luck_ledger as sl
+        with tempfile.TemporaryDirectory() as td:
+            with open(os.path.join(td, "as_played_results_2026.json"), "w", encoding="utf-8") as fh:
+                json.dump({"_meta": {"weeks": [1]}, "week_1": {"A": {"h2h_win": 1.0, "median_win": 0}}}, fh)
+            self.assertEqual(sl._as_played("2026", logs_dir=td), {1: {"A": (1.0, 0)}})
+            self.assertEqual(sl._as_played("2025", logs_dir=td), {})
 
 
 if __name__ == "__main__":
