@@ -178,11 +178,11 @@ def _int_or_none(v):
 
 
 def create_app(root, overlay=None, csrf_token=None, port=None, runner=None, live=None, key_probe=None, key_reader=None,
-               settings=None, default_mode=None, hostnames=()):
+               settings=None, default_mode=None, hostnames=(), code_root=None):
     if not isinstance(root, Root):
         root = Root(root)
     overlay = overlay or Overlay()
-    runner = runner if runner is not None else JobRunner(root)
+    runner = runner if runner is not None else JobRunner(root, code_root=code_root)
     from fantasy_sim.config import MY_TEAM
     # W6: the live scoreboard's in-memory cache. Tests inject one with a fake fetch; the
     # default only reads the network when the league is configured and this is no runner.
