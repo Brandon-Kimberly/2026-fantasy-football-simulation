@@ -31,8 +31,10 @@ from urllib.parse import urlsplit
 PRIVATE = ("/tools", "/chat", "/api", "/img", "/file", "/jobs", "/sync", "/system", "/status", "/health", "/logs",
            "/records", "/results", "/mode", "/theme", "/gameday", "/trade", "/accuracy", "/playoffs/result",
            "/manifest.webmanifest")
-ATTR_RE = re.compile(r'\b(href|src|action)="([^"]*)"')
-ANCHOR_RE = re.compile(r'<a\b([^>]*)\bhref="([^"]*)"([^>]*)>(.*?)</a>', re.S)
+# A whole attribute name only: `\b` alone also matched after the hyphen of data-src / data-href,
+# and rewrote a script's data address as a page link (found building the browser playoff machine).
+ATTR_RE = re.compile(r'(?<![\w-])(href|src|action)="([^"]*)"')
+ANCHOR_RE = re.compile(r'<a\b([^>]*)(?<![\w-])href="([^"]*)"([^>]*)>(.*?)</a>', re.S)
 TEXT_EXT = (".html", ".txt", ".json", ".js", ".css", ".xml")
 
 
@@ -174,6 +176,10 @@ def export(real_root, out_dir, base, start=("/",), max_pages=6000, origin=None):
             fh.write(_rewrite(r.get_data(as_text=True), base.rstrip("/"), set()))
         with open(os.path.join(out_dir, ".nojekyll"), "w") as fh:
             fh.write("")
+        r = client.get("/playoffs/outcomes.json")                          # the browser machine's seasons, once
+        if r.status_code == 200 and os.path.isdir(os.path.join(out_dir, "playoffs")):
+            with open(os.path.join(out_dir, "playoffs", "outcomes.json"), "w", encoding="utf-8", newline="\n") as fh:
+                fh.write(r.get_data(as_text=True))
         os.makedirs(os.path.join(out_dir, "assets"), exist_ok=True)       # UI-E2: once for the whole site
         for hashed, (body, _mime) in app.config["ASSETS"].files.items():
             with open(os.path.join(out_dir, "assets", hashed), "wb") as fh:

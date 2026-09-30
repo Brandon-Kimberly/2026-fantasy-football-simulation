@@ -3,7 +3,7 @@
 [![ci](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml/badge.svg)](https://github.com/Brandon-Kimberly/syndicate-football/actions/workflows/ci.yml)
 ![python](https://img.shields.io/badge/python-3.10-blue)
 [![license](https://img.shields.io/github/license/Brandon-Kimberly/syndicate-football)](LICENSE)
-![tests](https://img.shields.io/badge/tests-2309%20passing-brightgreen)
+![tests](https://img.shields.io/badge/tests-2314%20passing-brightgreen)
 [![coverage](https://img.shields.io/badge/coverage-85.6%25-green)](#validation-and-audit-trail)
 
 ## In plain terms
@@ -277,7 +277,7 @@ Two credentials are read from environment variables, never hardcoded:
 ## Testing
 
 ```bash
-py -3.10 -m unittest discover tests      # expected: Ran 2309 tests ... OK (skipped=1, expected failures=3)
+py -3.10 -m unittest discover tests      # expected: Ran 2314 tests ... OK (skipped=1, expected failures=3)
 py -3.10 -m coverage run -m unittest discover tests && py -3.10 -m coverage report --show-missing
                                          # branch coverage; the committed floor (coverage_floor.txt) gates the
                                          # fantasy_sim package. Standalone milestone scripts are measured but
