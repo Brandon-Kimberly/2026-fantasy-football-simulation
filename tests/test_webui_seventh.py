@@ -108,7 +108,7 @@ class TestTicksAndLabels(unittest.TestCase):
         ys = sorted(float(y) for y in re.findall(r'<text class="vl"[^>]*y="([\d.]+)"', svg))
         self.assertEqual(len(ys), 4)
         for a, b in zip(ys, ys[1:]):
-            self.assertGreaterEqual(b - a, render.CHART_FONT_PX + 2, ys)
+            self.assertGreaterEqual(b - a, render.CHART_FONT_PX + 4, ys)   # +2 met the rule and still read as touching (README shots, 2026-09-30)
         self.assertIn('style="fill:hsl(48 62% var(--line-l))"', svg)             # a race label wears its team's colour
 
     def test_a_run_of_identical_labels_is_written_once(self):
