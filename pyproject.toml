@@ -30,6 +30,6 @@ test = ["hypothesis"]
 packages = ["fantasy_sim", "fantasy_sim.clients"]
 
 [project.urls]
-Repository = "https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation"
-"Sample report" = "https://brandon-kimberly.github.io/2026-fantasy-football-simulation/sample/weekly_report_sample.html"
-Changelog = "https://github.com/Brandon-Kimberly/2026-fantasy-football-simulation/blob/main/CHANGELOG.md"
+Repository = "https://github.com/Brandon-Kimberly/syndicate-football"
+"Sample report" = "https://brandon-kimberly.github.io/syndicate-football/sample/weekly_report_sample.html"
+Changelog = "https://github.com/Brandon-Kimberly/syndicate-football/blob/main/CHANGELOG.md"
