@@ -598,3 +598,20 @@ h2 svg.i { box-sizing: content-box; padding: 5px; border-radius: 9px; background
   .pre { opacity: 1; transform: none; }
   button:not(.ghost)::before, .btn:not(.ghost)::before { display: none; }
 }
+
+@media (max-width: 600px) {
+  table.data-dense {
+    display: block;
+  }
+  table.data-dense thead {
+    display: none;
+  }
+  table.data-dense tbody tr {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rule);
+    border-radius: 8px;
+    margin-bottom: 10px;
+    padding: 10px;
+  }
+}
