@@ -903,5 +903,6 @@ SIM_CONFIG = {
     "KNOWN_MISSING_ASSETS": {
         "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "NO", "bye": 0},
         "Tyreek Hill": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "FA", "bye": 0},
+        "Tank Dell": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "FA", "bye": 0},
     }
 }
