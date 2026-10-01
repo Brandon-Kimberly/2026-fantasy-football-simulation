@@ -5,6 +5,39 @@ in it, audit counts, hardware/season blockers, backlog, and what the tag does *n
 claim) live on the linked release. MAJOR means the model's predictions changed
 materially (see the release policy in `CLAUDE.md`).
 
+## [v10.4.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.4.0) — 2026-10-01 (MINOR)
+
+**The league gets a public site, and the numbers get the league's own word.** The web UI
+roadmap run to the end (101 of 102 items built), a public copy of the site on GitHub Pages,
+scores that match what the league banked to the cent, a read-only chat, and an odds-credit
+budget that makes running out impossible. The model is unchanged: the goldens moved only by
+the additive outcome record (Decision 1, ruled MINOR, regenerated alone as 33 added lines),
+and the sync golden is byte-identical. The suite goes 1732 → 2314.
+
+**The roadmap, run.** Team, player and matchup pages; the playoff machine with leverage,
+the rooting guide, wins needed and clinch marks, all filtered from the forecast's own
+simulated seasons; history, the draft board and the week in review; the season grid,
+strength of schedule, the distribution strip, lineup calls judged before the games, the TV
+view's second version, completed trades beside what happened, the waiver board with lost
+claims and what each claim took to win, headshots and logos from a local cache, a JSON API,
+the sandbox root and streamed job status. And a defender's projected stat line, from the
+payload the sync already fetched.
+
+**Numbers the league agrees with.** Past weeks are scored as the league banked them —
+the settings in force that week and the commissioner's overrides — checked to the cent;
+week 2 counts as it was played (F83). The language was rewritten in both views.
+
+**Out in public.** https://brandon-kimberly.github.io/syndicate-football/ is the simple view
+from the owner's side, rebuilt after each week's official run, pseudonyms only, no images,
+leak-checked against every real identity of all three seasons before it publishes (and it
+refuses to build without all four league ids). 28 MB and 1,368 pages, from a first build of
+455 MB: shared cacheable CSS and JS, and a playoff machine counted in the browser and held to
+the Python numbers by a real-browser parity test. Text-only link previews.
+
+**Odds credits.** The key check reads the free endpoint; a sync that is not an official run
+reuses fresh lines and never spends below a 60-credit reserve held for the official runs; out
+of credits is its own diagnosis, not "rejected key".
+
 ## [v10.3.0](https://github.com/Brandon-Kimberly/syndicate-football/releases/tag/v10.3.0) — 2026-09-28 (MINOR)
 
 **The viewer gets audited, and then gets used.** A crawl-and-screenshot harness
