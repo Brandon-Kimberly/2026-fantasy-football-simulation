@@ -629,3 +629,7 @@
 {"injury_body_part": null, "injury_status": null, "name": "Josiah Trotter", "player_id": "13379", "practice_participation": null, "recorded_at": "2026-10-01T21:59:09Z", "team": "Cosmic Badgers", "week": 4}
 {"injury_body_part": "Hamstring", "injury_status": "IR", "name": "Travis Etienne", "player_id": "7543", "practice_participation": null, "recorded_at": "2026-10-01T21:59:09Z", "team": "Cosmic Badgers", "week": 4}
 {"injury_body_part": null, "injury_status": null, "name": "Jaylen Wright", "player_id": "11643", "practice_participation": null, "recorded_at": "2026-10-01T21:59:09Z", "team": "Neon Walruses", "week": 4}
+{"injury_body_part": "Hamstring", "injury_status": "Questionable", "name": "Terry McLaurin", "player_id": "5927", "practice_participation": null, "recorded_at": "2026-10-02T18:42:53Z", "team": "Iron Wombats", "week": 4}
+{"injury_body_part": null, "injury_status": null, "name": "Brian Robinson", "player_id": "8154", "practice_participation": null, "recorded_at": "2026-10-02T18:42:53Z", "team": "Quantum Ferrets", "week": 4}
+{"injury_body_part": null, "injury_status": null, "name": "Dontayvion Wicks", "player_id": "9486", "practice_participation": null, "recorded_at": "2026-10-02T18:42:53Z", "team": "Quantum Ferrets", "week": 4}
+{"injury_body_part": null, "injury_status": null, "name": "Tony Pollard", "player_id": "5967", "practice_participation": null, "recorded_at": "2026-10-02T18:42:53Z", "team": "Rocket Pandas", "week": 4}
