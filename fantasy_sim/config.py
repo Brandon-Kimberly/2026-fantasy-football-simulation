@@ -900,9 +900,17 @@ SIM_CONFIG = {
     #   cancelling -- the moment he signs, Sleeper projects him, sync writes a real baseline
     #   and the engine stops imputing (the whitelist applies only to a missing or zero mean).
     #   If he is still unsigned and this reads as a real projection to you, it is not one.
+    #   Tank Dell: WR, HOU (Sleeper pid 9502), status Inactive, on IR after ACL + MCL surgery.
+    #   Added 2026-10-01 (issue #23) when the sync found him rostered with a zero projection and
+    #   no prior anywhere. Zeros for the same reason as Hill's: a player on IR cannot be in a
+    #   game, so his expected points are zero with no spread. Team HOU and bye 8 are Sleeper's
+    #   (the sync accepts an entry only when its team matches the roster's -- the first version
+    #   said 'FA', was not accepted, and the week-4 pre-kickoff window was lost to it).
+    #   Self-cancelling: Sleeper's week-5 projection already gives him 1.16 points, and the
+    #   whitelist applies only to a missing or zero mean.
     "KNOWN_MISSING_ASSETS": {
         "Jordyn Tyson": {"mean": 6.5, "std_aleatoric": 3.0, "std_epistemic": 1.17, "pos": "WR", "team": "NO", "bye": 0},
         "Tyreek Hill": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "FA", "bye": 0},
-        "Tank Dell": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "FA", "bye": 0},
+        "Tank Dell": {"mean": 0.0, "std_aleatoric": 0.0, "std_epistemic": 0.0, "pos": "WR", "team": "HOU", "bye": 8},
     }
 }

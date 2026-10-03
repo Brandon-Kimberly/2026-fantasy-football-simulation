@@ -108,7 +108,7 @@ window.watchJob = function (jid, apply, pollMs, pollOnly) {
       bar.remove();
       if (j.state === 'OK') showToast('<span><b>' + escT(jlabel) + '</b> finished.</span> <a href="' + escT(jurl) + '">Open the answer</a>', 30000);
       else showToast('<span><b>' + escT(jlabel) + '</b> did not finish.</span> <a href="' + escT(jurl) + '">See what happened</a>', 30000);
-    }, 3000, false);
+    }, 3000, true);
   }
   // U4 / U14: the command palette and the shortcuts
   var PALETTE = window.PALETTE || [];   // the page's own list, inline in base.html
