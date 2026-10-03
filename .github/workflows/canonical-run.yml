@@ -133,7 +133,7 @@ jobs:
         # Only an official run's data becomes the public site (owner, 2026-09-30): the forecast
         # a visitor sees is the week's canonical one. JSON only -- no charts, no images.
         if: steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict == 'CANONICAL_OK' && env.MODE != 'force-report'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: site-data
           path: |
@@ -151,7 +151,7 @@ jobs:
       - name: Upload the report artifact
         id: artifact
         if: always() && steps.watch.outputs.proceed == 'true' && steps.gate.outputs.verdict != 'ABORT'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: weekly-report-${{ github.run_id }}
           path: data/decisions/**

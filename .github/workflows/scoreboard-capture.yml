@@ -36,7 +36,7 @@ jobs:
       - name: Record the live scoreboard
         run: python -m scripts.capture_scoreboard --out scoreboard_capture --minutes "${{ inputs.minutes || '25' }}" --every 60
       - name: Keep the snapshots
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: scoreboard-live-${{ github.run_id }}
           path: scoreboard_capture/
